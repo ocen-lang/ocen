@@ -1,0 +1,10 @@
+import foo
+
+def main() {
+    return foo::do_foo()
+}
+
+// python like imports
+// imports within a scope (like rust)
+// default arguments for functions (maybe structs?)
+// lol generics but probably not i'm too dumb for this

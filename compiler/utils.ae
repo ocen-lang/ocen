@@ -1,0 +1,56 @@
+use "lib/vector.ae"
+use "lib/math.ae"
+use "compiler/tokens.ae"
+
+def strsep(s: &string, delim: string): string extern
+
+def edit_distance(str1: string, str2: string): i32 {
+    let n = str1.len()
+    let m = str2.len()
+    let stride = m + 1
+
+    // The stack _should_ be large enough to hold the entire matrix.
+    let d: [[i32; m + 1]; n + 1]
+
+    for let i = 0; i <= n; i += 1 {
+        d[i][0] = i
+    }
+    for let j = 0; j <= m; j += 1 {
+        d[0][j] = j
+    }
+    for let i = 1; i <= n; i += 1 {
+        for let j = 1; j <= m; j += 1 {
+            let x = d[i - 1][j] + 1
+            let y = d[i][j - 1] + 1
+            let z: i32
+            if str1[i - 1] == str2[j - 1] {
+                z = d[i - 1][j - 1]
+            } else {
+                z = d[i - 1][j - 1] + 1
+            }
+            d[i][j] = min(x, min(y, z))
+        }
+    }
+    let result = d[n][m]
+    return result
+}
+
+def find_word_suggestion(s: string, options: &Vector): string {
+    let threshold = 5 // edit distance threshold
+
+    if options.size == 0 return null
+
+    let closest = options.at(0) as string
+    let closest_distance = edit_distance(s, closest)
+
+    for let i = 1; i < options.size; i += 1 {
+        let option = options.at(i) as string
+        let distance = edit_distance(s, option)
+        if distance < closest_distance {
+            closest = option
+            closest_distance = distance
+        }
+    }
+    if closest_distance > threshold return null
+    return closest
+}

@@ -1,0 +1,118 @@
+use "compiler/ast.ae"
+use "compiler/tokens.ae"
+
+enum BaseType {
+    Char
+    Bool
+    Void
+    I8
+    I16
+    I32
+    I64
+    U8
+    U16
+    U32
+    U64
+    F32
+    F64
+
+    Pointer
+    Function
+    Error
+}
+
+def BaseType::str(this): string => match this {
+    Char => "char"
+    Bool => "bool"
+    Void => "void"
+    I8 => "i8"
+    I16 => "i16"
+    I32 => "i32"
+    I64 => "i64"
+    U8 => "u8"
+    U16 => "u16"
+    U32 => "u32"
+    U64 => "u64"
+    F32 => "f32"
+    F64 => "f64"
+    else => .dbg()
+}
+
+struct FunctionType {
+    orig: &Function      // null if this is a function pointer
+    return_type: &Type
+    params: &Vector      // Vector<&Variable>
+}
+
+struct Type {
+    base: BaseType
+    span: Span
+
+    ptr: &Type
+    func: &FunctionType
+}
+
+def Type::new(base: BaseType, span: Span): &Type {
+    let type = calloc(1, sizeof(Type)) as &Type
+    type.base = base
+    type.span = span
+    return type
+}
+
+def Type::new_link(base: BaseType, next: &Type, span: Span): &Type {
+    let type = Type::new(base, span)
+    type.ptr = next
+    return type
+}
+
+def Type::ptr_to(base: BaseType, span: Span): &Type {
+    let next = Type::new(base, span)
+    return Type::new_link(BaseType::Pointer, next, span)
+}
+
+def Type::is_integer(&this): bool => match .base {
+    I8 | I16 | I32 | I64 |
+    U8 | U16 | U32 | U64 => true
+    else => false
+}
+
+def Type::is_float(&this): bool => .base == BaseType::F32 or .base == BaseType::F64
+
+def Type::is_numeric(&this): bool => match .base {
+    I8  | I16 | I32 | I64 |
+    U8  | U16 | U32 | U64 |
+    F32 | F64 => true
+    else => false
+}
+
+def Type::is_numeric_or_char(&this): bool => .is_numeric() or .base == BaseType::Char
+
+def Type::eq(&this, other: &Type): bool {
+    if (this == null and other == null) return true
+    if (this == null or other == null) return false
+    if .base != other.base return false
+
+    match .base {
+        Error => return false
+        Function => {
+            let af = .func
+            let bf = other.func
+            if not af.return_type.eq(bf.return_type) return false
+            if af.params.size != bf.params.size return false
+            for let i = 0; i < af.params.size; i += 1 {
+                let a = af.params.at(i) as &Variable
+                let b = bf.params.at(i) as &Variable
+                if not a.type.eq(b.type) return false
+            }
+            return true
+        }
+        Pointer => return .ptr.eq(other.ptr)
+        else => return true
+    }
+}
+
+def Type::str(&this): string => match .base {
+    Pointer => `&{.ptr.str()}`
+    Function => "<function>"
+    else => .base.str()
+}

@@ -1,0 +1,180 @@
+use "lib/vector.ae"
+use "lib/map.ae"
+use "compiler/types.ae"
+use "compiler/tokens.ae"
+use "compiler/errors.ae"
+
+enum ASTType {
+    Block
+    Call
+    Error
+    Identifier
+    IntLiteral
+    Return
+    ScopeLookup
+    Import
+}
+
+struct Variable {
+    name: string
+    type: &Type
+    span: Span
+
+    is_extern: bool
+    extern_name: string
+}
+
+def Variable::new(name: string, type: &Type, span: Span): &Variable {
+    let var = calloc(1, sizeof(Variable)) as &Variable
+    var.name = name
+    var.type = type
+    var.span = span
+    return var
+}
+
+struct Function {
+    name: string
+    params: &Vector     // Vector<&Variable>
+    return_type: &Type
+    body: &AST
+    exits: bool
+
+    type: &Type
+    span: Span
+}
+
+def Function::new(span: Span): &Function {
+    let func = calloc(1, sizeof(Function)) as &Function
+    func.params = Vector::new()
+    func.span = span
+    return func
+}
+
+struct Namespace {
+    parent: &Namespace
+
+    functions: &Vector    // Vector<&Function>
+    imports: &Vector      // Vector<&AST>
+    namespaces: &Map      // Map<string, &Namespace>
+
+    path: string
+    prefix: string
+    is_module: bool
+}
+
+def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace {
+    let ns = calloc(1, sizeof(Namespace)) as &Namespace
+    ns.parent = parent
+    ns.functions = Vector::new()
+    ns.namespaces = Map::new()
+    ns.imports = Vector::new()
+    ns.path = path
+    ns.prefix = prefix
+    ns.is_module = false
+    return ns
+}
+
+struct Program {
+    global: &Namespace
+    errors: &Vector       // Vector<&Error>
+}
+
+def Program::new(): &Program {
+    let prog = calloc(1, sizeof(Program)) as &Program
+    prog.global = Namespace::new(null, "", "")
+    prog.errors = Vector::new()
+    return prog
+}
+
+struct Block {
+    statements: &Vector     // Vector<&AST>
+}
+
+struct Identifier {
+    name: string
+    var: &Variable
+    is_function: bool
+    func: &Function
+}
+
+struct Argument {
+    expr: &AST
+    label: &AST // Identifier
+}
+
+def Argument::new(label: &AST, expr: &AST): &Argument {
+    let arg = calloc(1, sizeof(Argument)) as &Argument
+    arg.expr = expr
+    arg.label = label
+    return arg
+}
+
+struct FuncCall {
+    callee: &AST
+    args: &Vector    // Vector<&Argument>
+    func: &Function
+}
+
+struct ImportPart {
+    name: string
+    span: Span
+}
+
+def ImportPart::new(name: string, span: Span): &ImportPart {
+    let part = calloc(1, sizeof(ImportPart)) as &ImportPart
+    part.name = name
+    part.span = span
+    return part
+}
+
+struct ImportPath {
+    parts: &Vector    // &Vector<ImportPart>
+}
+
+struct NumLiteral {
+    text: string
+    suffix: &Type
+}
+
+struct Binary {
+    lhs: &AST
+    rhs: &AST
+}
+
+def Binary::new(lhs: &AST, rhs: &AST): &Binary {
+    let bin = calloc(1, sizeof(Binary)) as &Binary
+    bin.lhs = lhs
+    bin.rhs = rhs
+    return bin
+}
+
+union ASTUnion {
+    block: Block
+    ident: Identifier
+    call: FuncCall
+    unary: &AST
+    binary: Binary
+    num_literal: NumLiteral
+    import_path: ImportPath
+}
+
+struct AST {
+    type: ASTType
+    span: Span
+    u: ASTUnion
+    etype: &Type
+    returns: bool
+}
+
+def AST::new(type: ASTType, span: Span): &AST {
+    let ast = calloc(1, sizeof(AST)) as &AST
+    ast.type = type
+    ast.span = span
+    return ast
+}
+
+def AST::new_unop(type: ASTType, span: Span, expr: &AST): &AST {
+    let ast = AST::new(type, span)
+    ast.u.unary = expr
+    return ast
+}

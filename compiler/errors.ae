@@ -1,0 +1,170 @@
+use "lib/vector.ae"
+use "compiler/tokens.ae"
+use "compiler/utils.ae"
+
+enum ErrorType {
+    Standard
+    WithNote
+    WithHint
+}
+
+def ErrorType::str(this): string => match this {
+    Standard => "Standard"
+    WithNote => "WithNote"
+    WithHint => "WithHint"
+}
+
+struct Error {
+    type: ErrorType
+    msg1: string
+    span1: Span
+    msg2: string
+    span2: Span
+}
+
+enum MessageType {
+    Error
+    Warning
+    Note
+}
+
+def MessageType::to_color(this): string => match this {
+    Error => "\x1b[31m"
+    Warning => "\x1b[33m"
+    Note => "\x1b[32m"
+}
+
+def MessageType::str(this): string => match this {
+    Error => "Error"
+    Warning => "Warning"
+    Note => "Note"
+}
+
+def display_line() {
+    println("--------------------------------------------------------------------------------")
+}
+
+def display_message(type: MessageType, span: Span, msg: string) {
+    display_line()
+    println("%s: %s: %s", span.start.str(), type.str(), msg)
+    display_line()
+}
+
+def display_message_span(type: MessageType, span: Span, msg: string) {
+    let color = MessageType::to_color(type)
+    let reset = "\x1b[0m"
+
+    let filename = span.start.filename;
+    println("%s: %s: %s", filename, type.str(), msg)
+    let file = File::open(filename, "r")
+    defer file.close()
+
+    let contents = file.slurp()
+    defer free(contents)
+
+    let around_offset = 1
+    let min_line = max(span.start.line - around_offset, 1)
+    let max_line = span.end.line + around_offset
+
+    display_message(type, span, msg)
+    let lines = contents
+    let cur = strsep(&lines, "\n")
+    let line_no = 1
+    while cur? and line_no <= max_line {
+        if line_no >= min_line and line_no <= max_line {
+            print("%4d | ", line_no)
+            if line_no == span.start.line {
+                let start_col = span.start.col - 1
+                let end_col = span.end.col - 1
+                if span.end.line != span.start.line {
+                    end_col = cur.len()
+                }
+                for let i = 0; i < start_col; i += 1 {
+                    print("%c", cur[i])
+                }
+                print("%s", color)
+                for let i = start_col; i < end_col; i += 1 {
+                    print("%c", cur[i])
+                }
+                println("%s%s", reset, cur + end_col)
+                println("%*s%s^ %s%s", start_col + 7, "", color, msg, reset)
+            } else {
+                println("%s", cur)
+            }
+        }
+        line_no += 1
+        cur = strsep(&lines, "\n")
+    }
+}
+
+def Error::display(&this) {
+    match .type {
+        Standard => {
+            display_message_span(MessageType::Error, .span1, .msg1)
+            display_line()
+        }
+        WithNote => {
+            display_message_span(MessageType::Error, .span1, .msg1)
+            display_message(MessageType::Note, .span1, .msg2)
+        }
+        WithHint => {
+            display_message_span(MessageType::Error, .span1, .msg1)
+            display_message_span(MessageType::Note, .span2, .msg2)
+            display_line()
+        }
+    }
+}
+
+def Error::panic(&this) exits {
+    .display()
+    exit(1)
+}
+
+def Error::new(span: Span, msg: string): &Error {
+    let err = calloc(1, sizeof(Error)) as &Error
+    err.type = ErrorType::Standard
+    err.msg1 = msg
+    err.span1 = span
+    return err
+}
+
+def Error::new_note(span: Span, msg: string, note: string): &Error {
+    let err = calloc(1, sizeof(Error)) as &Error
+    err.type = ErrorType::WithNote
+    err.msg1 = msg
+    err.span1 = span
+    err.msg2 = note
+    return err
+}
+
+def Error::new_hint(span: Span, msg: string, span2: Span, hint: string): &Error {
+    let err = calloc(1, sizeof(Error)) as &Error
+    err.type = ErrorType::WithHint
+    err.msg1 = msg
+    err.span1 = span
+    err.msg2 = hint
+    err.span2 = span2
+    return err
+}
+
+def display_error_messages(errors: &Vector, detail_level: i32) {
+    let num_errors_env = get_environment_variable("AECOR_NUM_ERRORS")
+    let max_num_errors = if num_errors_env? then num_errors_env.to_i32() else 10
+
+    let num_errors = min(errors.size, max_num_errors)
+    let first = true
+    for let i = num_errors - 1; i >= 0; i -= 1 {
+        let err = errors.at(i) as &Error
+
+        match detail_level {
+            0 => println("%s: %s", err.span1.start.str(), err.msg1)
+            1 => display_message_span(MessageType::Error, err.span1, err.msg1)
+            2 => {
+                if first then println("")
+                first = false
+                err.display()
+            }
+            else => panic("invalid detail level")
+        }
+    }
+}

@@ -1,0 +1,417 @@
+use "compiler/ast.ae"
+use "compiler/lexer.ae"
+use "compiler/utils.ae"
+
+// Don't think this is used enough to include in the prelude.
+@compiler c_include "libgen.h"
+def dirname(path: string): string extern
+def basename(path: string): string extern
+
+struct Parser {
+    tokens: &Vector  // &Vector<Token>
+    curr: i32
+
+    program: &Program
+    ns: &Namespace
+}
+
+def Parser::make(program: &Program, ns: &Namespace): Parser {
+    return Parser(
+        tokens: null,
+        curr: 0,
+        program: program,
+        ns: ns
+    )
+}
+
+def Parser::error_msg(&this, msg: string): &Error {
+    let err = Error::new(.token().span, msg)
+    .program.errors.push(err)
+    return err
+}
+
+def Parser::error(&this, err: &Error) {
+    .program.errors.push(err)
+}
+
+def Parser::unhandled_type(&this, func: string) {
+    .error_msg(`Unexpected token in {func}: {.token().type.str()}`)
+}
+
+def Parser::token(&this): &Token => .tokens.at(.curr)
+
+def Parser::token_is(&this, type: TokenType): bool {
+    if type == TokenType::Newline {
+        return .token().seen_newline
+    }
+    return .token().type == type
+}
+
+def Parser::consume_if(&this, type: TokenType): bool {
+    if .token_is(type) {
+        // Newline tokens are special because they don't consume a token.
+        if type != TokenType::Newline {
+            .curr += 1
+        }
+        return true
+    }
+    return false
+}
+
+def Parser::consume_newline_or(&this, type: TokenType) {
+    if .token_is(type) {
+        .curr += 1
+    } else if not .token().seen_newline {
+        .error_msg(`Expected {type.str()} or newline`).panic()
+    }
+}
+
+def Parser::consume(&this, type: TokenType): &Token {
+    let tok = .token()
+    if not .consume_if(type) {
+        .error_msg(`Expected TokenType::{type.str()}`).panic()
+    }
+    return tok
+}
+
+def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
+    let type = null as &Type
+    let span = .token().span
+
+    match .token().type {
+        TokenType::Bool => type = Type::new(BaseType::Bool, .consume(TokenType::Bool).span)
+        TokenType::Char => type = Type::new(BaseType::Char, .consume(TokenType::Char).span)
+        TokenType::I8 => type = Type::new(BaseType::I8, .consume(TokenType::I8).span)
+        TokenType::I16 => type = Type::new(BaseType::I16, .consume(TokenType::I16).span)
+        TokenType::I32 => type = Type::new(BaseType::I32, .consume(TokenType::I32).span)
+        TokenType::I64 => type = Type::new(BaseType::I64, .consume(TokenType::I64).span)
+        TokenType::U8 => type = Type::new(BaseType::U8, .consume(TokenType::U8).span)
+        TokenType::U16 => type = Type::new(BaseType::U16, .consume(TokenType::U16).span)
+        TokenType::U32 => type = Type::new(BaseType::U32, .consume(TokenType::U32).span)
+        TokenType::U64 => type = Type::new(BaseType::U64, .consume(TokenType::U64).span)
+        TokenType::F32 => type = Type::new(BaseType::F32, .consume(TokenType::F32).span)
+        TokenType::F64 => type = Type::new(BaseType::F64, .consume(TokenType::F64).span)
+
+        else => {
+            .unhandled_type("parse_type")
+            type = Type::new(BaseType::Error, .token().span)
+        }
+    }
+
+    if parent? {
+        parent.ptr = type
+        parent.span = parent.span.join(type.span)
+    }
+    return type
+}
+
+def Parser::parse_type(&this): &Type => .parse_type_with_parent(null)
+
+def Parser::parse_expression(&this, end_type: TokenType): &AST {
+    let node = null as &AST
+
+    match .token().type {
+        TokenType::IntLiteral => {
+            node = AST::new(ASTType::IntLiteral, .token().span)
+            let tok = .consume(TokenType::IntLiteral)
+            node.u.num_literal = NumLiteral(
+                text: tok.text,
+                suffix: null
+            )
+        }
+        TokenType::Identifier => {
+            let op = .consume(TokenType::Identifier)
+            node = AST::new(ASTType::Identifier, op.span)
+            node.u.ident.name = op.text
+        }
+        else => {
+            .unhandled_type("parse_expression")
+            node = AST::new(ASTType::Error, .token().span)
+            .curr += 1
+        }
+    }
+
+    let running = true
+    while running {
+        if .token_is(end_type) break
+        match .token().type {
+            TokenType::OpenParen => {
+                .consume(TokenType::OpenParen)
+                let args = Vector::new()
+                while not .token_is(TokenType::CloseParen) {
+                    let label = null as &AST
+                    let expr = .parse_expression(end_type: TokenType::Comma)
+                    if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
+                        .consume(TokenType::Colon)
+                        label = expr
+                        expr = .parse_expression(end_type: TokenType::Comma)
+                    }
+
+                    args.push(Argument::new(label, expr))
+                    if not .token_is(TokenType::CloseParen) {
+                        .consume(TokenType::Comma)
+                    }
+                }
+
+                let end = .consume(TokenType::CloseParen)
+                let call_type = ASTType::Call
+                let call = AST::new(call_type, node.span.join(end.span))
+                call.u.call.callee = node
+                call.u.call.args = args
+                node = call
+            }
+            TokenType::ColonColon => {
+                .consume(TokenType::ColonColon)
+                let name = .consume(TokenType::Identifier)
+                let lookup = AST::new(ASTType::ScopeLookup, node.span.join(name.span))
+
+                let rhs = AST::new(ASTType::Identifier, name.span)
+                rhs.u.ident.name = name.text
+
+                lookup.u.binary.lhs = node
+                lookup.u.binary.rhs = rhs
+                node = lookup
+            }
+            else => running = false
+        }
+    }
+
+    return node
+}
+
+def Parser::consume_end_of_statement(&this) {
+    if .token_is(TokenType::CloseCurly) return
+    .consume_newline_or(TokenType::Semicolon)
+}
+
+def Parser::parse_statement(&this): &AST {
+    let node = null as &AST
+    let start_span = .token().span
+
+    match .token().type {
+        TokenType::OpenCurly => node = .parse_block()
+        TokenType::Return => {
+            .consume(TokenType::Return)
+            let expr = null as &AST
+            if not .token().seen_newline {
+                expr = .parse_expression(end_type: TokenType::Newline)
+            }
+            node = AST::new_unop(ASTType::Return, start_span.join(.token().span), expr)
+            .consume_end_of_statement()
+        }
+        else => {
+            node = .parse_expression(end_type: TokenType::Newline)
+            .consume_if(TokenType::Semicolon)
+        }
+    }
+
+    return node
+}
+
+def Parser::parse_block(&this): &AST {
+    let node = AST::new(ASTType::Block, .token().span)
+    .consume(TokenType::OpenCurly)
+
+    let statements = Vector::new()
+    while not .token_is(TokenType::CloseCurly) {
+        let statement = .parse_statement()
+        statements.push(statement)
+    }
+    node.u.block.statements = statements
+
+    .consume(TokenType::CloseCurly)
+    return node
+}
+
+def Parser::parse_function(&this): &Function {
+    .consume(TokenType::Def)
+
+    let struct_type = null as &Type
+    let struct_name = null as string
+    let is_method = false
+    let is_static = false
+
+    let name = .consume(TokenType::Identifier)
+
+    let func = Function::new(name.span)
+    func.name = name.text
+
+    .consume(TokenType::OpenParen)
+    while not .token_is(TokenType::CloseParen) {
+        let found_amp = .consume_if(TokenType::Ampersand)
+        let var_name = .consume(TokenType::Identifier)
+        let type = null as &Type
+        if func.params.empty() and is_method {
+            if var_name.text.eq("this") {
+                type = struct_type
+                if found_amp {
+                    type = Type::new_link(BaseType::Pointer, type, name.span)
+                }
+            } else if found_amp {
+                .error(Error::new(var_name.span, "Expected 'this' over here"))
+            } else {
+                is_static = true
+            }
+        }
+        if not type? {
+            .consume(TokenType::Colon)
+            type = .parse_type()
+        }
+        let var = Variable::new(var_name.text, type, var_name.span)
+        func.params.push(var)
+
+        if not .token_is(TokenType::CloseParen) {
+            .consume(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseParen)
+
+    if .consume_if(TokenType::Colon) {
+        func.return_type = .parse_type()
+    } else if name.text.eq("main") {
+        func.return_type = Type::new(BaseType::I32, name.span)
+    } else {
+        func.return_type = Type::new(BaseType::Void, name.span)
+        if .token_is(TokenType::Identifier) and .token().text.eq("exits") {
+            .consume(TokenType::Identifier)
+            func.exits = true
+        }
+    }
+
+    func.body = .parse_block()
+
+    return func
+}
+
+def Parser::parse_import(&this): &AST {
+    let span = .token().span
+    .consume(TokenType::Import)
+
+    let parts = Vector::new()
+    while true {
+        if .token().is_word() {
+            let word = .token()
+            .curr += 1
+
+            span = span.join(word.span)
+            parts.push(ImportPart::new(word.text, word.span))
+            if not .token_is(TokenType::Dot) break
+
+            .consume(TokenType::Dot)
+        } else {
+            .error(Error::new(.token().span, "Expected identifier"))
+            return null
+        }
+    }
+
+    let node = AST::new(ASTType::Import, span)
+    node.u.import_path.parts = parts
+    return node
+}
+
+def Parser::parse_module(&this) {
+    while not .token_is(TokenType::EOF) {
+        match .token().type {
+            Def => {
+                let func = .parse_function()
+                println(`got function: {func.name}`)
+                if func? then .ns.functions.push(func)
+            }
+            Import => {
+                let import_ = .parse_import()
+                if import_? then {
+                    .load_import_path(import_)  // To parse the files...
+                    .ns.imports.push(import_)   // For typechecker...
+                }
+            }
+            else => {
+                println(`Unhandled token type: {.token().type}`)
+                .curr += 1
+            }
+        }
+    }
+}
+
+def Parser::load_import_path(&this, import_stmt: &AST) {
+    let path = &import_stmt.u.import_path
+    let base = .ns.parent
+
+    for let i = 0; i < path.parts.size; i += 1 {
+        let part = path.parts.at(i) as &ImportPart
+        let next = base.namespaces.get(part.name) as &Namespace
+
+        let part_path = `{base.path}/{part.name}`
+        if not next? {
+            next = Namespace::new(
+                parent: base,
+                path: part_path,
+                prefix: part.name,
+            )
+            base.namespaces.insert(part.name, next)
+
+            // FIXME: Is this right?!
+            let path = `{base.path}/{part.name}.ae`
+            if File::exists(path) {
+                println(`- Found file {path}`)
+                let parser = Parser::make(.program, next)
+                parser.load_file(path.copy())
+                base = next
+
+                break // We're done here, everything else is in the file
+            }
+            free(path)
+        } else {
+            println(`- Already have {part.name}`)
+        }
+
+        base = next
+    }
+    if not base.is_module {
+        .error(Error::new(import_stmt.span, `Could not find: {base.path}[.ae]`))
+    }
+}
+
+def Parser::load_file(&this, filename: string) {
+    println(`[+] Including file: {filename}`)
+    let file = File::open(filename, "r")
+    let contents = file.slurp()
+
+    let lexer = Lexer::make(contents, filename)
+    .tokens = lexer.lex()
+    .curr = 0
+
+    .ns.is_module = true
+    .parse_module()
+}
+
+def Parser::parse_toplevel(filename: string):&Program {
+    let program = Program::new()
+
+    let t1 = filename.copy()
+    let dir = dirname(t1).copy()
+    free(t1)
+
+    let t2 = filename.copy()
+    let base = basename(t2).copy()
+    free(t2)
+
+    // FIXME: hack
+    base.remove_last_n(3)
+
+    let ns = Namespace::new(
+        parent: program.global,
+        path: filename,
+        prefix: "",
+    )
+    program.global.namespaces.insert(base, ns)
+    program.global.path = dir
+
+    println(`[+] Parsing {filename}`)
+    println(`[+] Dir: {dir}`)
+    println(`[+] Base: {base}`)
+
+    let parser = Parser::make(program, ns)
+    parser.load_file(filename)
+
+    return program
+}
