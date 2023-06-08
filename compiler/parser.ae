@@ -345,7 +345,7 @@ def Parser::load_import_path(&this, import_stmt: &AST) {
             next = Namespace::new(
                 parent: base,
                 path: part_path,
-                prefix: part.name,
+                prefix: `{base.prefix}{part.name}_`,
             )
             base.namespaces.insert(part.name, next)
 

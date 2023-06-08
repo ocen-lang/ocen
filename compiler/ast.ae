@@ -50,6 +50,68 @@ def Function::new(span: Span): &Function {
     return func
 }
 
+
+enum NamedItemType {
+    Function
+    Namespace
+}
+
+struct NamedItemUnion {
+    func: &Function
+    ns: &Namespace
+}
+
+struct NamedItem {
+    name: string
+    type: NamedItemType
+    u: NamedItemUnion
+}
+
+def NamedItem::from_function(name: string, func: &Function): &NamedItem {
+    let item = calloc(1, sizeof(NamedItem)) as &NamedItem
+    item.name = name
+    item.type = NamedItemType::Function
+    item.u.func = func
+    return item
+}
+
+def NamedItem::from_namespace(name: string, ns: &Namespace): &NamedItem {
+    let item = calloc(1, sizeof(NamedItem)) as &NamedItem
+    item.name = name
+    item.type = NamedItemType::Namespace
+    item.u.ns = ns
+    return item
+}
+
+struct Scope {
+    items: &Map // &Map<string, &NamedItem>
+    ns: &Namespace
+    parent: &Scope
+}
+
+def Scope::new(parent: &Scope): &Scope {
+    let scope = calloc(1, sizeof(Scope)) as &Scope
+    scope.items = Map::new()
+    scope.parent = parent
+    return scope
+}
+
+def Scope::lookup_recursive(&this, name: string): &NamedItem {
+    println(`looking up {name} in scope`)
+    for let iter = .items.iter(); iter.cur?; iter.next() {
+        let name = iter.key()
+        println(`    (found {name})`)
+    }
+    let item = .items.get(name) as &NamedItem
+    if item? return item
+    if .parent? then return .parent.lookup_recursive(name)
+    return null
+}
+
+def Scope::lookup_local(&this, name: string): &NamedItem {
+    return .items.get(name) as &NamedItem
+}
+
 struct Namespace {
     parent: &Namespace
 
@@ -57,6 +119,7 @@ struct Namespace {
     imports: &Vector      // Vector<&AST>
     namespaces: &Map      // Map<string, &Namespace>
 
+    scope: &Scope
     path: string
     prefix: string
     is_module: bool
@@ -65,6 +128,8 @@ struct Namespace {
 def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace {
     let ns = calloc(1, sizeof(Namespace)) as &Namespace
     ns.parent = parent
+    let parent_scope = if parent? then parent.scope else null
+    ns.scope = Scope::new(parent_scope)
     ns.functions = Vector::new()
     ns.namespaces = Map::new()
     ns.imports = Vector::new()
@@ -88,6 +153,7 @@ def Program::new(): &Program {
 
 struct Block {
     statements: &Vector     // Vector<&AST>
+    scope: &Scope
 }
 
 struct Identifier {
@@ -113,6 +179,7 @@ struct FuncCall {
     callee: &AST
     args: &Vector    // Vector<&Argument>
     func: &Function
+    is_function_pointer: bool
 }
 
 struct ImportPart {

@@ -1,6 +1,6 @@
 use "compiler/lexer.ae"
 use "compiler/parser.ae"
-// use "compiler/typecheck.ae"
+use "compiler/typecheck.ae"
 // use "compiler/codegen.ae"
 use "compiler/errors.ae"
 
@@ -80,8 +80,8 @@ def main(argc: i32, argv: &string) {
 
     println("--------------------------------------------------------")
 
-    // let checker = TypeChecker::new()
-    // checker.check_program(program)
+    let checker = TypeChecker::new(program)
+    checker.check()
 
     if program.errors.size > 0 {
         println("got %d errors", program.errors.size)

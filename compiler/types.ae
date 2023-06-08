@@ -15,9 +15,13 @@ enum BaseType {
     U64
     F32
     F64
+    Unresolved
+
+    NUM_BASE_TYPES
 
     Pointer
     Function
+
     Error
 }
 
@@ -45,6 +49,7 @@ struct FunctionType {
 }
 
 struct Type {
+    name: string
     base: BaseType
     span: Span
 
