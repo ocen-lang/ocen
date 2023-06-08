@@ -1,6 +1,6 @@
 import test
 import bar.baz
 
-def do_foo() {
-    return 5
+def do_foo(): i32 {
+    return bar::baz::do_baz();
 }

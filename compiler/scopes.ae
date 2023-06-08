@@ -1,0 +1,88 @@
+use "compiler/ast.ae"
+
+enum SymbolType {
+    Function
+    Namespace
+}
+
+struct SymbolUnion {
+    func: &Function
+    ns: &Namespace
+}
+
+struct Symbol {
+    name: string
+    type: SymbolType
+    u: SymbolUnion
+}
+
+def Symbol::from_function(name: string, func: &Function): &Symbol {
+    let item = calloc(1, sizeof(Symbol)) as &Symbol
+    item.name = name
+    item.type = SymbolType::Function
+    item.u.func = func
+    return item
+}
+
+def Symbol::from_namespace(name: string, ns: &Namespace): &Symbol {
+    let item = calloc(1, sizeof(Symbol)) as &Symbol
+    item.name = name
+    item.type = SymbolType::Namespace
+    item.u.ns = ns
+    return item
+}
+
+struct Scope {
+    items: &Map // &Map<string, &Symbol>
+    parent: &Scope
+}
+
+def Scope::new(parent: &Scope): &Scope {
+    let scope = calloc(1, sizeof(Scope)) as &Scope
+    scope.items = Map::new()
+    scope.parent = parent
+    return scope
+}
+
+def Scope::lookup_recursive(&this, name: string): &Symbol {
+    println(`looking up {name} in scope`)
+    for let iter = .items.iter(); iter.cur?; iter.next() {
+        let name = iter.key()
+        println(`    (found {name})`)
+    }
+    let item = .items.get(name) as &Symbol
+    if item? return item
+    if .parent? then return .parent.lookup_recursive(name)
+    return null
+}
+
+def Scope::lookup_local(&this, name: string): &Symbol {
+    return .items.get(name) as &Symbol
+}
+
+struct Namespace {
+    parent: &Namespace
+
+    functions: &Vector    // Vector<&Function>
+    imports: &Vector      // Vector<&AST>
+    namespaces: &Map      // Map<string, &Namespace>
+
+    scope: &Scope
+    path: string
+    prefix: string
+    is_module: bool
+}
+
+def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace {
+    let ns = calloc(1, sizeof(Namespace)) as &Namespace
+    ns.parent = parent
+    let parent_scope = if parent? then parent.scope else null
+    ns.scope = Scope::new(parent_scope)
+    ns.functions = Vector::new()
+    ns.namespaces = Map::new()
+    ns.imports = Vector::new()
+    ns.path = path
+    ns.prefix = prefix
+    ns.is_module = false
+    return ns
+}

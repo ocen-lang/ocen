@@ -168,8 +168,8 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
                 let rhs = AST::new(ASTType::Identifier, name.span)
                 rhs.u.ident.name = name.text
 
-                lookup.u.binary.lhs = node
-                lookup.u.binary.rhs = rhs
+                lookup.u.lookup.lhs = node
+                lookup.u.lookup.rhs = rhs
                 node = lookup
             }
             else => running = false
@@ -279,7 +279,6 @@ def Parser::parse_function(&this): &Function {
     }
 
     func.body = .parse_block()
-
     return func
 }
 

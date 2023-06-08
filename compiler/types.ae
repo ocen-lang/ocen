@@ -48,6 +48,12 @@ struct FunctionType {
     params: &Vector      // Vector<&Variable>
 }
 
+// this is a placeholder lol
+def FunctionType::new(): &FunctionType {
+    let func = calloc(1, sizeof(FunctionType)) as &FunctionType
+    return func
+}
+
 struct Type {
     name: string
     base: BaseType
