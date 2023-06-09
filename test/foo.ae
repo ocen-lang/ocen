@@ -4,8 +4,8 @@ import bar::baz
 import bar::baz::do_baz
 
 def do_foo(): i32 {
-    ns2::do_ns2();
-    bar::baz::do_baz();
-    baz::do_baz();
-    return do_baz();
+    ns2::do_ns2()
+    bar::baz::do_baz()
+    baz::do_baz()
+    return do_baz()
 }

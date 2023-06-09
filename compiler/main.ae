@@ -78,15 +78,17 @@ def main(argc: i32, argv: &string) {
 
     let program = Parser::parse_toplevel(filename)
 
+    if program.errors.size > 0 {
+        display_error_messages(program.errors, error_level)
+        exit(1)
+    }
+
     println("--------------------------------------------------------")
 
     let checker = TypeChecker::new(program)
     checker.check()
 
     if program.errors.size > 0 {
-        println("got %d errors", program.errors.size)
-        let err = program.errors.at(0) as &Error
-        println("span is %s", err.span1.str())
         display_error_messages(program.errors, error_level)
         exit(1)
     }

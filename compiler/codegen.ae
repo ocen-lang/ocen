@@ -39,8 +39,8 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let num_lit = &node.u.num_literal
             .out.puts(num_lit.text)
         }
-        NSLookup => {
-            let sym = node.u.lookup.resolved_symbol
+        Identifier | NSLookup => {
+            let sym = node.resolved_symbol
             if not sym? {
                 .error(Error::new(node.span, "Symbol not found"))
                 return
@@ -51,12 +51,8 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
         }
         Call => {
-            if node.u.call.is_function_pointer { 
-                let callee = node.u.call.callee
-                .gen_expression(callee)
-            } else {
-                .out.puts(.get_function_name(node.u.call.func))
-            }
+            let callee = node.u.call.callee
+            .gen_expression(callee)
             // fixme: gen args
             .out.puts("()")
         }

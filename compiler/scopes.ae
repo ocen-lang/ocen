@@ -57,11 +57,6 @@ def Scope::new(parent: &Scope): &Scope {
 }
 
 def Scope::lookup_recursive(&this, name: string): &Symbol {
-    // println(`looking up {name} in scope`)
-    // for let iter = .items.iter(); iter.cur?; iter.next() {
-    //     let name = iter.key()
-    //     println(`    (found {name})`)
-    // }
     let item = .items.get(name) as &Symbol
     if item? return item
     if .parent? then return .parent.lookup_recursive(name)
@@ -83,8 +78,13 @@ struct Namespace {
     path: string
     prefix: string
 
+    // The distinction between a namespace and a module is that a module corresponds
+    // to a specific file, whereas a namespace is a logical grouping of symbols.
     is_module: bool
-    is_user_defined: bool  // with the `namespace` keyword
+
+    // A user-defined namespace is one that is defined in the source code with the
+    // `namespace` keyword. A non-user-defined namespace is based on the file structure
+    is_user_defined: bool
 }
 
 def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace {
@@ -98,6 +98,12 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
     ns.path = path
     ns.prefix = prefix
     ns.is_module = false
+
+    if parent? then {
+        println(`Created namespace: {ns.path} with parent {ns.parent.path}`)
+    } else {
+        println(`Created namespace: {ns.path} with no parent`)
+    }
     return ns
 }
 

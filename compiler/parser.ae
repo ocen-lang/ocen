@@ -30,8 +30,9 @@ def Parser::error_msg(&this, msg: string): &Error {
     return err
 }
 
-def Parser::error(&this, err: &Error) {
+def Parser::error(&this, err: &Error): &Error {
     .program.errors.push(err)
+    return err
 }
 
 def Parser::unhandled_type(&this, func: string) {
@@ -89,9 +90,8 @@ def Parser::parse_type(&this): &Type => match .token().type {
     }
 }
 
-def Parser::parse_expression(&this, end_type: TokenType): &AST {
+def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node = null as &AST
-
     match .token().type {
         TokenType::IntLiteral => {
             node = AST::new(ASTType::IntLiteral, .token().span)
@@ -112,6 +112,12 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
             .curr += 1
         }
     }
+    return node
+}
+
+
+def Parser::parse_postfix(&this, end_type: TokenType): &AST {
+    let node = .parse_atom(end_type)
 
     let running = true
     while running {
@@ -158,6 +164,8 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
 
     return node
 }
+
+def Parser::parse_expression(&this, end_type: TokenType): &AST => .parse_postfix(end_type)
 
 def Parser::consume_end_of_statement(&this) {
     if .token_is(TokenType::CloseCurly) return
@@ -266,6 +274,13 @@ def Parser::parse_import(&this): &AST {
     let span = .token().span
     .consume(TokenType::Import)
 
+    let is_relative = false
+    let parent_count = 0
+    while .consume_if(TokenType::Dot) {
+        is_relative = true
+        parent_count += 1
+    }
+
     let parts = Vector::new()
     while true {
         if .token().is_word() {
@@ -283,7 +298,7 @@ def Parser::parse_import(&this): &AST {
     }
 
     let node = AST::new(ASTType::Import, span)
-    node.u.import_path.parts = parts
+    node.u.import_path = ImportPath(parts, is_relative, parent_count)
     return node
 }
 
@@ -330,7 +345,19 @@ def Parser::parse_module(&this) {
 
 def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let path = &import_stmt.u.import_path
-    let base = .ns.parent
+
+    let base = .program.global
+    if path.is_relative {
+        base = .ns
+        for let i = 0; i < path.parent_count; i += 1 {
+            if not base.parent? {
+                let first_part = path.parts.at(0) as &ImportPart
+                .error(Error::new(first_part.span, "Cannot import from parent of root namespace")).panic()
+                return false
+            }
+            base = base.parent
+        }
+    }
 
     for let i = 0; i < path.parts.size and not base.is_module; i += 1 {
         let part = path.parts.at(i) as &ImportPart
@@ -343,7 +370,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
             let file_exists = File::exists(path)
 
             if not dir_exists and not file_exists {
-                .error(Error::new(part.span, `Could not find import path {part_path}(.ae)`))
+                .error(Error::new(part.span, `Could not find import path {part_path}(.ae)`)).panic()
                 return false
             }
 

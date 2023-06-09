@@ -8,8 +8,9 @@ struct TypeChecker {
     error_type: &Type
 }
 
-def TypeChecker::error(&this, err: &Error) {
+def TypeChecker::error(&this, err: &Error): &Error {
     .program.errors.push(err)
+    return err
 }
 
 def TypeChecker::init_base_type(&this, base: BaseType) {
@@ -124,12 +125,14 @@ def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol
 
             let name = node.u.lookup.rhs_name
             let res = ns.find_importable_symbol(name)
-            node.u.lookup.resolved_symbol = res
+            node.resolved_symbol = res
             return res
         }
         ASTType::Identifier => {
             let name = node.u.ident.name
-            return scope.lookup_recursive(name)
+            let res = scope.lookup_recursive(name)
+            node.resolved_symbol = res
+            return res
         }
         else => {
             .error(Error::new(node.span, "Invalid scope lookup node"))
@@ -236,25 +239,37 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 // Insert all the imported items defined in the Import AST statement, (relative to the current namespace),
 // into the current scope.
 def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace, scope: &Scope) {
-    let path = node.u.import_path.parts
-    let cur_ns = ns.parent
+    let path = node.u.import_path
 
-    for let i = 0; i < path.size-1; i += 1 {
-        let part = path.at(i) as &ImportPart
+    let base = .program.global
+    if path.is_relative {
+        base = ns
+        for let i = 0; i < path.parent_count; i += 1 {
+            if not base.parent? {
+                // This should never happen, because the parser is responsible for handling this
+                .error(Error::new(node.span, "Internal error: Could not typecheck import statement"))
+                return
+            }
+            base = base.parent
+        }
+    }
+
+    for let i = 0; i < path.parts.size-1; i += 1 {
+        let part = path.parts.at(i) as &ImportPart
         let name = part.name
-        let new_ns = cur_ns.namespaces.get(name)
-        println(`?? finding symbol {name} in namespace {cur_ns.prefix}`)
+        let new_ns = base.namespaces.get(name)
+        println(`?? finding symbol {name} in namespace {base.prefix}`)
         if not new_ns? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
             return
         }
-        cur_ns = new_ns
+        base = new_ns
     }
 
-    let last_part = path.at(path.size-1) as &ImportPart
+    let last_part = path.parts.back() as &ImportPart
     let name = last_part.name
-    println(`?? finding symbol {name} in namespace {cur_ns.prefix}`)
-    let sym = cur_ns.find_importable_symbol(name)
+    println(`?? finding symbol {name} in namespace {base.prefix}`)
+    let sym = base.find_importable_symbol(name)
     if not sym? {
         .error(Error::new(node.span, `Couldn't find importable symbol {name}`))
         return

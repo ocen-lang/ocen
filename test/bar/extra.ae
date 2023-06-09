@@ -1,0 +1,6 @@
+import ..foo::do_foo
+
+def do_extra(): i32 {
+    do_foo()
+    return 1
+}
