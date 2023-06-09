@@ -39,7 +39,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let num_lit = &node.u.num_literal
             .out.puts(num_lit.text)
         }
-        ScopeLookup => {
+        NSLookup => {
             let sym = node.u.lookup.resolved_symbol
             if not sym? {
                 .error(Error::new(node.span, "Symbol not found"))
@@ -51,8 +51,12 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
         }
         Call => {
-            let callee = node.u.call.callee
-            .gen_expression(callee)
+            if node.u.call.is_function_pointer { 
+                let callee = node.u.call.callee
+                .gen_expression(callee)
+            } else {
+                .out.puts(.get_function_name(node.u.call.func))
+            }
             // fixme: gen args
             .out.puts("()")
         }
@@ -95,11 +99,9 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
     // There's possibly a better way to do this, but I'll leave that for another day.
     let final = name.copy()
 
-    if not type? {
-        panic("Internal error: null type in codegen")
-    }
+    if not type? { panic("Internal error: null type in codegen") }
 
-    for let cur = type; cur?; cur = cur.ptr {
+    for let cur = type; cur?; cur = cur.u.ptr {
         match cur.base {
             // These should all be terminal types
             Void | Bool | Char |
@@ -109,10 +111,9 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
 
             Function => {
                 let acc = Buffer::make()
-                let params = cur.func.params
+                let params = cur.u.func.params
 
                 if params.size == 0 then acc.puts("void")
-                println("--- params size: %d", params.size)
 
                 for let i = 0; i < params.size; i += 1 {
                     if i != 0 then acc.puts(", ")
@@ -128,14 +129,20 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                 }
                 free(acc.data)
                 final.replace(.get_type_name_string(
-                    cur.func.return_type,
+                    cur.u.func.return_type,
                     name: final,
                     is_func_def: false
                 ))
             }
-            Unresolved => panic("Internal error: Unresolved type in codegen")
-            Error => panic("Internal error: Error type in codegen")
-            else => panic(`Unhandled type: {cur.base}`)
+            Unresolved => {
+                .error(Error::new(type.span, "Unresolved type found"))
+            }
+            Error => {
+                .error(Error::new(type.span, "Error found in type"))
+            }
+            else => {
+                .error(Error::new(type.span, `Unhandled type found: {type.str()}`))
+            }
         }
     }
     final.strip_trailing_whitespace()

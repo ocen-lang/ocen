@@ -12,7 +12,7 @@ enum ASTType {
     Identifier
     IntLiteral
     Return
-    ScopeLookup
+    NSLookup
     Import
 }
 
@@ -128,9 +128,10 @@ def Binary::new(lhs: &AST, rhs: &AST): &Binary {
     return bin
 }
 
-struct ScopeLookup {
+struct NSLookup {
     lhs: &AST
-    rhs: &AST
+    rhs_name: string
+    rhs_span: Span
     resolved_symbol: &Symbol
 }
 
@@ -141,7 +142,7 @@ union ASTUnion {
     unary: &AST
     binary: Binary
     num_literal: NumLiteral
-    lookup: ScopeLookup
+    lookup: NSLookup
     import_path: ImportPath
 }
 

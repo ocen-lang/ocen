@@ -1,6 +1,10 @@
 import test
-import bar.baz
+import bar
+import bar::baz
+import bar::baz::do_baz
 
 def do_foo(): i32 {
-    return bar::baz::do_baz();
+    bar::baz::do_baz();
+    baz::do_baz();
+    return do_baz();
 }

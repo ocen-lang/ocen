@@ -74,38 +74,20 @@ def Parser::consume(&this, type: TokenType): &Token {
     return tok
 }
 
-def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
-    let type = null as &Type
-    let span = .token().span
-
-    match .token().type {
-        TokenType::Bool => type = Type::new(BaseType::Bool, .consume(TokenType::Bool).span)
-        TokenType::Char => type = Type::new(BaseType::Char, .consume(TokenType::Char).span)
-        TokenType::I8 => type = Type::new(BaseType::I8, .consume(TokenType::I8).span)
-        TokenType::I16 => type = Type::new(BaseType::I16, .consume(TokenType::I16).span)
-        TokenType::I32 => type = Type::new(BaseType::I32, .consume(TokenType::I32).span)
-        TokenType::I64 => type = Type::new(BaseType::I64, .consume(TokenType::I64).span)
-        TokenType::U8 => type = Type::new(BaseType::U8, .consume(TokenType::U8).span)
-        TokenType::U16 => type = Type::new(BaseType::U16, .consume(TokenType::U16).span)
-        TokenType::U32 => type = Type::new(BaseType::U32, .consume(TokenType::U32).span)
-        TokenType::U64 => type = Type::new(BaseType::U64, .consume(TokenType::U64).span)
-        TokenType::F32 => type = Type::new(BaseType::F32, .consume(TokenType::F32).span)
-        TokenType::F64 => type = Type::new(BaseType::F64, .consume(TokenType::F64).span)
-
-        else => {
-            .unhandled_type("parse_type")
-            type = Type::new(BaseType::Error, .token().span)
-        }
+// NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
+// the `name` field. The typechecker is responsible for resolving this, even for the built-in types.
+def Parser::parse_type(&this): &Type => match .token().type {
+    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => {
+        let token = .token()
+        .curr += 1
+        yield Type::new_unresolved(token.text, token.span)
     }
 
-    if parent? {
-        parent.ptr = type
-        parent.span = parent.span.join(type.span)
+    else => {
+        .unhandled_type("parse_type")
+        yield Type::new(BaseType::Error, .token().span)
     }
-    return type
 }
-
-def Parser::parse_type(&this): &Type => .parse_type_with_parent(null)
 
 def Parser::parse_expression(&this, end_type: TokenType): &AST {
     let node = null as &AST
@@ -163,13 +145,11 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
             TokenType::ColonColon => {
                 .consume(TokenType::ColonColon)
                 let name = .consume(TokenType::Identifier)
-                let lookup = AST::new(ASTType::ScopeLookup, node.span.join(name.span))
-
-                let rhs = AST::new(ASTType::Identifier, name.span)
-                rhs.u.ident.name = name.text
+                let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
 
                 lookup.u.lookup.lhs = node
-                lookup.u.lookup.rhs = rhs
+                lookup.u.lookup.rhs_name = name.text
+                lookup.u.lookup.rhs_span = name.span
                 node = lookup
             }
             else => running = false
@@ -294,9 +274,8 @@ def Parser::parse_import(&this): &AST {
 
             span = span.join(word.span)
             parts.push(ImportPart::new(word.text, word.span))
-            if not .token_is(TokenType::Dot) break
+            if not .consume_if(TokenType::ColonColon) break
 
-            .consume(TokenType::Dot)
         } else {
             .error(Error::new(.token().span, "Expected identifier"))
             return null
@@ -332,6 +311,7 @@ def Parser::parse_module(&this) {
 }
 
 def Parser::load_import_path(&this, import_stmt: &AST) {
+    println("----???????")
     let path = &import_stmt.u.import_path
     let base = .ns.parent
 
@@ -354,19 +334,14 @@ def Parser::load_import_path(&this, import_stmt: &AST) {
                 println(`- Found file {path}`)
                 let parser = Parser::make(.program, next)
                 parser.load_file(path.copy())
-                base = next
-
-                break // We're done here, everything else is in the file
             }
             free(path)
         } else {
             println(`- Already have {part.name}`)
         }
 
+        if next.is_module then break // Everything else is inside the file
         base = next
-    }
-    if not base.is_module {
-        .error(Error::new(import_stmt.span, `Could not find: {base.path}[.ae]`))
     }
 }
 
@@ -381,6 +356,27 @@ def Parser::load_file(&this, filename: string) {
 
     .ns.is_module = true
     .parse_module()
+}
+
+def prindent(indent: i32) {
+    for let i = 0; i < indent; i += 1 { print("  ") }
+}
+
+def print_ns(ns: &Namespace, indent: i32) {
+    prindent(indent)
+    println(`(ns) '{ns.path}' :`)
+
+    let funcs = ns.functions
+    for let i = 0; i < funcs.size; i += 1 {
+        let func = funcs.at(i) as &Function
+        prindent(indent + 1)
+        println(`(func) {func.name}`)
+    }
+
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        let next = iter.value() as &Namespace
+        print_ns(next, indent + 1)
+    }
 }
 
 def Parser::parse_toplevel(filename: string):&Program {
@@ -412,5 +408,7 @@ def Parser::parse_toplevel(filename: string):&Program {
     let parser = Parser::make(program, ns)
     parser.load_file(filename)
 
+    // print_ns(program.global, 0)
+    // exit(0)
     return program
 }

@@ -48,31 +48,43 @@ struct FunctionType {
     params: &Vector      // Vector<&Variable>
 }
 
-// this is a placeholder lol
-def FunctionType::new(): &FunctionType {
-    let func = calloc(1, sizeof(FunctionType)) as &FunctionType
-    return func
+def FunctionType::from_func(func: &Function): &FunctionType {
+    let type = calloc(1, sizeof(FunctionType)) as &FunctionType
+    type.orig = func
+    type.return_type = func.return_type
+    type.params = func.params
+    return type
+}
+
+struct TypeUnion {
+    ptr: &Type
+    func: &FunctionType
 }
 
 struct Type {
     name: string
     base: BaseType
     span: Span
-
-    ptr: &Type
-    func: &FunctionType
+    u: TypeUnion
 }
 
 def Type::new(base: BaseType, span: Span): &Type {
     let type = calloc(1, sizeof(Type)) as &Type
     type.base = base
     type.span = span
+    type.name = base.str()
     return type
 }
 
 def Type::new_link(base: BaseType, next: &Type, span: Span): &Type {
     let type = Type::new(base, span)
-    type.ptr = next
+    type.u.ptr = next
+    return type
+}
+
+def Type::new_unresolved(name: string, span: Span): &Type {
+    let type = Type::new(BaseType::Unresolved, span)
+    type.name = name
     return type
 }
 
@@ -104,10 +116,10 @@ def Type::eq(&this, other: &Type): bool {
     if .base != other.base return false
 
     match .base {
-        Error => return false
+        Error | Unresolved => return false
         Function => {
-            let af = .func
-            let bf = other.func
+            let af = .u.func
+            let bf = other.u.func
             if not af.return_type.eq(bf.return_type) return false
             if af.params.size != bf.params.size return false
             for let i = 0; i < af.params.size; i += 1 {
@@ -117,13 +129,13 @@ def Type::eq(&this, other: &Type): bool {
             }
             return true
         }
-        Pointer => return .ptr.eq(other.ptr)
+        Pointer => return .u.ptr.eq(other.u.ptr)
         else => return true
     }
 }
 
 def Type::str(&this): string => match .base {
-    Pointer => `&{.ptr.str()}`
+    Pointer => `&{.u.ptr.str()}`
     Function => "<function>"
     else => .base.str()
 }

@@ -1,13 +1,16 @@
 use "compiler/ast.ae"
+use "compiler/types.ae"
 
 enum SymbolType {
     Function
+    TypeDef
     Namespace
 }
 
 struct SymbolUnion {
     func: &Function
     ns: &Namespace
+    type_def: &Type
 }
 
 struct Symbol {
@@ -16,19 +19,28 @@ struct Symbol {
     u: SymbolUnion
 }
 
-def Symbol::from_function(name: string, func: &Function): &Symbol {
+def Symbol::new(name: string, type: SymbolType): &Symbol {
     let item = calloc(1, sizeof(Symbol)) as &Symbol
     item.name = name
-    item.type = SymbolType::Function
+    item.type = type
+    return item
+}
+
+def Symbol::from_function(name: string, func: &Function): &Symbol {
+    let item = Symbol::new(name, SymbolType::Function)
     item.u.func = func
     return item
 }
 
 def Symbol::from_namespace(name: string, ns: &Namespace): &Symbol {
-    let item = calloc(1, sizeof(Symbol)) as &Symbol
-    item.name = name
-    item.type = SymbolType::Namespace
+    let item = Symbol::new(name, SymbolType::Namespace)
     item.u.ns = ns
+    return item
+}
+
+def Symbol::from_type(name: string, type: &Type): &Symbol {
+    let item = Symbol::new(name, SymbolType::TypeDef)
+    item.u.type_def = type
     return item
 }
 
@@ -45,11 +57,11 @@ def Scope::new(parent: &Scope): &Scope {
 }
 
 def Scope::lookup_recursive(&this, name: string): &Symbol {
-    println(`looking up {name} in scope`)
-    for let iter = .items.iter(); iter.cur?; iter.next() {
-        let name = iter.key()
-        println(`    (found {name})`)
-    }
+    // println(`looking up {name} in scope`)
+    // for let iter = .items.iter(); iter.cur?; iter.next() {
+    //     let name = iter.key()
+    //     println(`    (found {name})`)
+    // }
     let item = .items.get(name) as &Symbol
     if item? return item
     if .parent? then return .parent.lookup_recursive(name)
@@ -85,4 +97,21 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
     ns.prefix = prefix
     ns.is_module = false
     return ns
+}
+
+def Namespace::find_importable_symbol(&this, name: string): &Symbol {
+    let item = .namespaces.get(name) as &Namespace
+    if item? then {
+        println(`   --found namespace {name}`)
+        return Symbol::from_namespace(name, item)
+    }
+
+    for let i = 0; i < .functions.size; i += 1 {
+        let func = .functions.at(i) as &Function
+        if func.name.eq(name) {
+            println(`   --found function {name}`)
+            return Symbol::from_function(name, func)
+        }
+    }
+    return null
 }
