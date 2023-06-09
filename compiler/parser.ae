@@ -77,7 +77,7 @@ def Parser::consume(&this, type: TokenType): &Token {
 // NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
 // the `name` field. The typechecker is responsible for resolving this, even for the built-in types.
 def Parser::parse_type(&this): &Type => match .token().type {
-    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => {
+    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 | Identifier => {
         let token = .token()
         .curr += 1
         yield Type::new_unresolved(token.text, token.span)
@@ -85,7 +85,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
 
     else => {
         .unhandled_type("parse_type")
-        yield Type::new(BaseType::Error, .token().span)
+        yield Type::new_unresolved_base(BaseType::Error, .token().span)
     }
 }
 
@@ -224,9 +224,9 @@ def Parser::parse_function(&this): &Function {
         if func.params.empty() and is_method {
             if var_name.text.eq("this") {
                 type = struct_type
-                if found_amp {
-                    type = Type::new_link(BaseType::Pointer, type, name.span)
-                }
+                // if found_amp {
+                //     type = Type::new_link(BaseType::Pointer, type, name.span)
+                // }
             } else if found_amp {
                 .error(Error::new(var_name.span, "Expected 'this' over here"))
             } else {
@@ -249,9 +249,9 @@ def Parser::parse_function(&this): &Function {
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
     } else if name.text.eq("main") {
-        func.return_type = Type::new(BaseType::I32, name.span)
+        func.return_type = Type::new_unresolved_base(BaseType::I32, name.span)
     } else {
-        func.return_type = Type::new(BaseType::Void, name.span)
+        func.return_type = Type::new_unresolved_base(BaseType::Void, name.span)
         if .token_is(TokenType::Identifier) and .token().text.eq("exits") {
             .consume(TokenType::Identifier)
             func.exits = true
@@ -287,20 +287,33 @@ def Parser::parse_import(&this): &AST {
     return node
 }
 
-def Parser::parse_module(&this) {
-    while not .token_is(TokenType::EOF) {
+def Parser::parse_namespace_until(&this, end_type: TokenType) {
+    while not .token_is(end_type) {
         match .token().type {
             Def => {
                 let func = .parse_function()
-                println(`got function: {func.name}`)
                 if func? then .ns.functions.push(func)
             }
             Import => {
                 let import_ = .parse_import()
-                if import_? then {
-                    .load_import_path(import_)  // To parse the files...
+                if import_? and .load_import_path(import_) {
                     .ns.imports.push(import_)   // For typechecker...
                 }
+            }
+            Namespace => {
+                .consume(TokenType::Namespace)
+                let name = .consume(TokenType::Identifier)
+
+                let old_ns = .ns
+                let new_ns = Namespace::new(.ns, .ns.path, `{.ns.prefix}{name.text}_`)
+                new_ns.is_user_defined = true
+                old_ns.namespaces.insert(name.text, new_ns)
+
+                .ns = new_ns
+                .consume(TokenType::OpenCurly)
+                .parse_namespace_until(TokenType::CloseCurly)
+                .consume(TokenType::CloseCurly)
+                .ns = old_ns
             }
             else => {
                 println(`Unhandled token type: {.token().type}`)
@@ -310,17 +323,30 @@ def Parser::parse_module(&this) {
     }
 }
 
-def Parser::load_import_path(&this, import_stmt: &AST) {
-    println("----???????")
+
+def Parser::parse_module(&this) {
+    .parse_namespace_until(TokenType::EOF)
+}
+
+def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let path = &import_stmt.u.import_path
     let base = .ns.parent
 
-    for let i = 0; i < path.parts.size; i += 1 {
+    for let i = 0; i < path.parts.size and not base.is_module; i += 1 {
         let part = path.parts.at(i) as &ImportPart
         let next = base.namespaces.get(part.name) as &Namespace
 
         let part_path = `{base.path}/{part.name}`
         if not next? {
+            let dir_exists = directory_exists(part_path)
+            let path = `{base.path}/{part.name}.ae`
+            let file_exists = File::exists(path)
+
+            if not dir_exists and not file_exists {
+                .error(Error::new(part.span, `Could not find import path {part_path}(.ae)`))
+                return false
+            }
+
             next = Namespace::new(
                 parent: base,
                 path: part_path,
@@ -328,21 +354,17 @@ def Parser::load_import_path(&this, import_stmt: &AST) {
             )
             base.namespaces.insert(part.name, next)
 
-            // FIXME: Is this right?!
-            let path = `{base.path}/{part.name}.ae`
-            if File::exists(path) {
-                println(`- Found file {path}`)
+            if file_exists {
                 let parser = Parser::make(.program, next)
                 parser.load_file(path.copy())
             }
             free(path)
-        } else {
-            println(`- Already have {part.name}`)
         }
 
-        if next.is_module then break // Everything else is inside the file
         base = next
     }
+
+    return true
 }
 
 def Parser::load_file(&this, filename: string) {
@@ -364,7 +386,7 @@ def prindent(indent: i32) {
 
 def print_ns(ns: &Namespace, indent: i32) {
     prindent(indent)
-    println(`(ns) '{ns.path}' :`)
+    println(`(ns) ROOT_{ns.prefix} :`)
 
     let funcs = ns.functions
     for let i = 0; i < funcs.size; i += 1 {
@@ -408,7 +430,7 @@ def Parser::parse_toplevel(filename: string):&Program {
     let parser = Parser::make(program, ns)
     parser.load_file(filename)
 
-    // print_ns(program.global, 0)
+    print_ns(program.global, 0)
     // exit(0)
     return program
 }

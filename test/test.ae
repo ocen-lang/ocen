@@ -1,5 +1,18 @@
 import foo
 
+namespace ns1 {
+    namespace ns2 {
+        def do_ns2() {
+            do_ns1()
+        }
+    }
+
+    def do_ns1() {
+        ns2::do_ns2()
+    }
+}
+
 def main() {
+    ns1::ns2::do_ns2()
     return foo::do_foo()
 }

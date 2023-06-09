@@ -14,7 +14,7 @@ def TypeChecker::error(&this, err: &Error) {
 
 def TypeChecker::init_base_type(&this, base: BaseType) {
     let name = base.str()
-    let sym = Symbol::from_type(name, Type::new(base, Span::default()))
+    let sym = Symbol::from_type(name, Type::new_resolved(base, Span::default()))
     .program.global.scope.items.insert(name, sym)
 }
 
@@ -22,7 +22,7 @@ def TypeChecker::init_builtin_types(&this) {
     for let i = 0; i < BaseType::NUM_BASE_TYPES as i32; i += 1 {
         .init_base_type(i as BaseType)
     }
-    .error_type = Type::new(BaseType::Error, Span::default())
+    .error_type = Type::new_resolved(BaseType::Error, Span::default())
 }
 
 def TypeChecker::get_base_type(&this, base: BaseType, span: Span): &Type {
@@ -45,8 +45,6 @@ def TypeChecker::new(program: &Program): &TypeChecker {
 def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
     let resolved = old
     match old.base {
-        // Already resolved
-        Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => {}
         // Otherwise...
         Pointer => resolved.u.ptr = .resolve_type(old.u.ptr, scope)
         Function => {
@@ -67,7 +65,7 @@ def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
             }
         }
         else => {
-            .error(Error::new(old.span, "Unhandled type in resolve"))
+            .error(Error::new(old.span, `Unhandled type in resolve {old.base}`))
             resolved = .error_type
         }
     }
@@ -113,7 +111,8 @@ def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol
             let lhs = .resolve_scope_lookup(node.u.lookup.lhs, scope)
             if not lhs? {
                 .error(Error::new(node.u.lookup.lhs.span, "couldn't resolve scope lookup lhs"))
-                panic("ok")
+                Error::new(node.u.lookup.lhs.span, "couldn't resolve scope lookup lhs").panic()
+
                 return null
             }
 
@@ -280,7 +279,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
-    let typ = Type::new(Function, func.span)
+    let typ = Type::new_resolved(Function, func.span)
     typ.u.func = FunctionType::from_func(func)
     func.type = typ
 }
@@ -293,6 +292,12 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     }
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        let name = iter.key()
+
+        if child.is_user_defined {
+            ns.scope.items.insert(name, Symbol::from_namespace(name, child))
+        }
         .pre_check_namespace(iter.value())
     }
 }

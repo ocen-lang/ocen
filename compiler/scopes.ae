@@ -82,7 +82,9 @@ struct Namespace {
     scope: &Scope
     path: string
     prefix: string
+
     is_module: bool
+    is_user_defined: bool  // with the `namespace` keyword
 }
 
 def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace {

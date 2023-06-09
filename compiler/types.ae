@@ -68,7 +68,7 @@ struct Type {
     u: TypeUnion
 }
 
-def Type::new(base: BaseType, span: Span): &Type {
+def Type::new_resolved(base: BaseType, span: Span): &Type {
     let type = calloc(1, sizeof(Type)) as &Type
     type.base = base
     type.span = span
@@ -76,21 +76,16 @@ def Type::new(base: BaseType, span: Span): &Type {
     return type
 }
 
-def Type::new_link(base: BaseType, next: &Type, span: Span): &Type {
-    let type = Type::new(base, span)
-    type.u.ptr = next
-    return type
-}
-
 def Type::new_unresolved(name: string, span: Span): &Type {
-    let type = Type::new(BaseType::Unresolved, span)
+    let type = Type::new_resolved(BaseType::Unresolved, span)
     type.name = name
     return type
 }
 
-def Type::ptr_to(base: BaseType, span: Span): &Type {
-    let next = Type::new(base, span)
-    return Type::new_link(BaseType::Pointer, next, span)
+def Type::new_unresolved_base(base: BaseType, span: Span): &Type {
+    let type = Type::new_resolved(BaseType::Unresolved, span)
+    type.name = base.str()
+    return type
 }
 
 def Type::is_integer(&this): bool => match .base {

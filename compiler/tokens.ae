@@ -105,6 +105,7 @@ enum TokenType {
     If
     Let
     Match
+    Namespace
     Null
     Not
     Or
@@ -151,6 +152,7 @@ def TokenType::from_text(text: string): TokenType => match text {
     "if" => TokenType::If
     "let" => TokenType::Let
     "match" => TokenType::Match
+    "namespace" => TokenType::Namespace
     "not" => TokenType::Not
     "null" => TokenType::Null
     "or" => TokenType::Or
@@ -199,6 +201,7 @@ def TokenType::str(this): string => match this {
     If => "if"
     Let => "let"
     Match => "match"
+    Namespace => "namespace"
     Not => "not"
     Null => "null"
     Or => "or"

@@ -54,3 +54,16 @@ def find_word_suggestion(s: string, options: &Vector): string {
     if closest_distance > threshold return null
     return closest
 }
+
+@compiler c_include "dirent.h"
+
+struct DIR extern("DIR")
+def opendir(path: string): &DIR extern("opendir")
+def closedir(dir: &DIR) extern("closedir")
+
+def directory_exists(path: string): bool {
+    let dir = opendir(path)
+    if dir == null return false
+    closedir(dir)
+    return true
+}
