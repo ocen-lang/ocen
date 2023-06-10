@@ -197,6 +197,22 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             }
         }
         ASTType::Call => return .check_call(node, scope)
+
+        // Binary operators
+        Add | Subtract | Multiply | Divide | Modulus => {
+            let lhs = .check_expression(node.u.binary.lhs, scope)
+            let rhs = .check_expression(node.u.binary.rhs, scope)
+            if lhs? and rhs? {
+                if not lhs.eq(rhs) {
+                    .error(Error::new(node.span, "Binary operator operands must have the same type"))
+                    return null
+                }
+                return lhs
+            } else {
+                return null
+            }
+        }
+
         else => {
             .error(Error::new(node.span, "Invalid expression lol"))
             return .error_type
@@ -236,7 +252,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
                 .error(Error::new(default_expr.span, `Default argument has type {default_type.str()} but expected {param.type.str()}`))
             }
         }
-        
+
         new_scope.items.insert(param.name, Symbol::from_variable(param))
     }
 

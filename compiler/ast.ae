@@ -14,6 +14,22 @@ enum ASTType {
     Return
     NSLookup
     Import
+
+    // Binary operators
+    Add
+    Subtract
+    Multiply
+    Divide
+    Modulus
+}
+
+def ASTType::from_token(type: TokenType): ASTType => match type {
+    TokenType::Plus => ASTType::Add
+    TokenType::Minus => ASTType::Subtract
+    TokenType::Star => ASTType::Multiply
+    TokenType::Slash => ASTType::Divide
+    TokenType::Percent => ASTType::Modulus
+    else => panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
 }
 
 struct Variable {
@@ -129,13 +145,6 @@ struct Binary {
     rhs: &AST
 }
 
-def Binary::new(lhs: &AST, rhs: &AST): &Binary {
-    let bin = calloc(1, sizeof(Binary)) as &Binary
-    bin.lhs = lhs
-    bin.rhs = rhs
-    return bin
-}
-
 struct NSLookup {
     lhs: &AST
     rhs_name: string
@@ -172,5 +181,13 @@ def AST::new(type: ASTType, span: Span): &AST {
 def AST::new_unop(type: ASTType, span: Span, expr: &AST): &AST {
     let ast = AST::new(type, span)
     ast.u.unary = expr
+    return ast
+}
+
+def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
+    let span = lhs.span.join(rhs.span)
+    let ast = AST::new(type, span)
+    ast.u.binary.lhs = lhs
+    ast.u.binary.rhs = rhs
     return ast
 }

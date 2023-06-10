@@ -166,7 +166,35 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
     return node
 }
 
-def Parser::parse_expression(&this, end_type: TokenType): &AST => .parse_postfix(end_type)
+def Parser::parse_term(&this, end_type: TokenType): &AST {
+    let lhs = .parse_postfix(end_type)
+    while .token_is(TokenType::Star) or
+            .token_is(TokenType::Slash) or
+            .token_is(TokenType::Percent) {
+        if .token_is(end_type) break
+        let op = ASTType::from_token(.token().type)
+        .curr += 1
+        let rhs = .parse_postfix(end_type)
+        lhs = AST::new_binop(op, lhs, rhs)
+    }
+    return lhs
+}
+
+
+def Parser::parse_additive(&this, end_type: TokenType): &AST {
+    let lhs = .parse_term(end_type)
+    while .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
+        if .token_is(end_type) break
+        let op = ASTType::from_token(.token().type)
+        .curr += 1
+        let rhs = .parse_term(end_type)
+        lhs = AST::new_binop(op, lhs, rhs)
+    }
+    return lhs
+}
+
+
+def Parser::parse_expression(&this, end_type: TokenType): &AST => .parse_additive(end_type)
 
 def Parser::consume_end_of_statement(&this) {
     if .token_is(TokenType::CloseCurly) return

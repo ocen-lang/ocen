@@ -8,11 +8,11 @@ def get_one(): i32 {
 }
 
 def sum(a: i32, b: i32 = get_one()): i32 {
-    return b
+    return a * b + a
 }
 
 def do_foo(): i32 {
-    sum()
+    sum(a: 5)
     ns2::do_ns2()
     bar::baz::do_baz()
     baz::do_baz()

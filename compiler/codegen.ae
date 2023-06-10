@@ -33,6 +33,15 @@ def string::replace(&this, other: string) {
     *this = other
 }
 
+def CodeGenerator::get_op(&this, type: ASTType): string => match type {
+    Add => "+"
+    Subtract => "-"
+    Multiply => "*"
+    Divide => "/"
+    Modulus => "%"
+    else => panic(`Unknown op type in get_op: {type}`)
+}
+
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => {
@@ -64,6 +73,19 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
             .out.puts(")")
         }
+
+        Add | Subtract | Multiply | Divide | Modulus => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            .out.puts("(")
+            .gen_expression(lhs)
+            .out.puts(" ")
+            .out.puts(.get_op(node.type))
+            .out.puts(" ")
+            .gen_expression(rhs)
+            .out.puts(")")
+        }
+
         else => Error::new(node.span, `Unhandled expression type: {node.type}`).panic()
     }
 }
