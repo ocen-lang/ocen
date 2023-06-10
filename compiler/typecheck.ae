@@ -73,28 +73,6 @@ def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
     return resolved
 }
 
-def TypeChecker::type_is_valid(&this, type: &Type): bool {
-    if not type? return false
-
-    match type.base {
-        Pointer => return .type_is_valid(type.u.ptr)
-        Function => {
-            let func = type.u.func
-            for let i = 0; i < func.params.size; i += 1 {
-                let var = func.params.at(i) as &Variable
-                if not .type_is_valid(var.type) {
-                    return false
-                }
-            }
-            return .type_is_valid(func.return_type)
-        }
-        Unresolved | Error => return false
-        else => return true
-    }
-}
-
-
-
 def TypeChecker::check_block(&this, node: &AST, scope: &Scope) {
     let block = node.u.block
     block.scope = Scope::new(scope)
@@ -112,8 +90,6 @@ def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol
             let lhs = .resolve_scope_lookup(node.u.lookup.lhs, scope)
             if not lhs? {
                 .error(Error::new(node.u.lookup.lhs.span, "couldn't resolve scope lookup lhs"))
-                Error::new(node.u.lookup.lhs.span, "couldn't resolve scope lookup lhs").panic()
-
                 return null
             }
 
@@ -141,6 +117,58 @@ def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol
     }
 }
 
+def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
+    // fixme: so much to check... args, existing function, etc...
+    let callee = node.u.call.callee
+    let args = node.u.call.args
+
+    // FIXME: we want to be able to call `resolve_scope_lookup` here, but we can't because
+    // we also want to be able to do something like `foo.bar()` etc where the LHS is not a scope lookup
+    let res = .check_expression(callee, scope)
+    if res? and res.base == BaseType::Function {
+        let func = res.u.func
+        let params = func.params
+
+        if func.params.size < args.size {
+            .error(Error::new(node.span, `Too many arguments, expected {func.params.size} but got {args.size}`))
+        }
+
+        for let i = 0; i < params.size; i += 1 {
+            let param = params.at(i) as &Variable
+            // Normal case
+            if i < args.size {
+                let arg = args.at(i) as &Argument
+                let arg_type = .check_expression(arg.expr, scope)
+                if arg_type? and not arg_type.eq(param.type) {
+                    .error(Error::new(arg.expr.span, `Argument {i} has type {arg_type.str()} but expected {param.type.str()}`))
+                }
+
+            // Default argument case
+            } else if param.default_value? {
+
+                // FIXME: We should not be evaluating the default argument here during every call, 
+                // we should be evaluating it at the time of checking the function declaration and using
+                // a cached value here
+                let new_arg = Argument::new(label: null, expr: param.default_value)
+                // Add the default argument to the list of arguments
+                args.push(new_arg)
+            } else {
+                .error(Error::new(node.span, `Missing required argument {param.name}`))
+            }
+        }
+
+        if func.orig? {
+            node.u.call.is_function_pointer = false
+            node.u.call.func = func.orig
+        }
+
+        return func.return_type
+    } else {
+        .error(Error::new(callee.span, "Cannot call this expression"))
+        return .error_type
+    }
+}
+
 def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
     match node.type {
         ASTType::IntLiteral => {
@@ -156,6 +184,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
 
             match item.type {
                 Function => return item.u.func.type
+                Variable => return item.u.var.type
                 Namespace => {
                     .error(Error::new(node.span, "Cannot use a namespace as an expression"))
                     return .error_type
@@ -167,25 +196,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
                 }
             }
         }
-        ASTType::Call => {
-            // fixme: so much to check... args, existing function, etc...
-            let callee = node.u.call.callee
-
-            // FIXME: we want to be able to call `resolve_scope_lookup` here, but we can't because
-            // we also want to be able to do something like `foo.bar()` etc where the LHS is not a scope lookup
-            let res = .check_expression(callee, scope)
-            if res? and res.base == BaseType::Function {
-                println(`got a function {res.name}!!`)
-                let func = res.u.func
-                if func.orig? {
-                    node.u.call.is_function_pointer = false
-                    node.u.call.func = func.orig
-                }
-            } else {
-                .error(Error::new(callee.span, "Cannot call this expression"))
-            }
-            return .error_type
-        }
+        ASTType::Call => return .check_call(node, scope)
         else => {
             .error(Error::new(node.span, "Invalid expression lol"))
             return .error_type
@@ -210,9 +221,27 @@ def TypeChecker::check_statement(&this, node: &AST, scope: &Scope) {
 
 def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
     // todo: check params, return type
-    // todo: new scope for func args
+    let new_scope = Scope::new(ns.scope)
+
+    let params = func.params
+    for let i = 0; i < params.size; i += 1 {
+        let param = params.at(i) as &Variable
+
+        let default_expr = param.default_value
+        if default_expr? {
+            let default_type = .check_expression(default_expr, ns.scope)
+            if not default_type? {
+                .error(Error::new(default_expr.span, "Couldn't resolve default argument expression"))
+            } else if not default_type.eq(param.type) {
+                .error(Error::new(default_expr.span, `Default argument has type {default_type.str()} but expected {param.type.str()}`))
+            }
+        }
+        
+        new_scope.items.insert(param.name, Symbol::from_variable(param))
+    }
+
     func.prefix = ns.prefix
-    .check_block(func.body, ns.scope)
+    .check_block(func.body, new_scope)
 }
 
 def TypeChecker::check_namespace(&this, ns: &Namespace) {

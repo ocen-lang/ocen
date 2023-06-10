@@ -46,17 +46,25 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 return
             }
             match sym.type {
-                Function => .out.puts(.get_function_name(sym.u.func))
+                Function => .out.putsf(.get_function_name(sym.u.func))
+                Variable => .out.putsf(.get_variable_name(sym.u.var))
                 else => panic(`Unhandled symbol type: {sym.type}`)
             }
         }
         Call => {
             let callee = node.u.call.callee
             .gen_expression(callee)
-            // fixme: gen args
-            .out.puts("()")
+            .out.puts("(")
+            let args = node.u.call.args
+            for let i = 0; i < args.size; i += 1 {
+                if i != 0 then .out.puts(", ")
+                let arg = args.at(i) as &Argument
+                // FIXME: check arg.label
+                .gen_expression(arg.expr)
+            }
+            .out.puts(")")
         }
-        else => panic(`Unhandled expression type: {node.type}`)
+        else => Error::new(node.span, `Unhandled expression type: {node.type}`).panic()
     }
 }
 
@@ -155,6 +163,10 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 
 def CodeGenerator::get_function_name(&this, func: &Function): string {
     return `{func.prefix}{func.name}`
+}
+
+def CodeGenerator::get_variable_name(&this, var: &Variable): string {
+    return `{var.prefix}{var.name}`
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {

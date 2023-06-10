@@ -5,12 +5,14 @@ enum SymbolType {
     Function
     TypeDef
     Namespace
+    Variable
 }
 
 struct SymbolUnion {
     func: &Function
     ns: &Namespace
     type_def: &Type
+    var: &Variable
 }
 
 struct Symbol {
@@ -41,6 +43,12 @@ def Symbol::from_namespace(name: string, ns: &Namespace): &Symbol {
 def Symbol::from_type(name: string, type: &Type): &Symbol {
     let item = Symbol::new(name, SymbolType::TypeDef)
     item.u.type_def = type
+    return item
+}
+
+def Symbol::from_variable(var: &Variable): &Symbol {
+    let item = Symbol::new(var.name, SymbolType::Variable)
+    item.u.var = var
     return item
 }
 

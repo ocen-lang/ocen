@@ -21,8 +21,10 @@ struct Variable {
     type: &Type
     span: Span
 
-    is_extern: bool
-    extern_name: string
+    prefix: string
+
+    // Only for functions, FIXMNE: move to `Parameter` type?
+    default_value: &AST
 }
 
 def Variable::new(name: string, type: &Type, span: Span): &Variable {
@@ -30,6 +32,7 @@ def Variable::new(name: string, type: &Type, span: Span): &Variable {
     var.name = name
     var.type = type
     var.span = span
+    var.prefix = ""
     return var
 }
 

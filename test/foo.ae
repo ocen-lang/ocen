@@ -3,7 +3,16 @@ import bar
 import bar::baz
 import bar::baz::do_baz
 
+def get_one(): i32 {
+    return 1
+}
+
+def sum(a: i32, b: i32 = get_one()): i32 {
+    return b
+}
+
 def do_foo(): i32 {
+    sum()
     ns2::do_ns2()
     bar::baz::do_baz()
     baz::do_baz()

@@ -84,6 +84,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         yield Type::new_unresolved(token.text, token.span)
     }
 
+    // FIXME: Allow using `a::b::c` as a type.
     else => {
         .unhandled_type("parse_type")
         yield Type::new_unresolved_base(BaseType::Error, .token().span)
@@ -245,7 +246,13 @@ def Parser::parse_function(&this): &Function {
             .consume(TokenType::Colon)
             type = .parse_type()
         }
+
+        let default_value = null as &AST
+        if .consume_if(TokenType::Equals) {
+            default_value = .parse_expression(end_type: TokenType::Comma)
+        }
         let var = Variable::new(var_name.text, type, var_name.span)
+        var.default_value = default_value
         func.params.push(var)
 
         if not .token_is(TokenType::CloseParen) {
