@@ -1,0 +1,5 @@
+/// fail: Variable type cannot be inferred, specify explicitly
+
+def main() {
+    let x
+}

@@ -1,0 +1,11 @@
+/// fail: Cannot yield multiple times in a block
+
+def main() {
+    let x = match 5 {
+        0 => {
+            yield "hello"
+            yield "bye"
+        }
+        else => "ok"
+    }
+}

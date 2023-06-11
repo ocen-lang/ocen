@@ -1,0 +1,9 @@
+/// out: "a\nb"
+
+def main() {
+    let a: char = 'a'
+    let b = 'b'
+    let newline = '\n'
+
+    println("%c%c%c", a, newline, b)
+}

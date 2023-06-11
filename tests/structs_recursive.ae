@@ -1,0 +1,15 @@
+/// exit: 0
+
+struct Foo {
+    a: i32
+    b: &Bar
+}
+
+struct Bar {
+    x: bool
+    y: &Foo
+}
+
+def main() {
+    
+}

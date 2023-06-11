@@ -1,0 +1,6 @@
+/// fail: Variable type does not match assignment type
+
+def main() {
+    let x: bool
+    x = 5
+}

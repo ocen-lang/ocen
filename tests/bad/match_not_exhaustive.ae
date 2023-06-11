@@ -1,0 +1,17 @@
+/// fail: Match does not cover all cases
+
+enum People {
+    LP
+    Charlie
+    KJ
+    Coffee
+}
+
+def main() {
+    let x = People::LP
+    match x {
+        People::LP => {}
+        People::KJ => {}
+        People::Coffee => {}
+    }
+}

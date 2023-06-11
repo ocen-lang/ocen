@@ -1,0 +1,6 @@
+/// fail: Variable is already defined in scope
+
+def main() {
+    let x = 0
+    let x = 7
+}

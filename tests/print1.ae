@@ -1,0 +1,7 @@
+/// exit: 0
+/// out: "Hello, World\n1 2 3"
+
+def main() : i32 {
+    println("Hello, World")
+    println("%d %d %d", 1, 2, 3)
+}

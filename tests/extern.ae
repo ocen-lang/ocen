@@ -1,0 +1,12 @@
+/// out: "Hello, world!"
+
+struct FILE extern
+
+def file_open(s: string, p: string): &FILE extern("fopen")
+def file_write(s: string, a: i32, b: i32, f: &FILE): i32 extern("fwrite")
+
+def main() {
+    let f = file_open("/dev/stdout", "w");
+    file_write("Hello, world!", 1, 13, f);
+    return 0
+}

@@ -1,0 +1,10 @@
+/// fail: Type already has a field with this name
+
+enum Variable {
+    Integer
+    IntLiteral
+    Float
+    String
+}
+
+def Variable::Integer() {}

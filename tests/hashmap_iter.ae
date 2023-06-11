@@ -1,0 +1,34 @@
+/// out: "PASS"
+
+use "lib/map.ae"
+
+def main() {
+    let map = Map::new()
+
+    map.insert("key1", "value1")
+    map.insert("key2", "value2")
+    map.insert("key3", "value3")
+    map.insert("key4", "value4")
+    map.insert("key5", "value5")
+    map.insert("key6", "value6")
+    map.insert("key7", "value7")
+    map.insert("key8", "value8")
+    map.insert("key9", "value9")
+    map.insert("key10", "value10")
+    map.insert("key11", "value11")
+    map.insert("key12", "value12")
+    map.insert("key13", "value13")
+    map.insert("key14", "value14")
+    map.insert("key15", "value15")
+    map.insert("key16", "value16")
+
+    let count = 0
+    for let iter = map.iter(); iter.cur?; iter.next() {
+        count += 1
+    }
+    if count == map.num_buckets {
+        println("PASS")
+    } else {
+        println("FAIL")
+    }
+}

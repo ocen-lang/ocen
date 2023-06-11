@@ -1,0 +1,5 @@
+/// skip
+
+def c() {
+	print("c ")
+}

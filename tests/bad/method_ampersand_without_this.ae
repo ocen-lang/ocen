@@ -1,0 +1,6 @@
+/// fail: Expected 'this' over here
+
+struct Foo {}
+
+// This isn't allowed.
+def Foo::foo(&x: i32) {}

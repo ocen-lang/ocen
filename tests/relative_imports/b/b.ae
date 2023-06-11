@@ -1,0 +1,8 @@
+/// skip
+
+use "@/b/c/c.ae"
+
+def b() {
+	print("b ")
+	c()
+}

@@ -1,0 +1,12 @@
+/// exit: 0
+
+def main() {
+    let y = 1 + 2
+    let z = 1.0 + 2.0
+
+    let a = 1 < 2
+    let b = 1.0 > 2.0
+
+    let m = -1
+    let n = -1.0
+}

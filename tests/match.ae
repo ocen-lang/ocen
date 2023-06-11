@@ -1,0 +1,24 @@
+/// out: "be right back (not really)"
+
+enum People {
+    LP
+    Charlie
+    KJ
+    Coffee
+}
+
+def main() {
+    let x = People::LP
+    match x {
+        People::LP => {
+            println("be right back (not really)")
+        }
+        People::Charlie |
+        People::KJ => {
+            println("lets go invade a country")
+        }
+        People::Coffee => {
+            println("idk man")
+        }
+    }
+}

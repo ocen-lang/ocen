@@ -1,0 +1,13 @@
+/// out: "pass"
+
+def main() {
+	let x = null as &i32
+	if not x? {
+		print("pa")
+	}
+	let y = 10
+	x = &y
+	if x? {
+		print("ss")
+	}
+}

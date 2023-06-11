@@ -1,0 +1,7 @@
+/// out: "a b c"
+
+use "@/a.ae"
+
+def main() {
+	a()
+}

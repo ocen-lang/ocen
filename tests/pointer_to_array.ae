@@ -1,0 +1,12 @@
+/// compile
+
+// This previously did not compile with the hacky codegen for types,
+// so making sure it does now.
+
+def main() {
+    let x: [[i32; 4]; 5]
+    x[0][0] = 1
+    let y = x
+    let z: &[i32; 4] = y
+    let w = z
+}

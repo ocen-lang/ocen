@@ -34,23 +34,23 @@ def string::replace(&this, other: string) {
 }
 
 def CodeGenerator::get_op(&this, type: ASTType): string => match type {
-    Plus => "+",
-    Minus => "-",
-    Multiply => "*",
+    And => "&&",
+    BitwiseAnd => "&",
+    BitwiseOr => "|",
+    BitwiseXor => "^",
     Divide => "/",
-    LessThan => "<",
-    LessThanEquals => "<=",
+    Equals => "==",
     GreaterThan => ">",
     GreaterThanEquals => ">=",
-    Equals => "==",
-    NotEquals => "!=",
-    And => "&&",
-    Or => "||",
-    Modulus => "%",
-    BitwiseOr => "|",
-    BitwiseAnd => "&",
-    BitwiseXor => "^",
     LeftShift => "<<",
+    LessThan => "<",
+    LessThanEquals => "<=",
+    Minus => "-",
+    Modulus => "%",
+    Multiply => "*",
+    NotEquals => "!=",
+    Or => "||",
+    Plus => "+",
     RightShift => ">>",
     else => panic(`Unknown op type in get_op: {type}`)
 }
@@ -122,23 +122,23 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_expression(expr)
         }
 
-        Plus |
-        Minus |
-        Multiply |
+        And |
+        BitwiseAnd |
+        BitwiseOr |
+        BitwiseXor |
         Divide |
-        LessThan |
-        LessThanEquals |
+        Equals |
         GreaterThan |
         GreaterThanEquals |
-        Equals |
-        NotEquals |
-        And |
-        Or |
-        Modulus |
-        BitwiseOr |
-        BitwiseAnd |
-        BitwiseXor |
         LeftShift |
+        LessThan |
+        LessThanEquals |
+        Minus |
+        Modulus |
+        Multiply |
+        NotEquals |
+        Or |
+        Plus |
         RightShift => {
             let lhs = node.u.binary.lhs
             let rhs = node.u.binary.rhs

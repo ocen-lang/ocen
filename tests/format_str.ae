@@ -1,0 +1,7 @@
+/// out: 'x is "Hello", `y` = {9}'
+
+def main() {
+    let x = "Hello"
+    let q = `x is "{x}", \`y\` = \{{5 + 4}\}`
+    println("%s", q)
+}

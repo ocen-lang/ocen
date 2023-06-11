@@ -1,0 +1,10 @@
+/// fail: Label on parameter does not match parameter name
+
+def foo(val: i32, does_exist: bool): i32 {
+    return val
+}
+
+def main() {
+    let x = foo(1, true)
+    let y = foo(2, incorrect: false)
+}

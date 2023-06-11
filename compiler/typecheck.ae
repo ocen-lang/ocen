@@ -135,9 +135,8 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
     if callee.type == ASTType::Identifier {
         callee.u.ident.is_function = false
         let name = callee.u.ident.name
-        println(`;;;;;; got name: {name}`)
+
         if name.eq("print") or name.eq("println") {
-            println(".....")
             for let i = 0; i < args.size; i += 1 {
                 let arg = args.at(i) as &Argument
                 .check_expression(arg.expr, scope)
@@ -580,7 +579,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace, scop
         let part = path.parts.at(i) as &ImportPart
         let name = part.name
         let new_ns = base.namespaces.get(name)
-        println(`?? finding symbol {name} in namespace {base.prefix}`)
+
         if not new_ns? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
             return
@@ -590,7 +589,6 @@ def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace, scop
 
     let last_part = path.parts.back() as &ImportPart
     let name = last_part.name
-    println(`?? finding symbol {name} in namespace {base.prefix}`)
     let sym = base.find_importable_symbol(name)
     if not sym? {
         .error(Error::new(node.span, `Couldn't find importable symbol {name}`))
@@ -625,7 +623,6 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
     let item = Symbol::from_structure(struc)
     // FIXME: check if name already exists in scope
-    println(`?? inserting symbol {struc.name} into namespace {ns.prefix}`)
     ns.scope.items.insert(struc.name, item)
 
     let typ = Type::new_resolved(Structure, struc.span)

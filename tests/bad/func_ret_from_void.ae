@@ -1,0 +1,5 @@
+/// fail: Cannot return 'i32' in void function
+
+def foo() {
+    return 5
+}

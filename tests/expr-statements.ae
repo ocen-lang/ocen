@@ -1,0 +1,42 @@
+/// out: "pass"
+
+def main() {
+	let a = 23
+	println("%s", match a % 20 {
+		0 => "zero" // Implicit yield
+		1 => {
+			yield "one"
+		}
+		2 => {
+			// This is not yielded, so types don't matter
+			match a % 10 {
+				0 => "ten"
+				1 => 7
+				else => true
+			}
+
+			yield match a % 10 {
+				0 => "test"
+				else => "fail"
+			}
+		}
+		3 => match a * 3 {
+			0 => "zero"
+			69 => {
+				yield match 0 {
+					99 => "pass"
+					else => if 5 > 10 {
+								yield "fail"
+							} else if 5 < 10
+								"pass"	// Implicit yield
+							else
+								"bruh"
+				}
+			}
+			else => "huh"
+		}
+		else => {
+			yield "out of luck"
+		}
+	})
+}

@@ -1,0 +1,8 @@
+/// fail: Expression-match must yield a value
+
+enum Hello {}
+
+def main() {
+    let x: Hello
+    let y = match x {}
+}

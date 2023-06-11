@@ -1,0 +1,10 @@
+/// out: "hello 21 0021 33\nhello 21 0021 33"
+
+struct Foo {}
+def Foo::bar(): i32 => 33
+
+def main() {
+    let x = `hello {Foo::bar() :02x} {33: 04X} {33}`
+    println("%s", x)
+    println(`hello {Foo::bar() :02x} {33: 04X} {33}`)
+}

@@ -1,0 +1,11 @@
+/// out: "1 0 1 1 1 0"
+
+def main() {
+    let a = true and true
+    let b = true and false
+    let c = true or false
+    let d = not false or false
+    let e = (false and false) or true
+    let f = false and (false or true)
+    println("%d %d %d %d %d %d", a, b, c, d, e, f)
+}

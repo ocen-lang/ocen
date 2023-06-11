@@ -1,0 +1,8 @@
+/// out: "0 2"
+
+def main() {
+    let x = 5 - 2 - 3
+    let y = 8 / 2 / 2
+
+    println("%d %d", x, y)
+}

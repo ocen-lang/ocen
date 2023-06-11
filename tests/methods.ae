@@ -1,0 +1,28 @@
+/// out: "69\n1104"
+
+struct Rectangle {
+    width: i32
+    height: i32
+}
+
+def Rectangle::area(&this): i32 {
+    return .width * .height
+}
+
+def Rectangle::scale(&this, factor: i32) {
+    .width = .width * factor
+    .height = .height * factor
+}
+
+def main() {
+    let x: Rectangle
+    x.width = 23
+    x.height = 3
+    println("%d", x.area())
+
+    x.scale(2)
+    let z = &x
+    z.scale(2)
+
+    println("%d", z.area())
+}

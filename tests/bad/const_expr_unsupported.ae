@@ -1,0 +1,4 @@
+/// fail: Unsupported operator in constant expression
+
+const foo = "Hello"
+const bar = &foo

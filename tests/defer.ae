@@ -1,0 +1,11 @@
+/// out: "1\n2\n3\n4\n5"
+
+def main() {
+    defer println("%d", 5)
+    println("%d", 1)
+    {
+        defer println("%d", 3)
+        println("%d", 2)
+    }
+    println("%d", 4)
+}

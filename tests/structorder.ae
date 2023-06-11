@@ -1,0 +1,36 @@
+/// exit: 0
+
+struct G0 {
+    a: G5
+    b: G4
+}
+
+struct G2 {
+    a: G5
+}
+
+struct G1 {
+    a: G4
+    b: G3
+}
+
+struct G3 {
+    a: G2
+}
+
+struct G5 {
+    a: i32
+}
+
+struct G4 {
+    a: i32
+}
+
+def main() {
+    let z: G0
+    let a: G1
+    let b: G2
+    let c: G3
+    let d: G4
+    let e: G5
+}

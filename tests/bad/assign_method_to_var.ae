@@ -1,0 +1,10 @@
+/// fail: Cannot assign methods to variables
+
+struct Foo {}
+
+def Foo::get(this) {}
+
+def main() {
+    let f: Foo
+    let g = f.get
+}

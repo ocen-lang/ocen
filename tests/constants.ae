@@ -1,0 +1,11 @@
+/// compile
+
+const X = 1
+const Y = X * 2
+const Z = Y * 4
+
+struct Foo {
+    values: [u8; Z]
+}
+
+def main() => 0

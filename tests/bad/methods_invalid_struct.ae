@@ -1,0 +1,3 @@
+/// fail: Type for method does not exist
+
+def Foo::bar() {}

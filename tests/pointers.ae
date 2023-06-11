@@ -1,0 +1,15 @@
+/// out: "10 20\n20 10"
+
+def swap_i32(a: &i32, b: &i32) {
+    let tmp = *a
+    *a = *b
+    *b = tmp
+}
+
+def main() {
+    let x = 10
+    let y = 20
+    println("%d %d", x, y)
+    swap_i32(&x, &y)
+    println("%d %d", x, y)
+}

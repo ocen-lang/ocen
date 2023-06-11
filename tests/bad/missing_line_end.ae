@@ -1,0 +1,5 @@
+/// fail: Expected Comma or newline
+
+struct Foo {
+    a: i32 b: i32
+}

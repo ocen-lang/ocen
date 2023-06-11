@@ -1,0 +1,5 @@
+/// fail: Type of field is undefined
+
+struct Anything {
+    a: MadeUp
+}

@@ -1,0 +1,12 @@
+/// out: "Hello, world!\nBruh"
+
+def main() {
+    let a: string = "Hello, world!"
+    let b = getName()
+    println("%s", a)
+    println("%s", b)
+}
+
+def getName(): string {
+    return "Bruh"
+}

@@ -1,0 +1,23 @@
+/// exit: 0
+
+def main() {
+    let x = 1
+    x += 1
+    x = x + 1
+
+    x *= 2
+    x = x * 2
+
+    x /= 2
+    x = x / 2
+
+    x -= 1
+    x = x - 1
+
+    let a0 = 0 == 0
+    let a1 = 0 != 0
+    let a2 = 0 < 0
+    let a3 = 0 > 0
+    let a4 = 0 <= 0
+    let a5 = 0 >= 0
+}

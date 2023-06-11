@@ -1,0 +1,26 @@
+/// out: "2 2 2 2"
+
+def plus_one(x: i32): i32 { return x + 1; }
+def times_two(x: i32): i32 { return x * 2; }
+def minus_one(x: i32): i32 { return x - 1; }
+def divide_by_two(x: i32): i32 { return x / 2; }
+
+def do_op(x: i32, op: fn(i32): i32): i32 {
+    return op(x);
+}
+
+def add(x: i32, y: i32): i32 {
+    return x + y
+}
+
+def retadd(none: i32): fn(i32,i32): i32 {
+    return add
+}
+
+def main() {
+    print("%d ", do_op(1, plus_one) + retadd(0)(1, -1));
+    print("%d ", do_op(1, times_two))
+    print("%d ", do_op(3, minus_one))
+    print("%d ", do_op(4, divide_by_two))
+    print("\n")
+}

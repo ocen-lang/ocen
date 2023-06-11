@@ -1,0 +1,13 @@
+/// compile
+
+use "lib/image.ae"
+use "lib/vec.ae"
+use "lib/vector.ae"
+use "lib/map.ae"
+use "lib/sdl.ae"
+use "lib/glut.ae"
+use "lib/math.ae"
+
+// Just want to make sure that the code compiles
+
+def main() {}

@@ -1,0 +1,5 @@
+/// fail: Invalid type
+
+def main() {
+    let x = sizeof(Foo)
+}

@@ -1,0 +1,19 @@
+/// out: "PASS"
+
+enum Variable {
+    Integer
+    IntLiteral
+    Float
+    String
+}
+
+def main() {
+    let x = Variable::Integer
+    let y = Variable::IntLiteral
+
+    if x == y {
+        println("FAIL")
+    } else {
+        println("PASS")
+    }
+}

@@ -1,0 +1,26 @@
+/// out: "64\n64"
+
+struct Square {
+    x: i32
+    y: i32
+}
+
+struct Shapes {
+    s: Square
+    b: &Square
+}
+
+def main() {
+    let a: Square
+    a.x = 5
+    a.y = 10
+    let z = &a
+    z.x = 54
+    println("%d", z.y + a.x)
+
+    let sh: Shapes
+    sh.s.x = 30
+    sh.b = &a
+    sh.b.y = 34
+    println("%d", sh.s.x + sh.b.y)
+}

@@ -1,0 +1,7 @@
+/// fail: Expression-if must have an 'else' branch
+
+def main() {
+    let x = if 5 < 10 {
+        yield "hello"
+    }
+}

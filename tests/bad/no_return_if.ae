@@ -1,0 +1,9 @@
+/// fail: Function does not always return
+
+def foo(): i32 {
+	if true {
+		return 5
+	} else {
+		print("nope")
+	}
+}

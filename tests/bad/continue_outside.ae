@@ -1,0 +1,5 @@
+/// fail: Continue statement outside of loop
+
+def main() {
+    continue
+}

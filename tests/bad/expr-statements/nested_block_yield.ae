@@ -1,0 +1,11 @@
+/// fail: Cannot yield in this context
+
+def main() {
+    let x = if 5 < 10 {
+        {
+            yield "bye"
+        }
+    } else {
+        yield "hi"
+    }
+}

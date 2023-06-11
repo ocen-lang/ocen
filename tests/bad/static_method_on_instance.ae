@@ -1,0 +1,11 @@
+/// fail: Member access requires a non-static method
+
+struct Foo {}
+def Foo::foo(): i32 {
+    return 0
+}
+
+def main() {
+    let f: Foo
+    println("%d", f.foo())
+}

@@ -1,0 +1,24 @@
+/// out: "pass"
+
+enum Foo {
+    Hello
+    World
+    Aecor
+}
+
+enum Bar {
+    World
+    Aecor
+    Hello
+}
+
+def main() {
+    let x = Foo::Hello
+    let y = Bar::World
+
+    if x == Hello and y == World {
+        println("pass")
+    } else {
+        println("fail")
+    }
+}

@@ -1,0 +1,3 @@
+/// fail: Invalid parameter type
+
+def foo(x: Foo) {  }

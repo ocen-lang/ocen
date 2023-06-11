@@ -130,6 +130,11 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             node = AST::new(ASTType::BoolLiteral, .token().span)
             node.u.bool_literal = tok.type == TokenType::True
         }
+        TokenType::OpenParen => {
+            .consume(TokenType::OpenParen)
+            node = .parse_expression(end_type: TokenType::CloseParen)
+            .consume(TokenType::CloseParen)
+        }
         else => {
             .unhandled_type("parse_expression")
             node = AST::new(ASTType::Error, .token().span)
@@ -699,6 +704,13 @@ def print_ns(ns: &Namespace, indent: i32) {
         println(`(func) {func.name}`)
     }
 
+    let structs = ns.structs
+    for let i = 0; i < structs.size; i += 1 {
+        let struc = structs.at(i) as &Structure
+        prindent(indent + 1)
+        println(`(struct) {struc.name}`)
+    }
+
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         let next = iter.value() as &Namespace
         print_ns(next, indent + 1)
@@ -726,10 +738,6 @@ def Parser::parse_toplevel(filename: string):&Program {
     )
     program.global.namespaces.insert(base, ns)
     program.global.path = dir
-
-    println(`[+] Parsing {filename}`)
-    println(`[+] Dir: {dir}`)
-    println(`[+] Base: {base}`)
 
     let parser = Parser::make(program, ns)
     parser.load_file(filename)

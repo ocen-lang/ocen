@@ -1,0 +1,18 @@
+/// fail: Duplicate condition name in match
+
+enum People {
+    LP
+    Charlie
+    KJ
+    Coffee
+}
+
+def main() {
+    let x = People::LP
+    match x {
+        People::LP  => {}
+        People::KJ  => {}
+        People::Coffee  => {}
+        People::Coffee  => {}
+    }
+}

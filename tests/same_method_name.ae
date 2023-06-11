@@ -1,0 +1,10 @@
+/// exit: 0
+
+struct Foo {}
+struct Boo {}
+
+def func() {}
+def Foo::func() {}
+def Boo::func() {}
+
+def main() {}

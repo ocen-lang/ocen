@@ -6,47 +6,47 @@ use "compiler/errors.ae"
 use "compiler/scopes.ae"
 
 enum ASTType {
+    Address
     Block
+    BoolLiteral
     Call
     Error
     Identifier
-    IntLiteral
-    StringLiteral
-    BoolLiteral
-    Return
-    NSLookup
-    Import
-    VarDeclaration
     If
-    While
+    Import
+    IntLiteral
     Member
-    Address
+    NSLookup
+    Return
+    StringLiteral
+    VarDeclaration
+    While
 
     // Binary operators
-    BitwiseAnd
     And
-    BitwiseXor
-    Equals
     Assignment
-    GreaterThan
-    GreaterThanEquals
-    RightShift
-    LessThan
-    LessThanEquals
-    LeftShift
+    BitwiseAnd
+    BitwiseNot
     BitwiseOr
-    Minus
-    MinusEquals
-    NotEquals
-    Or
-    Modulus
-    Plus
-    PlusEquals
+    BitwiseXor
     Divide
     DivideEquals
+    Equals
+    GreaterThan
+    GreaterThanEquals
+    LeftShift
+    LessThan
+    LessThanEquals
+    Minus
+    MinusEquals
+    Modulus
     Multiply
     MultiplyEquals
-    BitwiseNot
+    NotEquals
+    Or
+    Plus
+    PlusEquals
+    RightShift
 }
 
 def ASTType::from_token(type: TokenType): ASTType => match type {
@@ -254,21 +254,21 @@ struct Cast {
 }
 
 union ASTUnion {
-    block: Block
-    ident: Identifier
-    call: FuncCall
-    unary: &AST
     binary: Binary
+    block: Block
+    bool_literal: bool
+    call: FuncCall
+    cast: Cast
+    ident: Identifier
+    if_stmt: IfStatement
+    import_path: ImportPath
+    lookup: NSLookup
+    loop: Loop
+    member: Member
     num_literal: NumLiteral
     string_literal: string
-    bool_literal: bool
-    lookup: NSLookup
-    member: Member
-    import_path: ImportPath
+    unary: &AST
     var_decl: VarDeclaration
-    if_stmt: IfStatement
-    loop: Loop
-    cast: Cast
 }
 
 struct AST {

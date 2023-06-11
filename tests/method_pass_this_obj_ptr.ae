@@ -1,0 +1,28 @@
+/// out: "16 10 16"
+
+// We can instruct methods to pass in `this` either by value or by a pointer,
+// denoted by `Foo::foo(this)` and `Foo::foo(&this)` respectively.
+// This test makes sure those semantics are correct.
+
+struct Foo {
+    x: i32
+}
+
+def Foo::foo(this): Foo {
+    .x += 1
+    return this
+}
+
+def Foo::bar(&this): &Foo {
+    .x += 1
+    return this
+}
+
+def main() {
+    let f: Foo
+    f.x = 10
+    let res0 = f.foo().foo().foo().foo().foo().foo()
+    let mid = f
+    let res1 = f.bar().bar().bar().bar().bar().bar()
+    println("%d %d %d", res0.x, mid.x, res1.x)
+}

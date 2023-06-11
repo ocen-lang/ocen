@@ -1,0 +1,5 @@
+/// fail: Variable type does not match initializer type
+
+def main() {
+    let x: i32 = true
+}

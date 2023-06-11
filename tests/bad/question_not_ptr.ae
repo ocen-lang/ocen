@@ -1,0 +1,6 @@
+/// fail: Can only use ? on pointer types
+
+def main() {
+	let x = 50
+	if x? {}
+}

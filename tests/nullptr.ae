@@ -1,0 +1,17 @@
+/// out: "pass"
+
+def foo(x: untyped_ptr): untyped_ptr {
+	return x
+}
+
+def main() {
+	let vec = null as &string
+	if vec == null {
+		print("pa")
+	}
+	// This is not ideal, but convenient for now.
+	let x: &i32 = foo(vec)
+	if not (null != x) {
+		print("ss")
+	}
+}

@@ -1,0 +1,10 @@
+/// exit: 0
+
+def foo(): bool {
+    return true
+}
+
+def main() {
+    let x = (0 as bool) or true
+    let y = (foo() as i32) + 5
+}

@@ -1,0 +1,9 @@
+/// fail: Struct has already been defined
+
+struct Foo {
+    a: i32
+}
+
+struct Foo {
+    b: bool
+}

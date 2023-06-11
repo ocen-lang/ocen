@@ -1,0 +1,9 @@
+/// fail: Must yield a value in this branch
+
+def main() {
+    let x = if 3 > 5 {
+        yield 10
+    } else {
+        // nope
+    }
+}

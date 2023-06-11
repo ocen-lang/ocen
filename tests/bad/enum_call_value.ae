@@ -1,0 +1,12 @@
+/// fail: Cannot call a non-function type
+
+enum Variable {
+    Integer
+    IntLiteral
+    Float
+    String
+}
+
+def main() {
+    let x = Variable::Integer()
+}

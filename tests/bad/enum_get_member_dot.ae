@@ -1,0 +1,13 @@
+/// fail: Type 'Variable' has no member with this name
+
+enum Variable {
+    Integer
+    IntLiteral
+    Float
+    String
+}
+
+def main() {
+    let x = Variable::Integer
+    let y = x.Float
+}

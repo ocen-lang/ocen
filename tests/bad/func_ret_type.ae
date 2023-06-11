@@ -1,0 +1,11 @@
+/// fail: Return type 'bool' is incorrect
+
+def main() : i32 {
+    let x: i32 = 5
+    let y: i32 = 7
+    let z: bool = true
+    {
+        let p: i32 = 3
+    }
+    return z
+}

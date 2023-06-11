@@ -1,0 +1,16 @@
+/// out: "0\n1"
+
+struct Foo {
+    func: fn(): i32
+}
+
+def a0(): i32 { return 0; }
+def a1(): i32 { return 1; }
+
+def main() {
+    let x: Foo
+    x.func = a0
+    println("%d", x.func())
+    x.func = a1
+    println("%d", x.func())
+}

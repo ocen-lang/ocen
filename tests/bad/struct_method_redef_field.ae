@@ -1,0 +1,7 @@
+/// fail: Type already has a field with this name
+
+struct Foo {
+    len: i32
+}
+
+def Foo::len(this) {}

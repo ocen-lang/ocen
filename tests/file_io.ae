@@ -1,0 +1,18 @@
+/// out: "Hello, world!"
+
+def main() {
+    {
+        let file = File::open("test.txt", "w")
+        defer file.close()
+
+        file.write("Hello, world!" , 13)
+    }
+    {
+        let file = File::open("test.txt", "r")
+        defer file.close()
+
+        let mem = malloc(20)
+        file.read(mem, 13)
+        println("%s", mem as string)
+    }
+}

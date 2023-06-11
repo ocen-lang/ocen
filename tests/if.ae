@@ -1,0 +1,10 @@
+/// out: "true"
+
+def main() : i32 {
+    let f: bool = true
+    if f {
+        println("true")
+    } else {
+        println("false")
+    }
+}

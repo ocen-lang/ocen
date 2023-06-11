@@ -1,0 +1,13 @@
+/// out: "lmao"
+
+def foo(x: i32) {
+	if x < 10 {
+		print("lmao")
+		return
+	}
+	print("oops")
+}
+
+def main() {
+	foo(5)
+}

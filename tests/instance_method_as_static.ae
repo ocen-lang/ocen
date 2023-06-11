@@ -1,0 +1,15 @@
+/// out: "42"
+
+struct Foo {
+    x: i32
+}
+
+def Foo::foo(&this): i32 {
+    return .x
+}
+
+def main() {
+    let f: Foo
+    f.x = 42
+    println("%d", Foo::foo(&f))
+}

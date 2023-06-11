@@ -1,0 +1,8 @@
+/// fail: Must yield a value in this branch
+
+def main() {
+    let x = match 5 {
+        0 => let y = "hello"
+        else => let z = "bye"
+    }
+}

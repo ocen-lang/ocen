@@ -1,0 +1,51 @@
+/// exit: 0
+
+def foo(): i32 {
+	let x = 5;
+	return x;
+}
+
+def bar(): i32 {
+	if 5 < 10 {
+		return 10
+	} else {
+		return 5
+	}
+}
+
+def baz(): i32 {
+	match 5 {
+		1 => return 0
+		2 => return 0
+		3 => return 0
+		else =>  return 0
+	}
+}
+
+enum Test {
+	One
+	Two
+	Three
+}
+
+def test0(): i32 {
+	match Test::One {
+		One => return 1
+		Two => return 2
+		else =>  return 3
+	}
+}
+
+def test1(): i32 {
+	match Test::One {
+		One => return 1
+		Two => return 2
+		Three =>  return 3
+	}
+}
+
+def main() {
+	
+}
+
+

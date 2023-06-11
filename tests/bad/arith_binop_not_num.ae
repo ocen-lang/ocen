@@ -1,0 +1,5 @@
+/// fail: Operator requires numeric types
+
+def main() {
+    let x = true + 5
+}

@@ -1,0 +1,42 @@
+/// out: "6"
+
+enum Foo {
+    Bar
+    Baz
+    Qux
+}
+
+struct SFoo {
+    x: Foo
+}
+
+def func1(foo: Foo): u8 => match foo {
+    Bar => 0
+    Baz => 1
+    Qux => 2
+}
+
+def func2(sfoo: SFoo): u8 => match sfoo.x {
+    Bar => 3
+    Baz => 4
+    Qux => 5
+}
+
+
+def main() : i32 {
+    let x = 5
+    let a: u64 = 7
+    let j = a + 3u64
+
+    let k = func1(Qux)
+    let l = func2(SFoo(x: Baz))
+    let m: u8 = k + l
+    println(`{m}`)
+
+    let y = 7
+    let z = true
+    {
+        let p = 3
+    }
+    return x - x
+}

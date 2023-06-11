@@ -1,0 +1,6 @@
+/// fail: Expression must be a pointer-type
+
+def main() {
+    let x = 5
+    let y = *x
+}

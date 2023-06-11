@@ -1,0 +1,6 @@
+/// fail: Condition must be a boolean
+
+def main() {
+    if (0) {
+    }
+}

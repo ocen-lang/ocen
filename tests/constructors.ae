@@ -1,0 +1,14 @@
+/// out: "6"
+
+struct Vec {
+    x: i32
+    y: f32
+}
+
+def main() {
+    let x = Vec(x: 1, y: 2.0)
+    let y = Vec(2, 1.0)
+    let z = x.x as f32 + y.y
+    let w = x.y + y.x as f32
+    println("%d", (z + w) as i32)
+}

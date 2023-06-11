@@ -1,0 +1,17 @@
+/// out: "cool"
+
+def main() {
+	match 'f' {
+		'f' => {
+			println("cool")
+		}
+		'a' |
+		'b' |
+		'c' => {
+			println("huh")
+		}
+		else => {
+
+		}
+	}
+}

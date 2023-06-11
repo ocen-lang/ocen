@@ -1,0 +1,17 @@
+/// out: "2"
+
+def add_one(x: i32): i32 => x + 1
+
+struct Foo {
+    x: i32
+}
+
+def Foo::lol(this): i32 => match .x {
+    0 => 1
+    else => 4
+}
+
+def main() {
+    let x = Foo(0)
+    println("%d", add_one(x.lol()))
+}

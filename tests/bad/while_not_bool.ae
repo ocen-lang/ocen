@@ -1,0 +1,6 @@
+/// fail: Condition must be boolean
+
+def main() {
+    while (0) {
+    }
+}

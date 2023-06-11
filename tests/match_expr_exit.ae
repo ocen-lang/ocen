@@ -1,0 +1,9 @@
+/// compile
+
+def main() {
+    let x = match 1 {
+        0 => 3
+        4 => 5
+        else => panic("oh no")
+    }
+}

@@ -1,0 +1,9 @@
+/// fail: Number of arguments does not match function signature
+
+def foo(a: i32, b: i32): i32 {
+    return a + b
+}
+
+def main() {
+    foo(1, 2, 3)
+}

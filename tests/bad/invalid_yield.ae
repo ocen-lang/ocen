@@ -1,0 +1,5 @@
+/// fail: Cannot yield in this context
+
+def main() {
+	yield 5
+}

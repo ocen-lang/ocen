@@ -1,0 +1,7 @@
+/// fail: This type cannot be matched on
+
+def main() {
+    match 3.14159 {
+
+    }
+}

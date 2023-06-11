@@ -1,0 +1,17 @@
+/// out: "31"
+
+def main() {
+	let x = "bruh"
+	match x {
+		"Hello" => print("1")
+		"World" | "bruh" => print("3")
+		"lmao" => print("4")
+		else => print("unknown")
+	}
+
+	match x {
+		"bruh" => print("1")
+		"lmao" => print("4")
+		else => print("unknown")
+	}
+}

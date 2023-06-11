@@ -1,0 +1,5 @@
+/// fail: Break statement outside of loop
+
+def main() {
+    break
+}

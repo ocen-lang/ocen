@@ -1,0 +1,5 @@
+/// fail: Unknown Identifier
+
+def main() {
+    return x
+}

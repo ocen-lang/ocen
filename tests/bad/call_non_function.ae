@@ -1,0 +1,6 @@
+/// fail: Cannot call a non-function type
+
+def main() {
+    let x = 5
+    println("%d", x())
+}

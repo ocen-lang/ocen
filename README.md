@@ -1,14 +1,32 @@
-# big aecor rewrite
+# Aecor 2.0
 
-What works so far:
-   - full lexer
-   - parser for only builtin types + basic imports (look in `test/test.ae`)
-   - no typechecker/codegen yet. the corresponding files in `compiler/` are just copied over from the `aecor` repo and are *not* compiled yet.
+Heavily WIP. Need to have original `aecor` environment setup, [look here](https://github.com/mustafaquraish/aecor).
 
-## Build
+## Usage
 
+Build and run the compiler:
+
+```shell
+$ aecor compiler/main.ae -o compiler
+$ ./compiler --help
+$ ./compiler test/test.ae
 ```
-$ aecor compiler/main.ae
-# Run to see if everything parses:
-$ ./out test/test.ae
+
+Convenient flow when working on a compiler feature:
+```shell
+# create some sample code with the feature in `feature.ae`
+# Use this to re-build compiler and run it on the sample code
+$ aecor compiler/main.ae -o compiler && ./compiler feature.ae
 ```
+
+Running unit tests on the compiler:
+```shell
+$ aecor compiler/main.ae -o compiler
+$ ./meta/test.py -c compiler # pass path to the built compiler
+
+# or a one liner:
+$ aecor compiler/main.ae -o compiler && ./meta/test.py -c compiler
+```
+
+*Note*: The unit tests are imported from aecor, and most do not pass yet because of different
+error messages and/or unimplemented features.

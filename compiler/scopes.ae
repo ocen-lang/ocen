@@ -132,14 +132,12 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
 def Namespace::find_importable_symbol(&this, name: string): &Symbol {
     let item = .namespaces.get(name) as &Namespace
     if item? then {
-        println(`   --found namespace {name}`)
         return Symbol::from_namespace(name, item)
     }
 
     for let i = 0; i < .functions.size; i += 1 {
         let func = .functions.at(i) as &Function
         if func.name.eq(name) {
-            println(`   --found function {name}`)
             return Symbol::from_function(name, func)
         }
     }
@@ -147,7 +145,6 @@ def Namespace::find_importable_symbol(&this, name: string): &Symbol {
     for let i = 0; i < .structs.size; i += 1 {
         let struc = .structs.at(i) as &Structure
         if struc.name.eq(name) {
-            println(`   --found struct {name}`)
             return Symbol::from_type(name, struc.type)
         }
     }

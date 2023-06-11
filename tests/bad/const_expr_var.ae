@@ -1,0 +1,5 @@
+/// fail: No constant value found with this name
+let x = 0
+const y = x + 1
+
+def main() => 0

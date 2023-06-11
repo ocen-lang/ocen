@@ -1,0 +1,7 @@
+/// fail: Argument type does not match function parameter type
+
+def foo(x: i32) { }
+
+def main() {
+    foo(true)
+}

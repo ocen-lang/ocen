@@ -1,0 +1,5 @@
+/// fail: Unknown struct with this name
+
+def main() {
+    Bar::foo()
+}

@@ -1,0 +1,7 @@
+/// out: "The value of x is 6"
+
+def main() {
+    let x: i32 = 5
+    x = x + 1
+    println("The value of x is %d", x)
+}
