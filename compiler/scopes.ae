@@ -3,6 +3,7 @@ use "compiler/types.ae"
 
 enum SymbolType {
     Function
+    Structure
     TypeDef
     Namespace
     Variable
@@ -10,6 +11,7 @@ enum SymbolType {
 
 struct SymbolUnion {
     func: &Function
+    struc: &Structure
     ns: &Namespace
     type_def: &Type
     var: &Variable
@@ -52,6 +54,12 @@ def Symbol::from_variable(var: &Variable): &Symbol {
     return item
 }
 
+def Symbol::from_structure(struc: &Structure): &Symbol {
+    let item = Symbol::new(struc.name, SymbolType::Structure)
+    item.u.struc = struc
+    return item
+}
+
 struct Scope {
     items: &Map // &Map<string, &Symbol>
     parent: &Scope
@@ -83,6 +91,7 @@ struct Namespace {
     parent: &Namespace
 
     functions: &Vector    // Vector<&Function>
+    structs: &Vector      // Vector<&Structure>
     imports: &Vector      // Vector<&AST>
     namespaces: &Map      // Map<string, &Namespace>
 
@@ -105,6 +114,7 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
     let parent_scope = if parent? then parent.scope else null
     ns.scope = Scope::new(parent_scope)
     ns.functions = Vector::new()
+    ns.structs = Vector::new()
     ns.namespaces = Map::new()
     ns.imports = Vector::new()
     ns.path = path
@@ -131,6 +141,14 @@ def Namespace::find_importable_symbol(&this, name: string): &Symbol {
         if func.name.eq(name) {
             println(`   --found function {name}`)
             return Symbol::from_function(name, func)
+        }
+    }
+
+    for let i = 0; i < .structs.size; i += 1 {
+        let struc = .structs.at(i) as &Structure
+        if struc.name.eq(name) {
+            println(`   --found struct {name}`)
+            return Symbol::from_type(name, struc.type)
         }
     }
     return null

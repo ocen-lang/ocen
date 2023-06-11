@@ -21,6 +21,7 @@ enum BaseType {
 
     Pointer
     Function
+    Structure
 
     Error
 }
@@ -59,6 +60,7 @@ def FunctionType::from_func(func: &Function): &FunctionType {
 struct TypeUnion {
     ptr: &Type
     func: &FunctionType
+    struc: &Structure
 }
 
 struct Type {

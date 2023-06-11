@@ -67,6 +67,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(str_lit)
             .out.puts("\"")
         }
+        Member => {
+            let lhs = node.u.member.lhs
+            .gen_expression(lhs)
+            if node.u.member.is_pointer {
+                .out.puts("->")
+            } else {
+                .out.puts(".")
+            }
+            .out.puts(node.u.member.rhs_name)
+        }
         Identifier | NSLookup => {
             let sym = node.resolved_symbol
             if not sym? {
@@ -106,6 +116,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let bool_lit = node.u.bool_literal
             .out.puts(if bool_lit then "true" else "false")
         }
+        Address => {
+            let expr = node.u.unary
+            .out.puts("&")
+            .gen_expression(expr)
+        }
 
         Plus |
         Minus |
@@ -134,6 +149,14 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(" ")
             .gen_expression(rhs)
             .out.puts(")")
+        }
+
+        Assignment => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            .gen_expression(lhs)
+            .out.puts(" = ")
+            .gen_expression(rhs)
         }
 
         else => .error(Error::new(node.span, `Unhandled expression type in CodeGenerator: {node.type}`))
@@ -186,6 +209,16 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             } else {
                 .out.puts("\n")
             }
+        }
+        ASTType::While => {
+            let cond = node.u.loop.cond
+            let body = node.u.loop.body
+            .gen_indent()
+            .out.puts("while (")
+            .gen_expression(cond)
+            .out.puts(") ")
+            .gen_block(body)
+            .out.puts("\n")
         }
         else => {
             .gen_indent()
@@ -249,6 +282,12 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                     is_func_def: false
                 ))
             }
+
+            Structure => {
+                let struc_name = .get_struct_name(cur.u.struc)
+                final.replace(`{struc_name} {final}`)
+            }
+
             Unresolved => {
                 .error(Error::new(type.span, "Unresolved type found"))
             }
@@ -289,6 +328,11 @@ def CodeGenerator::get_function_name(&this, func: &Function): string {
 def CodeGenerator::get_variable_name(&this, var: &Variable): string {
     return `{var.prefix}{var.name}`
 }
+
+def CodeGenerator::get_struct_name(&this, struc: &Structure): string {
+    return `{struc.prefix}{struc.name}`
+}
+
 
 def CodeGenerator::gen_function(&this, func: &Function) {
     .gen_function_decl(func)
@@ -332,6 +376,43 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     }
 }
 
+def CodeGenerator::gen_struct_typedefs(&this, ns: &Namespace) {
+    let structs = ns.structs;
+    for let i = 0; i < structs.size; i += 1 {
+        let struc = structs.at(i) as &Structure
+        let struc_name = .get_struct_name(struc)
+        .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_struct_typedefs(child)
+    }
+}
+
+def CodeGenerator::gen_structs(&this, ns: &Namespace) {
+    let structs = ns.structs;
+    for let i = 0; i < structs.size; i += 1 {
+        let struc = structs.at(i) as &Structure
+        let struc_name = .get_struct_name(struc)
+        .out.putsf(`struct {struc_name} \{\n`)
+        let fields = struc.fields
+        for let j = 0; j < fields.size; j += 1 {
+            let field = fields.at(j) as &Variable
+            .out.puts("    ")
+            .gen_type_and_name(field.type, .get_variable_name(field))
+            .out.puts(";\n")
+        }
+        .out.puts("};\n\n")
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_structs(child)
+    }
+}
 
 def CodeGenerator::generate(&this): string {
     // FIXME: Put all of this in a prelude file
@@ -350,6 +431,11 @@ def CodeGenerator::generate(&this): string {
     .out.puts("\n")
 
     // TODO: gen structs / other stuff...
+    .out.puts("/* Struct typedefs */\n")
+    .gen_struct_typedefs(.program.global)
+
+    .out.puts("/* Structs */\n")
+    .gen_structs(.program.global)
 
     .out.puts("/* function declarations */\n")
     .gen_function_decls(.program.global)

@@ -1,0 +1,29 @@
+
+struct Foo {
+    a: i32
+    b: i32
+}
+
+struct Bar {
+    a: Foo
+    b: i32
+}
+
+def main() {
+    let x = 0
+    let y = 1
+
+    let f: Bar
+    f.b = 1
+
+    let g = &f
+    g.a.b = 2
+
+    let N = 1000
+    while x < N {
+        print("%d\n", x)
+        let z = x + y
+        x = y
+        y = z
+    }
+}

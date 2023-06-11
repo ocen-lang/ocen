@@ -18,6 +18,9 @@ enum ASTType {
     Import
     VarDeclaration
     If
+    While
+    Member
+    Address
 
     // Binary operators
     BitwiseAnd
@@ -97,6 +100,33 @@ def Variable::new(name: string, type: &Type, span: Span): &Variable {
 struct VarDeclaration {
     var: &Variable
     init: &AST
+}
+
+struct Structure {
+    name: string
+    fields: &Vector     // Vector<&Variable>
+
+    type: &Type
+    span: Span
+    prefix: string
+}
+
+def Structure::new(name: string, span: Span): &Structure {
+    let struc = calloc(1, sizeof(Structure)) as &Structure
+    struc.fields = Vector::new()
+    struc.span = span
+    struc.name = name
+    return struc
+}
+
+def Structure::get_field(&this, name: string): &Variable {
+    for let i = 0; i < .fields.size; i += 1 {
+        let field = .fields.at(i) as &Variable
+        if field.name.eq(name) {
+            return field
+        }
+    }
+    return null
 }
 
 struct Function {
@@ -198,6 +228,13 @@ struct NSLookup {
     rhs_span: Span
 }
 
+struct Member {
+    lhs: &AST
+    rhs_name: string
+    rhs_span: Span
+    is_pointer: bool
+}
+
 struct IfStatement {
     cond: &AST
     body: &AST
@@ -226,6 +263,7 @@ union ASTUnion {
     string_literal: string
     bool_literal: bool
     lookup: NSLookup
+    member: Member
     import_path: ImportPath
     var_decl: VarDeclaration
     if_stmt: IfStatement
@@ -261,4 +299,11 @@ def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
     ast.u.binary.lhs = lhs
     ast.u.binary.rhs = rhs
     return ast
+}
+
+def AST::is_lvalue(&this): bool => match .type {
+    // FIXME: What about `a::b::c?`
+    Identifier => not .u.ident.is_function
+    Member => true
+    else => false
 }
