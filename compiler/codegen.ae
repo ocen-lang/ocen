@@ -34,11 +34,24 @@ def string::replace(&this, other: string) {
 }
 
 def CodeGenerator::get_op(&this, type: ASTType): string => match type {
-    Add => "+"
-    Subtract => "-"
-    Multiply => "*"
-    Divide => "/"
-    Modulus => "%"
+    Plus => "+",
+    Minus => "-",
+    Multiply => "*",
+    Divide => "/",
+    LessThan => "<",
+    LessThanEquals => "<=",
+    GreaterThan => ">",
+    GreaterThanEquals => ">=",
+    Equals => "==",
+    NotEquals => "!=",
+    And => "&&",
+    Or => "||",
+    Modulus => "%",
+    BitwiseOr => "|",
+    BitwiseAnd => "&",
+    BitwiseXor => "^",
+    LeftShift => "<<",
+    RightShift => ">>",
     else => panic(`Unknown op type in get_op: {type}`)
 }
 
@@ -48,10 +61,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let num_lit = &node.u.num_literal
             .out.puts(num_lit.text)
         }
+        StringLiteral => {
+            let str_lit = node.u.string_literal
+            .out.puts("\"")
+            .out.puts(str_lit)
+            .out.puts("\"")
+        }
         Identifier | NSLookup => {
             let sym = node.resolved_symbol
             if not sym? {
-                .error(Error::new(node.span, "Symbol not found"))
+                .error(Error::new(node.span, "Symbol not found in CodeGenerator::gen_expression"))
                 return
             }
             match sym.type {
@@ -62,7 +81,17 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         }
         Call => {
             let callee = node.u.call.callee
-            .gen_expression(callee)
+
+            // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
+            // FIXME: Escape string characters
+            // FIXME: Plus newline to println
+            // FIXME: Expand out format strings inline
+            if callee.type == Identifier and (callee.u.ident.name.eq("print") or callee.u.ident.name.eq("println")) {
+                .out.puts("printf")
+            } else {
+                .gen_expression(callee)
+            }
+
             .out.puts("(")
             let args = node.u.call.args
             for let i = 0; i < args.size; i += 1 {
@@ -73,8 +102,29 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
             .out.puts(")")
         }
+        BoolLiteral => {
+            let bool_lit = node.u.bool_literal
+            .out.puts(if bool_lit then "true" else "false")
+        }
 
-        Add | Subtract | Multiply | Divide | Modulus => {
+        Plus |
+        Minus |
+        Multiply |
+        Divide |
+        LessThan |
+        LessThanEquals |
+        GreaterThan |
+        GreaterThanEquals |
+        Equals |
+        NotEquals |
+        And |
+        Or |
+        Modulus |
+        BitwiseOr |
+        BitwiseAnd |
+        BitwiseXor |
+        LeftShift |
+        RightShift => {
             let lhs = node.u.binary.lhs
             let rhs = node.u.binary.rhs
             .out.puts("(")
@@ -86,7 +136,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(")")
         }
 
-        else => Error::new(node.span, `Unhandled expression type: {node.type}`).panic()
+        else => .error(Error::new(node.span, `Unhandled expression type in CodeGenerator: {node.type}`))
     }
 }
 
@@ -95,8 +145,47 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         ASTType::Return => {
             .gen_indent()
             .out.puts("return ")
-            .gen_expression(node.u.unary)
+            if node.u.unary? {
+                .gen_expression(node.u.unary)
+            }
             .out.puts(";\n")
+        }
+        ASTType::VarDeclaration => {
+            let var = node.u.var_decl.var
+            let type = var.type
+            let name = var.name
+            .gen_indent()
+            .out.puts(.get_type_name_string(type, name, is_func_def: false))
+
+            let init = node.u.var_decl.init
+            if init? {
+                .out.puts(" = ")
+                .gen_expression(init)
+            }
+            .out.puts(";\n")
+        }
+        ASTType::Block => {
+            .gen_indent()
+            .gen_block(node)
+            .out.puts("\n")
+        }
+        ASTType::If => {
+            let cond = node.u.if_stmt.cond
+            let body = node.u.if_stmt.body
+            let else_body = node.u.if_stmt.els
+            .gen_indent()
+            .out.puts("if (")
+            .gen_expression(cond)
+            .out.puts(") ")
+            .gen_block(body)
+
+            if else_body? {
+                .out.puts(" else ")
+                .gen_block(else_body)
+                .out.puts("\n")
+            } else {
+                .out.puts("\n")
+            }
         }
         else => {
             .gen_indent()
@@ -165,6 +254,16 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
             }
             Error => {
                 .error(Error::new(type.span, "Error found in type"))
+            }
+            Pointer => {
+                let needs_parens = (cur.u.ptr? and
+                    // FIXME: Also if it's an array below
+                    (cur.u.ptr.base == BaseType::Function))
+                if needs_parens {
+                    final.replace(`(*{final})`)
+                } else {
+                    final.replace(`*{final}`)
+                }
             }
             else => {
                 .error(Error::new(type.span, `Unhandled type found: {type.str()}`))
@@ -235,10 +334,12 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 
 
 def CodeGenerator::generate(&this): string {
+    // FIXME: Put all of this in a prelude file
     .out.puts("#include <stdio.h>\n")
     .out.puts("#include <stdlib.h>\n")
     .out.puts("#include <stdint.h>\n")
     .out.puts("#include <stdbool.h>\n")
+    .out.puts("\n")
 
     .out.puts("typedef int32_t i32;\n")
     .out.puts("typedef int64_t i64;\n")
@@ -246,7 +347,9 @@ def CodeGenerator::generate(&this): string {
     .out.puts("typedef uint64_t u64;\n")
     .out.puts("typedef float f32;\n")
     .out.puts("typedef double f64;\n")
-    // todo: gen structs / other stuff...
+    .out.puts("\n")
+
+    // TODO: gen structs / other stuff...
 
     .out.puts("/* function declarations */\n")
     .gen_function_decls(.program.global)

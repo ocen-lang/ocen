@@ -75,6 +75,10 @@ def Scope::lookup_local(&this, name: string): &Symbol {
     return .items.get(name) as &Symbol
 }
 
+def Scope::insert(&this, name: string, symbol: &Symbol) {
+    .items.insert(name, symbol)
+}
+
 struct Namespace {
     parent: &Namespace
 

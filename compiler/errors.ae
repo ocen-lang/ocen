@@ -55,7 +55,6 @@ def display_message_span(type: MessageType, span: Span, msg: string) {
     let reset = "\x1b[0m"
 
     let filename = span.start.filename;
-    println("%s: %s: %s", filename, type.str(), msg)
     let file = File::open(filename, "r")
     defer file.close()
 

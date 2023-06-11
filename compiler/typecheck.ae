@@ -47,7 +47,9 @@ def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
     let resolved = old
     match old.base {
         // Otherwise...
-        Pointer => resolved.u.ptr = .resolve_type(old.u.ptr, scope)
+        Pointer => {
+            resolved.u.ptr = .resolve_type(old.u.ptr, scope)
+        }
         Function => {
             let func = old.u.func
             for let i = 0; i < func.params.size; i += 1 {
@@ -61,7 +63,7 @@ def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
             if res? and res.type == SymbolType::TypeDef {
                 resolved = res.u.type_def
             } else {
-                .error(Error::new(old.span, "Could not resolve resolve type"))
+                .error(Error::new(old.span, "Could not resolve type"))
                 resolved = .error_type
             }
         }
@@ -122,6 +124,21 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
     let callee = node.u.call.callee
     let args = node.u.call.args
 
+    // FIXME: this is a fucking abonimation
+    if callee.type == ASTType::Identifier {
+        callee.u.ident.is_function = false
+        let name = callee.u.ident.name
+        println(`;;;;;; got name: {name}`)
+        if name.eq("print") or name.eq("println") {
+            println(".....")
+            for let i = 0; i < args.size; i += 1 {
+                let arg = args.at(i) as &Argument
+                .check_expression(arg.expr, scope)
+            }
+            return .get_base_type(Void, node.span)
+        }
+    }
+
     // FIXME: we want to be able to call `resolve_scope_lookup` here, but we can't because
     // we also want to be able to do something like `foo.bar()` etc where the LHS is not a scope lookup
     let res = .check_expression(callee, scope)
@@ -150,7 +167,7 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
                 // we should be evaluating it at the time of checking the function declaration and using
                 // a cached value here
                 let new_arg = Argument::new(label: null, expr: param.default_value)
-                // Add the default argument to the list of arguments
+                // Plus the default argument to the list of arguments
                 args.push(new_arg)
             } else {
                 .error(Error::new(node.span, `Missing required argument {param.name}`))
@@ -169,11 +186,104 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
     }
 }
 
+def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type): &Type {
+    .error(Error::new(node.span, "Pointer arithmetic not implemented"))
+    return null
+}
+
+def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
+    match node.type {
+        Plus | Minus | Multiply | Divide => {
+            if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
+                return .check_pointer_arith(node, lhs, rhs)
+            } else if not lhs.is_numeric() or not rhs.is_numeric() {
+                .error(Error::new_note(
+                    node.span, "Operator requires numeric types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+                return null
+            } else if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+                return null
+            } else {
+                return lhs
+            }
+        }
+        LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
+            if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
+                .error(Error::new_note(
+                    node.span, "Operator requires numeric or char types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            return .get_base_type(BaseType::Bool, node.span)
+        }
+        Equals | NotEquals => {
+            if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            // if lhs.base == BaseType::Structure {
+            //     let struc = .structures.get(lhs.name) as &Structure
+            //     if not struc.is_enum {
+            //         .error(Error::new(node.span, "Cannot compare structs directly"))
+            //     }
+            // }
+            return .get_base_type(BaseType::Bool, node.span)
+        }
+        And | Or => {
+            if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
+                .error(Error::new_note(
+                    node.span, "Operands must be boolean",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            return .get_base_type(BaseType::Bool, node.span)
+        }
+        Modulus | BitwiseOr | BitwiseAnd | BitwiseXor | LeftShift | RightShift => {
+            if not lhs.is_integer() or not rhs.is_integer() {
+                .error(Error::new_note(
+                    node.span, "Operator requires integer types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            return lhs
+        }
+        else => panic(`Internal error: unhandled op in check_binary_op: {node.type}`)
+    }
+}
+
 def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
     match node.type {
         ASTType::IntLiteral => {
-            println(`int literal with value {node.u.num_literal.text}`)
             return .get_base_type(BaseType::I32, node.span)
+        }
+        ASTType::StringLiteral => {
+            // FIXME: make string a "base" type so we can attach methods to it
+            let base = .get_base_type(BaseType::Char, node.span)
+            let typ = Type::new_resolved(BaseType::Pointer, node.span)
+            typ.u.ptr = base
+            return typ
+        }
+        ASTType::BoolLiteral => {
+            return .get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .resolve_scope_lookup(node, scope)
@@ -199,24 +309,50 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
         ASTType::Call => return .check_call(node, scope)
 
         // Binary operators
-        Add | Subtract | Multiply | Divide | Modulus => {
+        Plus |
+        Minus |
+        Multiply |
+        Divide |
+        LessThan |
+        LessThanEquals |
+        GreaterThan |
+        GreaterThanEquals |
+        Equals |
+        NotEquals |
+        And |
+        Or |
+        Modulus |
+        BitwiseOr |
+        BitwiseAnd |
+        BitwiseXor |
+        LeftShift |
+        RightShift => {
             let lhs = .check_expression(node.u.binary.lhs, scope)
             let rhs = .check_expression(node.u.binary.rhs, scope)
-            if lhs? and rhs? {
-                if not lhs.eq(rhs) {
-                    .error(Error::new(node.span, "Binary operator operands must have the same type"))
-                    return null
-                }
-                return lhs
-            } else {
-                return null
-            }
+            if not lhs? or not rhs? return null
+            return .check_binary_op(node, lhs, rhs)
         }
 
         else => {
-            .error(Error::new(node.span, "Invalid expression lol"))
+            .error(Error::new(node.span, "Invalid expression in TypeChecker::check_expression"))
             return .error_type
         }
+    }
+}
+
+def TypeChecker::check_if(&this, node: &AST, scope: &Scope) {
+    let cond_type = .check_expression(node.u.if_stmt.cond, scope)
+    if cond_type? and cond_type.base != BaseType::Bool {
+        .error(Error::new_note(
+            node.u.if_stmt.cond.span, "Condition must be a boolean",
+            `Got type '{cond_type.str()}'`
+        ))
+    }
+    .check_statement(node.u.if_stmt.body, scope)
+    if node.u.if_stmt.els? {
+        let else_stmt = node.u.if_stmt.els
+        .check_statement(else_stmt, scope)
+
     }
 }
 
@@ -224,11 +360,54 @@ def TypeChecker::check_statement(&this, node: &AST, scope: &Scope) {
     match node.type {
         ASTType::Return => {
             // todo: make sure in function
-            // todo: empty return
-            // todo: actually check return type
-            let res = .check_expression(node.u.unary, scope)
+            if not .cur_func? {
+                .error(Error::new(node.span, "Cannot return from outside a function"))
+                return
+            }
+
+            let expected = .cur_func.return_type
+            if expected.base == BaseType::Void {
+                if node.u.unary? {
+                    .error(Error::new(node.span, "Cannot return a value from a void function"))
+                }
+            } else if node.u.unary? {
+                let res = .check_expression(node.u.unary, scope)
+                if res? and not res.eq(expected) {
+                    .error(Error::new(node.span, `Return type {res.str()} does not match function return type {expected.str()}`))
+                }
+            } else {
+                .error(Error::new(node.span, "Expected a return value for non-void function"))
+            }
+
+        }
+        ASTType::If => .check_if(node, scope)
+        ASTType::Block => .check_block(node, scope)
+        ASTType::VarDeclaration => {
+            // FIXME: check if it exists in the scope already
+            let var = node.u.var_decl.var
+            let res = scope.lookup_local(var.name)
             if res? {
-                println(`return statement with type {res.str()}`)
+                .error(Error::new(node.span, `Variable {var.name} already exists in this scope`))
+                return
+            }
+
+            let sym = Symbol::from_variable(var)
+            scope.items.insert(var.name, sym)
+
+            if var.type? {
+                var.type = .resolve_type(var.type, scope)
+            }
+
+            let init = node.u.var_decl.init
+            if init? {
+                let res = .check_expression(init, scope)
+                if res? and var.type? and not res.eq(var.type) {
+                    .error(Error::new(init.span, `Variable {var.name} has type {var.type.str()} but initializer has type {res.str()}`))
+                } else if not var.type? {
+                    var.type = res
+                }
+            } else if not var.type? {
+                .error(Error::new(node.span, `Variable {var.name} has no type and no initializer`))
             }
         }
         else => .check_expression(node, scope)
@@ -257,6 +436,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
     }
 
     func.prefix = ns.prefix
+    .cur_func = func
     .check_block(func.body, new_scope)
 }
 

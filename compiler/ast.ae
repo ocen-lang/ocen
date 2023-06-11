@@ -11,24 +11,66 @@ enum ASTType {
     Error
     Identifier
     IntLiteral
+    StringLiteral
+    BoolLiteral
     Return
     NSLookup
     Import
+    VarDeclaration
+    If
 
     // Binary operators
-    Add
-    Subtract
-    Multiply
-    Divide
+    BitwiseAnd
+    And
+    BitwiseXor
+    Equals
+    Assignment
+    GreaterThan
+    GreaterThanEquals
+    RightShift
+    LessThan
+    LessThanEquals
+    LeftShift
+    BitwiseOr
+    Minus
+    MinusEquals
+    NotEquals
+    Or
     Modulus
+    Plus
+    PlusEquals
+    Divide
+    DivideEquals
+    Multiply
+    MultiplyEquals
+    BitwiseNot
 }
 
 def ASTType::from_token(type: TokenType): ASTType => match type {
-    TokenType::Plus => ASTType::Add
-    TokenType::Minus => ASTType::Subtract
-    TokenType::Star => ASTType::Multiply
-    TokenType::Slash => ASTType::Divide
-    TokenType::Percent => ASTType::Modulus
+    Ampersand => ASTType::BitwiseAnd
+    And => ASTType::And
+    Caret => ASTType::BitwiseXor
+    EqualEquals => ASTType::Equals
+    Equals => ASTType::Assignment
+    GreaterThan => ASTType::GreaterThan
+    GreaterThanEquals => ASTType::GreaterThanEquals
+    GreaterThanGreaterThan => ASTType::RightShift
+    LessThan => ASTType::LessThan
+    LessThanEquals => ASTType::LessThanEquals
+    LessThanLessThan => ASTType::LeftShift
+    Line => ASTType::BitwiseOr
+    Minus => ASTType::Minus
+    MinusEquals => ASTType::MinusEquals
+    NotEquals => ASTType::NotEquals
+    Or => ASTType::Or
+    Percent => ASTType::Modulus
+    Plus => ASTType::Plus
+    PlusEquals => ASTType::PlusEquals
+    Slash => ASTType::Divide
+    SlashEquals => ASTType::DivideEquals
+    Star => ASTType::Multiply
+    StarEquals => ASTType::MultiplyEquals
+    Tilde => ASTType::BitwiseNot
     else => panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
 }
 
@@ -50,6 +92,11 @@ def Variable::new(name: string, type: &Type, span: Span): &Variable {
     var.span = span
     var.prefix = ""
     return var
+}
+
+struct VarDeclaration {
+    var: &Variable
+    init: &AST
 }
 
 struct Function {
@@ -151,6 +198,24 @@ struct NSLookup {
     rhs_span: Span
 }
 
+struct IfStatement {
+    cond: &AST
+    body: &AST
+    els: &AST
+}
+
+struct Loop {
+    init: &AST
+    cond: &AST
+    incr: &AST
+    body: &AST
+}
+
+struct Cast {
+    lhs: &AST
+    to: &Type
+}
+
 union ASTUnion {
     block: Block
     ident: Identifier
@@ -158,8 +223,14 @@ union ASTUnion {
     unary: &AST
     binary: Binary
     num_literal: NumLiteral
+    string_literal: string
+    bool_literal: bool
     lookup: NSLookup
     import_path: ImportPath
+    var_decl: VarDeclaration
+    if_stmt: IfStatement
+    loop: Loop
+    cast: Cast
 }
 
 struct AST {
