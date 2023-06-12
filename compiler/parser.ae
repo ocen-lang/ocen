@@ -225,6 +225,13 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             node.u.unary = expr
             return node
         }
+        TokenType::Minus => {
+            let minus = .consume(TokenType::Minus)
+            let expr = .parse_prefix(end_type)
+            let node = AST::new(ASTType::Negate, minus.span.join(expr.span))
+            node.u.unary = expr
+            return node
+        }
         else => return .parse_postfix(end_type)
     }
 }

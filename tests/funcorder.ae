@@ -1,4 +1,5 @@
 /// out: "3"
+
 def main() {
     println("%d", add(1, 2))
 }

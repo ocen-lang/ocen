@@ -23,6 +23,7 @@ enum ASTType {
     While
     CharLiteral
     Dereference
+    Negate
 
     // Binary operators
     And

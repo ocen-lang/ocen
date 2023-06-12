@@ -294,6 +294,15 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
         ASTType::BoolLiteral => {
             return .get_base_type(BaseType::Bool, node.span)
         }
+        ASTType::Negate => {
+            let typ = .check_expression(node.u.unary, scope)
+            if not typ? return null
+            if not typ.is_numeric() {
+                .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
+                return null
+            }
+            return typ
+        }
         ASTType::Address => {
             let typ = .check_expression(node.u.unary, scope)
             if not typ? return null
