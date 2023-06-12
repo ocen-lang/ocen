@@ -91,6 +91,10 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let num_lit = &node.u.num_literal
             .out.puts(num_lit.text)
         }
+        FloatLiteral => {
+            let num_lit = &node.u.num_literal
+            .out.puts(num_lit.text)
+        }
         StringLiteral => {
             let str_lit = node.u.string_literal
             .out.puts("\"")
@@ -166,6 +170,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Negate => {
             let expr = node.u.unary
             .out.puts("-")
+            .gen_expression(expr)
+        }
+        Not => {
+            let expr = node.u.unary
+            .out.puts("!")
             .gen_expression(expr)
         }
 

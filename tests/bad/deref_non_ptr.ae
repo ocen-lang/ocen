@@ -1,4 +1,4 @@
-/// fail: Expression must be a pointer-type
+/// fail: Cannot dereference non-pointer type: i32
 
 def main() {
     let x = 5

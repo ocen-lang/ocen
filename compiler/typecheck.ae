@@ -59,7 +59,7 @@ def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
             func.return_type = .resolve_type(func.return_type, scope)
         }
         Unresolved => {
-            let res = scope.lookup_recursive(old.name)
+            let res = .resolve_scope_lookup(old.u.unresolved, scope)
             if res? {
                 match res.type {
                     SymbolType::TypeDef => resolved = res.u.type_def
@@ -187,7 +187,7 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
 
         return func.return_type
     } else {
-        .error(Error::new(callee.span, "Cannot call this expression"))
+        .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
         return .error_type
     }
 }
@@ -281,6 +281,9 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
         ASTType::IntLiteral => {
             return .get_base_type(BaseType::I32, node.span)
         }
+        ASTType::FloatLiteral => {
+            return .get_base_type(BaseType::F32, node.span)
+        }
         ASTType::StringLiteral => {
             // FIXME: make string a "base" type so we can attach methods to it
             let base = .get_base_type(BaseType::Char, node.span)
@@ -299,6 +302,15 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             if not typ? return null
             if not typ.is_numeric() {
                 .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
+                return null
+            }
+            return typ
+        }
+        ASTType::Not => {
+            let typ = .check_expression(node.u.unary, scope)
+            if not typ? return null
+            if typ.base != BaseType::Bool {
+                .error(Error::new(node.span, `Cannot negate non-boolean type: {typ.str()}`))
                 return null
             }
             return typ
@@ -404,9 +416,8 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
                 .error(Error::new(node.u.binary.lhs.span, "Must be an l-value"))
             }
             if not lhs.eq(rhs) {
-                .error(Error::new_note(
-                    node.span, "Variable type does not match assignment type",
-                    `Expected type '{lhs.str()}', got '{rhs.str()}'`
+                .error(Error::new(
+                    node.span, `Variable type does not match assignment type, Expected type '{lhs.str()}', got '{rhs.str()}'`
                 ))
             }
             return lhs
@@ -442,7 +453,7 @@ def TypeChecker::check_while(&this, node: &AST, scope: &Scope) {
     let cond_type = .check_expression(cond, scope)
     if cond_type? and cond_type.base != BaseType::Bool {
         .error(Error::new_note(
-            node.u.if_stmt.cond.span, "Condition must be a boolean",
+            cond.span, "Condition must be a boolean",
             `Got type '{cond_type.str()}'`
         ))
     }
@@ -548,13 +559,7 @@ def TypeChecker::check_struct(&this, ns: &Namespace, struc: &Structure) {
     }
 }
 
-def TypeChecker::check_namespace(&this, ns: &Namespace) {
-    let imports = ns.imports
-    for let i = 0; i < imports.size; i += 1 {
-        let import = imports.at(i) as &AST
-        .handle_import_statement(import, ns, ns.scope)
-    }
-
+def TypeChecker::check_structs(&this, ns: &Namespace) {
     // FIXME: We need to do a topological sort here to make sure we don't
     // try to use a type before it's defined. For now they are being defined
     // in the order some indeterminate hash map iterator returns them in.
@@ -564,16 +569,25 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         .check_struct(ns, struc)
     }
 
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        .check_structs(iter.value())
+    }
+}
+
+def TypeChecker::check_namespace(&this, ns: &Namespace) {
+    let imports = ns.imports
+    for let i = 0; i < imports.size; i += 1 {
+        let import = imports.at(i) as &AST
+        .handle_import_statement(import, ns, ns.scope)
+    }
+
     let functions = ns.functions;
     for let i = 0; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
         .check_function(ns, func)
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
-        // check if exists
-        let name = iter.key()
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .check_namespace(iter.value())
     }
 }
@@ -649,7 +663,6 @@ def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
     let typ = Type::new_resolved(Structure, struc.span)
     typ.u.struc = struc
     struc.type = typ
-    // FIXME: Where do we create the Type for this struct?
 }
 
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
@@ -665,8 +678,7 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
         .pre_check_function(ns, func)
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         let child = iter.value() as &Namespace
         let name = iter.key()
 
@@ -681,6 +693,16 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
 
 def TypeChecker::check(&this) {
     let global_ns = .program.global
+
+    // 1. This resolves all the top-level types, including struct / function declarations.
+    //    We do this before structs to make sure struct fields can contain other structs that
+    //    are defined later.
     .pre_check_namespace(global_ns)
+
+    // 2. This resolved all the struct fields, which is necessary before we resolve any functions.
+    //    This is because function bodies may reference struct fields.
+    .check_structs(global_ns)
+
+    // 3. This resolves all the function bodies
     .check_namespace(global_ns)
 }

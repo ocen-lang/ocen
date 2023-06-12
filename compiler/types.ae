@@ -61,6 +61,7 @@ struct TypeUnion {
     ptr: &Type
     func: &FunctionType
     struc: &Structure
+    unresolved: &AST
 }
 
 struct Type {
@@ -85,8 +86,11 @@ def Type::new_unresolved(name: string, span: Span): &Type {
 }
 
 def Type::new_unresolved_base(base: BaseType, span: Span): &Type {
+    let ident = AST::new(ASTType::Identifier, span)
+    ident.u.ident.name = base.str()
+
     let type = Type::new_resolved(BaseType::Unresolved, span)
-    type.name = base.str()
+    type.u.unresolved = ident
     return type
 }
 
@@ -134,5 +138,6 @@ def Type::eq(&this, other: &Type): bool {
 def Type::str(&this): string => match .base {
     Pointer => `&{.u.ptr.str()}`
     Function => "<function>"
+    Structure => `<struct {.u.struc.prefix}{.u.struc.name}>`
     else => .base.str()
 }

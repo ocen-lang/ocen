@@ -1,0 +1,14 @@
+/// out: "1"
+
+namespace foo {
+    struct Foo {
+        x: i32
+        y: &Foo
+    }
+}
+
+def main() {
+    let x: foo::Foo
+    x.x = 1
+    println("%d", x.x)
+}

@@ -6,7 +6,6 @@ use "compiler/errors.ae"
 use "compiler/scopes.ae"
 
 enum ASTType {
-    Address
     Block
     BoolLiteral
     Call
@@ -22,8 +21,13 @@ enum ASTType {
     VarDeclaration
     While
     CharLiteral
+    FloatLiteral
+
+    // Unary operators
+    Address
     Dereference
     Negate
+    Not
 
     // Binary operators
     And

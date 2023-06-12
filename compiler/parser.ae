@@ -83,15 +83,28 @@ def Parser::consume_end_of_statement(&this) {
 // NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
 // the `name` field. The typechecker is responsible for resolving this, even for the built-in types.
 def Parser::parse_type(&this): &Type => match .token().type {
-    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 | Identifier => {
+    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => {
         let token = .token()
         .curr += 1
-        yield Type::new_unresolved(token.text, token.span)
+
+        let ident = AST::new(ASTType::Identifier, token.span)
+        ident.u.ident.name = token.text
+
+        let typ = Type::new_unresolved(ident.u.ident.name, ident.span)
+        typ.u.unresolved = ident
+        yield typ
+    }
+
+    Identifier => {
+        let ident = .parse_scoped_identifier()
+        let typ = Type::new_unresolved("<unresolved>", ident.span)
+        typ.u.unresolved = ident
+        yield typ
     }
 
     Ampersand => {
         let amp = .consume(Ampersand)
-        let base = .parse_type() 
+        let base = .parse_type()
         let typ = Type::new_resolved(BaseType::Pointer, amp.span.join(base.span))
         typ.u.ptr = base
         yield typ
@@ -104,12 +117,39 @@ def Parser::parse_type(&this): &Type => match .token().type {
     }
 }
 
+def Parser::parse_scoped_identifier(&this): &AST {
+    let tok = .consume(TokenType::Identifier)
+    let node = AST::new(ASTType::Identifier, tok.span)
+    node.u.ident.name = tok.text
+
+    while .token_is(TokenType::ColonColon) {
+        .consume(TokenType::ColonColon)
+        let name = .consume(TokenType::Identifier)
+        let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
+
+        lookup.u.lookup.lhs = node
+        lookup.u.lookup.rhs_name = name.text
+        lookup.u.lookup.rhs_span = name.span
+        node = lookup
+    }
+
+    return node
+}
+
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node = null as &AST
     match .token().type {
         TokenType::IntLiteral => {
             node = AST::new(ASTType::IntLiteral, .token().span)
             let tok = .consume(TokenType::IntLiteral)
+            node.u.num_literal = NumLiteral(
+                text: tok.text,
+                suffix: null
+            )
+        }
+        TokenType::FloatLiteral => {
+            node = AST::new(ASTType::FloatLiteral, .token().span)
+            let tok = .consume(TokenType::FloatLiteral)
             node.u.num_literal = NumLiteral(
                 text: tok.text,
                 suffix: null
@@ -126,9 +166,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             node.u.char_literal = tok.text
         }
         TokenType::Identifier => {
-            let op = .consume(TokenType::Identifier)
-            node = AST::new(ASTType::Identifier, op.span)
-            node.u.ident.name = op.text
+            node = .parse_scoped_identifier()
         }
         TokenType::True | TokenType::False => {
             let tok = .consume(.token().type)
@@ -182,16 +220,6 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 call.u.call.args = args
                 node = call
             }
-            TokenType::ColonColon => {
-                .consume(TokenType::ColonColon)
-                let name = .consume(TokenType::Identifier)
-                let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
-
-                lookup.u.lookup.lhs = node
-                lookup.u.lookup.rhs_name = name.text
-                lookup.u.lookup.rhs_span = name.span
-                node = lookup
-            }
             TokenType::Dot => {
                 .consume(TokenType::Dot)
                 let name = .consume(TokenType::Identifier)
@@ -229,6 +257,13 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             let minus = .consume(TokenType::Minus)
             let expr = .parse_prefix(end_type)
             let node = AST::new(ASTType::Negate, minus.span.join(expr.span))
+            node.u.unary = expr
+            return node
+        }
+        TokenType::Not => {
+            let tok = .consume(TokenType::Not)
+            let expr = .parse_prefix(end_type)
+            let node = AST::new(ASTType::Not, tok.span.join(expr.span))
             node.u.unary = expr
             return node
         }
