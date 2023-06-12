@@ -67,6 +67,12 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(str_lit)
             .out.puts("\"")
         }
+        CharLiteral => {
+            let char_lit = node.u.char_literal
+            .out.puts("'")
+            .out.puts(char_lit)
+            .out.puts("'")
+        }
         Member => {
             let lhs = node.u.member.lhs
             .gen_expression(lhs)
@@ -119,6 +125,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Address => {
             let expr = node.u.unary
             .out.puts("&")
+            .gen_expression(expr)
+        }
+        Dereference => {
+            let expr = node.u.unary
+            .out.puts("*")
             .gen_expression(expr)
         }
 

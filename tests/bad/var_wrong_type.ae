@@ -1,4 +1,4 @@
-/// fail: Variable type does not match initializer type
+/// fail: Variable x has type i32 but initializer has type bool
 
 def main() {
     let x: i32 = true

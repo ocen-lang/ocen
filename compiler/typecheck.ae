@@ -288,6 +288,9 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             typ.u.ptr = base
             return typ
         }
+        ASTType::CharLiteral => {
+            return .get_base_type(BaseType::Char, node.span)
+        }
         ASTType::BoolLiteral => {
             return .get_base_type(BaseType::Bool, node.span)
         }
@@ -297,6 +300,15 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             let ptr = Type::new_resolved(BaseType::Pointer, node.span)
             ptr.u.ptr = typ
             return ptr
+        }
+        ASTType::Dereference => {
+            let typ = .check_expression(node.u.unary, scope)
+            if not typ? return null
+            if typ.base != BaseType::Pointer {
+                .error(Error::new(node.span, `Cannot dereference non-pointer type: {typ.str()}`))
+                return null
+            }
+            return typ.u.ptr
         }
         ASTType::Member => {
             let lhs = .check_expression(node.u.member.lhs, scope)

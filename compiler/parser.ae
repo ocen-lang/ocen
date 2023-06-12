@@ -120,6 +120,11 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             let tok = .consume(TokenType::StringLiteral)
             node.u.string_literal = tok.text
         }
+        TokenType::CharLiteral => {
+            node = AST::new(ASTType::CharLiteral, .token().span)
+            let tok = .consume(TokenType::CharLiteral)
+            node.u.char_literal = tok.text
+        }
         TokenType::Identifier => {
             let op = .consume(TokenType::Identifier)
             node = AST::new(ASTType::Identifier, op.span)
@@ -210,6 +215,13 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             let amp = .consume(TokenType::Ampersand)
             let expr = .parse_prefix(end_type)
             let node = AST::new(ASTType::Address, amp.span.join(expr.span))
+            node.u.unary = expr
+            return node
+        }
+        TokenType::Star => {
+            let star = .consume(TokenType::Star)
+            let expr = .parse_prefix(end_type)
+            let node = AST::new(ASTType::Dereference, star.span.join(expr.span))
             node.u.unary = expr
             return node
         }

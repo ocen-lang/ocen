@@ -16,11 +16,11 @@ def main() {
     a.y = 10
     let z = &a
     z.x = 54
-    println("%d", z.y + a.x)
+    print("%d\n", z.y + a.x)
 
     let sh: Shapes
     sh.s.x = 30
     sh.b = &a
     sh.b.y = 34
-    println("%d", sh.s.x + sh.b.y)
+    print("%d\n", sh.s.x + sh.b.y)
 }

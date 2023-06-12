@@ -21,6 +21,8 @@ enum ASTType {
     StringLiteral
     VarDeclaration
     While
+    CharLiteral
+    Dereference
 
     // Binary operators
     And
@@ -267,6 +269,7 @@ union ASTUnion {
     member: Member
     num_literal: NumLiteral
     string_literal: string
+    char_literal: string
     unary: &AST
     var_decl: VarDeclaration
 }
@@ -305,5 +308,6 @@ def AST::is_lvalue(&this): bool => match .type {
     // FIXME: What about `a::b::c?`
     Identifier => not .u.ident.is_function
     Member => true
+    Dereference => true
     else => false
 }

@@ -9,7 +9,7 @@ def swap_i32(a: &i32, b: &i32) {
 def main() {
     let x = 10
     let y = 20
-    println("%d %d", x, y)
+    print("%d %d\n", x, y)
     swap_i32(&x, &y)
-    println("%d %d", x, y)
+    print("%d %d\n", x, y)
 }

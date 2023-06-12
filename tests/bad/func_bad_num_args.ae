@@ -1,4 +1,4 @@
-/// fail: Number of arguments does not match function signature
+/// fail: Too many arguments, expected 2 but got 3
 
 def foo(a: i32, b: i32): i32 {
     return a + b
