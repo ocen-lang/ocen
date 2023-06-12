@@ -1,0 +1,5 @@
+/// fail: First argument must be a string literal
+
+def main() {
+    print(5)
+}

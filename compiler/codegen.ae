@@ -55,6 +55,36 @@ def CodeGenerator::get_op(&this, type: ASTType): string => match type {
     else => panic(`Unknown op type in get_op: {type}`)
 }
 
+def CodeGenerator::gen_internal_print(&this, node: &AST) {
+    let callee = node.u.call.callee
+    let newline_after = callee.u.ident.name.eq("println")
+
+    .out.puts("printf(")
+
+    // FIXME: these checks should move to typechecker
+    let args = node.u.call.args
+    if args.size < 1 {
+        .error(Error::new(
+            node.span, "Function requires at least one argument"
+        ))
+    }
+    let first = args.at(0) as &Argument
+    if first.expr.type != StringLiteral {
+        .error(Error::new(
+            first.expr.span, "First argument must be a string literal"
+        ))
+    }
+
+    for let i = 0; i < args.size; i += 1 {
+        if i > 0 then .out.puts(", ")
+        let arg = args.at(i) as &Argument
+        .gen_expression(arg.expr)
+        if i == 0 and newline_after then .out.puts("\"\\n\"")
+    }
+    .out.puts(")")
+}
+
+
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => {
@@ -103,10 +133,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             // FIXME: Plus newline to println
             // FIXME: Expand out format strings inline
             if callee.type == Identifier and (callee.u.ident.name.eq("print") or callee.u.ident.name.eq("println")) {
-                .out.puts("printf")
-            } else {
-                .gen_expression(callee)
+                .gen_internal_print(node)
+                return
             }
+
+            .gen_expression(callee)
 
             .out.puts("(")
             let args = node.u.call.args

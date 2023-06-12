@@ -9,7 +9,7 @@ def main() {
         let tmp: i32 = a
         a = b
         b = tmp + b
-        print("%d\n", a)
+        println("%d", a)
         n = n - 1
     }
 }

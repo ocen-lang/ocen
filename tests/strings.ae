@@ -3,8 +3,8 @@
 def main() {
     let a: &char = "Hello, world!"
     let b = getName()
-    print("%s\n", a)
-    print("%s\n", b)
+    println("%s", a)
+    println("%s", b)
 }
 
 def getName(): &char {
