@@ -2,7 +2,6 @@ use "compiler/ast.ae"
 use "compiler/lexer.ae"
 use "compiler/utils.ae"
 
-// Don't think this is used enough to include in the prelude.
 @compiler c_include "libgen.h"
 def dirname(path: string): string extern
 def basename(path: string): string extern
@@ -110,7 +109,6 @@ def Parser::parse_type(&this): &Type => match .token().type {
         yield typ
     }
 
-    // FIXME: Allow using `a::b::c` as a type.
     else => {
         .unhandled_type("parse_type")
         yield Type::new_unresolved_base(BaseType::Error, .token().span)
@@ -126,34 +124,144 @@ def Parser::parse_scoped_identifier(&this): &AST {
         .consume(TokenType::ColonColon)
         let name = .consume(TokenType::Identifier)
         let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
-
-        lookup.u.lookup.lhs = node
-        lookup.u.lookup.rhs_name = name.text
-        lookup.u.lookup.rhs_span = name.span
+        lookup.u.lookup = NSLookup(node, name.text, name.span)
         node = lookup
     }
 
     return node
 }
 
+
+def Parser::parse_format_string(&this): &AST {
+    let fstr = .consume(TokenType::FormatStringLiteral)
+    let fstr_len = fstr.text.len()
+
+    let expr_parts = Vector::new()    // Vector<string>
+    let expr_start = Vector::new()    // Vector<i32>
+
+    let format_parts = Vector::new()  // Vector<string>
+    let specifiers = Vector::new()    // Vector<string>
+
+    let count = 0
+    let cur_start = 0
+    let specifier_loc = -1
+
+    for let i = 0; i < fstr_len; i += 1 {
+        if fstr.text[i] == '\\' {
+            i += 1
+        } else if fstr.text[i] == '{' {
+            if count == 0 {
+                let part = fstr.text.substring(cur_start, i - cur_start)
+                format_parts.push(part)
+                cur_start = i + 1
+            }
+            count += 1
+        } else if fstr.text[i] == '}' {
+            count -= 1
+            if count == 0 {
+                if specifier_loc > 0 {
+                    let part = fstr.text.substring(cur_start, specifier_loc - cur_start)
+                    expr_parts.push(part)
+                    expr_start.push((fstr.text + cur_start))
+
+                    specifier_loc += 1
+                    while specifier_loc < i and fstr.text[specifier_loc] == ' ' {
+                        specifier_loc += 1
+                    }
+
+                    if specifier_loc == i {
+                        let loc = fstr.span.start;
+                        loc.col += specifier_loc + 1
+                        let span = Span(loc, loc)
+                        .error(Error::new(span, "Expected format specifier"))
+                        return null
+                    }
+
+                    let spec = fstr.text.substring(specifier_loc, i - specifier_loc)
+                    specifiers.push(spec)
+                } else {
+                    let part = fstr.text.substring(cur_start, i - cur_start)
+                    expr_parts.push(part)
+                    expr_start.push((fstr.text + cur_start))
+                    specifiers.push(null)
+                }
+                cur_start = i + 1
+                specifier_loc = -1
+
+            } else if count < 0 {
+                .error(Error::new(fstr.span, "Unmatched '}' in format string"))
+                return null
+            }
+
+        // FIXME: Should this use semicolons?
+        } else if fstr.text[i] == ':' and fstr.text[i - 1] != '\\' {
+            // TODO: Handle errors properly
+            if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
+                specifier_loc = i
+            }
+        }
+    }
+    if count != 0 {
+        .error(Error::new(fstr.span, "Unmatched '{' in format string"))
+        return null
+    }
+    let part = fstr.text.substring(cur_start, fstr_len - cur_start)
+    format_parts.push(part)
+
+    let node = AST::new(ASTType::FormatStringLiteral, fstr.span)
+    node.u.fmt_str.parts = format_parts
+
+    let fstr_start = fstr.span.start
+    let expr_nodes = Vector::new()
+    for let i = 0; i < expr_parts.size; i += 1 {
+        let part = expr_parts.at(i) as string
+        let start = (expr_start.at(i) as string) - fstr.text
+
+        let lexer = Lexer::make(part, fstr_start.filename)
+        lexer.loc = fstr_start
+        lexer.loc.col += start + 1
+
+        let tokens = lexer.lex()
+        for let i = 0; i < lexer.errors.size; i += 1 {
+            .error(lexer.errors.at(i))
+        }
+        lexer.errors.free()
+
+        let sub_parser = Parser::make(.program, .ns)
+        sub_parser.tokens = tokens
+        sub_parser.curr = 0
+
+        let expr = sub_parser.parse_expression(end_type: TokenType::CloseCurly)
+        if not sub_parser.token_is(TokenType::EOF) {
+            .error(Error::new(expr.span, "Invalid expression in format string"))
+        }
+
+        expr_nodes.push(expr)
+    }
+    node.u.fmt_str.exprs = expr_nodes
+    node.u.fmt_str.specs = specifiers
+    expr_parts.free()
+    expr_start.free()
+    return node
+}
+
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node = null as &AST
     match .token().type {
+        TokenType::FormatStringLiteral => node = .parse_format_string()
+        TokenType::Null => {
+            let tok = .consume(TokenType::Null)
+            node = AST::new(ASTType::Null, tok.span)
+        }
         TokenType::IntLiteral => {
             node = AST::new(ASTType::IntLiteral, .token().span)
             let tok = .consume(TokenType::IntLiteral)
-            node.u.num_literal = NumLiteral(
-                text: tok.text,
-                suffix: null
-            )
+            node.u.num_literal = NumLiteral(tok.text, suffix: null)
         }
         TokenType::FloatLiteral => {
             node = AST::new(ASTType::FloatLiteral, .token().span)
             let tok = .consume(TokenType::FloatLiteral)
-            node.u.num_literal = NumLiteral(
-                text: tok.text,
-                suffix: null
-            )
+            node.u.num_literal = NumLiteral(tok.text, suffix: null)
         }
         TokenType::StringLiteral => {
             node = AST::new(ASTType::StringLiteral, .token().span)
@@ -165,9 +273,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             let tok = .consume(TokenType::CharLiteral)
             node.u.char_literal = tok.text
         }
-        TokenType::Identifier => {
-            node = .parse_scoped_identifier()
-        }
+        TokenType::Identifier => node = .parse_scoped_identifier()
         TokenType::True | TokenType::False => {
             let tok = .consume(.token().type)
             node = AST::new(ASTType::BoolLiteral, .token().span)
@@ -199,15 +305,18 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 .consume(TokenType::OpenParen)
                 let args = Vector::new()
                 while not .token_is(TokenType::CloseParen) {
-                    let label = null as &AST
+                    let label = null as string
+                    let label_span = Span::default()
+
                     let expr = .parse_expression(end_type: TokenType::Comma)
                     if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
                         .consume(TokenType::Colon)
-                        label = expr
+                        label = expr.u.ident.name
+                        label_span = expr.span
                         expr = .parse_expression(end_type: TokenType::Comma)
                     }
 
-                    args.push(Argument::new(label, expr))
+                    args.push(Argument::new(label, label_span, expr))
                     if not .token_is(TokenType::CloseParen) {
                         .consume(TokenType::Comma)
                     }
@@ -229,6 +338,20 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 member.u.member.rhs_name = name.text
                 member.u.member.rhs_span = name.span
                 node = member
+            }
+            TokenType::Question => {
+                let tok = .consume(TokenType::Question)
+                let op = AST::new(ASTType::IsNotNull, node.span.join(tok.span))
+                op.u.unary = node
+                node = op
+            }
+            TokenType::As => {
+                let tok = .consume(TokenType::As)
+                let type_node = .parse_type()
+                let op = AST::new(ASTType::Cast, node.span.join(type_node.span))
+                op.u.cast.lhs = node
+                op.u.cast.to = type_node
+                node = op
             }
             else => running = false
         }
@@ -667,6 +790,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
 
                 let old_ns = .ns
                 let new_ns = Namespace::new(.ns, .ns.path, `{.ns.prefix}{name.text}_`)
+                new_ns.span = name.span
                 new_ns.is_user_defined = true
                 old_ns.namespaces.insert(name.text, new_ns)
 

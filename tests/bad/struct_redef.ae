@@ -1,4 +1,4 @@
-/// fail: Struct has already been defined
+/// fail: Name Foo already exists in scope
 
 struct Foo {
     a: i32

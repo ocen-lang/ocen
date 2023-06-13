@@ -1,4 +1,4 @@
-/// fail: Label on parameter does not match parameter name
+/// fail: Argument label 'incorrect' does not match parameter name 'does_exist'
 
 def foo(val: i32, does_exist: bool): i32 {
     return val

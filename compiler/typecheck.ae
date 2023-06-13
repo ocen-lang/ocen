@@ -81,18 +81,18 @@ def TypeChecker::resolve_type(&this, old: &Type): &Type {
                     SymbolType::TypeDef => resolved = res.u.type_def
                     SymbolType::Structure => resolved = res.u.struc.type
                     else => {
-                        .error(Error::new(old.span, "Could not resolve type"))
-                        resolved = .error_type
+                        .error(Error::new(old.span, `Cannot use {res.type} as a type`))
+                        resolved = null
                     }
                 }
             } else {
-                .error(Error::new(old.span, "Could not resolve type"))
-                resolved = .error_type
+                .error(Error::new(old.span, "Could not find type with this name"))
+                resolved = null
             }
         }
         else => {
             .error(Error::new(old.span, `Unhandled type in resolve {old.base}`))
-            resolved = .error_type
+            resolved = null
         }
     }
     return resolved
@@ -167,7 +167,9 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     // FIXME: we want to be able to call `resolve_scoped_identifier` here, but we can't because
     // we also want to be able to do something like `foo.bar()` etc where the LHS is not a scope lookup
     let res = .check_expression(callee)
-    if res? and res.base == BaseType::Function {
+    if not res? return null
+
+    if res.base == BaseType::Function {
         let func = res.u.func
         let params = func.params
 
@@ -180,6 +182,11 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             // Normal case
             if i < args.size {
                 let arg = args.at(i) as &Argument
+
+                if arg.label? and not arg.label.eq(param.name) {
+                    .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.name}'`))
+                }
+
                 let arg_type = .check_expression(arg.expr)
                 if arg_type? and not arg_type.eq(param.type) {
                     .error(Error::new(arg.expr.span, `Argument {i} has type {arg_type.str()} but expected {param.type.str()}`))
@@ -191,9 +198,10 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
                 // FIXME: We should not be evaluating the default argument here during every call, 
                 // we should be evaluating it at the time of checking the function declaration and using
                 // a cached value here
-                let new_arg = Argument::new(label: null, expr: param.default_value)
+                let new_arg = Argument::new(label: null, label_span: Span::default(), expr: param.default_value)
                 // Plus the default argument to the list of arguments
                 args.push(new_arg)
+
             } else {
                 .error(Error::new(node.span, `Missing required argument {param.name}`))
             }
@@ -314,7 +322,44 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
     }
 }
 
+def TypeChecker::check_format_string(&this, node: &AST): &Type {
+    let parts = node.u.fmt_str.parts
+    let exprs = node.u.fmt_str.exprs
+
+    if parts.size != exprs.size + 1 {
+        .error(Error::new(node.span, "Number of format string parts does not match number of expressions"))
+    }
+
+    for let i = 0; i < exprs.size; i += 1 {
+        let expr = exprs.at(i) as &AST
+        let typ = .check_expression(expr)
+        if not typ? continue
+
+        match typ.base {
+            Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 |
+            U32 | U64 | F32 | F64 | Pointer => {}
+            else => .error(Error::new(
+                expr.span, `Only strings / builtin types can be formatted, got type '{typ.str()}'`
+            ))
+        }
+    }
+
+    // FIXME: make string a "base" type so we can attach methods to it
+    let base = .get_base_type(BaseType::Char, node.span)
+    let typ = Type::new_resolved(BaseType::Pointer, node.span)
+    typ.u.ptr = base
+    return typ
+}
+
+// This is just here so we can use early exits in the actual check_expression
+// function, and still always assign the type to the node's etype field
 def TypeChecker::check_expression(&this, node: &AST): &Type {
+    let typ = .check_expression_helper(node)
+    node.etype = typ
+    return typ
+}
+
+def TypeChecker::check_expression_helper(&this, node: &AST): &Type {
     match node.type {
         ASTType::IntLiteral => {
             return .get_base_type(BaseType::I32, node.span)
@@ -328,6 +373,24 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             let typ = Type::new_resolved(BaseType::Pointer, node.span)
             typ.u.ptr = base
             return typ
+        }
+        ASTType::Null => {
+            // FIXME: make untyped_ptr a "base" type so we can attach methods to it
+            let base = .get_base_type(BaseType::Void, node.span)
+            let typ = Type::new_resolved(BaseType::Pointer, node.span)
+            typ.u.ptr = base
+            return typ
+        }
+        ASTType::Cast => {
+            let typ = .check_expression(node.u.cast.lhs)
+            if not typ? return null
+            let target = .resolve_type(node.u.cast.to)
+            if not target? return null
+            // FIXME: Disallow invalid casts
+            return target
+        }
+        ASTType::FormatStringLiteral => {
+            return .check_format_string(node)
         }
         ASTType::CharLiteral => {
             return .get_base_type(BaseType::Char, node.span)
@@ -343,6 +406,14 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 return null
             }
             return typ
+        }
+        ASTType::IsNotNull => {
+            let typ = .check_expression(node.u.unary)
+            if not typ? return null
+            if typ.base != BaseType::Pointer {
+                .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
+            }
+            return .get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Not => {
             let typ = .check_expression(node.u.unary)
@@ -396,7 +467,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .resolve_scoped_identifier(node)
             if not item? {
-                .error(Error::new(node.span, "Couldn't resolve this expression"))
+                .error(Error::new(node.span, "Couldn't find this identifier"))
                 return null
             }
 
@@ -597,9 +668,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
             //       valid outside the scope of this function, which is where it will be evaluated.
             let default_type = .check_expression(default_expr)
 
-            if not default_type? {
-                .error(Error::new(default_expr.span, "Couldn't resolve default argument expression"))
-            } else if not default_type.eq(param.type) {
+            if default_type? and not default_type.eq(param.type) {
                 .error(Error::new(default_expr.span, `Default argument has type {default_type.str()} but expected {param.type.str()}`))
             }
         }
@@ -705,12 +774,23 @@ def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace) {
     .scope().insert(name, sym)
 }
 
+def TypeChecker::insert_into_scope_checked(&this, name: string, item: &Symbol, span: Span) {
+    let prev = .scope().lookup_local(name)
+    if prev? {
+        .error(Error::new_hint(
+            span, `Name {name} already exists in scope`,
+            prev.span(), `Previous use of {name}`
+        ))
+    } else {
+        .scope().insert(name, item)
+    }
+}
+
 ////// Pre-checking namespace for declarations //////
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     let item = Symbol::from_function(func.name, func)
-    // FIXME: check if name already exists in scope
-    .scope().insert(func.name, item)
+    .insert_into_scope_checked(func.name, item, func.span)
 
     func.return_type = .resolve_type(func.return_type)
     let params = func.params
@@ -728,8 +808,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 
 def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
     let item = Symbol::from_structure(struc)
-    // FIXME: check if name already exists in scope
-    .scope().insert(struc.name, item)
+    .insert_into_scope_checked(struc.name, item, struc.span)
 
     let typ = Type::new_resolved(Structure, struc.span)
     typ.u.struc = struc
@@ -738,27 +817,27 @@ def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
 
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     .push_scope(ns.scope)
-    let structs = ns.structs
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i) as &Structure
-        .pre_check_struct(ns, struc)
-    }
-
-    let functions = ns.functions
-    for let i = 0; i < functions.size; i += 1 {
-        let func = functions.at(i) as &Function
-        .pre_check_function(ns, func)
-    }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         let child = iter.value() as &Namespace
         let name = iter.key()
 
         if child.is_user_defined {
-            .scope().insert(name, Symbol::from_namespace(name, child))
+            .insert_into_scope_checked(name, Symbol::from_namespace(name, child), child.span)
         }
         .pre_check_namespace(iter.value())
     }
+
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
+        .pre_check_struct(ns, struc)
+    }
+
+    for let i = 0; i < ns.functions.size; i += 1 {
+        let func = ns.functions.at(i) as &Function
+        .pre_check_function(ns, func)
+    }
+
     .pop_scope()
 }
 

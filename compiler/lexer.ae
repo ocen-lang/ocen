@@ -89,7 +89,10 @@ def Lexer::lex_char_literal(&this) {
     .push(Token::new(TokenType::CharLiteral, Span(start_loc, .loc), text))
 }
 
-def Lexer::lex_string_literal(&this) {
+// Format strings can be specified JS-style with backticks, or Python-style with f"..."
+// Backticks can be inferred in here directly, but for `f"..."` we need to the lexer to tell
+// us whether we saw an `f` right before the string literal or not.
+def Lexer::lex_string_literal(&this, has_seen_f: bool) {
     let start_loc = .loc
     let end_char = .cur()
     let start = .i + 1
@@ -109,7 +112,7 @@ def Lexer::lex_string_literal(&this) {
         .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
     }
 
-    if end_char == '`' {
+    if end_char == '`' or has_seen_f {
         .push(Token::new(TokenType::FormatStringLiteral, Span(start_loc, .loc), text))
     } else {
         .push(Token::new(TokenType::StringLiteral, Span(start_loc, .loc), text))
@@ -262,11 +265,14 @@ def Lexer::lex(&this): &Vector {
                 else => .push_type(TokenType::Slash, len: 1)
             }
             '\'' => .lex_char_literal()
-            '"' | '`' => .lex_string_literal()
+            '"' | '`' => .lex_string_literal(has_seen_f: false)
             else => {
                 let start_loc = .loc
 
-                if is_digit(c) {
+                if c == 'f' and .peek(1) == '"' {
+                    .lex_string_literal(has_seen_f: true)
+
+                } else if is_digit(c) {
                     .lex_numeric_literal()
 
                 } else if is_alpha(c) or c == '_' {

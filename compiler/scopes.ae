@@ -30,6 +30,14 @@ def Symbol::new(name: string, type: SymbolType): &Symbol {
     return item
 }
 
+def Symbol::span(&this): Span => match .type {
+    SymbolType::Function => .u.func.span
+    SymbolType::Structure => .u.struc.span
+    SymbolType::TypeDef => .u.type_def.span
+    SymbolType::Variable => .u.var.span
+    else => Span::default()
+}
+
 def Symbol::from_function(name: string, func: &Function): &Symbol {
     let item = Symbol::new(name, SymbolType::Function)
     item.u.func = func
@@ -94,6 +102,7 @@ struct Namespace {
     structs: &Vector      // Vector<&Structure>
     imports: &Vector      // Vector<&AST>
     namespaces: &Map      // Map<string, &Namespace>
+    span: Span
 
     scope: &Scope
     path: string
@@ -120,6 +129,7 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
     ns.path = path
     ns.prefix = prefix
     ns.is_module = false
+    ns.span = Span::default()
 
     if parent? then {
         println(`Created namespace: {ns.path} with parent {ns.parent.path}`)
