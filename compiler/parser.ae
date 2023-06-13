@@ -586,6 +586,11 @@ def Parser::parse_statement(&this): &AST {
             .consume_end_of_statement()
         }
         TokenType::If => node = .parse_if()
+        TokenType::Break => {
+            .consume(TokenType::Break)
+            node = AST::new(ASTType::Break, start_span.join(.token().span))
+            .consume_end_of_statement()
+        }
         TokenType::While => {
             let tok = .consume(TokenType::While)
             let cond = .parse_expression(end_type: TokenType::OpenCurly)

@@ -7,6 +7,7 @@ struct TypeChecker {
     program: &Program
     error_type: &Type
     scope_stack: &Vector // &Vector<&Scope>
+    in_loop: bool
 }
 
 def TypeChecker::new(program: &Program): &TypeChecker {
@@ -616,6 +617,8 @@ def TypeChecker::check_if(&this, node: &AST) {
 }
 
 def TypeChecker::check_while(&this, node: &AST) {
+    let was_in_loop = .in_loop
+    .in_loop = true
     let cond = node.u.loop.cond
     let body = node.u.loop.body
 
@@ -627,9 +630,13 @@ def TypeChecker::check_while(&this, node: &AST) {
         ))
     }
     .check_statement(body)
+    .in_loop = was_in_loop
 }
 
 def TypeChecker::check_for(&this, node: &AST) {
+    let was_in_loop = .in_loop
+    .in_loop = true
+
     let init = node.u.loop.init
     let cond = node.u.loop.cond
     let step = node.u.loop.step
@@ -648,6 +655,7 @@ def TypeChecker::check_for(&this, node: &AST) {
 
     if step? then .check_expression(step)
     .check_statement(body)
+    .in_loop = was_in_loop
 }
 
 def TypeChecker::check_statement(&this, node: &AST) {
@@ -673,6 +681,11 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 .error(Error::new(node.span, "Expected a return value for non-void function"))
             }
 
+        }
+        ASTType::Break => {
+            if not .in_loop {
+                .error(Error::new(node.span, `{node.type} statement outside of loop`))
+            }
         }
         ASTType::If => .check_if(node)
         ASTType::While => .check_while(node)
