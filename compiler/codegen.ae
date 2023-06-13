@@ -51,6 +51,10 @@ def CodeGenerator::get_op(&this, type: ASTType): string => match type {
     NotEquals => "!=",
     Or => "||",
     Plus => "+",
+    PlusEquals => "+=",
+    MinusEquals => "-=",
+    MultiplyEquals => "*=",
+    DivideEquals => "/=",
     RightShift => ">>",
     else => panic(`Unknown op type in get_op: {type}`)
 }
@@ -195,6 +199,10 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         NotEquals |
         Or |
         Plus |
+        PlusEquals |
+        MinusEquals |
+        MultiplyEquals |
+        DivideEquals |
         RightShift => {
             let lhs = node.u.binary.lhs
             let rhs = node.u.binary.rhs
