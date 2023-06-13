@@ -8,6 +8,7 @@ use "compiler/scopes.ae"
 enum ASTType {
     Block
     BoolLiteral
+    Break
     Call
     Error
     Identifier
