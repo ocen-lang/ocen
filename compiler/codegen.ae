@@ -284,6 +284,22 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .gen_block(body)
             .out.puts("\n")
         }
+        ASTType::For => {
+            let init = node.u.loop.init
+            let cond = node.u.loop.cond
+            let step = node.u.loop.step
+            let body = node.u.loop.body
+            .gen_indent()
+            .out.puts("for (")
+            if init? then .gen_expression(init)
+            .out.puts("; ")
+            if cond? then .gen_expression(cond)
+            .out.puts("; ")
+            if step? then .gen_expression(step)
+            .out.puts(") ")
+            .gen_block(body)
+            .out.puts("\n")
+        }
         else => {
             .gen_indent()
             .gen_expression(node)
