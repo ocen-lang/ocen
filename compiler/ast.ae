@@ -23,6 +23,10 @@ enum ASTType {
     For
     CharLiteral
     FloatLiteral
+    FormatStringLiteral
+    IsNotNull //  ptr? operator
+    Cast
+    Null
 
     // Unary operators
     Address
@@ -182,13 +186,15 @@ struct Identifier {
 
 struct Argument {
     expr: &AST
-    label: &AST // Identifier
+    label: string // Identifier
+    label_span: Span
 }
 
-def Argument::new(label: &AST, expr: &AST): &Argument {
+def Argument::new(label: string, label_span: Span, expr: &AST): &Argument {
     let arg = calloc(1, sizeof(Argument)) as &Argument
     arg.expr = expr
     arg.label = label
+    arg.label_span = label_span
     return arg
 }
 
@@ -261,6 +267,12 @@ struct Cast {
     to: &Type
 }
 
+struct FormatString {
+    parts: &Vector    // Vector<string>
+    specs: &Vector    // Vector<string>
+    exprs: &Vector    // Vector<&AST>
+}
+
 union ASTUnion {
     binary: Binary
     block: Block
@@ -278,6 +290,7 @@ union ASTUnion {
     char_literal: string
     unary: &AST
     var_decl: VarDeclaration
+    fmt_str: FormatString
 }
 
 struct AST {
