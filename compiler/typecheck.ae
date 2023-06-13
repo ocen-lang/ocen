@@ -237,6 +237,28 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                 return lhs
             }
         }
+        PlusEquals | MinusEquals | DivideEquals | MultiplyEquals => {
+            if not lhs.is_numeric() or not rhs.is_numeric() {
+                .error(Error::new_note(
+                    node.span, "Operator requires numeric types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+                return null
+            }
+            let lhs_node = node.u.binary.lhs
+            if not lhs_node.is_lvalue() {
+                .error(Error::new(node.span, "Left hand side of assignment must be assignable"))
+                return null
+            } 
+            if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+                return null
+            }
+            return lhs
+        }
         LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
             if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
                 .error(Error::new_note(
@@ -409,6 +431,10 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         GreaterThanEquals |
         Equals |
         NotEquals |
+        PlusEquals |
+        MinusEquals |
+        MultiplyEquals |
+        DivideEquals |
         And |
         Or |
         Modulus |
