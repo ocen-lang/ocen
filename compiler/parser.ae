@@ -470,6 +470,20 @@ def Parser::parse_statement(&this): &AST {
             node.u.loop.cond = cond
             node.u.loop.body = body
         }
+        TokenType::For => {
+            let tok = .consume(TokenType::For)
+            let init = .parse_expression(end_type: TokenType::Semicolon)
+            .consume(TokenType::Semicolon)
+            let cond = .parse_expression(end_type: TokenType::Semicolon)
+            .consume(TokenType::Semicolon)
+            let step = .parse_expression(end_type: TokenType::OpenCurly)
+            let body = .parse_block()
+            node = AST::new(ASTType::For, tok.span.join(body.span))
+            node.u.loop.init = init
+            node.u.loop.cond = cond
+            node.u.loop.step = step
+            node.u.loop.body = body
+        }
         TokenType::Let => {
             .consume(TokenType::Let)
             let name = .consume(TokenType::Identifier)

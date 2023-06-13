@@ -502,6 +502,27 @@ def TypeChecker::check_while(&this, node: &AST) {
     .check_statement(body)
 }
 
+def TypeChecker::check_for(&this, node: &AST) {
+    let init = node.u.loop.init
+    let cond = node.u.loop.cond
+    let step = node.u.loop.step
+    let body = node.u.loop.body
+
+    if init? then .check_expression(init)
+    if cond? {
+        let cond_type = .check_expression(cond)
+        if cond_type? and cond_type.base != BaseType::Bool {
+            .error(Error::new_note(
+                cond.span, "Condition must be a boolean",
+                `Got type '{cond_type.str()}'`
+            ))
+        }
+    }
+    
+    if step? then .check_expression(step)
+    .check_statement(body)
+}
+
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return => {
@@ -528,6 +549,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         }
         ASTType::If => .check_if(node)
         ASTType::While => .check_while(node)
+        ASTType::For => .check_for(node)
         ASTType::Block => .check_block(node)
         ASTType::VarDeclaration => {
             let var = node.u.var_decl.var
