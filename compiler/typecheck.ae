@@ -6,11 +6,15 @@ struct TypeChecker {
     cur_func: &Function
     program: &Program
     error_type: &Type
+    scope_stack: &Vector // &Vector<&Scope>
 }
 
-def TypeChecker::error(&this, err: &Error): &Error {
-    .program.errors.push(err)
-    return err
+def TypeChecker::new(program: &Program): &TypeChecker {
+    let checker = calloc(1, sizeof(TypeChecker)) as &TypeChecker
+    checker.program = program
+    checker.scope_stack = Vector::new()
+    checker.init_builtin_types()
+    return checker
 }
 
 def TypeChecker::init_base_type(&this, base: BaseType) {
@@ -36,30 +40,42 @@ def TypeChecker::get_base_type(&this, base: BaseType, span: Span): &Type {
     }
 }
 
-def TypeChecker::new(program: &Program): &TypeChecker {
-    let checker = calloc(1, sizeof(TypeChecker)) as &TypeChecker
-    checker.program = program
-    checker.init_builtin_types()
-    return checker
+def TypeChecker::push_scope(&this, scope: &Scope) {
+    .scope_stack.push(scope)
 }
 
-def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
+def TypeChecker::pop_scope(&this): &Scope {
+    if .scope_stack.size == 0 return null
+    return .scope_stack.pop() as &Scope
+}
+
+def TypeChecker::scope(&this): &Scope {
+    if .scope_stack.size == 0 return null
+    return .scope_stack.at(.scope_stack.size - 1) as &Scope
+}
+
+def TypeChecker::error(&this, err: &Error): &Error {
+    .program.errors.push(err)
+    return err
+}
+
+def TypeChecker::resolve_type(&this, old: &Type): &Type {
     let resolved = old
     match old.base {
         // Otherwise...
         Pointer => {
-            resolved.u.ptr = .resolve_type(old.u.ptr, scope)
+            resolved.u.ptr = .resolve_type(old.u.ptr)
         }
         Function => {
             let func = old.u.func
             for let i = 0; i < func.params.size; i += 1 {
                 let var = func.params.at(i) as &Variable
-                var.type = .resolve_type(var.type, scope)
+                var.type = .resolve_type(var.type)
             }
-            func.return_type = .resolve_type(func.return_type, scope)
+            func.return_type = .resolve_type(func.return_type)
         }
         Unresolved => {
-            let res = .resolve_scope_lookup(old.u.unresolved, scope)
+            let res = .resolve_scoped_identifier(old.u.unresolved)
             if res? {
                 match res.type {
                     SymbolType::TypeDef => resolved = res.u.type_def
@@ -82,21 +98,24 @@ def TypeChecker::resolve_type(&this, old: &Type, scope: &Scope): &Type {
     return resolved
 }
 
-def TypeChecker::check_block(&this, node: &AST, scope: &Scope) {
+def TypeChecker::check_block(&this, node: &AST) {
     let block = node.u.block
-    block.scope = Scope::new(scope)
+    block.scope = Scope::new(.scope())
+
+    .push_scope(block.scope)
     let stmts = block.statements
     for let i = 0; i < stmts.size; i += 1 {
         let stmt = stmts.at(i) as &AST
-        .check_statement(stmt, block.scope)
+        .check_statement(stmt)
     }
+    .pop_scope()
 }
 
-def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol {
+def TypeChecker::resolve_scoped_identifier(&this, node: &AST): &Symbol {
     match node.type {
         ASTType::NSLookup => {
             // FIXME: this is all sorts of hacky
-            let lhs = .resolve_scope_lookup(node.u.lookup.lhs, scope)
+            let lhs = .resolve_scoped_identifier(node.u.lookup.lhs)
             if not lhs? {
                 .error(Error::new(node.u.lookup.lhs.span, "couldn't resolve scope lookup lhs"))
                 return null
@@ -115,7 +134,7 @@ def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol
         }
         ASTType::Identifier => {
             let name = node.u.ident.name
-            let res = scope.lookup_recursive(name)
+            let res = .scope().lookup_recursive(name)
             node.resolved_symbol = res
             return res
         }
@@ -126,7 +145,7 @@ def TypeChecker::resolve_scope_lookup(&this, node: &AST, scope: &Scope): &Symbol
     }
 }
 
-def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
+def TypeChecker::check_call(&this, node: &AST): &Type {
     // fixme: so much to check... args, existing function, etc...
     let callee = node.u.call.callee
     let args = node.u.call.args
@@ -139,15 +158,15 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
         if name.eq("print") or name.eq("println") {
             for let i = 0; i < args.size; i += 1 {
                 let arg = args.at(i) as &Argument
-                .check_expression(arg.expr, scope)
+                .check_expression(arg.expr)
             }
             return .get_base_type(Void, node.span)
         }
     }
 
-    // FIXME: we want to be able to call `resolve_scope_lookup` here, but we can't because
+    // FIXME: we want to be able to call `resolve_scoped_identifier` here, but we can't because
     // we also want to be able to do something like `foo.bar()` etc where the LHS is not a scope lookup
-    let res = .check_expression(callee, scope)
+    let res = .check_expression(callee)
     if res? and res.base == BaseType::Function {
         let func = res.u.func
         let params = func.params
@@ -161,7 +180,7 @@ def TypeChecker::check_call(&this, node: &AST, scope: &Scope): &Type {
             // Normal case
             if i < args.size {
                 let arg = args.at(i) as &Argument
-                let arg_type = .check_expression(arg.expr, scope)
+                let arg_type = .check_expression(arg.expr)
                 if arg_type? and not arg_type.eq(param.type) {
                     .error(Error::new(arg.expr.span, `Argument {i} has type {arg_type.str()} but expected {param.type.str()}`))
                 }
@@ -240,12 +259,9 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 ))
             }
-            // if lhs.base == BaseType::Structure {
-            //     let struc = .structures.get(lhs.name) as &Structure
-            //     if not struc.is_enum {
-            //         .error(Error::new(node.span, "Cannot compare structs directly"))
-            //     }
-            // }
+            if lhs.base == BaseType::Structure {
+                .error(Error::new(node.span, "Cannot compare structs directly"))
+            }
             return .get_base_type(BaseType::Bool, node.span)
         }
         And | Or => {
@@ -276,7 +292,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
     }
 }
 
-def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
+def TypeChecker::check_expression(&this, node: &AST): &Type {
     match node.type {
         ASTType::IntLiteral => {
             return .get_base_type(BaseType::I32, node.span)
@@ -298,7 +314,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             return .get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Negate => {
-            let typ = .check_expression(node.u.unary, scope)
+            let typ = .check_expression(node.u.unary)
             if not typ? return null
             if not typ.is_numeric() {
                 .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
@@ -307,7 +323,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             return typ
         }
         ASTType::Not => {
-            let typ = .check_expression(node.u.unary, scope)
+            let typ = .check_expression(node.u.unary)
             if not typ? return null
             if typ.base != BaseType::Bool {
                 .error(Error::new(node.span, `Cannot negate non-boolean type: {typ.str()}`))
@@ -316,14 +332,14 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             return typ
         }
         ASTType::Address => {
-            let typ = .check_expression(node.u.unary, scope)
+            let typ = .check_expression(node.u.unary)
             if not typ? return null
             let ptr = Type::new_resolved(BaseType::Pointer, node.span)
             ptr.u.ptr = typ
             return ptr
         }
         ASTType::Dereference => {
-            let typ = .check_expression(node.u.unary, scope)
+            let typ = .check_expression(node.u.unary)
             if not typ? return null
             if typ.base != BaseType::Pointer {
                 .error(Error::new(node.span, `Cannot dereference non-pointer type: {typ.str()}`))
@@ -332,7 +348,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             return typ.u.ptr
         }
         ASTType::Member => {
-            let lhs = .check_expression(node.u.member.lhs, scope)
+            let lhs = .check_expression(node.u.member.lhs)
             if not lhs? return null
 
             let is_pointer = false
@@ -356,7 +372,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
             return field.type
         }
         ASTType::Identifier | ASTType::NSLookup => {
-            let item = .resolve_scope_lookup(node, scope)
+            let item = .resolve_scoped_identifier(node)
             if not item? {
                 .error(Error::new(node.span, "Couldn't resolve this expression"))
                 return null
@@ -380,7 +396,7 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
                 }
             }
         }
-        ASTType::Call => return .check_call(node, scope)
+        ASTType::Call => return .check_call(node)
 
         // Binary operators
         Plus |
@@ -401,15 +417,15 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
         BitwiseXor |
         LeftShift |
         RightShift => {
-            let lhs = .check_expression(node.u.binary.lhs, scope)
-            let rhs = .check_expression(node.u.binary.rhs, scope)
+            let lhs = .check_expression(node.u.binary.lhs)
+            let rhs = .check_expression(node.u.binary.rhs)
             if not lhs? or not rhs? return null
             return .check_binary_op(node, lhs, rhs)
         }
 
         Assignment => {
-            let lhs = .check_expression(node.u.binary.lhs, scope)
-            let rhs = .check_expression(node.u.binary.rhs, scope)
+            let lhs = .check_expression(node.u.binary.lhs)
+            let rhs = .check_expression(node.u.binary.rhs)
             if not lhs? or not rhs? return null
 
             if not node.u.binary.lhs.is_lvalue() {
@@ -430,37 +446,37 @@ def TypeChecker::check_expression(&this, node: &AST, scope: &Scope): &Type {
     }
 }
 
-def TypeChecker::check_if(&this, node: &AST, scope: &Scope) {
-    let cond_type = .check_expression(node.u.if_stmt.cond, scope)
+def TypeChecker::check_if(&this, node: &AST) {
+    let cond_type = .check_expression(node.u.if_stmt.cond)
     if cond_type? and cond_type.base != BaseType::Bool {
         .error(Error::new_note(
             node.u.if_stmt.cond.span, "Condition must be a boolean",
             `Got type '{cond_type.str()}'`
         ))
     }
-    .check_statement(node.u.if_stmt.body, scope)
+    .check_statement(node.u.if_stmt.body)
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
-        .check_statement(else_stmt, scope)
+        .check_statement(else_stmt)
 
     }
 }
 
-def TypeChecker::check_while(&this, node: &AST, scope: &Scope) {
+def TypeChecker::check_while(&this, node: &AST) {
     let cond = node.u.loop.cond
     let body = node.u.loop.body
 
-    let cond_type = .check_expression(cond, scope)
+    let cond_type = .check_expression(cond)
     if cond_type? and cond_type.base != BaseType::Bool {
         .error(Error::new_note(
             cond.span, "Condition must be a boolean",
             `Got type '{cond_type.str()}'`
         ))
     }
-    .check_statement(body, scope)
+    .check_statement(body)
 }
 
-def TypeChecker::check_statement(&this, node: &AST, scope: &Scope) {
+def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return => {
             // todo: make sure in function
@@ -475,7 +491,7 @@ def TypeChecker::check_statement(&this, node: &AST, scope: &Scope) {
                     .error(Error::new(node.span, "Cannot return a value from a void function"))
                 }
             } else if node.u.unary? {
-                let res = .check_expression(node.u.unary, scope)
+                let res = .check_expression(node.u.unary)
                 if res? and not res.eq(expected) {
                     .error(Error::new(node.span, `Return type {res.str()} does not match function return type {expected.str()}`))
                 }
@@ -484,28 +500,27 @@ def TypeChecker::check_statement(&this, node: &AST, scope: &Scope) {
             }
 
         }
-        ASTType::If => .check_if(node, scope)
-        ASTType::While => .check_while(node, scope)
-        ASTType::Block => .check_block(node, scope)
+        ASTType::If => .check_if(node)
+        ASTType::While => .check_while(node)
+        ASTType::Block => .check_block(node)
         ASTType::VarDeclaration => {
-            // FIXME: check if it exists in the scope already
             let var = node.u.var_decl.var
-            let res = scope.lookup_local(var.name)
+            let res = .scope().lookup_local(var.name)
             if res? {
                 .error(Error::new(node.span, `Variable {var.name} already exists in this scope`))
                 return
             }
 
             let sym = Symbol::from_variable(var)
-            scope.items.insert(var.name, sym)
+            .scope().insert(var.name, sym)
 
             if var.type? {
-                var.type = .resolve_type(var.type, scope)
+                var.type = .resolve_type(var.type)
             }
 
             let init = node.u.var_decl.init
             if init? {
-                let res = .check_expression(init, scope)
+                let res = .check_expression(init)
                 if res? and var.type? and not res.eq(var.type) {
                     .error(Error::new(init.span, `Variable {var.name} has type {var.type.str()} but initializer has type {res.str()}`))
                 } else if not var.type? {
@@ -515,7 +530,7 @@ def TypeChecker::check_statement(&this, node: &AST, scope: &Scope) {
                 .error(Error::new(node.span, `Variable {var.name} has no type and no initializer`))
             }
         }
-        else => .check_expression(node, scope)
+        else => .check_expression(node)
     }
 }
 
@@ -529,7 +544,11 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
         let default_expr = param.default_value
         if default_expr? {
-            let default_type = .check_expression(default_expr, ns.scope)
+            // NOTE: This `.check_expression()` call uses the scope _outside_ of the function.
+            //       We don't check the new scope here on purpose: the default value needs to be
+            //       valid outside the scope of this function, which is where it will be evaluated.
+            let default_type = .check_expression(default_expr)
+
             if not default_type? {
                 .error(Error::new(default_expr.span, "Couldn't resolve default argument expression"))
             } else if not default_type.eq(param.type) {
@@ -542,7 +561,10 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
     func.prefix = ns.prefix
     .cur_func = func
-    .check_block(func.body, new_scope)
+
+    .push_scope(new_scope)
+    .check_statement(func.body)
+    .pop_scope()
 }
 
 def TypeChecker::check_struct(&this, ns: &Namespace, struc: &Structure) {
@@ -550,7 +572,7 @@ def TypeChecker::check_struct(&this, ns: &Namespace, struc: &Structure) {
     struc.prefix = ns.prefix
     for let i = 0; i < fields.size; i += 1 {
         let field = fields.at(i) as &Variable
-        let res = .resolve_type(field.type, ns.scope)
+        let res = .resolve_type(field.type)
         if not res? {
             .error(Error::new(field.span, "Couldn't resolve type"))
         } else {
@@ -560,41 +582,43 @@ def TypeChecker::check_struct(&this, ns: &Namespace, struc: &Structure) {
 }
 
 def TypeChecker::check_structs(&this, ns: &Namespace) {
+    .push_scope(ns.scope)
+
     // FIXME: We need to do a topological sort here to make sure we don't
     // try to use a type before it's defined. For now they are being defined
     // in the order some indeterminate hash map iterator returns them in.
-    let structs = ns.structs
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i) as &Structure
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
         .check_struct(ns, struc)
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .check_structs(iter.value())
     }
+    .pop_scope()
 }
 
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
-    let imports = ns.imports
-    for let i = 0; i < imports.size; i += 1 {
-        let import = imports.at(i) as &AST
-        .handle_import_statement(import, ns, ns.scope)
+    .push_scope(ns.scope)
+    for let i = 0; i < ns.imports.size; i += 1 {
+        let import = ns.imports.at(i) as &AST
+        .handle_import_statement(import, ns)
     }
 
-    let functions = ns.functions;
-    for let i = 0; i < functions.size; i += 1 {
-        let func = functions.at(i) as &Function
+    for let i = 0; i < ns.functions.size; i += 1 {
+        let func = ns.functions.at(i) as &Function
         .check_function(ns, func)
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .check_namespace(iter.value())
     }
+    .pop_scope()
 }
 
 // Insert all the imported items defined in the Import AST statement, (relative to the current namespace),
 // into the current scope.
-def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace, scope: &Scope) {
+def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace) {
     let path = node.u.import_path
 
     let base = .program.global
@@ -630,8 +654,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace, scop
         return
     }
     println(`imported symbol {name} with type {sym.type} into namespace {ns.prefix}`)
-    scope.items.insert(name, sym)
-
+    .scope().insert(name, sym)
 }
 
 ////// Pre-checking namespace for declarations //////
@@ -639,13 +662,13 @@ def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace, scop
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     let item = Symbol::from_function(func.name, func)
     // FIXME: check if name already exists in scope
-    ns.scope.items.insert(func.name, item)
+    .scope().insert(func.name, item)
 
-    func.return_type = .resolve_type(func.return_type, ns.scope)
+    func.return_type = .resolve_type(func.return_type)
     let params = func.params
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
-        param.type = .resolve_type(param.type, ns.scope)
+        param.type = .resolve_type(param.type)
     }
 
     // A function keeps track of a type that represents an equivalent function pointer type
@@ -658,7 +681,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
     let item = Symbol::from_structure(struc)
     // FIXME: check if name already exists in scope
-    ns.scope.items.insert(struc.name, item)
+    .scope().insert(struc.name, item)
 
     let typ = Type::new_resolved(Structure, struc.span)
     typ.u.struc = struc
@@ -666,6 +689,7 @@ def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
 }
 
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
+    .push_scope(ns.scope)
     let structs = ns.structs
     for let i = 0; i < structs.size; i += 1 {
         let struc = structs.at(i) as &Structure
@@ -683,10 +707,11 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
         let name = iter.key()
 
         if child.is_user_defined {
-            ns.scope.items.insert(name, Symbol::from_namespace(name, child))
+            .scope().insert(name, Symbol::from_namespace(name, child))
         }
         .pre_check_namespace(iter.value())
     }
+    .pop_scope()
 }
 
 ////// Top-level call program //////
