@@ -342,6 +342,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     }
 }
 
+def CodeGenerator::gen_var_declaration(&this, node: &AST) {
+    let var = node.u.var_decl.var
+
+    .gen_type_and_name(var.type, var.name)
+    if node.u.var_decl.init? {
+        .out.puts(" = ")
+        .gen_expression(node.u.var_decl.init)
+    }
+}
+
 def CodeGenerator::gen_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return => {
@@ -356,18 +366,13 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .gen_indent()
             .out.puts("break;\n")
         }
-        ASTType::VarDeclaration => {
-            let var = node.u.var_decl.var
-            let type = var.type
-            let name = var.name
+        ASTType::Continue => {
             .gen_indent()
-            .out.puts(.get_type_name_string(type, name, is_func_def: false))
-
-            let init = node.u.var_decl.init
-            if init? {
-                .out.puts(" = ")
-                .gen_expression(init)
-            }
+            .out.puts("continue;\n")
+        }
+        ASTType::VarDeclaration => {
+            .gen_indent()
+            .gen_var_declaration(node)
             .out.puts(";\n")
         }
         ASTType::Block => {
@@ -410,7 +415,13 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             let body = node.u.loop.body
             .gen_indent()
             .out.puts("for (")
-            if init? then .gen_expression(init)
+            if init? {
+                if init.type == ASTType::VarDeclaration {
+                    .gen_var_declaration(init)
+                } else {
+                    .gen_expression(init)
+                }
+            }
             .out.puts("; ")
             if cond? then .gen_expression(cond)
             .out.puts("; ")
