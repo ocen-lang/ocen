@@ -890,6 +890,14 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
         }
 
         // FIXME: check for duplicate methods
+        let res = parent_type.methods.get(func.name) as &Function
+        if res? {
+            .error(Error::new_hint(
+                func.span, "Method with this name already exists",
+                res.span, "Previous definition here"
+            ))
+            return
+        }
         parent_type.methods.insert(func.name, func)
         func.parent_type = parent_type
         func.prefix = prefix

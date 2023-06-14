@@ -1,0 +1,6 @@
+import .libc
+
+def sum(a: i32, b: i32): i32 {
+    libc::fopen()
+    return a + b
+}
