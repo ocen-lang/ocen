@@ -819,6 +819,28 @@ def Parser::parse_struct(&this): &Structure {
     return struc
 }
 
+def Parser::parse_enum(&this): &Enum {
+    let start_span = .consume(TokenType::Enum).span
+    let name = .consume(TokenType::Identifier)
+
+    let enum_def = Enum::new(name.text, start_span)
+    enum_def.name = name.text
+
+    .consume(TokenType::OpenCurly)
+    while not .token_is(TokenType::CloseCurly) {
+        let name = .consume(TokenType::Identifier)
+        let var = Variable::new(name.text, null, name.span)
+
+        enum_def.fields.push(var)
+        if not .token_is(TokenType::CloseCurly) {
+            .consume_newline_or(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseCurly)
+
+    return enum_def
+}
+
 def Parser::parse_namespace_until(&this, end_type: TokenType) {
     while not .token_is(end_type) {
         match .token().type {
@@ -851,6 +873,10 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
             Struct => {
                 let struc = .parse_struct()
                 if struc? then .ns.structs.push(struc)
+            }
+            Enum => {
+                let enum_value = .parse_enum()
+                if enum_value? then .ns.enums.push(enum_value)
             }
             else => {
                 .error(Error::new(.token().span, `Unexpected token '{.token().text} in Parser`))

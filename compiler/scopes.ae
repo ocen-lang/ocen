@@ -4,6 +4,7 @@ use "compiler/types.ae"
 enum SymbolType {
     Function
     Structure
+    Enum
     TypeDef
     Namespace
     Variable
@@ -12,6 +13,7 @@ enum SymbolType {
 struct SymbolUnion {
     func: &Function
     struc: &Structure
+    enum_: &Enum
     ns: &Namespace
     type_def: &Type
     var: &Variable
@@ -33,6 +35,7 @@ def Symbol::new(name: string, type: SymbolType): &Symbol {
 def Symbol::span(&this): Span => match .type {
     SymbolType::Function => .u.func.span
     SymbolType::Structure => .u.struc.span
+    SymbolType::Enum => .u.enum_.span
     SymbolType::TypeDef => .u.type_def.span
     SymbolType::Variable => .u.var.span
     else => Span::default()
@@ -41,6 +44,13 @@ def Symbol::span(&this): Span => match .type {
 def Symbol::from_function(name: string, func: &Function): &Symbol {
     let item = Symbol::new(name, SymbolType::Function)
     item.u.func = func
+    return item
+}
+
+def Symbol::from_enum(enum_: &Enum): &Symbol {
+    let name = enum_.name
+    let item = Symbol::new(name, SymbolType::Enum)
+    item.u.enum_ = enum_
     return item
 }
 
@@ -100,6 +110,7 @@ struct Namespace {
 
     functions: &Vector    // Vector<&Function>
     structs: &Vector      // Vector<&Structure>
+    enums: &Vector        // Vector<&Enum>
     imports: &Vector      // Vector<&AST>
     namespaces: &Map      // Map<string, &Namespace>
     span: Span
@@ -131,6 +142,7 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
     ns.scope = Scope::new(parent_scope)
     ns.functions = Vector::new()
     ns.structs = Vector::new()
+    ns.enums = Vector::new()
     ns.namespaces = Map::new()
     ns.imports = Vector::new()
     ns.path = path
@@ -163,6 +175,13 @@ def Namespace::find_importable_symbol(&this, name: string): &Symbol {
         let struc = .structs.at(i) as &Structure
         if struc.name.eq(name) {
             return Symbol::from_structure(struc)
+        }
+    }
+
+    for let i = 0; i < .enums.size; i += 1 {
+        let enum_ = .enums.at(i) as &Enum
+        if enum_.name.eq(name) {
+            return Symbol::from_enum(enum_)
         }
     }
     return null
