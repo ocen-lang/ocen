@@ -210,7 +210,10 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
 
     // FIXME: we want to be able to call `resolve_scoped_identifier` here, but we can't because
     // we also want to be able to do something like `foo.bar()` etc where the LHS is not a scope lookup
-    let res = .check_expression(callee)
+    let res = match callee.type {
+        Member => .check_member(callee, is_being_called: true)
+        else => .check_expression(callee)
+    }
     if not res? return null
 
     if res.base != BaseType::Function {
@@ -400,6 +403,44 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
     return typ
 }
 
+def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
+    let lhs = .check_expression(node.u.member.lhs)
+    if not lhs? return null
+
+    // How would this work for strings?
+    let is_pointer = false
+    if lhs.base == BaseType::Pointer {
+        is_pointer = true
+        lhs = lhs.u.ptr
+    }
+
+    if lhs.base == BaseType::Structure {
+        let struc = lhs.u.struc
+        let field = struc.get_field(node.u.member.rhs_name)
+        if field? {
+            node.u.member.is_pointer = is_pointer
+            return field.type
+        }
+    }
+
+    if lhs.can_have_methods() {
+        let method = lhs.methods.get(node.u.member.rhs_name) as &Function
+        if method? {
+            if not is_being_called {
+                .error(Error::new(node.span, "Cannot access method without calling it"))
+                return null
+            }
+            node.u.member.is_pointer = is_pointer
+            node.resolved_symbol = Symbol::from_function(method.name, method)
+            return method.type
+        }
+    }
+
+    .error(Error::new(node.span, `Type {lhs.name} has no member named '{node.u.member.rhs_name}'`))
+    return null
+}
+
+
 // This is just here so we can use early exits in the actual check_expression
 // function, and still always assign the type to the node's etype field
 def TypeChecker::check_expression(&this, node: &AST): &Type {
@@ -489,38 +530,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST): &Type {
             }
             return typ.u.ptr
         }
-        ASTType::Member => {
-            let lhs = .check_expression(node.u.member.lhs)
-            if not lhs? return null
-
-            // How would this work for strings?
-            let is_pointer = false
-            if lhs.base == BaseType::Pointer {
-                is_pointer = true
-                lhs = lhs.u.ptr
-            }
-
-            if lhs.base == BaseType::Structure {
-                let struc = lhs.u.struc
-                let field = struc.get_field(node.u.member.rhs_name)
-                if field? {
-                    node.u.member.is_pointer = is_pointer
-                    return field.type
-                }
-            }
-
-            if lhs.can_have_methods() {
-                let method = lhs.methods.get(node.u.member.rhs_name) as &Function
-                if method? {
-                    node.u.member.is_pointer = is_pointer
-                    node.resolved_symbol = Symbol::from_function(method.name, method)
-                    return method.type
-                }
-            }
-
-            .error(Error::new(node.span, `Type {lhs.str()} has no member named '{node.u.member.rhs_name}'`))
-            return null
-        }
+        ASTType::Member => return .check_member(node, is_being_called: false)
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .resolve_scoped_identifier(node)
             if not item? {
