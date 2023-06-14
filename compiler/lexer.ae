@@ -270,6 +270,7 @@ def Lexer::lex(&this): &Vector {
                 let start_loc = .loc
 
                 if c == 'f' and .peek(1) == '"' {
+                    .inc()
                     .lex_string_literal(has_seen_f: true)
 
                 } else if is_digit(c) {
