@@ -20,6 +20,7 @@ enum ASTType {
     NSLookup
     Return
     StringLiteral
+    SizeOf
     VarDeclaration
     While
     For
@@ -299,6 +300,7 @@ union ASTUnion {
     unary: &AST
     var_decl: VarDeclaration
     fmt_str: FormatString
+    size_of_type: &Type
 }
 
 struct AST {
