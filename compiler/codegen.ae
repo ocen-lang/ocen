@@ -205,7 +205,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 // Method call
                 let sym = node.resolved_symbol
                 match sym.type {
-                    Function => .out.putsf(.get_method_name(sym.u.func))
+                    Function => .out.putsf(.get_function_name(sym.u.func))
                     else => panic(`Unhandled symbol type: {sym.type}`)
                 }
                 return
@@ -294,11 +294,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(")")
             .gen_expression(expr)
             .out.puts(")")
-        }
-        SizeOf => {
-            .out.puts("((u32) sizeof(")
-            .gen_type(node.u.size_of_type)
-            .out.puts("))")
         }
         Null => .out.puts("NULL")
 
@@ -540,17 +535,16 @@ def CodeGenerator::get_function_name(&this, func: &Function): string {
     return `{func.prefix}{func.name}`
 }
 
-def CodeGenerator::get_method_name(&this, func: &Function): string {
-    let struc = func.parent_type.u.struc
-    return `{func.prefix}{func.name}`
-}
-
 def CodeGenerator::get_variable_name(&this, var: &Variable): string {
     return `{var.prefix}{var.name}`
 }
 
 def CodeGenerator::get_struct_name(&this, struc: &Structure): string {
     return `{struc.prefix}{struc.name}`
+}
+
+def CodeGenerator::get_enum_name(&this, enum_: &Enum): string {
+    return `{enum_.prefix}{enum_.name}`
 }
 
 
@@ -596,42 +590,68 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     }
 }
 
-def CodeGenerator::gen_struct_typedefs(&this, ns: &Namespace) {
-    let structs = ns.structs;
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i) as &Structure
+def CodeGenerator::gen_compound_typedefs(&this, ns: &Namespace) {
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
         let struc_name = .get_struct_name(struc)
         .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
     }
 
+    for let i = 0; i < ns.enums.size; i += 1 {
+        let enum_ = ns.enums.at(i) as &Enum
+        let enum_name = .get_enum_name(enum_)
+        .out.putsf(`typedef enum {enum_name} {enum_name};\n`)
+    }
+
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
         let child = iter.value() as &Namespace
-        .gen_struct_typedefs(child)
+        .gen_compound_typedefs(child)
     }
 }
 
-def CodeGenerator::gen_structs(&this, ns: &Namespace) {
-    let structs = ns.structs;
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i) as &Structure
-        let struc_name = .get_struct_name(struc)
-        .out.putsf(`struct {struc_name} \{\n`)
-        let fields = struc.fields
-        for let j = 0; j < fields.size; j += 1 {
-            let field = fields.at(j) as &Variable
-            .out.puts("    ")
-            .gen_type_and_name(field.type, .get_variable_name(field))
-            .out.puts(";\n")
-        }
-        .out.puts("};\n\n")
+def CodeGenerator::gen_compound_types(&this, ns: &Namespace) {
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
+        .gen_struct(struc)
+    }
+
+    for let i = 0; i < ns.enums.size; i += 1 {
+        let enum_ = ns.enums.at(i) as &Enum
+        .gen_enum(enum_)
     }
 
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
         let child = iter.value() as &Namespace
-        .gen_structs(child)
+        .gen_compound_types(child)
     }
+}
+
+def CodeGenerator::gen_enum(&this, enum_: &Enum) {
+    let enum_name = .get_enum_name(enum_)
+    .out.putsf(`enum {enum_name} \{\n`)
+    let fields = enum_.fields
+    for let j = 0; j < fields.size; j += 1 {
+        let field = fields.at(j) as &Variable
+        .out.puts("    ")
+        .out.puts(.get_variable_name(field))
+        .out.puts(",\n")
+    }
+    .out.puts("};\n\n")
+}
+
+def CodeGenerator::gen_struct(&this, struc: &Structure) {
+    let struc_name = .get_struct_name(struc)
+    .out.putsf(`struct {struc_name} \{\n`)
+    let fields = struc.fields
+    for let j = 0; j < fields.size; j += 1 {
+        let field = fields.at(j) as &Variable
+        .out.puts("    ")
+        .gen_type_and_name(field.type, .get_variable_name(field))
+        .out.puts(";\n")
+    }
+    .out.puts("};\n\n")
 }
 
 def CodeGenerator::generate(&this): string {
@@ -643,12 +663,8 @@ def CodeGenerator::generate(&this): string {
     .out.puts("#include <stdarg.h>\n")
     .out.puts("\n")
 
-    .out.puts("typedef int8_t i8;\n")
-    .out.puts("typedef int16_t i16;\n")
     .out.puts("typedef int32_t i32;\n")
     .out.puts("typedef int64_t i64;\n")
-    .out.puts("typedef uint8_t u8;\n")
-    .out.puts("typedef uint16_t u16;\n")
     .out.puts("typedef uint32_t u32;\n")
     .out.puts("typedef uint64_t u64;\n")
     .out.puts("typedef float f32;\n")
@@ -669,12 +685,12 @@ def CodeGenerator::generate(&this): string {
     .out.puts("}\n")
     .out.puts("\n")
 
-    // TODO: gen structs / other stuff...
+    // TODO: gen compound types / other stuff...
     .out.puts("/* Struct typedefs */\n")
-    .gen_struct_typedefs(.program.global)
+    .gen_compound_typedefs(.program.global)
 
-    .out.puts("/* Structs */\n")
-    .gen_structs(.program.global)
+    .out.puts("/* compound types */\n")
+    .gen_compound_types(.program.global)
 
     .out.puts("/* function declarations */\n")
     .gen_function_decls(.program.global)

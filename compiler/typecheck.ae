@@ -138,6 +138,14 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST): &Symbol {
                     node.resolved_symbol = Symbol::from_function(name, method)
                     return node.resolved_symbol
                 }
+                SymbolType::Enum => {
+                    let enum_ = lhs.u.enum_
+                    let name = node.u.lookup.rhs_name
+                    let field = enum_.get_field(name) as &Variable
+                    if not field? return null
+                    node.resolved_symbol = Symbol::from_variable(field)
+                    return node.resolved_symbol
+                }
                 else => {
                     .error(Error::new(node.u.lookup.lhs.span, `needs to be a namespace to lookup, got '{lhs.type}'`))
                     return null
@@ -551,6 +559,10 @@ def TypeChecker::check_expression_helper(&this, node: &AST): &Type {
                     .error(Error::new(node.span, "Cannot use a struct name as an expression"))
                     return null
                 }
+                Enum => {
+                    .error(Error::new(node.span, "Cannot use an enum name as an expression"))
+                    return null
+                }
                 Namespace => {
                     .error(Error::new(node.span, "Cannot use a namespace as an expression"))
                     return null
@@ -783,7 +795,20 @@ def TypeChecker::check_struct(&this, ns: &Namespace, struc: &Structure) {
     }
 }
 
-def TypeChecker::check_structs(&this, ns: &Namespace) {
+def TypeChecker::check_enum(&this, ns: &Namespace, enum_: &Enum) {
+    let fields = enum_.fields
+    for let i = 0; i < fields.size; i += 1 {
+        let field = fields.at(i) as &Variable  // FIXME: Should be constant
+        let res = .resolve_type(field.type)
+        if not res? {
+            .error(Error::new(field.span, "Couldn't resolve type"))
+        } else {
+            field.type = res
+        }
+    }
+}
+
+def TypeChecker::check_compound_types(&this, ns: &Namespace) {
     .push_scope(ns.scope)
 
     // FIXME: We need to do a topological sort here to make sure we don't
@@ -795,7 +820,7 @@ def TypeChecker::check_structs(&this, ns: &Namespace) {
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
-        .check_structs(iter.value())
+        .check_compound_types(iter.value())
     }
     .pop_scope()
 }
@@ -938,14 +963,36 @@ def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
     struc.type = typ
 }
 
-def TypeChecker::pre_check_structs(&this, ns: &Namespace) {
+def TypeChecker::pre_check_enum(&this, ns: &Namespace, enum_: &Enum) {
+    let item = Symbol::from_enum(enum_)
+    .insert_into_scope_checked(enum_.name, item, enum_.span)
+    enum_.prefix = ns.prefix
+
+    let typ = Type::new_resolved(Enum, enum_.span)
+    typ.u.enum_ = enum_
+    enum_.type = typ
+
+    let value_prefix = `{enum_.prefix}{enum_.name}_`
+
+    for let i = 0; i < enum_.fields.size; i += 1 {
+        let field = enum_.fields.at(i) as &Variable
+        field.type = .get_base_type(BaseType::I32, field.span)
+        field.prefix = value_prefix
+    }
+}
+
+def TypeChecker::pre_check_compound_types(&this, ns: &Namespace) {
     .push_scope(ns.scope)
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .pre_check_struct(ns, struc)
     }
+    for let i = 0; i < ns.enums.size; i += 1 {
+        let enum_ = ns.enums.at(i) as &Enum
+        .pre_check_enum(ns, enum_)
+    }
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
-        .pre_check_structs(iter.value())
+        .pre_check_compound_types(iter.value())
     }
     .pop_scope()
 }
@@ -976,7 +1023,7 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
 def TypeChecker::check(&this) {
     let global_ns = .program.global
 
-    .pre_check_structs(global_ns)
+    .pre_check_compound_types(global_ns)
 
     // 1. This resolves all the top-level types, function declarations.
     //    We do this before structs to make sure struct fields can contain other structs that
@@ -985,7 +1032,7 @@ def TypeChecker::check(&this) {
 
     // 2. This resolved all the struct fields, which is necessary before we resolve any functions.
     //    This is because function bodies may reference struct fields.
-    .check_structs(global_ns)
+    .check_compound_types(global_ns)
 
     // 3. This resolves all the function bodies
     .check_namespace(global_ns)

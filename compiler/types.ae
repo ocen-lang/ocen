@@ -21,6 +21,7 @@ enum BaseType {
     Pointer
     Function
     Structure
+    Enum
     Unresolved
 
     Error
@@ -61,6 +62,7 @@ struct TypeUnion {
     ptr: &Type
     func: &FunctionType
     struc: &Structure
+    enum_: &Enum
     unresolved: &AST
 }
 

@@ -145,6 +145,33 @@ def Structure::get_field(&this, name: string): &Variable {
     return null
 }
 
+struct Enum {
+    name: string
+    fields: &Vector     // Vector<&Variable>
+
+    type: &Type
+    span: Span
+    prefix: string
+}
+
+def Enum::new(name: string, span: Span): &Enum {
+    let enum_ = calloc(1, sizeof(Enum)) as &Enum
+    enum_.fields = Vector::new()
+    enum_.span = span
+    enum_.name = name
+    return enum_
+}
+
+def Enum::get_field(&this, name: string): &Variable {
+    for let i = 0; i < .fields.size; i += 1 {
+        let field = .fields.at(i) as &Variable
+        if field.name.eq(name) {
+            return field
+        }
+    }
+    return null
+}
+
 struct Function {
     name: string
     params: &Vector     // Vector<&Variable>
