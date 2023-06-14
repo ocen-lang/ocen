@@ -591,6 +591,11 @@ def Parser::parse_statement(&this): &AST {
             node = AST::new(ASTType::Break, start_span.join(.token().span))
             .consume_end_of_statement()
         }
+        TokenType::Continue => {
+            .consume(TokenType::Continue)
+            node = AST::new(ASTType::Continue, start_span.join(.token().span))
+            .consume_end_of_statement()
+        }
         TokenType::While => {
             let tok = .consume(TokenType::While)
             let cond = .parse_expression(end_type: TokenType::OpenCurly)
@@ -601,8 +606,13 @@ def Parser::parse_statement(&this): &AST {
         }
         TokenType::For => {
             let tok = .consume(TokenType::For)
-            let init = .parse_expression(end_type: TokenType::Semicolon)
-            .consume(TokenType::Semicolon)
+            let init = null as &AST
+            if .token_is(TokenType::Let) {
+                init = .parse_statement()
+            } else {
+                init = .parse_expression(end_type: TokenType::Semicolon)
+                .consume(TokenType::Semicolon)
+            }
             let cond = .parse_expression(end_type: TokenType::Semicolon)
             .consume(TokenType::Semicolon)
             let step = .parse_expression(end_type: TokenType::OpenCurly)

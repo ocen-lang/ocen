@@ -635,6 +635,7 @@ def TypeChecker::check_while(&this, node: &AST) {
 
 def TypeChecker::check_for(&this, node: &AST) {
     let was_in_loop = .in_loop
+    .push_scope(Scope::new(.scope()))
     .in_loop = true
 
     let init = node.u.loop.init
@@ -642,7 +643,8 @@ def TypeChecker::check_for(&this, node: &AST) {
     let step = node.u.loop.step
     let body = node.u.loop.body
 
-    if init? then .check_expression(init)
+    if init? then .check_statement(init)
+
     if cond? {
         let cond_type = .check_expression(cond)
         if cond_type? and cond_type.base != BaseType::Bool {
@@ -682,7 +684,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
 
         }
-        ASTType::Break => {
+        ASTType::Break | ASTType::Continue => {
             if not .in_loop {
                 .error(Error::new(node.span, `{node.type} statement outside of loop`))
             }

@@ -10,6 +10,7 @@ enum ASTType {
     BoolLiteral
     Break
     Call
+    Continue
     Error
     Identifier
     If
