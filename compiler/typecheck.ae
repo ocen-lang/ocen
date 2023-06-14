@@ -531,6 +531,12 @@ def TypeChecker::check_expression_helper(&this, node: &AST): &Type {
             return typ.u.ptr
         }
         ASTType::Member => return .check_member(node, is_being_called: false)
+        ASTType::SizeOf => {
+            let typ = .resolve_type(node.u.size_of_type)
+            if not typ? return null
+            node.u.size_of_type = typ
+            return .get_base_type(BaseType::U32, node.span)
+        }
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .resolve_scoped_identifier(node)
             if not item? {

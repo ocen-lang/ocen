@@ -370,6 +370,15 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             node.u.unary = expr
             return node
         }
+        TokenType::SizeOf => {
+            let start = .consume(TokenType::SizeOf)
+            .consume(TokenType::OpenParen)
+            let type = .parse_type()
+            let close = .consume(TokenType::CloseParen)
+            let node = AST::new(ASTType::SizeOf, start.span.join(close.span))
+            node.u.size_of_type = type
+            return node
+        }
         TokenType::Star => {
             let star = .consume(TokenType::Star)
             let expr = .parse_prefix(end_type)

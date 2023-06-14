@@ -1,15 +1,6 @@
-/// out: "pass"
+/// out: "1 2 4 8\n1 2 4 8"
 
 def main() {
-    if sizeof(i8) != 1 println("fail")
-    if sizeof(i16) != 2 println("fail")
-    if sizeof(i32) != 4 println("fail")
-    if sizeof(i64) != 8 println("fail")
-
-    if sizeof(u8) != 1 println("fail")
-    if sizeof(u16) != 2 println("fail")
-    if sizeof(u32) != 4 println("fail")
-    if sizeof(u64) != 8 println("fail")
-
-    println("pass")
+    println(f"{sizeof(i8)} {sizeof(i16)} {sizeof(i32)} {sizeof(i64)}")
+    println(f"{sizeof(u8)} {sizeof(u16)} {sizeof(u32)} {sizeof(u64)}")
 }

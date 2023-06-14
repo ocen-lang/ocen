@@ -295,6 +295,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_expression(expr)
             .out.puts(")")
         }
+        SizeOf => {
+            .out.puts("((u32) sizeof(")
+            .gen_type(node.u.size_of_type)
+            .out.puts("))")
+        }
         Null => .out.puts("NULL")
 
         And |
@@ -638,8 +643,12 @@ def CodeGenerator::generate(&this): string {
     .out.puts("#include <stdarg.h>\n")
     .out.puts("\n")
 
+    .out.puts("typedef int8_t i8;\n")
+    .out.puts("typedef int16_t i16;\n")
     .out.puts("typedef int32_t i32;\n")
     .out.puts("typedef int64_t i64;\n")
+    .out.puts("typedef uint8_t u8;\n")
+    .out.puts("typedef uint16_t u16;\n")
     .out.puts("typedef uint32_t u32;\n")
     .out.puts("typedef uint64_t u64;\n")
     .out.puts("typedef float f32;\n")
