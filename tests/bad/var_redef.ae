@@ -1,4 +1,4 @@
-/// fail: Variable is already defined in scope
+/// fail: Variable x already exists in this scope
 
 def main() {
     let x = 0
