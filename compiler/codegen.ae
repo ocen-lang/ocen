@@ -201,6 +201,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts("'")
         }
         Member => {
+            if node.resolved_symbol? {
+                // Method call
+                let sym = node.resolved_symbol
+                match sym.type {
+                    Function => .out.putsf(.get_method_name(sym.u.func))
+                    else => panic(`Unhandled symbol type: {sym.type}`)
+                }
+                return
+            }
+
             let lhs = node.u.member.lhs
             .gen_expression(lhs)
             if node.u.member.is_pointer {
@@ -507,6 +517,11 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 }
 
 def CodeGenerator::get_function_name(&this, func: &Function): string {
+    return `{func.prefix}{func.name}`
+}
+
+def CodeGenerator::get_method_name(&this, func: &Function): string {
+    let struc = func.parent_type.u.struc
     return `{func.prefix}{func.name}`
 }
 

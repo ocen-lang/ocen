@@ -121,16 +121,27 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST): &Symbol {
                 return null
             }
 
-            if lhs.type != SymbolType::Namespace {
-                .error(Error::new(node.u.lookup.lhs.span, "needs to be a namespace to lookup"))
-                return null
+            match lhs.type {
+                SymbolType::Namespace => {
+                    let ns = lhs.u.ns
+                    let name = node.u.lookup.rhs_name
+                    let res = ns.find_importable_symbol(name)
+                    node.resolved_symbol = res
+                    return res
+                }
+                SymbolType::Structure => {
+                    let struc = lhs.u.struc
+                    let name = node.u.lookup.rhs_name
+                    let method = struc.type.methods.get(name) as &Function
+                    if not method? return null
+                    node.resolved_symbol = Symbol::from_function(name, method)
+                    return node.resolved_symbol
+                }
+                else => {
+                    .error(Error::new(node.u.lookup.lhs.span, `needs to be a namespace to lookup, got '{lhs.type}'`))
+                    return null
+                }
             }
-            let ns = lhs.u.ns
-
-            let name = node.u.lookup.rhs_name
-            let res = ns.find_importable_symbol(name)
-            node.resolved_symbol = res
-            return res
         }
         ASTType::Identifier => {
             let name = node.u.ident.name
@@ -145,8 +156,40 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST): &Symbol {
     }
 }
 
+def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
+    let callee = node.u.call.callee
+    if callee.type != ASTType::Member and callee.type != ASTType::NSLookup {
+        .error(Error::new(callee.span, "Method call is not to a member, internal compiler error"))
+        return
+    }
+
+    // Due to the way we handle typechecking, we might run this function twice
+    // on the same node. This is fine, but we need to make sure we don't double
+    // add the method argument twice implicitly.
+    if node.u.call.added_method_arg return
+    node.u.call.added_method_arg = true
+
+    if callee.type != ASTType::Member return
+    if method.params.size == 0 {
+        // This should ideally never happen.
+        .error(Error::new(callee.span, "Instance method should have `this` argument, internal error"))
+        return
+    }
+    let method_param = (method.params.at(0) as &Variable).type
+
+    let member = callee.u.member
+    let first_arg = member.lhs
+
+    println(`member is pointer: {member.is_pointer:d}, method param base: {method_param.base}`)
+    if member.is_pointer and method_param.base != Pointer {
+        first_arg = AST::new_unop(ASTType::Dereference, first_arg.span, first_arg)
+    } else if not member.is_pointer and method_param.base == Pointer {
+        first_arg = AST::new_unop(ASTType::Address, first_arg.span, first_arg)
+    }
+    node.u.call.args.push_front(Argument::new(null, Span::default(), first_arg))
+}
+
 def TypeChecker::check_call(&this, node: &AST): &Type {
-    // fixme: so much to check... args, existing function, etc...
     let callee = node.u.call.callee
     let args = node.u.call.args
 
@@ -169,54 +212,59 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     let res = .check_expression(callee)
     if not res? return null
 
-    if res.base == BaseType::Function {
-        let func = res.u.func
-        let params = func.params
-
-        if func.params.size < args.size {
-            .error(Error::new(node.span, `Too many arguments, expected {func.params.size} but got {args.size}`))
-        }
-
-        for let i = 0; i < params.size; i += 1 {
-            let param = params.at(i) as &Variable
-            // Normal case
-            if i < args.size {
-                let arg = args.at(i) as &Argument
-
-                if arg.label? and not arg.label.eq(param.name) {
-                    .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.name}'`))
-                }
-
-                let arg_type = .check_expression(arg.expr)
-                if arg_type? and not arg_type.eq(param.type) {
-                    .error(Error::new(arg.expr.span, `Argument {i} has type {arg_type.str()} but expected {param.type.str()}`))
-                }
-
-            // Default argument case
-            } else if param.default_value? {
-
-                // FIXME: We should not be evaluating the default argument here during every call, 
-                // we should be evaluating it at the time of checking the function declaration and using
-                // a cached value here
-                let new_arg = Argument::new(label: null, label_span: Span::default(), expr: param.default_value)
-                // Plus the default argument to the list of arguments
-                args.push(new_arg)
-
-            } else {
-                .error(Error::new(node.span, `Missing required argument {param.name}`))
-            }
-        }
-
-        if func.orig? {
-            node.u.call.is_function_pointer = false
-            node.u.call.func = func.orig
-        }
-
-        return func.return_type
-    } else {
+    if res.base != BaseType::Function {
         .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
-        return .error_type
+        return null
     }
+
+    let func = res.u.func
+    let params = func.params
+
+    if func.orig? and func.orig.is_method {
+        .check_method_call(func.orig, node)
+    }
+
+    if func.params.size < args.size {
+        .error(Error::new(node.span, `Too many arguments, expected {func.params.size} but got {args.size}`))
+    }
+
+    for let i = 0; i < params.size; i += 1 {
+        let param = params.at(i) as &Variable
+        // Normal case
+        if i < args.size {
+            let arg = args.at(i) as &Argument
+
+            if arg.label? and not arg.label.eq(param.name) {
+                .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.name}'`))
+            }
+
+            let arg_type = .check_expression(arg.expr)
+            if arg_type? and not arg_type.eq(param.type) {
+                .error(Error::new(arg.expr.span, `Argument {i} has type {arg_type.str()} but expected {param.type.str()}`))
+            }
+
+        // Default argument case
+        } else if param.default_value? {
+
+            // FIXME: We should not be evaluating the default argument here during every call, 
+            // we should be evaluating it at the time of checking the function declaration and using
+            // a cached value here
+            let new_arg = Argument::new(label: null, label_span: Span::default(), expr: param.default_value)
+            // Plus the default argument to the list of arguments
+            args.push(new_arg)
+
+        } else {
+            .error(Error::new(node.span, `Missing required argument {param.name}`))
+        }
+    }
+
+    if func.orig? {
+        node.u.call.is_function_pointer = false
+        node.u.call.func = func.orig
+    }
+
+    return func.return_type
+
 }
 
 def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type): &Type {
@@ -444,25 +492,33 @@ def TypeChecker::check_expression_helper(&this, node: &AST): &Type {
             let lhs = .check_expression(node.u.member.lhs)
             if not lhs? return null
 
+            // How would this work for strings?
             let is_pointer = false
             if lhs.base == BaseType::Pointer {
                 is_pointer = true
                 lhs = lhs.u.ptr
             }
 
-            if lhs.base != BaseType::Structure {
-                .error(Error::new(node.span, "Can only access members of (pointers to) structs"))
-                return null
+            if lhs.base == BaseType::Structure {
+                let struc = lhs.u.struc
+                let field = struc.get_field(node.u.member.rhs_name)
+                if field? {
+                    node.u.member.is_pointer = is_pointer
+                    return field.type
+                }
             }
 
-            let struc = lhs.u.struc
-            let field = struc.get_field(node.u.member.rhs_name)
-            if not field? {
-                .error(Error::new(node.span, `Struct has no field named '{node.u.member.rhs_name}'`))
-                return null
+            if lhs.can_have_methods() {
+                let method = lhs.methods.get(node.u.member.rhs_name) as &Function
+                if method? {
+                    node.u.member.is_pointer = is_pointer
+                    node.resolved_symbol = Symbol::from_function(method.name, method)
+                    return method.type
+                }
             }
-            node.u.member.is_pointer = is_pointer
-            return field.type
+
+            .error(Error::new(node.span, `Type {lhs.str()} has no member named '{node.u.member.rhs_name}'`))
+            return null
         }
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .resolve_scoped_identifier(node)
@@ -589,7 +645,7 @@ def TypeChecker::check_for(&this, node: &AST) {
             ))
         }
     }
-    
+
     if step? then .check_expression(step)
     .check_statement(body)
 }
@@ -676,7 +732,6 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
         new_scope.items.insert(param.name, Symbol::from_variable(param))
     }
 
-    func.prefix = ns.prefix
     .cur_func = func
 
     .push_scope(new_scope)
@@ -686,7 +741,6 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
 def TypeChecker::check_struct(&this, ns: &Namespace, struc: &Structure) {
     let fields = struc.fields
-    struc.prefix = ns.prefix
     for let i = 0; i < fields.size; i += 1 {
         let field = fields.at(i) as &Variable
         let res = .resolve_type(field.type)
@@ -789,8 +843,37 @@ def TypeChecker::insert_into_scope_checked(&this, name: string, item: &Symbol, s
 ////// Pre-checking namespace for declarations //////
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
-    let item = Symbol::from_function(func.name, func)
-    .insert_into_scope_checked(func.name, item, func.span)
+    if func.is_method {
+        let parent_type = .resolve_type(func.parent_type)
+        if not parent_type? {
+            .error(Error::new(func.span, "Could not find this type"))
+            return
+        }
+
+        if not parent_type.can_have_methods() {
+            .error(Error::new(func.span, "This type cannot have methods"))
+            return
+        }
+
+        let prefix = match parent_type.base {
+            Structure => {
+                let struc = parent_type.u.struc
+                yield `{struc.prefix}{struc.name}_`
+            }
+            // Builtin type
+            else => `{parent_type.name}_`
+        }
+
+        // FIXME: check for duplicate methods
+        parent_type.methods.insert(func.name, func)
+        func.parent_type = parent_type
+        func.prefix = prefix
+
+    } else {
+        let item = Symbol::from_function(func.name, func)
+        .insert_into_scope_checked(func.name, item, func.span)
+        func.prefix = ns.prefix
+    }
 
     func.return_type = .resolve_type(func.return_type)
     let params = func.params
@@ -809,10 +892,23 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 def TypeChecker::pre_check_struct(&this, ns: &Namespace, struc: &Structure) {
     let item = Symbol::from_structure(struc)
     .insert_into_scope_checked(struc.name, item, struc.span)
+    struc.prefix = ns.prefix
 
     let typ = Type::new_resolved(Structure, struc.span)
     typ.u.struc = struc
     struc.type = typ
+}
+
+def TypeChecker::pre_check_structs(&this, ns: &Namespace) {
+    .push_scope(ns.scope)
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
+        .pre_check_struct(ns, struc)
+    }
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        .pre_check_structs(iter.value())
+    }
+    .pop_scope()
 }
 
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
@@ -822,15 +918,10 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
         let child = iter.value() as &Namespace
         let name = iter.key()
 
-        if child.is_user_defined {
+        if child.always_add_to_scope {
             .insert_into_scope_checked(name, Symbol::from_namespace(name, child), child.span)
         }
         .pre_check_namespace(iter.value())
-    }
-
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i) as &Structure
-        .pre_check_struct(ns, struc)
     }
 
     for let i = 0; i < ns.functions.size; i += 1 {
@@ -846,7 +937,9 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
 def TypeChecker::check(&this) {
     let global_ns = .program.global
 
-    // 1. This resolves all the top-level types, including struct / function declarations.
+    .pre_check_structs(global_ns)
+
+    // 1. This resolves all the top-level types, function declarations.
     //    We do this before structs to make sure struct fields can contain other structs that
     //    are defined later.
     .pre_check_namespace(global_ns)

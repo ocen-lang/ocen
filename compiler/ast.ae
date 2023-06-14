@@ -27,6 +27,7 @@ enum ASTType {
     IsNotNull //  ptr? operator
     Cast
     Null
+    MethodCall
 
     // Unary operators
     Address
@@ -151,6 +152,10 @@ struct Function {
     type: &Type
     span: Span
     prefix: string
+
+    is_method: bool
+    is_static: bool
+    parent_type: &Type
 }
 
 def Function::new(span: Span): &Function {
@@ -203,6 +208,7 @@ struct FuncCall {
     args: &Vector    // Vector<&Argument>
     func: &Function
     is_function_pointer: bool
+    added_method_arg: bool
 }
 
 struct ImportPart {

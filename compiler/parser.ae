@@ -293,6 +293,34 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
     return node
 }
 
+def Parser::parse_call(&this, callee: &AST): &AST {
+    .consume(TokenType::OpenParen)
+    let args = Vector::new()
+    while not .token_is(TokenType::CloseParen) {
+        let label = null as string
+        let label_span = Span::default()
+
+        let expr = .parse_expression(end_type: TokenType::Comma)
+        if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
+            .consume(TokenType::Colon)
+            label = expr.u.ident.name
+            label_span = expr.span
+            expr = .parse_expression(end_type: TokenType::Comma)
+        }
+
+        args.push(Argument::new(label, label_span, expr))
+        if not .token_is(TokenType::CloseParen) {
+            .consume(TokenType::Comma)
+        }
+    }
+
+    let end = .consume(TokenType::CloseParen)
+    let call_type = ASTType::Call
+    let call = AST::new(call_type, callee.span.join(end.span))
+    call.u.call.callee = callee
+    call.u.call.args = args
+    return call
+}
 
 def Parser::parse_postfix(&this, end_type: TokenType): &AST {
     let node = .parse_atom(end_type)
@@ -301,34 +329,7 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
     while running {
         if .token_is(end_type) break
         match .token().type {
-            TokenType::OpenParen => {
-                .consume(TokenType::OpenParen)
-                let args = Vector::new()
-                while not .token_is(TokenType::CloseParen) {
-                    let label = null as string
-                    let label_span = Span::default()
-
-                    let expr = .parse_expression(end_type: TokenType::Comma)
-                    if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
-                        .consume(TokenType::Colon)
-                        label = expr.u.ident.name
-                        label_span = expr.span
-                        expr = .parse_expression(end_type: TokenType::Comma)
-                    }
-
-                    args.push(Argument::new(label, label_span, expr))
-                    if not .token_is(TokenType::CloseParen) {
-                        .consume(TokenType::Comma)
-                    }
-                }
-
-                let end = .consume(TokenType::CloseParen)
-                let call_type = ASTType::Call
-                let call = AST::new(call_type, node.span.join(end.span))
-                call.u.call.callee = node
-                call.u.call.args = args
-                node = call
-            }
+            TokenType::OpenParen => node = .parse_call(node)
             TokenType::Dot => {
                 .consume(TokenType::Dot)
                 let name = .consume(TokenType::Identifier)
@@ -655,15 +656,29 @@ def Parser::parse_block(&this): &AST {
 def Parser::parse_function(&this): &Function {
     .consume(TokenType::Def)
 
-    let struct_type = null as &Type
-    let struct_name = null as string
+    let parent_type = null as &Type
     let is_method = false
     let is_static = false
 
-    let name = .consume(TokenType::Identifier)
+    let ident = .parse_scoped_identifier()
+    let name_span = ident.span
 
-    let func = Function::new(name.span)
-    func.name = name.text
+    let name = match ident.type {
+        ASTType::Identifier => ident.u.ident.name
+        ASTType::NSLookup => {
+            parent_type = Type::new_unresolved("<unresolved>", ident.span)
+            parent_type.u.unresolved = ident.u.lookup.lhs
+            is_method = true
+            yield ident.u.lookup.rhs_name
+        }
+        else => {
+            .error(Error::new(ident.span, "Expected identifier"))
+            yield "<error>"
+        }
+    }
+
+    let func = Function::new(ident.span)
+    func.name = name
 
     .consume(TokenType::OpenParen)
     while not .token_is(TokenType::CloseParen) {
@@ -672,10 +687,11 @@ def Parser::parse_function(&this): &Function {
         let type = null as &Type
         if func.params.empty() and is_method {
             if var_name.text.eq("this") {
-                type = struct_type
-                // if found_amp {
-                //     type = Type::new_link(BaseType::Pointer, type, name.span)
-                // }
+                type = parent_type
+                if found_amp {
+                    type = Type::new_resolved(BaseType::Pointer, parent_type.span)
+                    type.u.ptr = parent_type
+                }
             } else if found_amp {
                 .error(Error::new(var_name.span, "Expected 'this' over here"))
             } else {
@@ -703,10 +719,10 @@ def Parser::parse_function(&this): &Function {
 
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
-    } else if name.text.eq("main") {
-        func.return_type = Type::new_unresolved_base(BaseType::I32, name.span)
+    } else if name.eq("main") {
+        func.return_type = Type::new_unresolved_base(BaseType::I32, name_span)
     } else {
-        func.return_type = Type::new_unresolved_base(BaseType::Void, name.span)
+        func.return_type = Type::new_unresolved_base(BaseType::Void, name_span)
         if .token_is(TokenType::Identifier) and .token().text.eq("exits") {
             .consume(TokenType::Identifier)
             func.exits = true
@@ -714,6 +730,9 @@ def Parser::parse_function(&this): &Function {
     }
 
     func.body = .parse_block()
+    func.is_method = is_method
+    func.is_static = is_static
+    func.parent_type = parent_type
     return func
 }
 
@@ -726,6 +745,11 @@ def Parser::parse_import(&this): &AST {
     while .consume_if(TokenType::Dot) {
         is_relative = true
         parent_count += 1
+    }
+
+    // If this is a "top-level" module, this is already at the parent directory level.
+    if .ns.is_top_level {
+        parent_count -= 1
     }
 
     let parts = Vector::new()
@@ -791,7 +815,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 let old_ns = .ns
                 let new_ns = Namespace::new(.ns, .ns.path, `{.ns.prefix}{name.text}_`)
                 new_ns.span = name.span
-                new_ns.is_user_defined = true
+                new_ns.always_add_to_scope = true
                 old_ns.namespaces.insert(name.text, new_ns)
 
                 .ns = new_ns
@@ -812,11 +836,6 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
     }
 }
 
-
-def Parser::parse_module(&this) {
-    .parse_namespace_until(TokenType::EOF)
-}
-
 def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let path = &import_stmt.u.import_path
 
@@ -833,7 +852,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
         }
     }
 
-    for let i = 0; i < path.parts.size and not base.is_module; i += 1 {
+    for let i = 0; i < path.parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
         let part = path.parts.at(i) as &ImportPart
         let next = base.namespaces.get(part.name) as &Namespace
 
@@ -877,8 +896,8 @@ def Parser::load_file(&this, filename: string) {
     .tokens = lexer.lex()
     .curr = 0
 
-    .ns.is_module = true
-    .parse_module()
+    .ns.is_a_file = true
+    .parse_namespace_until(TokenType::EOF)
 }
 
 def prindent(indent: i32) {
@@ -923,6 +942,18 @@ def Parser::parse_toplevel(filename: string):&Program {
     // FIXME: hack
     base.remove_last_n(3)
 
+    let std_ns = Namespace::new(
+        parent: program.global,
+        path: "./std/",
+        prefix: "std_",
+    )
+    program.global.namespaces.insert("std", std_ns)
+    std_ns.always_add_to_scope = true
+    std_ns.is_top_level = true
+
+    let parser = Parser::make(program, std_ns)
+    parser.load_file("./std/prelude.ae")
+
     let ns = Namespace::new(
         parent: program.global,
         path: filename,
@@ -931,7 +962,7 @@ def Parser::parse_toplevel(filename: string):&Program {
     program.global.namespaces.insert(base, ns)
     program.global.path = dir
 
-    let parser = Parser::make(program, ns)
+    parser.ns = ns
     parser.load_file(filename)
 
     print_ns(program.global, 0)
