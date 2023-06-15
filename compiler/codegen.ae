@@ -6,13 +6,15 @@ struct CodeGenerator {
     program: &Program
     out: Buffer
     indent: i32
+    yield_vars: &Vector  // &Vector<string>
 }
 
 def CodeGenerator::make(program: &Program): CodeGenerator {
     return CodeGenerator(
         program,
         out: Buffer::make(),
-        indent: 0
+        indent: 0,
+        yield_vars: Vector::new()
     )
 }
 
@@ -177,6 +179,56 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
     .out.puts(")")
 }
 
+def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
+    let yield_var = .yield_vars.back()
+    .gen_indent()
+    .out.puts(yield_var)
+    .out.puts(" = ")
+    .gen_expression(expr)
+    .out.puts(";\n")
+}
+
+def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST) {
+    if body.type == ASTType::Block {
+        .gen_block(body)
+        .out.puts(" ")
+
+    } else {
+        if body.type != ASTType::If {
+            .out.puts("\n")
+        }
+        // In this case, we're implicitly yielding the result of the body.
+        if node.etype? {
+            .gen_yield_expression(body)
+        } else {
+            .gen_statement(body)
+        }
+        .gen_indent()
+    }
+}
+
+def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
+    // Using a GCC extension for the compound statement
+    let yield_var = `__yield_{.yield_vars.size}`
+    .yield_vars.push(yield_var)
+
+    let ret_type = node.etype
+
+    .out.puts("({ ")
+    .gen_type_and_name(ret_type, yield_var)
+    .out.puts(";\n")
+
+    .indent += 1
+    .gen_statement(node)
+    .indent -= 1
+
+    .out.puts(";")
+    .out.puts(yield_var)
+    .out.puts("; })")
+
+    .yield_vars.pop()
+}
+
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => {
@@ -211,6 +263,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(char_lit)
             .out.puts("'")
         }
+        If => .gen_in_yield_context(node)
         Member => {
             if node.resolved_symbol? {
                 // Method call
@@ -376,6 +429,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             }
             .out.puts(";\n")
         }
+        ASTType::Yield => .gen_yield_expression(node.u.unary)
         ASTType::Import => {}
         ASTType::Break => {
             .gen_indent()
@@ -403,11 +457,11 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .out.puts("if (")
             .gen_expression(cond)
             .out.puts(") ")
-            .gen_block(body)
+            .gen_control_body(node, body)
 
             if else_body? {
                 .out.puts(" else ")
-                .gen_block(else_body)
+                .gen_control_body(node, else_body)
                 .out.puts("\n")
             } else {
                 .out.puts("\n")
