@@ -117,7 +117,8 @@ def Type::is_numeric_or_char(&this): bool => .is_numeric() or .base == BaseType:
 
 def Type::can_have_methods(&this): bool => match .base {
     Char | Bool | Void | I8 | I16 | I32 | I64 |
-    U8 | U16 | U32 | U64 | F32 | F64 | Structure => true
+    U8 | U16 | U32 | U64 | F32 | F64 | Structure |
+    Enum => true
     else => false
 }
 
@@ -148,6 +149,7 @@ def Type::eq(&this, other: &Type): bool {
 def Type::str(&this): string => match .base {
     Pointer => `&{.u.ptr.str()}`
     Function => "<function>"
-    Structure => `<struct {.u.struc.prefix}{.u.struc.name}>`
+    Structure => .u.struc.name
+    Enum => .u.enum_.name
     else => .base.str()
 }

@@ -10,6 +10,7 @@ struct Parser {
     tokens: &Vector  // &Vector<Token>
     curr: i32
 
+    curr_func: &Function
     program: &Program
     ns: &Namespace
 }
@@ -18,6 +19,7 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
     return Parser(
         tokens: null,
         curr: 0,
+        curr_func: null,
         program: program,
         ns: ns
     )
@@ -400,6 +402,24 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             node.u.unary = expr
             return node
         }
+        TokenType::Dot => {
+            let tok = .consume(TokenType::Dot)
+            let ident = .consume(TokenType::Identifier)
+
+            if not .curr_func? or not .curr_func.is_method or .curr_func.is_static {
+                .error(Error::new(tok.span, "Cannot use dot shorthand outside of a method"))
+                return AST::new(ASTType::Error, tok.span)
+            }
+
+            let lhs = AST::new(ASTType::Identifier, tok.span)
+            lhs.u.ident.name = "this"
+
+            let node = AST::new(ASTType::Member, tok.span.join(ident.span))
+            node.u.member.lhs = lhs
+            node.u.member.rhs_name = ident.text
+            node.u.member.rhs_span = ident.span
+            return node
+        }
         else => return .parse_postfix(end_type)
     }
 }
@@ -753,10 +773,14 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    func.body = .parse_block()
     func.is_method = is_method
     func.is_static = is_static
     func.parent_type = parent_type
+
+    .curr_func = func
+    func.body = .parse_block()
+    .curr_func = null
+
     return func
 }
 

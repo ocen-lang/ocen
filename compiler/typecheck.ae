@@ -81,13 +81,14 @@ def TypeChecker::resolve_type(&this, old: &Type): &Type {
                 match res.type {
                     SymbolType::TypeDef => resolved = res.u.type_def
                     SymbolType::Structure => resolved = res.u.struc.type
+                    SymbolType::Enum => resolved = res.u.enum_.type
                     else => {
-                        .error(Error::new(old.span, `Cannot use {res.type} as a type`))
+                        .error(Error::new(res.span(), `Cannot use {res.type} as a type`))
                         resolved = null
                     }
                 }
             } else {
-                .error(Error::new(old.span, "Could not find type with this name"))
+                .error(Error::new(old.u.unresolved.span, "Could not find type with this name"))
                 resolved = null
             }
         }
@@ -444,7 +445,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
         }
     }
 
-    .error(Error::new(node.span, `Type {lhs.name} has no member named '{node.u.member.rhs_name}'`))
+    .error(Error::new(node.span, `Type {lhs.str()} has no member named '{node.u.member.rhs_name}'`))
     return null
 }
 
@@ -900,21 +901,40 @@ def TypeChecker::insert_into_scope_checked(&this, name: string, item: &Symbol, s
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     if func.is_method {
+        let parent_span = func.parent_type.span
         let parent_type = .resolve_type(func.parent_type)
         if not parent_type? {
-            .error(Error::new(func.span, "Could not find this type"))
+            .error(Error::new(parent_span, "Could not find this type"))
             return
         }
 
         if not parent_type.can_have_methods() {
-            .error(Error::new(func.span, "This type cannot have methods"))
+            .error(Error::new(parent_span, "This type cannot have methods"))
             return
         }
 
         let prefix = match parent_type.base {
             Structure => {
                 let struc = parent_type.u.struc
+                let name = struc.get_field(func.name)
+                if name? {
+                    .error(Error::new_hint(
+                        func.span, "Field with this name already exists",
+                        name.span, "Previous definition here"
+                    ))
+                }
                 yield `{struc.prefix}{struc.name}_`
+            }
+            Enum => {
+                let enum_ = parent_type.u.enum_
+                let name = enum_.get_field(func.name)
+                if name? {
+                    .error(Error::new_hint(
+                        func.span, "Enum value with this name already exists",
+                        name.span, "Previous definition here"
+                    ))
+                }
+                yield `{enum_.prefix}{enum_.name}_`
             }
             // Builtin type
             else => `{parent_type.name}_`
@@ -976,7 +996,7 @@ def TypeChecker::pre_check_enum(&this, ns: &Namespace, enum_: &Enum) {
 
     for let i = 0; i < enum_.fields.size; i += 1 {
         let field = enum_.fields.at(i) as &Variable
-        field.type = .get_base_type(BaseType::I32, field.span)
+        field.type = typ
         field.prefix = value_prefix
     }
 }

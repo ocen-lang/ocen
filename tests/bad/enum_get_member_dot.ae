@@ -1,4 +1,4 @@
-/// fail: Type 'Variable' has no member with this name
+/// fail: Type Variable has no member named 'Float'
 
 enum Variable {
     Integer
