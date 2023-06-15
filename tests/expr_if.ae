@@ -1,4 +1,4 @@
-/// compile
+/// out: "4 8"
 
 
 def main() {
@@ -6,4 +6,9 @@ def main() {
         let y = 4
         yield y + y
     }
+    let y = if false then 4 else {
+        let y = 4
+        yield y + y
+    }
+    print(f"{x} {y}")
 }

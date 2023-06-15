@@ -1,0 +1,10 @@
+/// fail: Cannot yield multiple times in a block
+
+
+def main() {
+    let x = if true then 4 else {
+        let y = 4
+        yield y + y
+        yield y + 5
+    }
+}

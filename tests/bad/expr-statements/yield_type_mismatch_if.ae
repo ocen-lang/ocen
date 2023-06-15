@@ -1,0 +1,5 @@
+/// fail: Yield type of branch doesn't match previous branches
+
+def main() {
+    let x = if true { yield 1 } else { yield "1" };
+}

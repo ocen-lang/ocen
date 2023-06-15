@@ -1,4 +1,4 @@
-/// fail: Must yield a value in this branch
+/// fail: Must yield a value here
 
 def main() {
     let x = if 3 > 5 {

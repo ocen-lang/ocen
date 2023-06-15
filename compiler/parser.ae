@@ -699,17 +699,18 @@ def Parser::parse_statement(&this): &AST {
 }
 
 def Parser::parse_block(&this): &AST {
-    let node = AST::new(ASTType::Block, .token().span)
-    .consume(TokenType::OpenCurly)
-
+    let start = .consume(TokenType::OpenCurly)
+    
     let statements = Vector::new()
     while not .token_is(TokenType::CloseCurly) {
         let statement = .parse_statement()
         statements.push(statement)
     }
-    node.u.block.statements = statements
+    
+    let end = .consume(TokenType::CloseCurly)
 
-    .consume(TokenType::CloseCurly)
+    let node = AST::new(ASTType::Block, start.span.join(end.span))
+    node.u.block.statements = statements
     return node
 }
 

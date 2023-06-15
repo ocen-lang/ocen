@@ -27,13 +27,23 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type) {
 
     .o.push_scope(block.scope)
     let stmts = block.statements
+    let yield_span = Span::default()
     for let i = 0; i < stmts.size; i += 1 {
         let stmt = stmts.at(i) as &AST
         .check_statement(stmt)
-        if stmt.etype? then node.etype = stmt.etype
+        if stmt.type != Yield then continue
+        if node.etype? {
+            .error(Error::new_hint(
+                stmt.span, "Cannot yield multiple times in a block",
+                yield_span, "Previously yielded here"
+            ))
+        }
+        node.etype = stmt.etype
+        yield_span = stmt.span
     }
     .o.pop_scope()
     .can_yield = could_yield
+
 }
 
 def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
@@ -516,18 +526,30 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
             `Got type '{cond_type.str()}'`
         ))
     }
-    .check_expression_statement(node.u.if_stmt.body, is_expr, hint)
+    let body = node.u.if_stmt.body
+    .check_expression_statement(body, is_expr, hint)
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
         .check_expression_statement(else_stmt, is_expr, hint)
+        if else_stmt.etype? and body.etype? and not else_stmt.etype.eq(body.etype) {
+            .error(Error::new_hint(
+                else_stmt.span, "Yield type of branch doesn't match previous branches",
+                body.span, `Previous branch yielded type '{body.etype.str()}'`
+            ))
+        }
+    } else if is_expr {
+        .error(Error::new(node.span, "If expressions must have an else branch"))
     }
-    node.etype = node.u.if_stmt.body.etype
+    node.etype = body.etype
 }
 
 def TypeChecker::check_expression_statement(&this, node: &AST, is_expr: bool, hint: &Type) {
     if is_expr {
         let typ = .check_expression(node, hint)
-        if not typ? return
+        if not typ? {
+            .error(Error::new(node.span, "Must yield a value here"))
+            return
+        }
         if typ.base == BaseType::Void {
             .error(Error::new(node.span, "Expression statement cannot be void"))
         }

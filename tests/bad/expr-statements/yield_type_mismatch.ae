@@ -1,4 +1,4 @@
-/// fail: Yield type doesn't match previous branches
+/// fail: Yield type of branch doesn't match previous branches
 
 def main() {
     let x = match 5 {

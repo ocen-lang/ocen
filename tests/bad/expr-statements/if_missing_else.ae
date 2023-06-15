@@ -1,4 +1,4 @@
-/// fail: Expression-if must have an 'else' branch
+/// fail: If expressions must have an else branch
 
 def main() {
     let x = if 5 < 10 {
