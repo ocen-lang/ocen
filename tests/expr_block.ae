@@ -1,0 +1,8 @@
+/// compile
+
+
+def main() {
+    let x = {
+        yield 5
+    }
+}

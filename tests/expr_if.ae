@@ -1,0 +1,9 @@
+/// compile
+
+
+def main() {
+    let x = if true then 4 else {
+        let y = 4
+        yield y + y
+    }
+}

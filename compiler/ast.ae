@@ -19,6 +19,7 @@ enum ASTType {
     Member
     NSLookup
     Return
+    Yield
     StringLiteral
     SizeOf
     VarDeclaration
@@ -179,6 +180,7 @@ def Function::new(): &Function {
 struct Program {
     global: &Namespace
     errors: &Vector       // Vector<&Error>
+    error_level: i32
 }
 
 def Program::new(): &Program {
@@ -186,8 +188,14 @@ def Program::new(): &Program {
     prog.global = Namespace::new(null, "")
     prog.global.sym = Symbol::new(Namespace, "", "", "", Span::default())
     prog.global.sym.u.ns = prog.global
+    prog.error_level = 1
     prog.errors = Vector::new()
     return prog
+}
+
+def Program::exit_with_errors(&this) {
+    display_error_messages(.errors, .error_level)
+    exit(1)
 }
 
 struct Block {
