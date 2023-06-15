@@ -78,6 +78,33 @@ def Symbol::from_structure(struc: &Structure): &Symbol {
     return item
 }
 
+def Symbol::lookup_symbol(&this, name: string): &Symbol => match .type {
+    SymbolType::Namespace => {
+        let ns = .u.ns
+        let res = ns.find_importable_symbol(name)
+        return res
+    }
+    SymbolType::Structure => {
+        let struc = .u.struc
+        let method = struc.type.methods.get(name) as &Function
+        if not method? return null
+        return Symbol::from_function(name, method)
+    }
+    SymbolType::TypeDef => {
+        let type_def = .u.type_def
+        let method = type_def.methods.get(name) as &Function
+        if not method? return null
+        return Symbol::from_function(name, method)
+    }
+    SymbolType::Enum => {
+        let enum_ = .u.enum_
+        let field = enum_.get_field(name) as &Variable
+        if not field? return null
+        return Symbol::from_variable(field)
+    }
+    else => null
+}
+
 struct Scope {
     items: &Map // &Map<string, &Symbol>
     parent: &Scope

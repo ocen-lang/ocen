@@ -4,6 +4,7 @@ use "@/scopes.ae"
 
 struct GenericPass {
     scope_stack: &Vector
+    namespace_stack: &Vector
     program: &Program
     error_type: &Type
 }
@@ -11,6 +12,7 @@ struct GenericPass {
 def GenericPass::new(program: &Program): &GenericPass {
     let pass = calloc(1, sizeof(GenericPass)) as &GenericPass
     pass.scope_stack = Vector::new()
+    pass.namespace_stack = Vector::new()
     pass.program = program
     return pass
 }
@@ -19,14 +21,28 @@ def GenericPass::push_scope(&this, scope: &Scope) {
     .scope_stack.push(scope)
 }
 
+def GenericPass::push_namespace(&this, ns: &Namespace) {
+    .namespace_stack.push(ns)
+}
+
 def GenericPass::pop_scope(&this): &Scope {
     if .scope_stack.size == 0 return null
     return .scope_stack.pop() as &Scope
 }
 
+def GenericPass::pop_namespace(&this): &Namespace {
+    if .namespace_stack.size == 0 return null
+    return .namespace_stack.pop() as &Namespace
+}
+
 def GenericPass::scope(&this): &Scope {
     if .scope_stack.size == 0 return null
     return .scope_stack.at(.scope_stack.size - 1) as &Scope
+}
+
+def GenericPass::ns(&this): &Namespace {
+    if .namespace_stack.size == 0 return null
+    return .namespace_stack.at(.namespace_stack.size - 1) as &Namespace
 }
 
 def GenericPass::error(&this, err: &Error): &Error {
@@ -96,40 +112,12 @@ def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Sym
             }
 
             let name = node.u.lookup.rhs_name
-            match lhs.type {
-                SymbolType::Namespace => {
-                    let ns = lhs.u.ns
-                    let res = ns.find_importable_symbol(name)
-                    node.resolved_symbol = res
-                    return res
-                }
-                SymbolType::Structure => {
-                    let struc = lhs.u.struc
-                    let method = struc.type.methods.get(name) as &Function
-                    if not method? return null
-                    node.resolved_symbol = Symbol::from_function(name, method)
-                    return node.resolved_symbol
-                }
-                SymbolType::TypeDef => {
-                    let type_def = lhs.u.type_def
-                    let method = type_def.methods.get(name) as &Function
-                    if not method? return null
-                    node.resolved_symbol = Symbol::from_function(name, method)
-                    return node.resolved_symbol
-                }
-                SymbolType::Enum => {
-                    let enum_ = lhs.u.enum_
-                    let name = node.u.lookup.rhs_name
-                    let field = enum_.get_field(name) as &Variable
-                    if not field? return null
-                    node.resolved_symbol = Symbol::from_variable(field)
-                    return node.resolved_symbol
-                }
-                else => {
-                    .error(Error::new(node.u.lookup.lhs.span, `needs to be a namespace to lookup, got '{lhs.type}'`))
-                    return null
-                }
+            let res = lhs.lookup_symbol(name)
+            if not res? {
+                .error(Error::new(node.u.lookup.lhs.span, `Needs to be a namespace to lookup, got '{lhs.type}'`))
             }
+            node.resolved_symbol = res
+            return res
         }
         ASTType::Identifier => {
             let name = node.u.ident.name

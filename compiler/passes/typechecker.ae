@@ -3,7 +3,7 @@ use "compiler/utils.ae"
 use "lib/map.ae"
 
 // This pass actually goes through the AST and checks the types of all the nodes.
-// Any remaining unresolved types should be resolved after this 
+// Any remaining unresolved types should be resolved after this
 
 struct TypeChecker {
     o: &GenericPass
@@ -122,7 +122,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         // Default argument case
         } else if param.default_value? {
 
-            // FIXME: We should not be evaluating the default argument here during every call, 
+            // FIXME: We should not be evaluating the default argument here during every call,
             // we should be evaluating it at the time of checking the function declaration and using
             // a cached value here
             let new_arg = Argument::new(label: null, label_span: Span::default(), expr: param.default_value)
@@ -181,7 +181,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             if not lhs_node.is_lvalue() {
                 .error(Error::new(node.span, "Left hand side of assignment must be assignable"))
                 return null
-            } 
+            }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
                     node.span, "Operands must be of the same type",
@@ -579,6 +579,9 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
 
         }
+        ASTType::Import => {
+            .handle_import_statement(node)
+        }
         ASTType::Break | ASTType::Continue => {
             if not .in_loop {
                 .error(Error::new(node.span, `{node.type} statement outside of loop`))
@@ -651,9 +654,11 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
+    .o.push_namespace(ns)
+
     for let i = 0; i < ns.imports.size; i += 1 {
         let import = ns.imports.at(i) as &AST
-        .handle_import_statement(import, ns)
+        .handle_import_statement(import)
     }
 
     for let i = 0; i < ns.functions.size; i += 1 {
@@ -664,55 +669,64 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .check_namespace(iter.value())
     }
+    .o.pop_namespace()
     .o.pop_scope()
 }
 
 // Insert all the imported items defined in the Import AST statement, (relative to the current namespace),
 // into the current scope.
-def TypeChecker::handle_import_statement(&this, node: &AST, ns: &Namespace) {
+def TypeChecker::handle_import_statement(&this, node: &AST) {
     let path = node.u.import_path
 
-    let base = .o.program.global
-    if path.is_relative {
-        base = ns
-        for let i = 0; i < path.parent_count; i += 1 {
-            if not base.parent? {
-                // This should never happen, because the parser is responsible for handling this
-                .error(Error::new(node.span, "Internal error: Could not typecheck import statement"))
-                return
+    let first_part = path.parts.at(0) as &ImportPart
+    let base = match path.type {
+        FromRootNamespace => {
+            yield .o.program.global.find_importable_symbol(first_part.name)
+        }
+        FromParentNamespace => {
+            let cur = .o.ns()
+            for let i = 0; i < path.parent_count; i += 1 {
+                if not cur.parent? {
+                    // This should never happen, because the parser is responsible for handling this
+                    .error(Error::new(node.span, "Cannot import from parent of root namespace")).panic()
+                    return
+                }
+                cur = cur.parent
             }
-            base = base.parent
+            yield cur.find_importable_symbol(first_part.name)
+        }
+        FromCurrentScope => {
+            yield .o.scope().lookup_recursive(first_part.name)
         }
     }
 
-    for let i = 0; i < path.parts.size-1; i += 1 {
-        let part = path.parts.at(i) as &ImportPart
-        let name = part.name
-        let new_ns = base.namespaces.get(name)
+    if not base? {
+        .error(Error::new(first_part.span, `Couldn't import {first_part.name}`))
+        return
+    }
 
-        if not new_ns? {
+    let name = first_part.name
+    for let i = 1; i < path.parts.size; i += 1 {
+        let part = path.parts.at(i) as &ImportPart
+        name = part.name
+        let new_base = base.lookup_symbol(name)
+
+        if not new_base? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
             return
         }
-        base = new_ns
+        base = new_base
     }
 
-    let last_part = path.parts.back() as &ImportPart
-    let name = last_part.name
-    let sym = base.find_importable_symbol(name)
-    if not sym? {
-        .error(Error::new(node.span, `Couldn't find importable symbol {name}`))
-        return
-    }
-    println(`imported symbol {name} with type {sym.type} into namespace {ns.prefix}`)
-    .scope().insert(name, sym)
+    println(`imported symbol {base} with type {base.type} into namespace {.o.ns().prefix}`)
+    .scope().insert(name, base)
 }
 
 def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
         cur_func: null,
-        in_loop: false
+        in_loop: false,
     )
     pass.check_namespace(program.global)
 }

@@ -253,12 +253,18 @@ def ImportPart::new(name: string, span: Span): &ImportPart {
     return part
 }
 
-struct ImportPath {
+enum ImportType {
+    FromCurrentScope
+    FromParentNamespace
+    FromRootNamespace
+}
+
+struct Import {
     parts: &Vector    // &Vector<ImportPart>
 
-    // For relative imports, we might have something like `import ..foo`, in which
-    // case we need to know how namspace levels to go up.
-    is_relative: bool
+    type: ImportType
+    // For FromParentNamespace imports, we might have something like `import ..foo`, in which
+    // case we need to know how namespace levels to go up.
     parent_count: i32
 }
 
@@ -317,7 +323,7 @@ union ASTUnion {
     cast: Cast
     ident: Identifier
     if_stmt: IfStatement
-    import_path: ImportPath
+    import_path: Import
     lookup: NSLookup
     loop: Loop
     member: Member

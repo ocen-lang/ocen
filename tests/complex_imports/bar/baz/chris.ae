@@ -1,0 +1,7 @@
+/// skip
+
+import ...foo::do_foo
+
+def says_hi() {
+    do_foo()
+}
