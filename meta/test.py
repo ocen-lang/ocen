@@ -10,6 +10,7 @@ from pathlib import Path
 from sys import argv
 from typing import Union, Optional, Tuple
 import multiprocessing
+import sys
 import textwrap
 
 class Result(Enum):
@@ -155,6 +156,7 @@ def main():
                 continue
             tests_to_run.append((file, expected))
 
+    tests_to_run.sort()
     num_passed = 0
     num_failed = 0
     num_total = len(tests_to_run)
@@ -170,20 +172,24 @@ def main():
 
     with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
         for passed, message, path in pool.imap_unordered(pool_helper, arguments):
-            print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
-            print(f"/\033[91m{num_failed:3d}\033[0m]", end="")
-            print(f" Running tests, finished {num_passed+num_failed} / {num_total}\r", end="", flush=True)
+            if sys.stdout.isatty():
+                print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
+                print(f"/\033[91m{num_failed:3d}\033[0m]", end="")
+                print(f" Running tests, finished {num_passed+num_failed} / {num_total}\r", end="", flush=True)
             if passed:
                 num_passed += 1
-                print(f"\33[2K\033[92m[+] Passed {path}\033[0m")
             else:
                 num_failed += 1
-                print(f"\33[2K\033[91m[-] Failed {path}\033[0m")
+                if sys.stdout.isatty():
+                    print(f"\33[2K\033[91m[-] Failed {path}\033[0m")
+                else:
+                    print(f"[-] Failed {path}")
                 # print(f"  - {message}", flush=True)
 
-    print("\33[2K")
-    print(f"Tests passed: \033[92m{num_passed}\033[0m")
-    print(f"Tests failed: \033[91m{num_failed}\033[0m")
+    if sys.stdout.isatty():
+        print("\33[2K")
+        print(f"Tests passed: \033[92m{num_passed}\033[0m")
+        print(f"Tests failed: \033[91m{num_failed}\033[0m")
 
     if num_failed > 0:
         exit(1)
