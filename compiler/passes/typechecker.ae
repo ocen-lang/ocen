@@ -1,5 +1,6 @@
-use "compiler/ast.ae"
-use "compiler/utils.ae"
+use "@/passes/generic_pass.ae"
+use "@/ast.ae"
+use "@/utils.ae"
 use "lib/map.ae"
 
 // This pass actually goes through the AST and checks the types of all the nodes.
@@ -673,15 +674,19 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.pop_scope()
 }
 
-// Insert all the imported items defined in the Import AST statement, (relative to the current namespace),
-// into the current scope.
+// Insert all the imported items defined in the Import AST statement into the current scope.
 def TypeChecker::handle_import_statement(&this, node: &AST) {
     let path = node.u.import_path
 
-    let first_part = path.parts.at(0) as &ImportPart
+    // NOTE: This is a little weird, but the first part of the import can either be a symbol in
+    //       some namespace (global / parent), or it can be in the current scope. To handle these
+    //       cases, we just manually import the first part from these different locations, and then
+    //       loop over the rest of the parts.
+    let part = path.parts.at(0) as &ImportPart
+    let name = part.name
     let base = match path.type {
         FromRootNamespace => {
-            yield .o.program.global.find_importable_symbol(first_part.name)
+            yield .o.program.global.find_importable_symbol(name)
         }
         FromParentNamespace => {
             let cur = .o.ns()
@@ -693,19 +698,21 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
                 }
                 cur = cur.parent
             }
-            yield cur.find_importable_symbol(first_part.name)
+            yield cur.find_importable_symbol(name)
         }
+
+        // This is the special case: a `Symbol` can't hold a scope, so we can't just
+        // wrap all 3 cases into a symbol and avoid the manual lookup.
         FromCurrentScope => {
-            yield .o.scope().lookup_recursive(first_part.name)
+            yield .o.scope().lookup_recursive(name)
         }
     }
 
     if not base? {
-        .error(Error::new(first_part.span, `Couldn't import {first_part.name}`))
+        .error(Error::new(part.span, `Couldn't import {name}`))
         return
     }
 
-    let name = first_part.name
     for let i = 1; i < path.parts.size; i += 1 {
         let part = path.parts.at(i) as &ImportPart
         name = part.name
@@ -718,7 +725,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         base = new_base
     }
 
-    println(`imported symbol {base} with type {base.type} into namespace {.o.ns().prefix}`)
+    println(`imported symbol {name} with type {base.type} into namespace {.o.ns().prefix}`)
     .scope().insert(name, base)
 }
 

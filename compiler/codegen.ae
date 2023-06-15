@@ -217,7 +217,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 let sym = node.resolved_symbol
                 match sym.type {
                     Function => .out.putsf(.get_function_name(sym.u.func))
-                    else => panic(`Unhandled symbol type: {sym.type}`)
+                    else => {
+                        .error(Error::new(
+                            node.span, `Unhandled symbol type in CodeGenerator::gen_expression: {sym.type}`
+                        ))
+                    }
                 }
                 return
             }
@@ -576,6 +580,7 @@ def CodeGenerator::gen_function_decl(&this, func: &Function) {
     let func_name = .get_function_name(func)
     let s = .get_type_name_string(func.type, func_name, true)
     .out.putsf(s)
+    free(func_name)
 }
 
 def CodeGenerator::gen_functions(&this, ns: &Namespace) {

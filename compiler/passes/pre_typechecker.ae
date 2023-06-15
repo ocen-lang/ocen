@@ -1,4 +1,4 @@
-use "@/passes/generic.ae"
+use "@/passes/generic_pass.ae"
 
 // This pass is responsible for checking if all the function *declarations* and
 // struct fields are valid. It also resolves the argument / field types.
