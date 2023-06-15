@@ -1,4 +1,4 @@
-/// fail: Cannot yield in this context
+/// fail: Cannot yield here
 
 def main() {
 	yield 5
