@@ -1,0 +1,6 @@
+/// fail: Cannot use dot shorthand outside of a method
+
+
+def main() {
+    let x = .width
+}

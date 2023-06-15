@@ -1,0 +1,6 @@
+/// compiles
+
+
+def main() {
+    let x: u64 = 69
+}

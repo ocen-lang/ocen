@@ -498,6 +498,11 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                 final.replace(`{struc_name} {final}`)
             }
 
+            Enum => {
+                let enum_name = .get_enum_name(cur.u.enum_)
+                final.replace(`{enum_name} {final}`)
+            }
+
             Unresolved => {
                 .error(Error::new(type.span, "Unresolved type found"))
             }
