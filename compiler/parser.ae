@@ -633,6 +633,10 @@ def Parser::parse_statement(&this): &AST {
             node.u.loop.cond = cond
             node.u.loop.body = body
         }
+        TokenType::Import => {
+            node = .parse_import()
+            .consume_end_of_statement()
+        }
         TokenType::For => {
             let tok = .consume(TokenType::For)
             let init = null as &AST
@@ -820,11 +824,19 @@ def Parser::parse_import(&this): &AST {
     let span = .token().span
     .consume(TokenType::Import)
 
-    let is_relative = false
     let parent_count = 0
-    while .consume_if(TokenType::Dot) {
-        is_relative = true
-        parent_count += 1
+    let type = match .token().type {
+        TokenType::AtSign => {
+            .consume(TokenType::AtSign)
+            yield ImportType::FromRootNamespace
+        }
+        TokenType::Dot => {
+            while .consume_if(TokenType::Dot) {
+                parent_count += 1
+            }
+            yield ImportType::FromParentNamespace
+        }
+        else => ImportType::FromCurrentScope
     }
 
     // If this is a "top-level" module, this is already at the parent directory level.
@@ -848,8 +860,18 @@ def Parser::parse_import(&this): &AST {
         }
     }
 
+    if parts.size == 0 {
+        .error(Error::new(span, "Invalid import statement"))
+        return AST::new(ASTType::Error, span)
+    }
+
     let node = AST::new(ASTType::Import, span)
-    node.u.import_path = ImportPath(parts, is_relative, parent_count)
+    node.u.import_path = Import(
+        parts,
+        type,
+        parent_count,
+    )
+    .load_import_path(node)
     return node
 }
 
@@ -906,7 +928,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
             }
             Import => {
                 let import_ = .parse_import()
-                if import_? and .load_import_path(import_) {
+                if import_? {
                     .ns.imports.push(import_)   // For typechecker...
                 }
             }
@@ -945,16 +967,24 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
 def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let path = &import_stmt.u.import_path
 
-    let base = .program.global
-    if path.is_relative {
-        base = .ns
-        for let i = 0; i < path.parent_count; i += 1 {
-            if not base.parent? {
-                let first_part = path.parts.at(0) as &ImportPart
-                .error(Error::new(first_part.span, "Cannot import from parent of root namespace")).panic()
-                return false
+    let base = match path.type {
+        // We shouldn't have to import any files here, since they should already
+        // be in the current scope.
+        FromCurrentScope => {
+            return true
+        }
+        FromRootNamespace => .program.global
+        FromParentNamespace => {
+            let cur = .ns
+            for let i = 0; i < path.parent_count; i += 1 {
+                if not cur.parent? {
+                    let first_part = path.parts.at(0) as &ImportPart
+                    .error(Error::new(first_part.span, "Cannot import from parent of root namespace")).panic()
+                    return false
+                }
+                cur = cur.parent
             }
-            base = base.parent
+            yield cur
         }
     }
 

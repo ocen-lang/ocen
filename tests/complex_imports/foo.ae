@@ -1,0 +1,15 @@
+/// skip
+
+namespace lmao {
+    namespace gottem {
+        def greetings() {
+            println("Hello, World!")
+        }
+    }
+}
+
+def do_foo() {
+    import lmao::gottem::greetings
+    greetings()
+    std::libc::fopen()
+}

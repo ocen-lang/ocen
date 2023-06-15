@@ -1,0 +1,6 @@
+/// out: "Hello, World!"
+
+def main() {
+    import @bar::baz::chris
+    chris::says_hi()
+}

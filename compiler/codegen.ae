@@ -373,6 +373,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             }
             .out.puts(";\n")
         }
+        ASTType::Import => {}
         ASTType::Break => {
             .gen_indent()
             .out.puts("break;\n")
