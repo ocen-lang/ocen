@@ -7,31 +7,28 @@ struct RegisterTypes {
 }
 
 def RegisterTypes::register_struct(&this, ns: &Namespace, struc: &Structure) {
-    let item = Symbol::from_structure(struc)
-    .o.insert_into_scope_checked(struc.name, item, struc.span)
-    struc.prefix = ns.prefix
+    let item = struc.sym
+    .o.insert_into_scope_checked(item)
 
-    let typ = Type::new_resolved(Structure, struc.span)
+    let typ = Type::new_resolved(Structure, struc.sym.span)
     typ.u.struc = struc
     struc.type = typ
+    typ.sym = struc.sym
 }
 
 def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
-    let item = Symbol::from_enum(enum_)
-    .o.insert_into_scope_checked(enum_.name, item, enum_.span)
-    enum_.prefix = ns.prefix
+    let item = enum_.sym
+    .o.insert_into_scope_checked(item)
 
-    let typ = Type::new_resolved(Enum, enum_.span)
+    let typ = Type::new_resolved(Enum, enum_.sym.span)
     typ.u.enum_ = enum_
     enum_.type = typ
-
-    let value_prefix = `{enum_.prefix}{enum_.name}_`
+    typ.sym = enum_.sym
 
     // FIXME: Make sure enum values are unique
     for let i = 0; i < enum_.fields.size; i += 1 {
         let field = enum_.fields.at(i) as &Variable
         field.type = typ
-        field.prefix = value_prefix
     }
 }
 
@@ -49,7 +46,7 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
         let child = iter.value() as &Namespace
         let name = iter.key()
         if child.always_add_to_scope {
-            .o.insert_into_scope_checked(name, Symbol::from_namespace(name, child), child.span)
+            .o.insert_into_scope_checked(child.sym)
         }
         .register_namespace(child)
     }
@@ -59,7 +56,11 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
 
 def RegisterTypes::register_base_type(&this, base: BaseType) {
     let name = base.str()
-    let sym = Symbol::from_type(name, Type::new_resolved(base, Span::default()))
+    let sym = Symbol::new(TypeDef, name, name, name, Span::default())
+    let typ = Type::new_resolved(base, Span::default())
+    typ.sym = sym
+    sym.u.type_def = typ
+
     // All base types are global
     .o.program.global.scope.items.insert(name, sym)
 }

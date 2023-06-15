@@ -2,14 +2,15 @@
 
 namespace lmao {
     namespace gottem {
-        def greetings() {
+        struct Greeter {}
+        def Greeter::greetings() {
             println("Hello, World!")
         }
     }
 }
 
 def do_foo() {
-    import lmao::gottem::greetings
-    greetings()
+    import lmao::gottem::Greeter
+    Greeter::greetings()
     std::libc::fopen()
 }

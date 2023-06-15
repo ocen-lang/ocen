@@ -21,50 +21,52 @@ def PreTypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
             return
         }
 
-        let prefix = match parent_type.base {
+        match parent_type.base {
             Structure => {
                 let struc = parent_type.u.struc
-                let name = struc.get_field(func.name)
+                let name = struc.get_field(func.sym.name)
                 if name? {
                     .o.error(Error::new_hint(
-                        func.span, "Field with this name already exists",
-                        name.span, "Previous definition here"
+                        func.sym.span, "Field with this name already exists",
+                        name.sym.span, "Previous definition here"
                     ))
                 }
-                yield `{struc.prefix}{struc.name}_`
             }
             Enum => {
                 let enum_ = parent_type.u.enum_
-                let name = enum_.get_field(func.name)
+                let name = enum_.get_field(func.sym.name)
                 if name? {
                     .o.error(Error::new_hint(
-                        func.span, "Enum value with this name already exists",
-                        name.span, "Previous definition here"
+                        func.sym.span, "Enum value with this name already exists",
+                        name.sym.span, "Previous definition here"
                     ))
                 }
-                yield `{enum_.prefix}{enum_.name}_`
             }
             // Builtin type
-            else => `{parent_type.name}_`
+            else => {}
         }
 
         // FIXME: check for duplicate methods
-        let res = parent_type.methods.get(func.name) as &Function
+        let res = parent_type.methods.get(func.sym.name) as &Function
         if res? {
             .o.error(Error::new_hint(
-                func.span, "Method with this name already exists",
-                res.span, "Previous definition here"
+                func.sym.span, "Method with this name already exists",
+                res.sym.span, "Previous definition here"
             ))
             return
         }
-        parent_type.methods.insert(func.name, func)
+
+        // Now that the parent type is valid, we need to update the symbol table with the updated
+        // display and output names for the function
+        func.sym = Symbol::new_with_parent(Function, parent_type.sym, func.sym.name, func.sym.span)
+        func.sym.u.func = func
+
+        parent_type.methods.insert(func.sym.name, func)
         func.parent_type = parent_type
-        func.prefix = prefix
 
     } else {
-        let item = Symbol::from_function(func.name, func)
-        .o.insert_into_scope_checked(func.name, item, func.span)
-        func.prefix = ns.prefix
+        let item = func.sym
+        .o.insert_into_scope_checked(item)
     }
 
     func.return_type = .o.resolve_type(func.return_type)
@@ -76,7 +78,7 @@ def PreTypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
-    let typ = Type::new_resolved(Function, func.span)
+    let typ = Type::new_resolved(Function, func.sym.span)
     typ.u.func = FunctionType::from_func(func)
     func.type = typ
 }
@@ -87,7 +89,7 @@ def PreTypeChecker::check_struct(&this, struc: &Structure) {
         let field = fields.at(i) as &Variable
         let res = .o.resolve_type(field.type)
         if not res? {
-            .o.error(Error::new(field.span, "Couldn't resolve type"))
+            .o.error(Error::new(field.sym.span, "Couldn't resolve type"))
         } else {
             field.type = res
         }

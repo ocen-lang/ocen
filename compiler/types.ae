@@ -72,6 +72,7 @@ struct Type {
     span: Span
     u: TypeUnion
     methods: &Map // Map<string, &Function>
+    sym: &Symbol
 }
 
 def Type::new_resolved(base: BaseType, span: Span): &Type {
@@ -149,7 +150,7 @@ def Type::eq(&this, other: &Type): bool {
 def Type::str(&this): string => match .base {
     Pointer => `&{.u.ptr.str()}`
     Function => "<function>"
-    Structure => .u.struc.name
-    Enum => .u.enum_.name
+    Structure => .u.struc.sym.display
+    Enum => .u.enum_.sym.display
     else => .base.str()
 }

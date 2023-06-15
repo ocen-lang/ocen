@@ -94,22 +94,16 @@ def ASTType::from_token(type: TokenType): ASTType => match type {
 }
 
 struct Variable {
-    name: string
+    sym: &Symbol
     type: &Type
-    span: Span
-
-    prefix: string
 
     // Only for functions, FIXMNE: move to `Parameter` type?
     default_value: &AST
 }
 
-def Variable::new(name: string, type: &Type, span: Span): &Variable {
+def Variable::new(type: &Type): &Variable {
     let var = calloc(1, sizeof(Variable)) as &Variable
-    var.name = name
     var.type = type
-    var.span = span
-    var.prefix = ""
     return var
 }
 
@@ -119,26 +113,21 @@ struct VarDeclaration {
 }
 
 struct Structure {
-    name: string
+    sym: &Symbol
     fields: &Vector     // Vector<&Variable>
-
     type: &Type
-    span: Span
-    prefix: string
 }
 
-def Structure::new(name: string, span: Span): &Structure {
+def Structure::new(): &Structure {
     let struc = calloc(1, sizeof(Structure)) as &Structure
     struc.fields = Vector::new()
-    struc.span = span
-    struc.name = name
     return struc
 }
 
 def Structure::get_field(&this, name: string): &Variable {
     for let i = 0; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
-        if field.name.eq(name) {
+        if field.sym.name.eq(name) {
             return field
         }
     }
@@ -146,26 +135,21 @@ def Structure::get_field(&this, name: string): &Variable {
 }
 
 struct Enum {
-    name: string
+    sym: &Symbol
     fields: &Vector     // Vector<&Variable>
-
     type: &Type
-    span: Span
-    prefix: string
 }
 
-def Enum::new(name: string, span: Span): &Enum {
+def Enum::new(): &Enum {
     let enum_ = calloc(1, sizeof(Enum)) as &Enum
     enum_.fields = Vector::new()
-    enum_.span = span
-    enum_.name = name
     return enum_
 }
 
 def Enum::get_field(&this, name: string): &Variable {
     for let i = 0; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
-        if field.name.eq(name) {
+        if field.sym.name.eq(name) {
             return field
         }
     }
@@ -173,25 +157,22 @@ def Enum::get_field(&this, name: string): &Variable {
 }
 
 struct Function {
-    name: string
+    sym: &Symbol
     params: &Vector     // Vector<&Variable>
     return_type: &Type
     body: &AST
     exits: bool
 
     type: &Type
-    span: Span
-    prefix: string
 
     is_method: bool
     is_static: bool
     parent_type: &Type
 }
 
-def Function::new(span: Span): &Function {
+def Function::new(): &Function {
     let func = calloc(1, sizeof(Function)) as &Function
     func.params = Vector::new()
-    func.span = span
     return func
 }
 
@@ -202,7 +183,9 @@ struct Program {
 
 def Program::new(): &Program {
     let prog = calloc(1, sizeof(Program)) as &Program
-    prog.global = Namespace::new(null, "", "")
+    prog.global = Namespace::new(null, "")
+    prog.global.sym = Symbol::new(Namespace, "", "", "", Span::default())
+    prog.global.sym.u.ns = prog.global
     prog.errors = Vector::new()
     return prog
 }

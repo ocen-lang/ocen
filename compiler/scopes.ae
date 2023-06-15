@@ -20,61 +20,43 @@ struct SymbolUnion {
 }
 
 struct Symbol {
-    name: string
+    name: string        // Name in the scope it was defined in
+    display: string     // Fully qualified display name, including namespaces
+    out_name: string    // Name used in the output C code
+    span: Span          // Span of the declaration
+
     type: SymbolType
     u: SymbolUnion
 }
 
-def Symbol::new(name: string, type: SymbolType): &Symbol {
+def Symbol::new(type: SymbolType, name: string, display: string, out_name: string, span: Span): &Symbol {
     let item = calloc(1, sizeof(Symbol)) as &Symbol
     item.name = name
+    item.display = display
+    item.out_name = out_name
+    item.span = span
     item.type = type
     return item
 }
 
-def Symbol::span(&this): Span => match .type {
-    SymbolType::Function => .u.func.span
-    SymbolType::Structure => .u.struc.span
-    SymbolType::Enum => .u.enum_.span
-    SymbolType::TypeDef => .u.type_def.span
-    SymbolType::Variable => .u.var.span
-    else => Span::default()
+def Symbol::join_display(a: string, b: string): string => if a.len() == 0 then b else `{a}::{b}`
+def Symbol::join_out_name(a: string, b: string): string => if a.len() == 0 then b else `{a}_{b}`
+
+def Symbol::new_with_parent(type: SymbolType, parent: &Symbol, name: string, span: Span): &Symbol {
+    let display = Symbol::join_display(parent.display, name)
+    let out_name = Symbol::join_out_name(parent.out_name, name)
+    return Symbol::new(type, name, display, out_name, span)
 }
 
-def Symbol::from_function(name: string, func: &Function): &Symbol {
-    let item = Symbol::new(name, SymbolType::Function)
-    item.u.func = func
-    return item
-}
-
-def Symbol::from_enum(enum_: &Enum): &Symbol {
-    let name = enum_.name
-    let item = Symbol::new(name, SymbolType::Enum)
-    item.u.enum_ = enum_
-    return item
-}
-
-def Symbol::from_namespace(name: string, ns: &Namespace): &Symbol {
-    let item = Symbol::new(name, SymbolType::Namespace)
-    item.u.ns = ns
-    return item
-}
-
-def Symbol::from_type(name: string, type: &Type): &Symbol {
-    let item = Symbol::new(name, SymbolType::TypeDef)
-    item.u.type_def = type
-    return item
-}
-
-def Symbol::from_variable(var: &Variable): &Symbol {
-    let item = Symbol::new(var.name, SymbolType::Variable)
+def Symbol::from_local_variable(name: string, var: &Variable, span: Span): &Symbol {
+    let item = Symbol::new(
+        SymbolType::Variable,
+        name: name,
+        display: name,
+        out_name: name,
+        span: span,
+    )
     item.u.var = var
-    return item
-}
-
-def Symbol::from_structure(struc: &Structure): &Symbol {
-    let item = Symbol::new(struc.name, SymbolType::Structure)
-    item.u.struc = struc
     return item
 }
 
@@ -88,19 +70,19 @@ def Symbol::lookup_symbol(&this, name: string): &Symbol => match .type {
         let struc = .u.struc
         let method = struc.type.methods.get(name) as &Function
         if not method? return null
-        return Symbol::from_function(name, method)
+        return method.sym
     }
     SymbolType::TypeDef => {
         let type_def = .u.type_def
         let method = type_def.methods.get(name) as &Function
         if not method? return null
-        return Symbol::from_function(name, method)
+        return method.sym
     }
     SymbolType::Enum => {
         let enum_ = .u.enum_
         let field = enum_.get_field(name) as &Variable
         if not field? return null
-        return Symbol::from_variable(field)
+        return field.sym
     }
     else => null
 }
@@ -140,11 +122,10 @@ struct Namespace {
     enums: &Vector        // Vector<&Enum>
     imports: &Vector      // Vector<&AST>
     namespaces: &Map      // Map<string, &Namespace>
-    span: Span
 
+    sym: &Symbol
     scope: &Scope
     path: string
-    prefix: string
 
     // Does this namespace correspond to an actual file with source code? Or is it just an
     // intermediate namespace for a directory?
@@ -162,7 +143,7 @@ struct Namespace {
     is_top_level: bool
 }
 
-def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace {
+def Namespace::new(parent: &Namespace, path: string): &Namespace {
     let ns = calloc(1, sizeof(Namespace)) as &Namespace
     ns.parent = parent
     let parent_scope = if parent? then parent.scope else null
@@ -173,9 +154,9 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
     ns.namespaces = Map::new()
     ns.imports = Vector::new()
     ns.path = path
-    ns.prefix = prefix
+    // ns.prefix = prefix
     ns.is_a_file = false
-    ns.span = Span::default()
+    // ns.span = Span::default()
 
     if parent? then {
         println(`Created namespace: {ns.path} with parent {ns.parent.path}`)
@@ -187,28 +168,26 @@ def Namespace::new(parent: &Namespace, path: string, prefix: string): &Namespace
 
 def Namespace::find_importable_symbol(&this, name: string): &Symbol {
     let item = .namespaces.get(name) as &Namespace
-    if item? then {
-        return Symbol::from_namespace(name, item)
-    }
+    if item? then return item.sym
 
     for let i = 0; i < .functions.size; i += 1 {
         let func = .functions.at(i) as &Function
-        if func.name.eq(name) {
-            return Symbol::from_function(name, func)
+        if func.sym.name.eq(name) {
+            return func.sym
         }
     }
 
     for let i = 0; i < .structs.size; i += 1 {
         let struc = .structs.at(i) as &Structure
-        if struc.name.eq(name) {
-            return Symbol::from_structure(struc)
+        if struc.sym.name.eq(name) {
+            return struc.sym
         }
     }
 
     for let i = 0; i < .enums.size; i += 1 {
         let enum_ = .enums.at(i) as &Enum
-        if enum_.name.eq(name) {
-            return Symbol::from_enum(enum_)
+        if enum_.sym.name.eq(name) {
+            return enum_.sym
         }
     }
     return null
