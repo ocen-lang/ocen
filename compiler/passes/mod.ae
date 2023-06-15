@@ -2,9 +2,13 @@ use "@/ast.ae"
 use "@/passes/register_types.ae"
 use "@/passes/pre_typechecker.ae"
 use "@/passes/typechecker.ae"
+use "@/passes/namespace_dump.ae"
 
 def run_all_passes(program: &Program) {
     RegisterTypes::run(program)
     PreTypeChecker::run(program)
+
+    NamespaceDump::run(program) // Debug pass
+
     TypeChecker::run(program)
 }

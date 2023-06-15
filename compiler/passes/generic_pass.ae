@@ -62,16 +62,16 @@ def GenericPass::error(&this, err: &Error): &Error {
     return err
 }
 
-def GenericPass::insert_into_scope_checked(&this, name: string, item: &Symbol, span: Span) {
-    let prev = .scope().lookup_local(name)
+def GenericPass::insert_into_scope_checked(&this, item: &Symbol) {
+    let prev = .scope().lookup_local(item.name)
     if prev? {
         .error(Error::new_hint(
-            span, `Name {name} already exists in scope`,
-            prev.span(), `Previous use of {name}`
+            item.span, `Name {item.name} already exists in scope`,
+            prev.span, `Previous use of {item.name}`
         ))
         return
     }
-    .scope().insert(name, item)
+    .scope().insert(item.name, item)
 }
 
 def GenericPass::resolve_type(&this, old: &Type): &Type {
@@ -96,7 +96,7 @@ def GenericPass::resolve_type(&this, old: &Type): &Type {
                     SymbolType::Structure => resolved = res.u.struc.type
                     SymbolType::Enum => resolved = res.u.enum_.type
                     else => {
-                        .error(Error::new(res.span(), `Cannot use {res.type} as a type`))
+                        .error(Error::new(res.span, `Cannot use {res.type} as a type`))
                         resolved = null
                     }
                 }
@@ -142,7 +142,7 @@ def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Sym
                     let enum_ = hint.u.enum_
                     let field = enum_.get_field(name) as &Variable
                     if field? {
-                        res = Symbol::from_variable(field)
+                        res = field.sym
                     }
                 }
             }

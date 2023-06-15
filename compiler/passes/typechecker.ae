@@ -110,14 +110,14 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         if i < args.size {
             let arg = args.at(i) as &Argument
 
-            if arg.label? and not arg.label.eq(param.name) {
-                .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.name}'`))
+            if arg.label? and not arg.label.eq(param.sym.name) {
+                .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.sym.name}'`))
             }
 
             let arg_type = .check_expression(arg.expr, hint: param.type)
             if arg_type? and not arg_type.eq(param.type) {
                 println(`span is {arg.expr.span.str()}`)
-                .error(Error::new(arg.expr.span, `Argument {param.name} has type {arg_type.str()} but expected {param.type.str()}`))
+                .error(Error::new(arg.expr.span, `Argument {param.sym.name} has type {arg_type.str()} but expected {param.type.str()}`))
             }
 
         // Default argument case
@@ -131,7 +131,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             args.push(new_arg)
 
         } else {
-            .error(Error::new(node.span, `Missing required argument {param.name}`))
+            .error(Error::new(node.span, `Missing required argument {param.sym.name}`))
         }
     }
 
@@ -304,7 +304,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
                 return null
             }
             node.u.member.is_pointer = is_pointer
-            node.resolved_symbol = Symbol::from_function(method.name, method)
+            node.resolved_symbol = method.sym
             return method.type
         }
     }
@@ -594,14 +594,14 @@ def TypeChecker::check_statement(&this, node: &AST) {
         ASTType::Block => .check_block(node)
         ASTType::VarDeclaration => {
             let var = node.u.var_decl.var
-            let res = .scope().lookup_local(var.name)
+            let res = .scope().lookup_local(var.sym.name)
             if res? {
-                .error(Error::new(node.span, `Variable {var.name} already exists in this scope`))
+                .error(Error::new(node.span, `Variable {var.sym.name} already exists in this scope`))
                 return
             }
 
-            let sym = Symbol::from_variable(var)
-            .scope().insert(var.name, sym)
+            let sym = var.sym
+            .scope().insert(var.sym.name, sym)
 
             if var.type? {
                 var.type = .o.resolve_type(var.type)
@@ -611,12 +611,12 @@ def TypeChecker::check_statement(&this, node: &AST) {
             if init? {
                 let res = .check_expression(init, hint: var.type)
                 if res? and var.type? and not res.eq(var.type) {
-                    .error(Error::new(init.span, `Variable {var.name} has type {var.type.str()} but initializer has type {res.str()}`))
+                    .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {res.str()}`))
                 } else if not var.type? {
                     var.type = res
                 }
             } else if not var.type? {
-                .error(Error::new(node.span, `Variable {var.name} has no type and no initializer`))
+                .error(Error::new(node.span, `Variable {var.sym.name} has no type and no initializer`))
             }
         }
         else => .check_expression(node, hint: null)
@@ -643,7 +643,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
             }
         }
 
-        new_scope.items.insert(param.name, Symbol::from_variable(param))
+        new_scope.items.insert(param.sym.name, param.sym)
     }
 
     .cur_func = func
@@ -715,7 +715,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
 
     for let i = 1; i < path.parts.size; i += 1 {
         let part = path.parts.at(i) as &ImportPart
-        name = part.name
+        let name = part.name
         let new_base = base.lookup_symbol(name)
 
         if not new_base? {
@@ -725,8 +725,8 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         base = new_base
     }
 
-    println(`imported symbol {name} with type {base.type} into namespace {.o.ns().prefix}`)
-    .scope().insert(name, base)
+    println(`imported symbol {base.display} with type {base.type} into namespace {.o.ns().sym.display}`)
+    .scope().insert(base.name, base)
 }
 
 def TypeChecker::run(program: &Program) {

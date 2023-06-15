@@ -216,7 +216,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 // Method call
                 let sym = node.resolved_symbol
                 match sym.type {
-                    Function => .out.putsf(.get_function_name(sym.u.func))
+                    Function => .out.puts(sym.out_name)
                     else => {
                         .error(Error::new(
                             node.span, `Unhandled symbol type in CodeGenerator::gen_expression: {sym.type}`
@@ -242,8 +242,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 return
             }
             match sym.type {
-                Function => .out.putsf(.get_function_name(sym.u.func))
-                Variable => .out.putsf(.get_variable_name(sym.u.var))
+                Function | Variable => .out.puts(sym.out_name)
                 else => panic(`Unhandled symbol type: {sym.type}`)
             }
         }
@@ -360,7 +359,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
 def CodeGenerator::gen_var_declaration(&this, node: &AST) {
     let var = node.u.var_decl.var
 
-    .gen_type_and_name(var.type, var.name)
+    .gen_type_and_name(var.type, var.sym.out_name)
     if node.u.var_decl.init? {
         .out.puts(" = ")
         .gen_expression(node.u.var_decl.init)
@@ -492,7 +491,7 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                 for let i = 0; i < params.size; i += 1 {
                     if i != 0 then acc.puts(", ")
                     let var = params.at(i) as &Variable
-                    let arg_str = .get_type_name_string(var.type, var.name, is_func_def: false)
+                    let arg_str = .get_type_name_string(var.type, var.sym.out_name, is_func_def: false)
                     acc.putsf(arg_str)
                 }
                 if is_func_def and cur == type {
@@ -510,12 +509,12 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
             }
 
             Structure => {
-                let struc_name = .get_struct_name(cur.u.struc)
+                let struc_name = cur.u.struc.sym.out_name
                 final.replace(`{struc_name} {final}`)
             }
 
             Enum => {
-                let enum_name = .get_enum_name(cur.u.enum_)
+                let enum_name = cur.u.enum_.sym.out_name
                 final.replace(`{enum_name} {final}`)
             }
 
@@ -552,23 +551,6 @@ def CodeGenerator::gen_type(&this, type: &Type) {
     .gen_type_and_name(type, name: "")
 }
 
-def CodeGenerator::get_function_name(&this, func: &Function): string {
-    return `{func.prefix}{func.name}`
-}
-
-def CodeGenerator::get_variable_name(&this, var: &Variable): string {
-    return `{var.prefix}{var.name}`
-}
-
-def CodeGenerator::get_struct_name(&this, struc: &Structure): string {
-    return `{struc.prefix}{struc.name}`
-}
-
-def CodeGenerator::get_enum_name(&this, enum_: &Enum): string {
-    return `{enum_.prefix}{enum_.name}`
-}
-
-
 def CodeGenerator::gen_function(&this, func: &Function) {
     .gen_function_decl(func)
     .out.puts(" ")
@@ -577,10 +559,9 @@ def CodeGenerator::gen_function(&this, func: &Function) {
 }
 
 def CodeGenerator::gen_function_decl(&this, func: &Function) {
-    let func_name = .get_function_name(func)
+    let func_name = func.sym.out_name
     let s = .get_type_name_string(func.type, func_name, true)
     .out.putsf(s)
-    free(func_name)
 }
 
 def CodeGenerator::gen_functions(&this, ns: &Namespace) {
@@ -615,13 +596,13 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 def CodeGenerator::gen_compound_typedefs(&this, ns: &Namespace) {
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
-        let struc_name = .get_struct_name(struc)
+        let struc_name = struc.sym.out_name
         .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
     }
 
     for let i = 0; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
-        let enum_name = .get_enum_name(enum_)
+        let enum_name = enum_.sym.out_name
         .out.putsf(`typedef enum {enum_name} {enum_name};\n`)
     }
 
@@ -654,26 +635,26 @@ def CodeGenerator::gen_compound_types(&this, ns: &Namespace) {
 }
 
 def CodeGenerator::gen_enum(&this, enum_: &Enum) {
-    let enum_name = .get_enum_name(enum_)
+    let enum_name = enum_.sym.out_name
     .out.putsf(`enum {enum_name} \{\n`)
     let fields = enum_.fields
     for let j = 0; j < fields.size; j += 1 {
         let field = fields.at(j) as &Variable
         .out.puts("    ")
-        .out.puts(.get_variable_name(field))
+        .out.puts(field.sym.out_name)
         .out.puts(",\n")
     }
     .out.puts("};\n\n")
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
-    let struc_name = .get_struct_name(struc)
+    let struc_name = struc.sym.out_name
     .out.putsf(`struct {struc_name} \{\n`)
     let fields = struc.fields
     for let j = 0; j < fields.size; j += 1 {
         let field = fields.at(j) as &Variable
         .out.puts("    ")
-        .gen_type_and_name(field.type, .get_variable_name(field))
+        .gen_type_and_name(field.type, field.sym.out_name)
         .out.puts(";\n")
     }
     .out.puts("};\n\n")

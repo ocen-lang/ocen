@@ -674,7 +674,11 @@ def Parser::parse_statement(&this): &AST {
             .consume_end_of_statement()
 
             node = AST::new(ASTType::VarDeclaration, start_span.join(end_span))
-            node.u.var_decl.var = Variable::new(name.text, type, name.span)
+
+            let var = Variable::new(type)
+            var.sym = Symbol::from_local_variable(name.text, var, name.span)
+
+            node.u.var_decl.var = var
             node.u.var_decl.init = init
         }
         else => {
@@ -743,6 +747,7 @@ def Parser::parse_function(&this): &Function {
     }
     let name_span = ident.span
 
+    let func = Function::new()
     let name = match ident.type {
         ASTType::Identifier => ident.u.ident.name
         ASTType::NSLookup => {
@@ -757,8 +762,8 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    let func = Function::new(ident.span)
-    func.name = name
+    func.sym = Symbol::new_with_parent(Function, .ns.sym, name, name_span)
+    func.sym.u.func = func
 
     .consume(TokenType::OpenParen)
     while not .token_is(TokenType::CloseParen) {
@@ -787,7 +792,8 @@ def Parser::parse_function(&this): &Function {
         if .consume_if(TokenType::Equals) {
             default_value = .parse_expression(end_type: TokenType::Comma)
         }
-        let var = Variable::new(var_name.text, type, var_name.span)
+        let var = Variable::new(type)
+        var.sym = Symbol::from_local_variable(var_name.text, var, var_name.span)
         var.default_value = default_value
         func.params.push(var)
 
@@ -879,7 +885,9 @@ def Parser::parse_struct(&this): &Structure {
     .consume(TokenType::Struct)
 
     let name = .consume(TokenType::Identifier)
-    let struc = Structure::new(name.text, name.span)
+    let struc = Structure::new()
+    struc.sym = Symbol::new_with_parent(Structure, .ns.sym, name.text, name.span)
+    struc.sym.u.struc = struc
 
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
@@ -887,7 +895,10 @@ def Parser::parse_struct(&this): &Structure {
         .consume(TokenType::Colon)
         let type = .parse_type()
 
-        let var = Variable::new(name.text, type, name.span)
+        let var = Variable::new(type)
+        // FIXME: Use struct symbol as parent?
+        var.sym = Symbol::from_local_variable(name.text, var, name.span)
+
         struc.fields.push(var)
         if not .token_is(TokenType::CloseCurly) {
             .consume_newline_or(TokenType::Comma)
@@ -901,13 +912,16 @@ def Parser::parse_enum(&this): &Enum {
     let start_span = .consume(TokenType::Enum).span
     let name = .consume(TokenType::Identifier)
 
-    let enum_def = Enum::new(name.text, start_span)
-    enum_def.name = name.text
+    let enum_def = Enum::new()
+    enum_def.sym = Symbol::new_with_parent(Enum, .ns.sym, name.text, start_span)
+    enum_def.sym.u.enum_ = enum_def
 
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
         let name = .consume(TokenType::Identifier)
-        let var = Variable::new(name.text, null, name.span)
+        let var = Variable::new(null)
+        var.sym = Symbol::new_with_parent(Variable, enum_def.sym, name.text, name.span)
+        var.sym.u.var = var
 
         enum_def.fields.push(var)
         if not .token_is(TokenType::CloseCurly) {
@@ -937,8 +951,10 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 let name = .consume(TokenType::Identifier)
 
                 let old_ns = .ns
-                let new_ns = Namespace::new(.ns, .ns.path, `{.ns.prefix}{name.text}_`)
-                new_ns.span = name.span
+                let new_ns = Namespace::new(.ns, .ns.path)
+                new_ns.sym = Symbol::new_with_parent(Namespace, old_ns.sym, name.text, name.span)
+                new_ns.sym.u.ns = new_ns
+
                 new_ns.always_add_to_scope = true
                 old_ns.namespaces.insert(name.text, new_ns)
 
@@ -1003,11 +1019,10 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
                 return false
             }
 
-            next = Namespace::new(
-                parent: base,
-                path: part_path,
-                prefix: `{base.prefix}{part.name}_`,
-            )
+            next = Namespace::new(parent: base, path: part_path)
+            next.sym = Symbol::new_with_parent(Namespace, base.sym, part.name, part.span)
+            next.sym.u.ns = next
+
             base.namespaces.insert(part.name, next)
 
             if file_exists {
@@ -1036,34 +1051,6 @@ def Parser::load_file(&this, filename: string) {
     .parse_namespace_until(TokenType::EOF)
 }
 
-def prindent(indent: i32) {
-    for let i = 0; i < indent; i += 1 { print("  ") }
-}
-
-def print_ns(ns: &Namespace, indent: i32) {
-    prindent(indent)
-    println(`(ns) ROOT_{ns.prefix} :`)
-
-    let funcs = ns.functions
-    for let i = 0; i < funcs.size; i += 1 {
-        let func = funcs.at(i) as &Function
-        prindent(indent + 1)
-        println(`(func) {func.name}`)
-    }
-
-    let structs = ns.structs
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i) as &Structure
-        prindent(indent + 1)
-        println(`(struct) {struc.name}`)
-    }
-
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
-        let next = iter.value() as &Namespace
-        print_ns(next, indent + 1)
-    }
-}
-
 def Parser::parse_toplevel(filename: string):&Program {
     let program = Program::new()
 
@@ -1078,11 +1065,10 @@ def Parser::parse_toplevel(filename: string):&Program {
     // FIXME: hack
     base.remove_last_n(3)
 
-    let std_ns = Namespace::new(
-        parent: program.global,
-        path: "./std/",
-        prefix: "std_",
-    )
+    let std_ns = Namespace::new(parent: program.global, path: "./std/")
+    std_ns.sym = Symbol::new_with_parent(Namespace, program.global.sym, "std", Span::default())
+    std_ns.sym.u.ns = std_ns
+
     program.global.namespaces.insert("std", std_ns)
     std_ns.always_add_to_scope = true
     std_ns.is_top_level = true
@@ -1090,18 +1076,15 @@ def Parser::parse_toplevel(filename: string):&Program {
     let parser = Parser::make(program, std_ns)
     parser.load_file("./std/prelude.ae")
 
-    let ns = Namespace::new(
-        parent: program.global,
-        path: filename,
-        prefix: "",
-    )
+    let ns = Namespace::new(parent: program.global, path: filename)
+    ns.sym = Symbol::new(Namespace, "", "", "", Span::default())
+    ns.sym.u.ns = ns
+
     program.global.namespaces.insert(base, ns)
     program.global.path = dir
 
     parser.ns = ns
     parser.load_file(filename)
 
-    print_ns(program.global, 0)
-    // exit(0)
     return program
 }
