@@ -1,8 +1,8 @@
 use "compiler/lexer.ae"
 use "compiler/parser.ae"
-use "compiler/typecheck.ae"
 use "compiler/codegen.ae"
 use "compiler/errors.ae"
+use "compiler/passes/mod.ae"
 
 def usage(code: i32) {
     println("--------------------------------------------------------")
@@ -83,10 +83,7 @@ def main(argc: i32, argv: &string) {
         exit(1)
     }
 
-    println("--------------------------------------------------------")
-
-    let checker = TypeChecker::new(program)
-    checker.check()
+    run_all_passes(program)
 
     if program.errors.size > 0 {
         display_error_messages(program.errors, error_level)

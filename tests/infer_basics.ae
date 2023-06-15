@@ -1,0 +1,17 @@
+/// compile
+
+def foo(x: u8) {}
+
+def takes_f64(x: f64) {}
+def takes_f32(x: f32) {}
+
+def main() {
+    let x: u64 = 69
+    foo(7)
+
+    let g = 7.0
+    takes_f32(g)
+
+    let h: f64 = 7.0
+    takes_f64(h)
+}

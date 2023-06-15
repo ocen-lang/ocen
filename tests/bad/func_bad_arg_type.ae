@@ -1,4 +1,4 @@
-/// fail: Argument type does not match function parameter type
+/// fail: Argument x has type bool but expected i32
 
 def foo(x: i32) { }
 

@@ -1,0 +1,78 @@
+use "@/passes/generic.ae"
+
+// This pass adds all of the new structs / enums / namespaces to the symbol table
+
+struct RegisterTypes {
+    o: &GenericPass
+}
+
+def RegisterTypes::handle_struct(&this, ns: &Namespace, struc: &Structure) {
+    let item = Symbol::from_structure(struc)
+    .o.insert_into_scope_checked(struc.name, item, struc.span)
+    struc.prefix = ns.prefix
+
+    let typ = Type::new_resolved(Structure, struc.span)
+    typ.u.struc = struc
+    struc.type = typ
+}
+
+def RegisterTypes::handle_enum(&this, ns: &Namespace, enum_: &Enum) {
+    let item = Symbol::from_enum(enum_)
+    .o.insert_into_scope_checked(enum_.name, item, enum_.span)
+    enum_.prefix = ns.prefix
+
+    let typ = Type::new_resolved(Enum, enum_.span)
+    typ.u.enum_ = enum_
+    enum_.type = typ
+
+    let value_prefix = `{enum_.prefix}{enum_.name}_`
+
+    // FIXME: Make sure enum values are unique
+    for let i = 0; i < enum_.fields.size; i += 1 {
+        let field = enum_.fields.at(i) as &Variable
+        field.type = typ
+        field.prefix = value_prefix
+    }
+}
+
+def RegisterTypes::handle_namespace(&this, ns: &Namespace) {
+    .o.push_scope(ns.scope)
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
+        .handle_struct(ns, struc)
+    }
+    for let i = 0; i < ns.enums.size; i += 1 {
+        let enum_ = ns.enums.at(i) as &Enum
+        .handle_enum(ns, enum_)
+    }
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        let name = iter.key()
+        if child.always_add_to_scope {
+            .o.insert_into_scope_checked(name, Symbol::from_namespace(name, child), child.span)
+        }
+        .handle_namespace(child)
+    }
+    .o.pop_scope()
+}
+
+
+def RegisterTypes::init_base_type(&this, base: BaseType) {
+    let name = base.str()
+    let sym = Symbol::from_type(name, Type::new_resolved(base, Span::default()))
+    .o.program.global.scope.items.insert(name, sym)
+}
+
+def RegisterTypes::init_builtin_types(&this) {
+    for let i = 0; i < BaseType::NUM_BASE_TYPES as i32; i += 1 {
+        .init_base_type(i as BaseType)
+    }
+    .o.error_type = Type::new_resolved(BaseType::Error, Span::default())
+}
+
+
+def RegisterTypes::run(program: &Program) {
+    let pass = RegisterTypes(GenericPass::new(program))
+    pass.init_builtin_types()
+    pass.handle_namespace(program.global)
+}
