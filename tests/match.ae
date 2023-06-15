@@ -5,6 +5,7 @@ enum People {
     Charlie
     KJ
     Coffee
+    Chris
 }
 
 def main() {
@@ -19,6 +20,9 @@ def main() {
         }
         People::Coffee => {
             println("idk man")
+        }
+        People::Chris => {
+            println("chris is gaming")
         }
     }
 }

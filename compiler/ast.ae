@@ -32,6 +32,7 @@ enum ASTType {
     Cast
     Null
     MethodCall
+    Match
 
     // Unary operators
     Address
@@ -306,6 +307,26 @@ struct FormatString {
     exprs: &Vector    // Vector<&AST>
 }
 
+
+struct MatchCase {
+    cond: &AST
+    body: &AST
+}
+
+def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
+    let _case = calloc(1, sizeof(MatchCase)) as &MatchCase
+    _case.cond = cond
+    _case.body = body
+    return _case
+}
+
+struct Match {
+    expr: &AST
+    cases: &Vector  // Vector<&MatchCase>
+    defolt: &AST
+    defolt_span: Span
+}
+
 union ASTUnion {
     binary: Binary
     block: Block
@@ -325,6 +346,7 @@ union ASTUnion {
     var_decl: VarDeclaration
     fmt_str: FormatString
     size_of_type: &Type
+    match_stmt: Match
 }
 
 struct AST {

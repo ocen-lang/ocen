@@ -435,6 +435,10 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             .check_block(node, is_expr: true, hint)
             return node.etype
         }
+        ASTType::Match => {
+            .check_match(node, is_expr: true, hint)
+            return node.etype
+        }
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .o.resolve_scoped_identifier(node, hint)
             if not item? {
@@ -518,6 +522,126 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
     }
 }
 
+def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: bool, hint: &Type) {
+    let mapping = Map::new()
+    defer mapping.free()
+
+    let cases = node.u.match_stmt.cases
+    node.returns = (cases.size > 0)
+
+    for let i = 0; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        let cond = _case.cond
+        let name: string
+
+        let cond_type = .check_expression(cond, hint: enum_.type)
+        if not cond_type.eq(enum_.type) {
+            .error(Error::new_hint(
+                cond.span, "Condition does not match expression type",
+                node.u.match_stmt.expr.span, `Match expression is of type '{enum_.type.str()}'`
+            ))
+        }
+        if cond_type.base != BaseType::Enum {
+            .error(Error::new(cond.span, "Expected an enum value"))
+            continue
+        }
+
+        name = cond.resolved_symbol.name
+        let prev = mapping.get(name) as &MatchCase
+        if prev? {
+            .error(Error::new_hint(
+                cond.span, "Duplicate condition name in match",
+                prev.cond.span, "This condition was previously used here"
+            ))
+        }
+        mapping.insert(name, _case)
+        if _case.body? {
+            .check_expression_statement(node,  _case.body, is_expr, hint)
+        }
+    }
+
+    let defolt = node.u.match_stmt.defolt
+    if mapping.num_items != enum_.fields.size {
+        if not defolt? {
+            .error(Error::new_note(
+                node.span, "Match does not cover all cases",
+                `Only {mapping.num_items} of {enum_.fields.size} cases are covered`
+            ))
+        } else {
+            .check_expression_statement(node, defolt, is_expr, hint)
+        }
+    } else {
+        if defolt? {
+            .error(Error::new(node.u.match_stmt.defolt_span, "`else` case is not needed for this match"))
+        }
+    }
+
+    if is_expr and not node.etype? {
+        .error(Error::new(node.span, "Expression-match must yield a value"))
+    }
+}
+
+def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type) {
+    let expr = node.u.match_stmt.expr
+    let expr_type = .check_expression(expr, hint: null)
+    if not expr_type? {
+        .error(Error::new(node.span, "Match statement must have a valid expression"))
+        return
+    }
+
+    if expr_type.base == BaseType::Enum {
+        let enum_ = expr_type.u.enum_
+        .check_match_for_enum(enum_, node, is_expr, hint)
+        return
+    }
+
+    if not expr_type.is_integer() and
+        expr_type.base != BaseType::Char {
+        .error(Error::new_note(
+            expr.span, "This type cannot be matched on",
+            `Expression type is '{expr_type.str()}'`
+        ))
+    }
+
+    // Here we have either i32 or char
+    let cases = node.u.match_stmt.cases
+    node.returns = (cases.size > 0)
+
+    for let i = 0; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        let cond_type = .check_expression(_case.cond, hint: expr_type)
+        if not cond_type? then continue
+        if not cond_type.eq(expr_type) {
+            .error(Error::new_hint(
+                cond_type.span, "Condition does not match expression type",
+                node.u.match_stmt.expr.span, `Match expression is of type '{cond_type.str()}'`
+            ))
+        }
+        if _case.cond.type != ASTType::IntLiteral and
+            _case.cond.type != ASTType::CharLiteral and
+            _case.cond.type != ASTType::StringLiteral {
+            .error(Error::new(_case.cond.span, "Match condition must use only literals"))
+        }
+        if _case.body? {
+            .check_expression_statement(node, _case.body, is_expr, hint)
+        }
+    }
+
+    let defolt = node.u.match_stmt.defolt
+
+    if not defolt? {
+        .error(Error::new(node.span, "`else` case is missing"))
+    } else {
+        .check_expression_statement(node, defolt, is_expr, hint)
+    }
+
+    // FIXME: check if we early return in here...
+    if is_expr and not node.etype? {
+        .error(Error::new(node.span, "Expression-match must yield a value"))
+    }
+}
+
+
 def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
     let cond_type = .check_expression(node.u.if_stmt.cond, hint: .o.get_base_type(BaseType::Bool, node.span))
     if cond_type? and cond_type.base != BaseType::Bool {
@@ -527,36 +651,51 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
         ))
     }
     let body = node.u.if_stmt.body
-    .check_expression_statement(body, is_expr, hint)
+    .check_expression_statement(node, body, is_expr, hint)
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
-        .check_expression_statement(else_stmt, is_expr, hint)
-        if else_stmt.etype? and body.etype? and not else_stmt.etype.eq(body.etype) {
-            .error(Error::new_hint(
-                else_stmt.span, "Yield type of branch doesn't match previous branches",
-                body.span, `Previous branch yielded type '{body.etype.str()}'`
-            ))
-        }
+        .check_expression_statement(node, else_stmt, is_expr, hint)
     } else if is_expr {
         .error(Error::new(node.span, "If expressions must have an else branch"))
     }
     node.etype = body.etype
 }
+def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_expr: bool, hint: &Type) {
+    match body.type {
+        // If this is an expression-statement, a non-block should also be an expression
+        ASTType::Match => .check_match(body, is_expr, hint)
+        ASTType::If => .check_if(body, is_expr, hint)
 
-def TypeChecker::check_expression_statement(&this, node: &AST, is_expr: bool, hint: &Type) {
-    if is_expr {
-        let typ = .check_expression(node, hint)
-        if not typ? {
-            .error(Error::new(node.span, "Must yield a value here"))
-            return
+        ASTType::Block => .check_block(body, is_expr: is_expr, hint)
+        else => {
+            if is_expr {
+                .check_expression(body, hint)
+            } else {
+                .check_statement(body)
+            }
         }
-        if typ.base == BaseType::Void {
-            .error(Error::new(node.span, "Expression statement cannot be void"))
-        }
-    } else {
-        .check_statement(node)
+    }
+
+    node.returns = node.returns and body.returns
+    if not is_expr return
+
+    // For now, we'll allow expression statements to early-return from the function.
+    // Maybe this should be disallowed?
+    let ret = body.etype
+    if body.returns {
+        // Do nothing
+    } else if not ret? {
+        .error(Error::new(body.span, "Must yield a value in this branch"))
+    } else if not node.etype? {
+        node.etype = ret
+    } else if not node.etype.eq(ret) {
+        .error(Error::new_note(
+            body.span, "Yield type of branch doesn't match previous branches",
+            `Expected type '{node.etype.str()}', got '{ret.str()}'`
+        ))
     }
 }
+
 
 def TypeChecker::check_while(&this, node: &AST) {
     let was_in_loop = .in_loop
@@ -645,6 +784,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         ASTType::While => .check_while(node)
         ASTType::For => .check_for(node)
         ASTType::Block => .check_block(node, is_expr: false, hint: null)
+        ASTType::Match => .check_match(node, is_expr: false, hint: null)
         ASTType::VarDeclaration => {
             let var = node.u.var_decl.var
             let res = .scope().lookup_local(var.sym.name)
@@ -769,7 +909,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     for let i = 1; i < path.parts.size; i += 1 {
         let part = path.parts.at(i) as &ImportPart
         let name = part.name
-        let new_base = base.lookup_symbol(name)
+        let new_base = .o.lookup_in_symbol(base, name)
 
         if not new_base? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))

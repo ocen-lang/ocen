@@ -249,10 +249,47 @@ def Parser::parse_format_string(&this): &AST {
     return node
 }
 
+def Parser::parse_match(&this): &AST {
+    let op = .consume(TokenType::Match)
+    let expr = .parse_expression(end_type: TokenType::OpenCurly)
+    let node = AST::new(ASTType::Match, op.span.join(expr.span))
+    node.u.match_stmt.expr = expr
+
+    let cases = Vector::new()
+    .consume(TokenType::OpenCurly)
+    while not .token_is(TokenType::CloseCurly) {
+        if .token_is(TokenType::Else) {
+            node.u.match_stmt.defolt_span = .token().span
+            .consume(TokenType::Else)
+            .consume(TokenType::FatArrow)
+            node.u.match_stmt.defolt = .parse_statement()
+
+        } else {
+            let cond = .parse_atom(TokenType::Line)
+            let body = null as &AST
+            if not .consume_if(TokenType::Line) {
+                .consume(TokenType::FatArrow)
+                body = .parse_statement()
+                if not .token_is(TokenType::CloseCurly) {
+                    .consume_newline_or(TokenType::Comma)
+                }
+            }
+            let _case = MatchCase::new(cond, body)
+            cases.push(_case)
+        }
+    }
+    node.span = op.span.join(.token().span)
+    .consume(TokenType::CloseCurly)
+    node.u.match_stmt.cases = cases
+
+    return node
+}
+
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node = null as &AST
     match .token().type {
         TokenType::If => node = .parse_if()
+        TokenType::Match => node = .parse_match()
         TokenType::FormatStringLiteral => node = .parse_format_string()
         TokenType::Null => {
             let tok = .consume(TokenType::Null)

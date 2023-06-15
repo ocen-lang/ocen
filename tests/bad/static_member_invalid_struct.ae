@@ -1,4 +1,4 @@
-/// fail: Unknown struct with this name
+/// fail: Couldn't find this identifier
 
 def main() {
     Bar::foo()
