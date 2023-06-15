@@ -704,7 +704,39 @@ def Parser::parse_function(&this): &Function {
     let is_method = false
     let is_static = false
 
-    let ident = .parse_scoped_identifier()
+    let ident = if .token_is(TokenType::Identifier) {
+        yield .parse_scoped_identifier()
+
+    // FIXME: This is pretty hacky. To attach methods to primitive types, we need to be able
+    //        to parse something like i32::foo(). However, `i32` etc are keywords, so we explicitly
+    //        check those here and create the `NSLookup` object.
+    } else {
+        yield match .token().type {
+            Bool | Char | I8 | I16 | I32 | I64 |
+            U8 | U16 | U32 | U64 | F32 | F64 => {
+                let tok = .consume(.token().type)
+
+                let lhs = AST::new(ASTType::Identifier, tok.span)
+                lhs.u.ident.name = tok.text
+
+                if not .consume_if(TokenType::ColonColon) {
+                    .error(Error::new(.token().span, "Expected `::` after type name"))
+                    return null
+                }
+
+                let name = .consume(TokenType::Identifier)
+                let lookup = AST::new(ASTType::NSLookup, tok.span.join(name.span))
+                lookup.u.lookup.lhs = lhs
+                lookup.u.lookup.rhs_name = name.text
+                lookup.u.lookup.rhs_span = name.span
+                yield lookup
+            }
+            else => {
+                .error(Error::new(.token().span, "Unexpected token"))
+                return null
+            }
+        }
+    }
     let name_span = ident.span
 
     let name = match ident.type {

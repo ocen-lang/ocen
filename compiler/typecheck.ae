@@ -123,18 +123,24 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST): &Symbol {
                 return null
             }
 
+            let name = node.u.lookup.rhs_name
             match lhs.type {
                 SymbolType::Namespace => {
                     let ns = lhs.u.ns
-                    let name = node.u.lookup.rhs_name
                     let res = ns.find_importable_symbol(name)
                     node.resolved_symbol = res
                     return res
                 }
                 SymbolType::Structure => {
                     let struc = lhs.u.struc
-                    let name = node.u.lookup.rhs_name
                     let method = struc.type.methods.get(name) as &Function
+                    if not method? return null
+                    node.resolved_symbol = Symbol::from_function(name, method)
+                    return node.resolved_symbol
+                }
+                SymbolType::TypeDef => {
+                    let type_def = lhs.u.type_def
+                    let method = type_def.methods.get(name) as &Function
                     if not method? return null
                     node.resolved_symbol = Symbol::from_function(name, method)
                     return node.resolved_symbol
