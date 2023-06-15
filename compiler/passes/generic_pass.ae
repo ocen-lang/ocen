@@ -2,6 +2,18 @@ use "lib/vector.ae"
 use "@/ast.ae"
 use "@/scopes.ae"
 
+// This is a helper class to use in passes to accomplish common tasks like managing
+// scopes / namespaces, resolving types, and inserting symbols into scopes.
+//
+// To use this, you should add a field to your pass struct like this:
+//     struct MyPass {
+//         o: &GenericPass
+//         ...
+//     }
+//
+// Then, initialize it with `my_pass.o = GenericPass::new(program)`. After this, you
+// can use the methods on it like `.o.push_scope(scope)` etc. inside the pass methods.
+
 struct GenericPass {
     scope_stack: &Vector
     namespace_stack: &Vector
@@ -57,15 +69,14 @@ def GenericPass::insert_into_scope_checked(&this, name: string, item: &Symbol, s
             span, `Name {name} already exists in scope`,
             prev.span(), `Previous use of {name}`
         ))
-    } else {
-        .scope().insert(name, item)
+        return
     }
+    .scope().insert(name, item)
 }
 
 def GenericPass::resolve_type(&this, old: &Type): &Type {
     let resolved = old
     match old.base {
-        // Otherwise...
         Pointer => {
             resolved.u.ptr = .resolve_type(old.u.ptr)
         }
@@ -105,16 +116,17 @@ def GenericPass::resolve_type(&this, old: &Type): &Type {
 def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Symbol {
     match node.type {
         ASTType::NSLookup => {
+            let lhs_span = node.u.lookup.lhs.span
             let lhs = .resolve_scoped_identifier(node.u.lookup.lhs, hint: null) // hint only works for the first lookup
             if not lhs? {
-                .error(Error::new(node.u.lookup.lhs.span, "couldn't resolve scope lookup lhs"))
+                .error(Error::new(lhs_span, "couldn't resolve scope lookup lhs"))
                 return null
             }
 
             let name = node.u.lookup.rhs_name
             let res = lhs.lookup_symbol(name)
             if not res? {
-                .error(Error::new(node.u.lookup.lhs.span, `Needs to be a namespace to lookup, got '{lhs.type}'`))
+                .error(Error::new(lhs_span, `Needs to be a namespace to lookup, got '{lhs.type}'`))
             }
             node.resolved_symbol = res
             return res
@@ -150,7 +162,7 @@ def GenericPass::get_base_type(&this, base: BaseType, span: Span): &Type {
     if sym? and sym.type == SymbolType::TypeDef {
         return sym.u.type_def
     } else {
-        .error(Error::new(Span::default(), "Internal compiler error, couldn't find base type"))
+        .error(Error::new(span, "Internal compiler error, couldn't find base type"))
         return .error_type
     }
 }
