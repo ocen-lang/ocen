@@ -1,0 +1,11 @@
+use "@/ast.ae"
+use "@/passes/register_types.ae"
+use "@/passes/pre_typechecker.ae"
+use "@/passes/typechecker.ae"
+
+
+def run_all_passes(program: &Program) {
+    RegisterTypes::run(program)
+    PreTypeChecker::run(program)
+    TypeChecker::run(program)
+}

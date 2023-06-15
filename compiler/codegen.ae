@@ -181,13 +181,24 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => {
             let num_lit = &node.u.num_literal
-            .out.puts(num_lit.text)
+            if node.etype.base != I32 {
+                .out.puts("((")
+                .gen_type(node.etype)
+                .out.puts(")")
+                .out.puts(num_lit.text)
+                .out.puts(")")
+            } else {
+                .out.puts(num_lit.text)
+            }
         }
-        FormatStringLiteral => .gen_format_string(node)
         FloatLiteral => {
             let num_lit = &node.u.num_literal
             .out.puts(num_lit.text)
+            if node.etype.base == F32 {
+                .out.puts("f")
+            }
         }
+        FormatStringLiteral => .gen_format_string(node)
         StringLiteral => {
             let str_lit = node.u.string_literal
             .out.puts("\"")
@@ -616,6 +627,9 @@ def CodeGenerator::gen_compound_typedefs(&this, ns: &Namespace) {
 }
 
 def CodeGenerator::gen_compound_types(&this, ns: &Namespace) {
+    // FIXME: We need to do a topological sort here to make sure we don't
+    // try to use a type before it's defined. For now they are being defined
+    // in the order some indeterminate hash map iterator returns them in.
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .gen_struct(struc)
@@ -668,10 +682,16 @@ def CodeGenerator::generate(&this): string {
     .out.puts("#include <stdarg.h>\n")
     .out.puts("\n")
 
+    .out.puts("typedef int8_t i8;\n")
+    .out.puts("typedef int16_t i16;\n")
     .out.puts("typedef int32_t i32;\n")
     .out.puts("typedef int64_t i64;\n")
+
+    .out.puts("typedef uint8_t u8;\n")
+    .out.puts("typedef uint16_t u16;\n")
     .out.puts("typedef uint32_t u32;\n")
     .out.puts("typedef uint64_t u64;\n")
+
     .out.puts("typedef float f32;\n")
     .out.puts("typedef double f64;\n")
     .out.puts("\n")

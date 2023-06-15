@@ -278,7 +278,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         TokenType::Identifier => node = .parse_scoped_identifier()
         TokenType::True | TokenType::False => {
             let tok = .consume(.token().type)
-            node = AST::new(ASTType::BoolLiteral, .token().span)
+            node = AST::new(ASTType::BoolLiteral, tok.span)
             node.u.bool_literal = tok.type == TokenType::True
         }
         TokenType::OpenParen => {

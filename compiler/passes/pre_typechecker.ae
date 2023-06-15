@@ -1,0 +1,121 @@
+use "@/passes/generic.ae"
+
+// This pass is responsible for checking if all the function *declarations* and
+// struct fields are valid. It also resolves the argument / field types.
+
+struct PreTypeChecker {
+    o: &GenericPass
+}
+
+def PreTypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
+    if func.is_method {
+        let parent_span = func.parent_type.span
+        let parent_type = .o.resolve_type(func.parent_type)
+        if not parent_type? {
+            .o.error(Error::new(parent_span, "Could not find this type"))
+            return
+        }
+
+        if not parent_type.can_have_methods() {
+            .o.error(Error::new(parent_span, "This type cannot have methods"))
+            return
+        }
+
+        let prefix = match parent_type.base {
+            Structure => {
+                let struc = parent_type.u.struc
+                let name = struc.get_field(func.name)
+                if name? {
+                    .o.error(Error::new_hint(
+                        func.span, "Field with this name already exists",
+                        name.span, "Previous definition here"
+                    ))
+                }
+                yield `{struc.prefix}{struc.name}_`
+            }
+            Enum => {
+                let enum_ = parent_type.u.enum_
+                let name = enum_.get_field(func.name)
+                if name? {
+                    .o.error(Error::new_hint(
+                        func.span, "Enum value with this name already exists",
+                        name.span, "Previous definition here"
+                    ))
+                }
+                yield `{enum_.prefix}{enum_.name}_`
+            }
+            // Builtin type
+            else => `{parent_type.name}_`
+        }
+
+        // FIXME: check for duplicate methods
+        let res = parent_type.methods.get(func.name) as &Function
+        if res? {
+            .o.error(Error::new_hint(
+                func.span, "Method with this name already exists",
+                res.span, "Previous definition here"
+            ))
+            return
+        }
+        parent_type.methods.insert(func.name, func)
+        func.parent_type = parent_type
+        func.prefix = prefix
+
+    } else {
+        let item = Symbol::from_function(func.name, func)
+        .o.insert_into_scope_checked(func.name, item, func.span)
+        func.prefix = ns.prefix
+    }
+
+    func.return_type = .o.resolve_type(func.return_type)
+    let params = func.params
+    for let i = 0; i < params.size; i += 1 {
+        let param = params.at(i) as &Variable
+        param.type = .o.resolve_type(param.type)
+    }
+
+    // A function keeps track of a type that represents an equivalent function pointer type
+    // This is used for type checking function calls
+    let typ = Type::new_resolved(Function, func.span)
+    typ.u.func = FunctionType::from_func(func)
+    func.type = typ
+}
+
+def PreTypeChecker::check_struct(&this, struc: &Structure) {
+    let fields = struc.fields
+    for let i = 0; i < fields.size; i += 1 {
+        let field = fields.at(i) as &Variable
+        let res = .o.resolve_type(field.type)
+        if not res? {
+            .o.error(Error::new(field.span, "Couldn't resolve type"))
+        } else {
+            field.type = res
+        }
+    }
+}
+
+def PreTypeChecker::check_namespace(&this, ns: &Namespace) {
+    .o.push_scope(ns.scope)
+
+    for let i = 0; i < ns.functions.size; i += 1 {
+        let func = ns.functions.at(i) as &Function
+        .check_function(ns, func)
+    }
+
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
+        .check_struct(struc)
+    }
+
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        .check_namespace(iter.value())
+    }
+
+    .o.pop_scope()
+}
+
+
+def PreTypeChecker::run(program: &Program) {
+    let pass = PreTypeChecker(GenericPass::new(program))
+    pass.check_namespace(program.global)
+}

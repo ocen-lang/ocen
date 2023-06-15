@@ -1,4 +1,4 @@
-/// fail: Unknown Identifier
+/// fail: Couldn't find this identifier
 
 def main() {
     return x

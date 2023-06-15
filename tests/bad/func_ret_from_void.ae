@@ -1,4 +1,4 @@
-/// fail: Cannot return 'i32' in void function
+/// fail: Cannot return a value from a void function
 
 def foo() {
     return 5

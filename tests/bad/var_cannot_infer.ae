@@ -1,4 +1,4 @@
-/// fail: Variable type cannot be inferred, specify explicitly
+/// fail: Variable x has no type and no initializer
 
 def main() {
     let x

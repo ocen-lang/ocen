@@ -1,4 +1,4 @@
-/// fail: Invalid variable type
+/// fail: Could not find type with this name
 
 def main() {
     let x: Foo
