@@ -119,15 +119,12 @@ def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Sym
             let lhs_span = node.u.lookup.lhs.span
             let lhs = .resolve_scoped_identifier(node.u.lookup.lhs, hint: null) // hint only works for the first lookup
             if not lhs? {
-                .error(Error::new(lhs_span, "couldn't resolve scope lookup lhs"))
+                .error(Error::new(lhs_span, "Couldn't find this identifier"))
                 return null
             }
 
             let name = node.u.lookup.rhs_name
-            let res = lhs.lookup_symbol(name)
-            if not res? {
-                .error(Error::new(lhs_span, `Needs to be a namespace to lookup, got '{lhs.type}'`))
-            }
+            let res = .lookup_in_symbol(lhs, name)
             node.resolved_symbol = res
             return res
         }
@@ -151,7 +148,7 @@ def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Sym
             return res
         }
         else => {
-            .error(Error::new(node.span, "Invalid scope lookup node"))
+            .error(Error::new(node.span, `Don't know how to resolve node type {node.type}`))
             return null
         }
     }
@@ -164,5 +161,35 @@ def GenericPass::get_base_type(&this, base: BaseType, span: Span): &Type {
     } else {
         .error(Error::new(span, "Internal compiler error, couldn't find base type"))
         return .error_type
+    }
+}
+
+def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string): &Symbol => match sym.type {
+    SymbolType::Namespace => {
+        let ns = sym.u.ns
+        let res = ns.find_importable_symbol(name)
+        yield res
+    }
+    SymbolType::Structure => {
+        let struc = sym.u.struc
+        let method = struc.type.methods.get(name) as &Function
+        if not method? return null
+        yield method.sym
+    }
+    SymbolType::TypeDef => {
+        let type_def = sym.u.type_def
+        let method = type_def.methods.get(name) as &Function
+        if not method? return null
+        yield method.sym
+    }
+    SymbolType::Enum => {
+        let enum_ = sym.u.enum_
+        let field = enum_.get_field(name) as &Variable
+        if not field? return null
+        yield field.sym
+    }
+    else => {
+        .error(Error::new(sym.span, `Can't lookup a name inside a {sym.type}`))
+        return null
     }
 }

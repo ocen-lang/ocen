@@ -419,6 +419,72 @@ def CodeGenerator::gen_var_declaration(&this, node: &AST) {
     }
 }
 
+def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST) {
+    if body.type == ASTType::Block {
+        .out.puts(" ")
+        .gen_block(body)
+
+    // The body is a call that exits, we don't need to yield it
+    } else if body.type == ASTType::Call and body.returns {
+        .out.puts(" ")
+        .gen_expression(body)
+        .out.puts(";")
+
+    // In this case, we're implicitly yielding the result of the body.
+    } else if node.etype? and body.type != ASTType::Yield {
+        .out.puts(" {\n")
+        .indent += 1
+        .gen_indent()
+        .gen_yield_expression(body)
+        .indent -= 1
+        .gen_indent()
+        .out.puts("}")
+
+    } else {
+        .out.puts(" {\n")
+        .indent += 1
+        .gen_statement(body)
+        .indent -= 1
+        .gen_indent()
+        .out.puts("}")
+    }
+}
+
+def CodeGenerator::gen_match(&this, node: &AST) {
+    let stmt = node.u.match_stmt
+
+    .gen_indent()
+    .out.puts("switch (")
+    .gen_expression(stmt.expr)
+    .out.puts(") {\n")
+
+    let cases = stmt.cases
+    .indent += 1
+    for let i = 0; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        .gen_indent()
+        .out.puts("case ")
+        .gen_expression(_case.cond)
+        .out.puts(":")
+        if _case.body? {
+            .gen_match_case_body(node, _case.body)
+            .out.puts(" break;\n")
+
+        } else {
+            .out.puts("\n")
+        }
+    }
+    if stmt.defolt? {
+        .gen_indent()
+        .out.puts("default:")
+        .gen_match_case_body(node, stmt.defolt)
+        .out.puts(" break;\n")
+    }
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}\n")
+}
+
 def CodeGenerator::gen_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return => {
@@ -467,6 +533,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
                 .out.puts("\n")
             }
         }
+        ASTType::Match => .gen_match(node)
         ASTType::While => {
             let cond = node.u.loop.cond
             let body = node.u.loop.body
