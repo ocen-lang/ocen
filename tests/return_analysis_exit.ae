@@ -1,4 +1,6 @@
 /// exit: 0
+import std::exit
+
 
 def bar() exits {
 	exit(0)

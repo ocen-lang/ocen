@@ -883,6 +883,22 @@ def Parser::parse_function(&this): &Function {
     func.is_static = is_static
     func.parent_type = parent_type
 
+    if .token_is(TokenType::Extern) {
+        .consume(TokenType::Extern)
+        func.sym.is_extern = true
+
+        if .token_is(TokenType::OpenParen) {
+            .consume(TokenType::OpenParen)
+            let name = .consume(TokenType::StringLiteral)
+            .consume(TokenType::CloseParen)
+            func.sym.out_name = name.text
+        } else {
+            func.sym.out_name = func.sym.name
+        }
+
+        return func
+    }
+
     .curr_func = func
 
     if .token_is(TokenType::FatArrow) {

@@ -4,3 +4,5 @@ def sum(a: i32, b: i32): i32 {
     libc::fopen()
     return a + b
 }
+
+def exit(code: i32) exits extern

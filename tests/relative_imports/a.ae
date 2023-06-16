@@ -1,6 +1,6 @@
 /// skip
 
-use "@/b/b.ae"
+import @b::b::b
 
 def a() {
 	print("a ")

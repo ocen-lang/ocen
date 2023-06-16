@@ -27,6 +27,7 @@ struct Symbol {
 
     type: SymbolType
     u: SymbolUnion
+    is_extern: bool
 }
 
 def Symbol::new(type: SymbolType, name: string, display: string, out_name: string, span: Span): &Symbol {
