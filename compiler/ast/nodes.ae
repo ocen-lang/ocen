@@ -331,9 +331,11 @@ struct AST {
     type: ASTType
     span: Span
     u: ASTUnion
+
+    // Resolved by type checker
     etype: &Type
-    returns: bool
     resolved_symbol: &Symbol
+    returns: bool
 }
 
 def AST::new(type: ASTType, span: Span): &AST {

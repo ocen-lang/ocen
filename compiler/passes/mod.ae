@@ -3,6 +3,7 @@ use "@/passes/register_types.ae"
 use "@/passes/pre_typechecker.ae"
 use "@/passes/typechecker.ae"
 use "@/passes/namespace_dump.ae"
+use "@/passes/reorder_structs.ae"
 use "@/passes/code_generator.ae"
 
 
@@ -16,5 +17,6 @@ def run_all_passes(program: &Program): string {
 
     if not program.errors.empty() then program.exit_with_errors()
 
+    ReorderStructs::run(program)
     return CodeGenerator::run(program)
 }

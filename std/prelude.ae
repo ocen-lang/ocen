@@ -6,3 +6,8 @@ def sum(a: i32, b: i32): i32 {
 }
 
 def exit(code: i32) exits extern
+
+def panic(msg: str) exits {
+    println("%s", msg)
+    exit(1)
+}
