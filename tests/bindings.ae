@@ -1,0 +1,11 @@
+/// out: "a\nb"
+
+
+def printf(s: &char) extern
+def my_print(s: &char) extern("printf")
+
+
+def main() {
+    printf("a\n")
+    my_print("b\n")
+}

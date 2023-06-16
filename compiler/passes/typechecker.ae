@@ -31,6 +31,9 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type) {
     for let i = 0; i < stmts.size; i += 1 {
         let stmt = stmts.at(i) as &AST
         .check_statement(stmt)
+        if stmt.returns {
+            node.returns = true
+        }
         if stmt.type != Yield then continue
         if node.etype? {
             .error(Error::new_hint(
@@ -109,6 +112,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     }
 
     let func = res.u.func
+    if func.orig? and func.orig.exits then node.returns = true
     let params = func.params
 
     if func.orig? and func.orig.is_method {
@@ -642,11 +646,11 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type) {
     }
 
     // FIXME: check if we early return in here...
-    if is_expr and not node.etype? {
+
+    if is_expr and not node.etype? and not node.returns {
         .error(Error::new(node.span, "Expression-match must yield a value"))
     }
 }
-
 
 def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
     let cond_type = .check_expression(node.u.if_stmt.cond, hint: .o.get_base_type(BaseType::Bool, node.span))
@@ -657,15 +661,20 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
         ))
     }
     let body = node.u.if_stmt.body
+    let returns = true
     .check_expression_statement(node, body, is_expr, hint)
+    returns = returns and body.returns
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
         .check_expression_statement(node, else_stmt, is_expr, hint)
+        returns = returns and else_stmt.returns
     } else if is_expr {
         .error(Error::new(node.span, "If expressions must have an else branch"))
     }
+    node.returns = returns
     node.etype = body.etype
 }
+
 def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_expr: bool, hint: &Type) {
     match body.type {
         // If this is an expression-statement, a non-block should also be an expression
@@ -770,7 +779,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             } else {
                 .error(Error::new(node.span, "Expected a return value for non-void function"))
             }
-
+            node.returns = true
         }
         ASTType::Yield => {
             if not .can_yield {
@@ -847,8 +856,13 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
     .cur_func = func
 
+    if func.sym.is_extern then return
+
     .o.push_scope(new_scope)
     .check_statement(func.body)
+    if not func.body.returns and func.return_type.base != BaseType::Void and not func.sym.name.eq("main") {
+        .error(Error::new(func.sym.span, "Function does not always return"))
+    }
     .o.pop_scope()
 }
 

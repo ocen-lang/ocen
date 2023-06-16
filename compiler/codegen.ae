@@ -689,7 +689,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     let functions = ns.functions;
     for let i = 0; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
-        .gen_function(func)
+        if not func.sym.is_extern then .gen_function(func)
     }
 
     let children = ns.namespaces
@@ -703,8 +703,10 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     let functions = ns.functions;
     for let i = 0; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
-        .gen_function_decl(func)
-        .out.puts(";\n")
+        if not func.sym.is_extern {
+            .gen_function_decl(func)
+            .out.puts(";\n")
+        }
     }
 
     let children = ns.namespaces

@@ -1,6 +1,6 @@
 /// out: "a b c"
 
-use "@/a.ae"
+import @a::a
 
 def main() {
 	a()
