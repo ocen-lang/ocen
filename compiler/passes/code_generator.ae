@@ -1,21 +1,10 @@
 use "lib/buffer.ae"
-use "compiler/ast.ae"
-use "compiler/utils.ae"
 
 struct CodeGenerator {
     program: &Program
     out: Buffer
     indent: i32
     yield_vars: &Vector  // &Vector<string>
-}
-
-def CodeGenerator::make(program: &Program): CodeGenerator {
-    return CodeGenerator(
-        program,
-        out: Buffer::make(),
-        indent: 0,
-        yield_vars: Vector::new()
-    )
 }
 
 def CodeGenerator::error(&this, err: &Error) {
@@ -37,6 +26,7 @@ def string::replace(&this, other: string) {
 
 def CodeGenerator::get_op(&this, type: ASTType): string => match type {
     And => "&&",
+    Assignment => "=",
     BitwiseAnd => "&",
     BitwiseOr => "|",
     BitwiseXor => "^",
@@ -369,7 +359,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         BitwiseOr |
         BitwiseXor |
         Divide |
-        Equals |
         GreaterThan |
         GreaterThanEquals |
         LeftShift |
@@ -381,10 +370,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         NotEquals |
         Or |
         Plus |
-        PlusEquals |
-        MinusEquals |
-        MultiplyEquals |
-        DivideEquals |
         RightShift => {
             let lhs = node.u.binary.lhs
             let rhs = node.u.binary.rhs
@@ -397,12 +382,15 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(")")
         }
 
-        Assignment => {
-            let lhs = node.u.binary.lhs
-            let rhs = node.u.binary.rhs
-            .gen_expression(lhs)
-            .out.puts(" = ")
-            .gen_expression(rhs)
+        Equals |
+        Assignment |
+        PlusEquals |
+        MinusEquals |
+        DivideEquals |
+        MultiplyEquals => {
+            .gen_expression(node.u.binary.lhs)
+            .out.puts(.get_op(node.type))
+            .gen_expression(node.u.binary.rhs)
         }
 
         else => .error(Error::new(node.span, `Unhandled expression type in CodeGenerator: {node.type}`))
@@ -834,4 +822,18 @@ def CodeGenerator::generate(&this): string {
     .gen_functions(.program.global)
 
     return .out.str()
+}
+
+def CodeGenerator::make(program: &Program): CodeGenerator {
+    return CodeGenerator(
+        program,
+        out: Buffer::make(),
+        indent: 0,
+        yield_vars: Vector::new()
+    )
+}
+
+def CodeGenerator::run(program: &Program): string {
+    let pass = CodeGenerator::make(program)
+    return pass.generate()
 }

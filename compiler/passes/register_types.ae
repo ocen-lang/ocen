@@ -69,6 +69,36 @@ def RegisterTypes::register_builtin_types(&this) {
     for let i = 0; i < BaseType::NUM_BASE_TYPES as i32; i += 1 {
         .register_base_type(i as BaseType)
     }
+
+    // untyped_ptr
+    {
+        let name = "untyped_ptr"
+        let sym = Symbol::new(TypeDef, name, name, name, Span::default())
+
+        let base = .o.get_base_type(BaseType::Void, Span::default())
+        let typ = Type::new_resolved(BaseType::Pointer, Span::default())
+        typ.u.ptr = base
+        typ.sym = sym
+        sym.u.type_def = typ
+
+        .o.program.global.scope.items.insert(name, sym)
+    }
+
+    // str
+    {
+        let name = "str"
+        let sym = Symbol::new(TypeDef, name, name, name, Span::default())
+
+        let base = .o.get_base_type(BaseType::Char, Span::default())
+        let typ = Type::new_resolved(BaseType::Pointer, Span::default())
+        typ.u.ptr = base
+        typ.sym = sym
+        sym.u.type_def = typ
+
+        .o.program.global.scope.items.insert(name, sym)
+    }
+
+    // For internal compiler use
     .o.error_type = Type::new_resolved(BaseType::Error, Span::default())
 }
 

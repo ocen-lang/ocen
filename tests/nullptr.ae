@@ -5,7 +5,7 @@ def foo(x: untyped_ptr): untyped_ptr {
 }
 
 def main() {
-	let vec = null as &string
+	let vec = null as str
 	if vec == null {
 		print("pa")
 	}

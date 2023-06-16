@@ -1,6 +1,5 @@
-use "compiler/ast.ae"
-use "compiler/lexer.ae"
-use "compiler/utils.ae"
+use "@/lexer.ae"
+use "@/utils.ae"
 
 @compiler c_include "libgen.h"
 def dirname(path: string): string extern
@@ -86,7 +85,7 @@ def Parser::consume_end_of_statement(&this) {
 // NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
 // the `name` field. The typechecker is responsible for resolving this, even for the built-in types.
 def Parser::parse_type(&this): &Type => match .token().type {
-    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => {
+    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 | UntypedPtr => {
         let token = .token()
         .curr += 1
 

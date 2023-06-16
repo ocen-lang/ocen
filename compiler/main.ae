@@ -1,8 +1,8 @@
-use "compiler/lexer.ae"
-use "compiler/parser.ae"
-use "compiler/codegen.ae"
-use "compiler/errors.ae"
-use "compiler/passes/mod.ae"
+use "@/lexer.ae"
+use "@/parser.ae"
+use "@/errors.ae"
+use "@/utils.ae"
+use "@/passes/mod.ae"
 
 def usage(code: i32) {
     println("--------------------------------------------------------")
@@ -85,15 +85,7 @@ def main(argc: i32, argv: &string) {
         exit(1)
     }
 
-    run_all_passes(program)
-
-    if program.errors.size > 0 {
-        display_error_messages(program.errors, error_level)
-        exit(1)
-    }
-
-    let generator = CodeGenerator::make(program)
-    let c_code = generator.generate()
+    let c_code = run_all_passes(program)
 
     if program.errors.size > 0 {
         display_error_messages(program.errors, error_level)
@@ -104,9 +96,7 @@ def main(argc: i32, argv: &string) {
     out_file.puts(c_code)
     out_file.close()
 
-    if not compile_c {
-        return 0
-    }
+    if not compile_c then return 0
 
     let cmdbuf = calloc(1, 1024) as string
     cmdbuf.concat(`gcc -o {exec_path} {c_path}`)

@@ -58,8 +58,7 @@ def PreTypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
 
         // Now that the parent type is valid, we need to update the symbol table with the updated
         // display and output names for the function
-        func.sym = Symbol::new_with_parent(Function, parent_type.sym, func.sym.name, func.sym.span)
-        func.sym.u.func = func
+        func.sym.update_parent(parent_type.sym)
 
         parent_type.methods.insert(func.sym.name, func)
         func.parent_type = parent_type
