@@ -285,6 +285,18 @@ def Parser::parse_match(&this): &AST {
     return node
 }
 
+def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
+    if not suffix? return null
+
+    let ident = AST::new(ASTType::Identifier, suffix.span)
+    ident.u.ident.name = suffix.text
+
+    let typ = Type::new_unresolved(suffix.text, suffix.span)
+    typ.u.unresolved = ident
+
+    return typ
+}
+
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node = null as &AST
     match .token().type {
@@ -298,12 +310,18 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         TokenType::IntLiteral => {
             node = AST::new(ASTType::IntLiteral, .token().span)
             let tok = .consume(TokenType::IntLiteral)
-            node.u.num_literal = NumLiteral(tok.text, suffix: null)
+            node.u.num_literal = NumLiteral(
+                text: tok.text,
+                suffix: .parse_literal_suffix_type(tok.suffix)
+            )
         }
         TokenType::FloatLiteral => {
             node = AST::new(ASTType::FloatLiteral, .token().span)
             let tok = .consume(TokenType::FloatLiteral)
-            node.u.num_literal = NumLiteral(tok.text, suffix: null)
+            node.u.num_literal = NumLiteral(
+                text: tok.text,
+                suffix: .parse_literal_suffix_type(tok.suffix)
+            )
         }
         TokenType::StringLiteral => {
             node = AST::new(ASTType::StringLiteral, .token().span)
@@ -743,7 +761,7 @@ def Parser::parse_block(&this): &AST {
         let statement = .parse_statement()
         statements.push(statement)
     }
-    
+
     let end = .consume(TokenType::CloseCurly)
 
     let node = AST::new(ASTType::Block, start.span.join(end.span))
@@ -866,7 +884,24 @@ def Parser::parse_function(&this): &Function {
     func.parent_type = parent_type
 
     .curr_func = func
-    func.body = .parse_block()
+
+    if .token_is(TokenType::FatArrow) {
+        let arrow = .consume(TokenType::FatArrow)
+        let body = AST::new(ASTType::Block, arrow.span)
+        let statements = Vector::new()
+
+        let ret = AST::new(ASTType::Return, arrow.span)
+        ret.u.unary = .parse_expression(end_type: TokenType::Newline)
+
+        statements.push(ret)
+        body.u.block.statements = statements
+        func.body = body
+
+    } else {
+        func.body = .parse_block()
+    }
+
+
     .curr_func = null
 
     return func

@@ -340,10 +340,16 @@ def TypeChecker::check_expression(&this, node: &AST, hint: &Type): &Type {
 def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type {
     match node.type {
         ASTType::IntLiteral => {
+            if node.u.num_literal.suffix? {
+                return .o.resolve_type(node.u.num_literal.suffix)
+            }
             if hint? and hint.is_integer() then return hint
             return .o.get_base_type(BaseType::I32, node.span)
         }
         ASTType::FloatLiteral => {
+            if node.u.num_literal.suffix? {
+                return .o.resolve_type(node.u.num_literal.suffix)
+            }
             if hint? and hint.is_float() then return hint
             return .o.get_base_type(BaseType::F32, node.span)
         }
