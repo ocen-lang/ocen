@@ -1,5 +1,5 @@
-use "compiler/ast.ae"
-use "compiler/tokens.ae"
+use "@/ast/nodes.ae"
+use "@/tokens.ae"
 
 enum BaseType {
     Char
@@ -142,7 +142,12 @@ def Type::eq(&this, other: &Type): bool {
             }
             return true
         }
-        Pointer => return .u.ptr.eq(other.u.ptr)
+        Pointer => {
+            if .u.ptr.base == BaseType::Void or other.u.ptr.base == BaseType::Void {
+                return true
+            }
+            return .u.ptr.eq(other.u.ptr)
+        }
         else => return true
     }
 }

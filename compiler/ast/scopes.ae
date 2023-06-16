@@ -1,0 +1,97 @@
+use "@/ast/nodes.ae"
+use "@/types.ae"
+
+enum SymbolType {
+    Function
+    Structure
+    Enum
+    TypeDef
+    Namespace
+    Variable
+}
+
+struct SymbolUnion {
+    func: &Function
+    struc: &Structure
+    enum_: &Enum
+    ns: &Namespace
+    type_def: &Type
+    var: &Variable
+}
+
+struct Symbol {
+    name: string        // Name in the scope it was defined in
+    display: string     // Fully qualified display name, including namespaces
+    out_name: string    // Name used in the output C code
+    span: Span          // Span of the declaration
+
+    type: SymbolType
+    u: SymbolUnion
+    is_extern: bool
+}
+
+def Symbol::new(type: SymbolType, name: string, display: string, out_name: string, span: Span): &Symbol {
+    let item = calloc(1, sizeof(Symbol)) as &Symbol
+    item.name = name
+    item.display = display
+    item.out_name = out_name
+    item.span = span
+    item.type = type
+    return item
+}
+
+def Symbol::join_display(a: string, b: string): string => if a.len() == 0 then b else `{a}::{b}`
+def Symbol::join_out_name(a: string, b: string): string => if a.len() == 0 then b else `{a}_{b}`
+
+def Symbol::new_with_parent(type: SymbolType, parent: &Symbol, name: string, span: Span): &Symbol {
+    let display = Symbol::join_display(parent.display, name)
+    let out_name = Symbol::join_out_name(parent.out_name, name)
+    return Symbol::new(type, name, display, out_name, span)
+}
+
+def Symbol::update_parent(&this, parent: &Symbol) {
+    .display = Symbol::join_display(parent.display, .name)
+    if not .is_extern {
+        .out_name = Symbol::join_out_name(parent.out_name, .name)
+    }
+}
+
+def Symbol::from_local_variable(name: string, var: &Variable, span: Span): &Symbol {
+    let item = Symbol::new(
+        SymbolType::Variable,
+        name: name,
+        display: name,
+        out_name: name,
+        span: span,
+    )
+    item.u.var = var
+    return item
+}
+
+struct Scope {
+    items: &Map // &Map<string, &Symbol>
+    parent: &Scope
+}
+
+def Scope::new(parent: &Scope): &Scope {
+    let scope = calloc(1, sizeof(Scope)) as &Scope
+    scope.items = Map::new()
+    scope.parent = parent
+    return scope
+}
+
+def Scope::lookup_recursive(&this, name: string): &Symbol {
+    let item = .items.get(name) as &Symbol
+    if item? return item
+    if .parent? then return .parent.lookup_recursive(name)
+    return null
+}
+
+def Scope::lookup_local(&this, name: string): &Symbol {
+    return .items.get(name) as &Symbol
+}
+
+def Scope::insert(&this, name: string, symbol: &Symbol) {
+    .items.insert(name, symbol)
+}
+

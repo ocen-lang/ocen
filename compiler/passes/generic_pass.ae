@@ -1,6 +1,6 @@
 use "lib/vector.ae"
-use "@/ast.ae"
-use "@/scopes.ae"
+use "@/ast/nodes.ae"
+use "@/ast/scopes.ae"
 
 // This is a helper class to use in passes to accomplish common tasks like managing
 // scopes / namespaces, resolving types, and inserting symbols into scopes.
@@ -159,7 +159,17 @@ def GenericPass::get_base_type(&this, base: BaseType, span: Span): &Type {
     if sym? and sym.type == SymbolType::TypeDef {
         return sym.u.type_def
     } else {
-        .error(Error::new(span, "Internal compiler error, couldn't find base type"))
+        .error(Error::new(span, `Internal compiler error, couldn't find base type {base}`))
+        return .error_type
+    }
+}
+
+def GenericPass::get_type_by_name(&this, name: string, span: Span): &Type {
+    let sym = .program.global.scope.lookup_local(name)
+    if sym? and sym.type == SymbolType::TypeDef {
+        return sym.u.type_def
+    } else {
+        .error(Error::new(span, `Internal compiler error, couldn't find type {name}`))
         return .error_type
     }
 }

@@ -1,5 +1,3 @@
-use "@/passes/generic_pass.ae"
-use "@/ast.ae"
 use "@/utils.ae"
 use "lib/map.ae"
 
@@ -364,13 +362,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             typ.u.ptr = base
             return typ
         }
-        ASTType::Null => {
-            // FIXME: make untyped_ptr a "base" type so we can attach methods to it
-            let base = .o.get_base_type(BaseType::Void, node.span)
-            let typ = Type::new_resolved(BaseType::Pointer, node.span)
-            typ.u.ptr = base
-            return typ
-        }
+        ASTType::Null => return .o.get_type_by_name("untyped_ptr", node.span)
         ASTType::Cast => {
             let typ = .check_expression(node.u.cast.lhs, hint: null)
             if not typ? return null

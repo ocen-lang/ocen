@@ -1,9 +1,7 @@
 use "lib/vector.ae"
 use "lib/map.ae"
-use "compiler/types.ae"
-use "compiler/tokens.ae"
-use "compiler/errors.ae"
-use "compiler/scopes.ae"
+use "@/ast/program.ae"
+use "@/ast/scopes.ae"
 
 enum ASTType {
     Block
@@ -178,26 +176,6 @@ def Function::new(): &Function {
     return func
 }
 
-struct Program {
-    global: &Namespace
-    errors: &Vector       // Vector<&Error>
-    error_level: i32
-}
-
-def Program::new(): &Program {
-    let prog = calloc(1, sizeof(Program)) as &Program
-    prog.global = Namespace::new(null, "")
-    prog.global.sym = Symbol::new(Namespace, "", "", "", Span::default())
-    prog.global.sym.u.ns = prog.global
-    prog.error_level = 1
-    prog.errors = Vector::new()
-    return prog
-}
-
-def Program::exit_with_errors(&this) {
-    display_error_messages(.errors, .error_level)
-    exit(1)
-}
 
 struct Block {
     statements: &Vector     // Vector<&AST>
