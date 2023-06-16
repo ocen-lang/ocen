@@ -29,9 +29,8 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type) {
     for let i = 0; i < stmts.size; i += 1 {
         let stmt = stmts.at(i) as &AST
         .check_statement(stmt)
-        if stmt.returns {
-            node.returns = true
-        }
+        if stmt.returns then node.returns = true
+
         if stmt.type != Yield then continue
         if node.etype? {
             .error(Error::new_hint(
@@ -653,17 +652,19 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
         ))
     }
     let body = node.u.if_stmt.body
-    let returns = true
+
+    // `check_expression_statement` will modify this
+    node.returns = true
     .check_expression_statement(node, body, is_expr, hint)
-    returns = returns and body.returns
+
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
         .check_expression_statement(node, else_stmt, is_expr, hint)
-        returns = returns and else_stmt.returns
+
     } else if is_expr {
         .error(Error::new(node.span, "If expressions must have an else branch"))
     }
-    node.returns = returns
+
     node.etype = body.etype
 }
 
@@ -684,6 +685,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
     }
 
     node.returns = node.returns and body.returns
+
     if not is_expr return
 
     // For now, we'll allow expression statements to early-return from the function.

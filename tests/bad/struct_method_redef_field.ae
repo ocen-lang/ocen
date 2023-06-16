@@ -1,4 +1,4 @@
-/// fail: Type already has a field with this name
+/// fail: Field with this name already exists
 
 struct Foo {
     len: i32
