@@ -1,6 +1,6 @@
 /// fail: Function does not always return
 
-def foo(): string {
+def foo(): &char {
 	match 5 {
 		1 => return "hello"
 		2 => return "world"

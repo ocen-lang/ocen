@@ -58,6 +58,13 @@ def FunctionType::from_func(func: &Function): &FunctionType {
     return type
 }
 
+def FunctionType::from_args(params: &Vector, return_type: &Type): &FunctionType {
+    let type = calloc(1, sizeof(FunctionType)) as &FunctionType
+    type.return_type = return_type
+    type.params = params
+    return type
+}
+
 struct TypeUnion {
     ptr: &Type
     func: &FunctionType

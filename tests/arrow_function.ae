@@ -12,6 +12,7 @@ def Foo::lol(this): i32 => match .x {
 }
 
 def main() {
-    let x = Foo(0)
+    let x: Foo
+    x.x = 0
     println("%d", add_one(x.lol()))
 }
