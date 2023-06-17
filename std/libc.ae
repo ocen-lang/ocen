@@ -1,5 +1,18 @@
 
+// stdlib
+def malloc(size: i32): untyped_ptr extern
+def exit(code: i32) extern
 
-def fopen() {}
+// stdio
+def fopen(name: str, mode: str): &std::File extern
+def fclose(file: &std::File): i32 extern
+def fread(ptr: untyped_ptr, size: i32, count: i32, file: &std::File): i32 extern
+def fwrite(ptr: untyped_ptr, size: i32, count: i32, file: &std::File): i32 extern
 
+// string
 def strcmp(a: str, b: str): i32 extern
+def strlen(s: str): i32 extern
+def strcpy(dst: str, src: str): str extern
+def strcat(dst: str, src: str): str extern
+def strstr(haystack: str, needle: str): str extern
+def strchr(s: str, c: i32): str extern

@@ -1,8 +1,23 @@
 import .libc
 
-def sum(a: i32, b: i32): i32 {
-    libc::fopen()
-    return a + b
+struct File extern("FILE")
+
+def File::open(path: str, mode: str): &File {
+    let file = libc::fopen(path, mode)
+    if not file? {
+        panic(`failed to open file: {path}`)
+    }
+    return file
+}
+
+def File::close(&this) extern("fclose")
+
+def File::read(&this, buf: untyped_ptr, size: i32): i32 {
+    return libc::fread(buf, 1, size, this)
+}
+
+def File::write(&this, buf: untyped_ptr, size: i32): i32 {
+    return libc::fwrite(buf, 1, size, this)
 }
 
 def exit(code: i32) exits extern
@@ -13,3 +28,4 @@ def panic(msg: str) exits {
 }
 
 def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
+def str::len(this): i32 => libc::strlen(this)

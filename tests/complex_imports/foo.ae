@@ -12,5 +12,4 @@ namespace lmao {
 def do_foo() {
     import lmao::gottem::Greeter
     Greeter::greetings()
-    std::libc::fopen()
 }
