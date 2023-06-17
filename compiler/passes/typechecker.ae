@@ -53,11 +53,6 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
         return
     }
 
-    if method.is_static {
-        .error(Error::new(callee.span, "Cannot call static method as instance method"))
-        return
-    }
-
     // Due to the way we handle typechecking, we might run this function twice
     // on the same node. This is fine, but we need to make sure we don't double
     // add the method argument twice implicitly.
@@ -118,7 +113,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     if func.orig? and func.orig.exits then node.returns = true
     let params = func.params
 
-    if func.orig? and func.orig.is_method {
+    if func.orig? and func.orig.is_method and not func.orig.is_static {
         .check_method_call(func.orig, node)
     }
 
@@ -319,6 +314,10 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
         if method? {
             if not is_being_called {
                 .error(Error::new(node.span, "Cannot access method without calling it"))
+                return null
+            }
+            if method.is_static {
+                .error(Error::new(node.span, "Cannot call static method as instance method"))
                 return null
             }
             node.u.member.is_pointer = is_pointer
