@@ -783,7 +783,7 @@ def Parser::parse_statement(&this): &AST {
 
 def Parser::parse_block(&this): &AST {
     let start = .consume(TokenType::OpenCurly)
-    
+
     let statements = Vector::new()
     while not .token_is(TokenType::CloseCurly) {
         let statement = .parse_statement()
@@ -910,22 +910,9 @@ def Parser::parse_function(&this): &Function {
     func.is_method = is_method
     func.is_static = is_static
     func.parent_type = parent_type
+    .parse_extern_into_symbol(func.sym)
 
-    if .token_is(TokenType::Extern) {
-        .consume(TokenType::Extern)
-        func.sym.is_extern = true
-
-        if .token_is(TokenType::OpenParen) {
-            .consume(TokenType::OpenParen)
-            let name = .consume(TokenType::StringLiteral)
-            .consume(TokenType::CloseParen)
-            func.sym.out_name = name.text
-        } else {
-            func.sym.out_name = func.sym.name
-        }
-
-        return func
-    }
+    if func.sym.is_extern return func
 
     .curr_func = func
 
@@ -945,10 +932,22 @@ def Parser::parse_function(&this): &Function {
         func.body = .parse_block()
     }
 
-
     .curr_func = null
 
     return func
+}
+
+def Parser::parse_extern_into_symbol(&this, sym: &Symbol) {
+    if not .consume_if(TokenType::Extern) return
+    sym.is_extern = true
+    if .token_is(TokenType::OpenParen) {
+        .consume(TokenType::OpenParen)
+        let name = .consume(TokenType::StringLiteral)
+        .consume(TokenType::CloseParen)
+        sym.out_name = name.text
+    } else {
+        sym.out_name = sym.name
+    }
 }
 
 def Parser::parse_import(&this): &AST {
@@ -1014,22 +1013,27 @@ def Parser::parse_struct(&this): &Structure {
     struc.sym = Symbol::new_with_parent(Structure, .ns.sym, name.text, name.span)
     struc.sym.u.struc = struc
 
-    .consume(TokenType::OpenCurly)
-    while not .token_is(TokenType::CloseCurly) {
-        let name = .consume(TokenType::Identifier)
-        .consume(TokenType::Colon)
-        let type = .parse_type()
+    .parse_extern_into_symbol(struc.sym)
 
-        let var = Variable::new(type)
-        // FIXME: Use struct symbol as parent?
-        var.sym = Symbol::from_local_variable(name.text, var, name.span)
+    // Extern structs don't need to have a body.
+    if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
+        .consume(TokenType::OpenCurly)
+        while not .token_is(TokenType::CloseCurly) {
+            let name = .consume(TokenType::Identifier)
+            .consume(TokenType::Colon)
+            let type = .parse_type()
 
-        struc.fields.push(var)
-        if not .token_is(TokenType::CloseCurly) {
-            .consume_newline_or(TokenType::Comma)
+            let var = Variable::new(type)
+            var.sym = Symbol::from_local_variable(name.text, var, name.span)
+
+            struc.fields.push(var)
+            if not .token_is(TokenType::CloseCurly) {
+                .consume_newline_or(TokenType::Comma)
+            }
         }
+        .consume(TokenType::CloseCurly)
     }
-    .consume(TokenType::CloseCurly)
+
     return struc
 }
 

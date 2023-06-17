@@ -77,7 +77,7 @@ def GenericPass::insert_into_scope_checked(&this, item: &Symbol) {
 def GenericPass::resolve_type(&this, old: &Type): &Type {
     let resolved = old
     match old.base {
-        Pointer => {
+        Pointer | Alias => {
             resolved.u.ptr = .resolve_type(old.u.ptr)
         }
         Function => {
@@ -89,7 +89,7 @@ def GenericPass::resolve_type(&this, old: &Type): &Type {
             func.return_type = .resolve_type(func.return_type)
         }
         Unresolved => {
-            let res = .resolve_scoped_identifier(old.u.unresolved, hint: null)
+            let res = .resolve_scoped_identifier(old.u.unresolved, hint: null, error: false)
             if res? {
                 match res.type {
                     SymbolType::TypeDef => resolved = res.u.type_def
@@ -113,18 +113,15 @@ def GenericPass::resolve_type(&this, old: &Type): &Type {
     return resolved
 }
 
-def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Symbol {
+def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type, error: bool): &Symbol {
     match node.type {
         ASTType::NSLookup => {
             let lhs_span = node.u.lookup.lhs.span
-            let lhs = .resolve_scoped_identifier(node.u.lookup.lhs, hint: null) // hint only works for the first lookup
-            if not lhs? {
-                .error(Error::new(lhs_span, "Couldn't find this identifier"))
-                return null
-            }
+            let lhs = .resolve_scoped_identifier(node.u.lookup.lhs, hint: null, error: true) // hint only works for the first lookup
+            if not lhs? return null
 
             let name = node.u.lookup.rhs_name
-            let res = .lookup_in_symbol(lhs, name)
+            let res = .lookup_in_symbol(lhs, name, error)
             node.resolved_symbol = res
             return res
         }
@@ -145,6 +142,9 @@ def GenericPass::resolve_scoped_identifier(&this, node: &AST, hint: &Type): &Sym
             }
 
             node.resolved_symbol = res
+            if error and not res? {
+                .error(Error::new(node.span, `Couldn't find this identifier`))
+            }
             return res
         }
         else => {
@@ -174,27 +174,39 @@ def GenericPass::get_type_by_name(&this, name: string, span: Span): &Type {
     }
 }
 
-def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string): &Symbol => match sym.type {
+def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string, error: bool): &Symbol => match sym.type {
     SymbolType::Namespace => {
         let ns = sym.u.ns
         let res = ns.find_importable_symbol(name)
+        if error and not res? {
+            .error(Error::new(sym.span, `Could not find symbol {name} in namespace {sym.display}`))
+        }
         yield res
     }
     SymbolType::Structure => {
         let struc = sym.u.struc
         let method = struc.type.methods.get(name) as &Function
+        if error and not method? {
+            .error(Error::new(sym.span, `Could not find method {name} in structure {sym.display}`))
+        }
         if not method? return null
         yield method.sym
     }
     SymbolType::TypeDef => {
         let type_def = sym.u.type_def
         let method = type_def.methods.get(name) as &Function
+        if error and not method? {
+            .error(Error::new(sym.span, `Could not find method {name} in type {sym.display}`))
+        }
         if not method? return null
         yield method.sym
     }
     SymbolType::Enum => {
         let enum_ = sym.u.enum_
         let field = enum_.get_field(name) as &Variable
+        if error and not field? {
+            .error(Error::new(sym.span, `Could not find field {name} in enum {sym.display}`))
+        }
         if not field? return null
         yield field.sym
     }

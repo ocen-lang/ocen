@@ -65,6 +65,19 @@ def RegisterTypes::register_base_type(&this, base: BaseType) {
     .o.program.global.scope.items.insert(name, sym)
 }
 
+def RegisterTypes::register_alias(&this, name: string, orig: &Type) {
+    let sym = Symbol::new(TypeDef, name, name, name, Span::default())
+
+    let alias = Type::new_resolved(BaseType::Alias, Span::default())
+    alias.name = name
+    alias.u.ptr = orig
+    alias.sym = sym
+    sym.u.type_def = alias
+
+    .o.program.global.scope.items.insert(name, sym)
+}
+
+
 def RegisterTypes::register_builtin_types(&this) {
     for let i = 0; i < BaseType::NUM_BASE_TYPES as i32; i += 1 {
         .register_base_type(i as BaseType)
@@ -72,30 +85,18 @@ def RegisterTypes::register_builtin_types(&this) {
 
     // untyped_ptr
     {
-        let name = "untyped_ptr"
-        let sym = Symbol::new(TypeDef, name, name, name, Span::default())
-
         let base = .o.get_base_type(BaseType::Void, Span::default())
         let typ = Type::new_resolved(BaseType::Pointer, Span::default())
         typ.u.ptr = base
-        typ.sym = sym
-        sym.u.type_def = typ
-
-        .o.program.global.scope.items.insert(name, sym)
+        .register_alias("untyped_ptr", typ)
     }
 
     // str
     {
-        let name = "str"
-        let sym = Symbol::new(TypeDef, name, name, name, Span::default())
-
         let base = .o.get_base_type(BaseType::Char, Span::default())
         let typ = Type::new_resolved(BaseType::Pointer, Span::default())
         typ.u.ptr = base
-        typ.sym = sym
-        sym.u.type_def = typ
-
-        .o.program.global.scope.items.insert(name, sym)
+        .register_alias("str", typ)
     }
 
     // For internal compiler use

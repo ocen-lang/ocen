@@ -23,6 +23,7 @@ enum BaseType {
     Structure
     Enum
     Unresolved
+    Alias
 
     Error
 }
@@ -126,13 +127,18 @@ def Type::is_numeric_or_char(&this): bool => .is_numeric() or .base == BaseType:
 def Type::can_have_methods(&this): bool => match .base {
     Char | Bool | Void | I8 | I16 | I32 | I64 |
     U8 | U16 | U32 | U64 | F32 | F64 | Structure |
-    Enum => true
+    Enum | Alias => true
     else => false
 }
 
 def Type::eq(&this, other: &Type): bool {
     if (this == null and other == null) return true
     if (this == null or other == null) return false
+
+    // Aliases are equal to their original type
+    if .base == Alias return .u.ptr.eq(other)
+    if other.base == Alias return .eq(other.u.ptr)
+
     if .base != other.base return false
 
     match .base {
@@ -159,10 +165,20 @@ def Type::eq(&this, other: &Type): bool {
     }
 }
 
+def Type::is_str(&this): bool {
+    return .base == Alias and .sym.out_name.eq("str")
+}
+
+def Type::unaliased(&this): &Type {
+    if .base != Alias return this
+    return .u.ptr.unaliased()
+}
+
 def Type::str(&this): string => match .base {
     Pointer => `&{.u.ptr.str()}`
     Function => "<function>"
     Structure => .u.struc.sym.display
     Enum => .u.enum_.sym.display
+    Alias => `{.name}({.u.ptr.str()})`
     else => .base.str()
 }
