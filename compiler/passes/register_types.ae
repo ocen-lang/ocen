@@ -32,6 +32,27 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     }
 }
 
+def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
+    let span = enum_.sym.span
+
+    let func = Function::new()
+    func.sym = Symbol::new_with_parent(Function, enum_.sym, "dbg", span)
+    func.sym.u.func = func
+    func.return_type = .o.get_type_by_name("str", span)
+    func.is_method = true
+
+    let var = Variable::new(enum_.type)
+    var.sym = Symbol::from_local_variable("this", var, span)
+
+    func.params.push(var)
+
+    let typ = Type::new_resolved(Function, span)
+    typ.u.func = FunctionType::from_func(func)
+    func.type = typ
+
+    enum_.type.methods.insert("dbg", func)
+}
+
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     for let i = 0; i < ns.structs.size; i += 1 {
@@ -41,6 +62,7 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     for let i = 0; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
         .register_enum(ns, enum_)
+        .add_dbg_method_for_enum(enum_)
     }
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         let child = iter.value() as &Namespace

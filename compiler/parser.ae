@@ -802,7 +802,7 @@ def Parser::parse_function(&this): &Function {
 
     let parent_type = null as &Type
     let is_method = false
-    let is_static = false
+    let is_static = true
 
     let ident = if .token_is(TokenType::Identifier) {
         yield .parse_scoped_identifier()
@@ -869,10 +869,9 @@ def Parser::parse_function(&this): &Function {
                     type = Type::new_resolved(BaseType::Pointer, parent_type.span)
                     type.u.ptr = parent_type
                 }
+                is_static = false
             } else if found_amp {
                 .error(Error::new(var_name.span, "Expected 'this' over here"))
-            } else {
-                is_static = true
             }
         }
         if not type? {
@@ -908,6 +907,8 @@ def Parser::parse_function(&this): &Function {
     }
 
     func.is_method = is_method
+
+    println(`---- function {func.sym.name} is static? {is_static:d}`)
     func.is_static = is_static
     func.parent_type = parent_type
     .parse_extern_into_symbol(func.sym)
