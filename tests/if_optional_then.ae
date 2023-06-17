@@ -1,15 +1,7 @@
 /// compile
 
 def main() {
-    let x = if 5 < 10 then "a" else "b"
-    if x.eq("b") then return -1
-
-    if 5 < 10 {
-        let y = "a"
-    } else {
-        let y = "c"
-    }
-
+    let x = null
     if 5 < 10
         x = "a"
     else

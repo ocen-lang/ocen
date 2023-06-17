@@ -1,5 +1,5 @@
 
 
-def fopen() {
-    
-}
+def fopen() {}
+
+def strcmp(a: str, b: str): i32 extern

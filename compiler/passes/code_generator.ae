@@ -128,7 +128,7 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
         }
 
         let expr = exprs.at(i) as &AST
-        let expr_type = expr.etype
+        let expr_type = expr.etype.unaliased()
         match expr_type.base {
             I8 | I16 | I32 => .out.puts("%d")
             U8 | U16 | U32 => .out.puts("%u")
@@ -188,7 +188,7 @@ def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST) {
             .out.puts("\n")
         }
         // In this case, we're implicitly yielding the result of the body.
-        if node.etype? {
+        if node.etype? and body.type != ASTType::Yield {
             .gen_yield_expression(body)
         } else {
             .gen_statement(body)
@@ -641,6 +641,8 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
             Error => {
                 .error(Error::new(type.span, "Error found in type"))
             }
+            // Aliases just defer to the type they're aliasing, stored in .u.ptr
+            Alias => {}
             Pointer => {
                 let needs_parens = (cur.u.ptr? and
                     // FIXME: Also if it's an array below
@@ -759,6 +761,8 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     .out.puts("/* Struct typedefs */\n")
     for let i = 0; i < structs.size; i += 1 {
         let struc = structs.at(i) as &Structure
+        if struc.sym.is_extern then continue
+
         let struc_name = struc.sym.out_name
         .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
     }
@@ -766,6 +770,8 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     .out.puts("\n/* Struct definitions */\n")
     for let i = 0; i < structs.size; i += 1 {
         let struc = structs.at(i) as &Structure
+        if struc.sym.is_extern then continue
+
         .gen_struct(struc)
     }
 
@@ -779,6 +785,7 @@ def CodeGenerator::generate(&this): string {
     .out.puts("#include <stdint.h>\n")
     .out.puts("#include <stdbool.h>\n")
     .out.puts("#include <stdarg.h>\n")
+    .out.puts("#include <string.h>\n")
     .out.puts("\n")
 
     .out.puts("typedef int8_t i8;\n")

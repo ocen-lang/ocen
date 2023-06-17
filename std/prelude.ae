@@ -11,3 +11,5 @@ def panic(msg: str) exits {
     println("%s", msg)
     exit(1)
 }
+
+def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0

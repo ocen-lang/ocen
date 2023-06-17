@@ -276,7 +276,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         let typ = .check_expression(expr, hint: null)
         if not typ? continue
 
-        match typ.base {
+        match typ.unaliased().base {
             Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 |
             U32 | U64 | F32 | F64 | Pointer => {}
             else => .error(Error::new(
@@ -285,11 +285,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         }
     }
 
-    // FIXME: make string a "base" type so we can attach methods to it
-    let base = .o.get_base_type(BaseType::Char, node.span)
-    let typ = Type::new_resolved(BaseType::Pointer, node.span)
-    typ.u.ptr = base
-    return typ
+    return .o.get_type_by_name("str", node.span)
 }
 
 def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
@@ -355,11 +351,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return .o.get_base_type(BaseType::F32, node.span)
         }
         ASTType::StringLiteral => {
-            // FIXME: make string a "base" type so we can attach methods to it
-            let base = .o.get_base_type(BaseType::Char, node.span)
-            let typ = Type::new_resolved(BaseType::Pointer, node.span)
-            typ.u.ptr = base
-            return typ
+            return .o.get_type_by_name("str", node.span)
         }
         ASTType::Null => return .o.get_type_by_name("untyped_ptr", node.span)
         ASTType::Cast => {
@@ -408,9 +400,16 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::Address => {
             let typ = .check_expression(node.u.unary, hint: null)
             if not typ? return null
-            let ptr = Type::new_resolved(BaseType::Pointer, node.span)
-            ptr.u.ptr = typ
-            return ptr
+
+            match typ.base {
+                BaseType::Char => return .o.get_type_by_name("str", node.span)
+                BaseType::Void => return .o.get_type_by_name("untyped_ptr", node.span)
+                else => {
+                    let ptr = Type::new_resolved(BaseType::Pointer, node.span)
+                    ptr.u.ptr = typ
+                    return ptr
+                }
+            }
         }
         ASTType::Dereference => {
             let typ = .check_expression(node.u.unary, hint: null)
@@ -441,11 +440,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return node.etype
         }
         ASTType::Identifier | ASTType::NSLookup => {
-            let item = .o.resolve_scoped_identifier(node, hint)
-            if not item? {
-                .error(Error::new(node.span, "Couldn't find this identifier"))
-                return null
-            }
+            let item = .o.resolve_scoped_identifier(node, hint, error: true)
+            if not item? return null
 
             match item.type {
                 Function => return item.u.func.type
@@ -664,8 +660,6 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
     } else if is_expr {
         .error(Error::new(node.span, "If expressions must have an else branch"))
     }
-
-    node.etype = body.etype
 }
 
 def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_expr: bool, hint: &Type) {
@@ -821,7 +815,9 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 .error(Error::new(node.span, `Variable {var.sym.name} has no type and no initializer`))
             }
         }
-        else => .check_expression(node, hint: null)
+        else => {
+            .check_expression(node, hint: null)
+        }
     }
 }
 
@@ -923,7 +919,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     for let i = 1; i < path.parts.size; i += 1 {
         let part = path.parts.at(i) as &ImportPart
         let name = part.name
-        let new_base = .o.lookup_in_symbol(base, name)
+        let new_base = .o.lookup_in_symbol(base, name, error: false)
 
         if not new_base? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
