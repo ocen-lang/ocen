@@ -1,4 +1,4 @@
-/// fail: Invalid type
+/// fail: Could not find type with this name
 
 def main() {
     let x = 125u128

@@ -69,6 +69,10 @@ def PreTypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
     }
 
     func.return_type = .o.resolve_type(func.return_type)
+    if not func.return_type? {
+        func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
+    }
+
     let params = func.params
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable

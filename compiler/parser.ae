@@ -112,6 +112,35 @@ def Parser::parse_type(&this): &Type => match .token().type {
         yield typ
     }
 
+    Fn => {
+        let start_span = .token().span
+        .consume(TokenType::Fn)
+        .consume(TokenType::OpenParen)
+        let params = Vector::new()
+        while not .token_is(TokenType::CloseParen) {
+            let param_type = .parse_type()
+
+            // No names for parameters needed for function types
+            let var = Variable::new(param_type)
+            var.sym = Symbol::from_local_variable("", var, param_type.span)
+            params.push(var)
+
+            if not .token_is(TokenType::CloseParen) {
+                .consume(TokenType::Comma)
+            }
+        }
+        let close = .consume(TokenType::CloseParen)
+        let return_type: &Type
+        if .consume_if(TokenType::Colon) {
+            return_type = .parse_type()
+        } else {
+            return_type = Type::new_unresolved_base(BaseType::Void, start_span)
+        }
+        let type = Type::new_resolved(BaseType::Function, start_span.join(close.span))
+        type.u.func = FunctionType::from_args(params, return_type)
+        yield type
+    }
+
     else => {
         .unhandled_type("parse_type")
         yield Type::new_unresolved_base(BaseType::Error, .token().span)
