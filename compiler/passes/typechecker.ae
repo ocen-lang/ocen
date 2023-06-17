@@ -697,7 +697,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
         ASTType::Match => .check_match(body, is_expr, hint)
         ASTType::If => .check_if(body, is_expr, hint)
 
-        ASTType::Block => .check_block(body, is_expr: is_expr, hint)
+        ASTType::Block => .check_block(body, is_expr, hint)
         else => {
             if is_expr {
                 .check_expression(body, hint)
@@ -789,7 +789,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
                     .error(Error::new(node.span, "Cannot return a value from a void function"))
                 }
             } else if node.u.unary? {
-                let res = .check_expression(node.u.unary, hint: null)
+                let res = .check_expression(node.u.unary, hint: expected)
                 if res? and not res.eq(expected) {
                     .error(Error::new(node.span, `Return type {res.str()} does not match function return type {expected.str()}`))
                 }
