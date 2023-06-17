@@ -446,8 +446,55 @@ def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST) {
     }
 }
 
+def CodeGenerator::gen_match_string(&this, node: &AST) {
+    let stmt = node.u.match_stmt
+    .gen_indent()
+    .out.puts("{\n")
+
+    .indent += 1
+    .gen_indent()
+
+    .out.puts("char *__match_str = ")
+    .gen_expression(stmt.expr)
+    .out.puts(";\n")
+
+    let cases = stmt.cases
+    .gen_indent()
+    .out.puts("if (")
+    for let i = 0; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        .out.puts("!strcmp(__match_str, ")
+        .gen_expression(_case.cond)
+        .out.puts(")")
+
+        if _case.body? {
+            .out.puts(")")
+            .gen_match_case_body(node, _case.body)
+            .out.puts(" else ")
+            if i != cases.size - 1 {
+                .out.puts("if (")
+            }
+        } else {
+            .out.puts(" || ")
+        }
+    }
+    if stmt.defolt? {
+        .gen_match_case_body(node, stmt.defolt)
+    }
+    .out.puts("\n")
+
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}\n")
+}
+
 def CodeGenerator::gen_match(&this, node: &AST) {
     let stmt = node.u.match_stmt
+
+    if stmt.expr.etype.is_str() {
+        .gen_match_string(node)
+        return
+    }
 
     .gen_indent()
     .out.puts("switch (")
@@ -727,6 +774,35 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
     }
 }
 
+def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
+    // Output debug info for enum
+    let dbg = enum_.type.methods.get("dbg") as &Function
+    .gen_function_decl(dbg)
+    .out.puts(" {\n")
+    .indent += 1
+    .gen_indent()
+
+    .out.puts("switch (this) {\n")
+    .indent += 1
+    for let i = 0; i < enum_.fields.size; i += 1 {
+        let field = enum_.fields.at(i) as &Variable
+        .gen_indent()
+        .out.puts("case ")
+        .out.puts(field.sym.out_name)
+        .out.putsf(`: return "{field.sym.name}";\n`)
+    }
+    // This is mostly for extern enums, but is also useful for cases
+    // where a perhaps incorrect value was cast to the enum type.
+    .gen_indent()
+    .out.putsf(`default: return "<unknown>";\n`)
+
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}\n")
+    .indent -= 1
+    .out.puts("}\n\n")
+}
+
 def CodeGenerator::gen_enum(&this, enum_: &Enum) {
     let enum_name = enum_.sym.out_name
     .out.putsf(`typedef enum {enum_name} \{\n`)
@@ -738,6 +814,7 @@ def CodeGenerator::gen_enum(&this, enum_: &Enum) {
         .out.puts(",\n")
     }
     .out.putsf(`\} {enum_name};\n\n`)
+    .gen_enum_dbg_method(enum_)
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {

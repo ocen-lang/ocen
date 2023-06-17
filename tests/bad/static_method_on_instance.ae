@@ -1,6 +1,7 @@
-/// fail: Member access requires a non-static method
+/// fail: Cannot call static method as instance method
 
 struct Foo {}
+
 def Foo::foo(): i32 {
     return 0
 }

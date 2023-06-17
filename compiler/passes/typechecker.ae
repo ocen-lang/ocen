@@ -53,6 +53,11 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
         return
     }
 
+    if method.is_static {
+        .error(Error::new(callee.span, "Cannot call static method as instance method"))
+        return
+    }
+
     // Due to the way we handle typechecking, we might run this function twice
     // on the same node. This is fine, but we need to make sure we don't double
     // add the method argument twice implicitly.
@@ -92,6 +97,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             for let i = 0; i < args.size; i += 1 {
                 let arg = args.at(i) as &Argument
                 .check_expression(arg.expr, hint: null)
+                .call_dbg_on_enum_value(&arg.expr)
             }
             return .o.get_base_type(Void, node.span)
         }
@@ -519,6 +525,29 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
     }
 }
 
+// When passing an enum to `print` or to a format string, we will automatically call
+// the `.dbg()` method we generate on them.
+def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
+    let node: &AST = *node_ptr
+
+    if not node.etype? return null
+    if node.etype.base != BaseType::Enum return node.etype
+
+    let member = AST::new(ASTType::Member, node.span)
+    member.u.member.lhs = node
+    member.u.member.rhs_name = "dbg"
+    member.u.member.rhs_span = node.span
+
+    let call = AST::new(ASTType::Call, node.span)
+    call.u.call.callee = member
+    call.u.call.args = Vector::new()
+
+    *node_ptr = call
+
+    return .check_expression(call, hint: null)
+}
+
+
 def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: bool, hint: &Type) {
     let mapping = Map::new()
     defer mapping.free()
@@ -593,6 +622,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type) {
     }
 
     if not expr_type.is_integer() and
+        not expr_type.is_str() and
         expr_type.base != BaseType::Char {
         .error(Error::new_note(
             expr.span, "This type cannot be matched on",
