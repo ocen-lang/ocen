@@ -314,7 +314,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 return
             }
             match sym.type {
-                Function | Variable => .out.puts(sym.out_name)
+                Function | Variable | Constant => .out.puts(sym.out_name)
                 else => panic(`Unhandled symbol type: {sym.type}`)
             }
         }

@@ -2,4 +2,4 @@
 let x = 0
 const y = x + 1
 
-def main() => 0
+def main() {}

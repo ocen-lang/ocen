@@ -8,6 +8,7 @@ enum SymbolType {
     TypeDef
     Namespace
     Variable
+    Constant
 }
 
 struct SymbolUnion {
