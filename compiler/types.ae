@@ -23,6 +23,7 @@ enum BaseType {
     Structure
     Enum
     Unresolved
+    Array
     Alias
 
     Error
@@ -66,12 +67,25 @@ def FunctionType::from_args(params: &Vector, return_type: &Type): &FunctionType 
     return type
 }
 
+struct ArrayType {
+    elem_type: &Type
+    size_expr: &AST
+}
+
+def ArrayType::new(elem_type: &Type, size_expr: &AST): &ArrayType {
+    let type = calloc(1, sizeof(ArrayType)) as &ArrayType
+    type.elem_type = elem_type
+    type.size_expr = size_expr
+    return type
+}
+
 struct TypeUnion {
     ptr: &Type
     func: &FunctionType
     struc: &Structure
     enum_: &Enum
     unresolved: &AST
+    arr: &ArrayType
 }
 
 struct Type {
@@ -172,6 +186,13 @@ def Type::is_str(&this): bool {
 def Type::unaliased(&this): &Type {
     if .base != Alias return this
     return .u.ptr.unaliased()
+}
+
+def Type::decay_array(&this): &Type {
+    if .base != BaseType::Array return this
+    let res = Type::new_resolved(BaseType::Pointer, .span)
+    res.u.ptr = .u.arr.elem_type
+    return res
 }
 
 def Type::str(&this): string => match .base {

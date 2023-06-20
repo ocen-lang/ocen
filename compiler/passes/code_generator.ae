@@ -390,6 +390,15 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(")")
         }
 
+        Index => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            .gen_expression(lhs)
+            .out.puts("[")
+            .gen_expression(rhs)
+            .out.puts("]")
+        }
+
         Equals |
         Assignment |
         PlusEquals |
@@ -631,83 +640,85 @@ def CodeGenerator::gen_block(&this, node: &AST) {
     .out.puts("}")
 }
 
-def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_func_def: bool): string {
-    // This is a bit weird because of how C expects type names to be written.
-    // There's possibly a better way to do this, but I'll leave that for another day.
-    let final = name.copy()
+def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: string, is_func_def: bool): string {
+    match cur.base {
+        // These should all be terminal types
+        Void | Bool | Char |
+        I8   | I16  | I32  | I64 |
+        U8   | U16  | U32  | U64 |
+        F32  | F64 => acc.replace(`{cur.base.str()} {acc}`)
+        Structure => acc.replace(`{cur.u.struc.sym.out_name} {acc}`)
+        Enum => acc.replace(`{cur.u.enum_.sym.out_name} {acc}`)
 
-    if not type? { panic("Internal error: null type in codegen") }
+        Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
 
-    for let cur = type; cur?; cur = cur.u.ptr {
-        match cur.base {
-            // These should all be terminal types
-            Void | Bool | Char |
-            I8   | I16  | I32  | I64 |
-            U8   | U16  | U32  | U64 |
-            F32  | F64 => final.replace(`{cur.base.str()} {final}`)
+        Function => {
+            let args_str = Buffer::make()
+            let params = cur.u.func.params
 
-            Function => {
-                let acc = Buffer::make()
-                let params = cur.u.func.params
+            if params.size == 0 then args_str.puts("void")
 
-                if params.size == 0 then acc.puts("void")
-
-                for let i = 0; i < params.size; i += 1 {
-                    if i != 0 then acc.puts(", ")
-                    let var = params.at(i) as &Variable
-                    let arg_str = .get_type_name_string(var.type, var.sym.out_name, is_func_def: false)
-                    acc.putsf(arg_str)
-                }
-                if is_func_def and cur == type {
-                    // This allows us to also create function declarations
-                    final.replace(`{final}({acc.str()})`)
-                } else {
-                    final.replace(`(*{final})({acc.str()})`)
-                }
-                free(acc.data)
-                final.replace(.get_type_name_string(
-                    cur.u.func.return_type,
-                    name: final,
-                    is_func_def: false
-                ))
+            for let i = 0; i < params.size; i += 1 {
+                if i != 0 then args_str.puts(", ")
+                let var = params.at(i) as &Variable
+                let arg_str = .get_type_name_string(var.type, var.sym.out_name, is_func_def: false)
+                args_str.putsf(arg_str)
             }
-
-            Structure => {
-                let struc_name = cur.u.struc.sym.out_name
-                final.replace(`{struc_name} {final}`)
+            if is_func_def and cur == top {
+                // This allows us to also create function declarations
+                acc.replace(`{acc}({args_str.str()})`)
+            } else {
+                acc.replace(`(*{acc})({args_str.str()})`)
             }
-
-            Enum => {
-                let enum_name = cur.u.enum_.sym.out_name
-                final.replace(`{enum_name} {final}`)
-            }
-
-            Unresolved => {
-                .error(Error::new(type.span, "Unresolved type found"))
-            }
-            Error => {
-                .error(Error::new(type.span, "Error found in type"))
-            }
-            // Aliases just defer to the type they're aliasing, stored in .u.ptr
-            Alias => {}
-            Pointer => {
-                let needs_parens = (cur.u.ptr? and
-                    // FIXME: Also if it's an array below
-                    (cur.u.ptr.base == BaseType::Function))
-                if needs_parens {
-                    final.replace(`(*{final})`)
-                } else {
-                    final.replace(`*{final}`)
-                }
-            }
-            else => {
-                .error(Error::new(type.span, `Unhandled type found: {type.str()}`))
-            }
+            free(args_str.data)
+            acc = .helper_gen_type(
+                top,
+                cur.u.func.return_type,
+                acc,
+                is_func_def: false
+            )
         }
+
+        Pointer => {
+            let needs_parens = (cur.u.ptr? and
+                (cur.u.ptr.base == BaseType::Function or
+                 cur.u.ptr.base == BaseType::Array))
+            if needs_parens {
+                acc.replace(`(*{acc})`)
+            } else {
+                acc.replace(`*{acc}`)
+            }
+            acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
+        }
+
+        Array => {
+            // Need to evaluate the expression into a string...
+            let prev_buffer: Buffer = .out
+
+            .out = Buffer::make()
+            .gen_expression(cur.u.arr.size_expr)
+
+            acc.replace(`{acc}[{.out.str()}]`)
+            free(.out.data)
+
+            .out = prev_buffer
+            acc = .helper_gen_type(top, cur.u.arr.elem_type, acc, is_func_def: false)
+        }
+
+        Unresolved => .error(Error::new(cur.span, "Unresolved type found"))
+        Error => .error(Error::new(cur.span, "Error found in type"))
+        else => .error(Error::new(cur.span, `Unhandled type found: {cur.str()}`))
     }
+    return acc
+}
+
+def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_func_def: bool): string {
+    if not type? { panic("Internal error: null type in codegen") }
+    let final = .helper_gen_type(type, type, name.copy(), is_func_def)
     final.strip_trailing_whitespace()
     return final
 }
+
 
 def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
     .out.putsf(.get_type_name_string(type, name, is_func_def: false))
