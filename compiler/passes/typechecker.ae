@@ -182,41 +182,23 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
     return .o.get_base_type(Void, node.span)
 }
 
-def TypeChecker::check_call(&this, node: &AST): &Type {
+def TypeChecker::check_constructor(&this, node: &AST): &Type {
+    node.u.call.is_constructor = true
+
     let callee = node.u.call.callee
+    let struc = callee.resolved_symbol.u.struc
+
+    let params = struc.fields
+
+    .check_call_args(node, params)
+
+    return struc.type
+}
+
+def TypeChecker::check_call_args(&this, node: &AST, params: &Vector) {
     let args = node.u.call.args
-
-    // FIXME: this is a fucking abonimation
-    if callee.type == ASTType::Identifier {
-        callee.u.ident.is_function = false
-        let name = callee.u.ident.name
-
-        if name.eq("print") or name.eq("println") {
-            return .check_internal_print(node)
-        }
-    }
-
-    let res = match callee.type {
-        Member => .check_member(callee, is_being_called: true)
-        else => .check_expression(callee, hint: null)
-    }
-    if not res? return null
-
-    if res.base != BaseType::Function {
-        .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
-        return null
-    }
-
-    let func = res.u.func
-    if func.orig? and func.orig.exits then node.returns = true
-    let params = func.params
-
-    if func.orig? and func.orig.is_method and not func.orig.is_static {
-        .check_method_call(func.orig, node)
-    }
-
-    if func.params.size < args.size {
-        .error(Error::new(node.span, `Too many arguments, expected {func.params.size} but got {args.size}`))
+    if params.size < args.size {
+        .error(Error::new(node.span, `Too many arguments, expected {params.size} but got {args.size}`))
     }
 
     for let i = 0; i < params.size; i += 1 {
@@ -249,6 +231,54 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             .error(Error::new(node.span, `Missing required argument {param.sym.name}`))
         }
     }
+}
+
+def TypeChecker::check_call(&this, node: &AST): &Type {
+    let callee = node.u.call.callee
+    let args = node.u.call.args
+
+    // FIXME: this is a fucking abonimation
+    if callee.type == ASTType::Identifier {
+        callee.u.ident.is_function = false
+        let name = callee.u.ident.name
+
+        if name.eq("print") or name.eq("println") {
+            return .check_internal_print(node)
+        }
+    }
+
+    let res = match callee.type {
+        Member => .check_member(callee, is_being_called: true)
+        Identifier | NSLookup => {
+            let sym = .resolve_scoped_identifier(callee, hint: null, error: true)
+            if not sym? return null
+            callee.resolved_symbol = sym
+
+            yield match sym.type {
+                Structure => {
+                    return .check_constructor(node)
+                }
+                else => .check_expression(callee, hint: null)
+            }
+        }
+        else => .check_expression(callee, hint: null)
+    }
+    if not res? return null
+
+    if res.base != BaseType::Function {
+        .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
+        return null
+    }
+
+    let func = res.u.func
+    if func.orig? and func.orig.exits then node.returns = true
+    let params = func.params
+
+    if func.orig? and func.orig.is_method and not func.orig.is_static {
+        .check_method_call(func.orig, node)
+    }
+
+    .check_call_args(node, params)
 
     if func.orig? {
         node.u.call.is_function_pointer = false
@@ -834,7 +864,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
     if body.returns {
         // Do nothing
     } else if not ret? {
-        .error(Error::new(body.span, "Must yield a value in this branch"))
+        .error(Error::new(body.span, `Must yield a value in this branch, body type is {body.type}`))
     } else if not node.etype? {
         node.etype = ret
     } else if not node.etype.eq(ret) {
