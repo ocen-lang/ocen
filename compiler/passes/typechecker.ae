@@ -47,6 +47,11 @@ def TypeChecker::resolve_type(&this, old: &Type): &Type {
                 resolved = null
             }
         }
+        Array => {
+            let arr = old.u.arr
+            arr.elem_type = .resolve_type(arr.elem_type)
+            .check_expression(arr.size_expr, hint: null)
+        }
         else => {
             .error(Error::new(old.span, `Unhandled type in resolve {old.base}`))
             resolved = null
@@ -414,6 +419,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
 // function, and still always assign the type to the node's etype field
 def TypeChecker::check_expression(&this, node: &AST, hint: &Type): &Type {
     let typ = .check_expression_helper(node, hint)
+    if typ? then typ = typ.decay_array()
     node.etype = typ
     return typ
 }
@@ -522,6 +528,24 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::Match => {
             .check_match(node, is_expr: true, hint)
             return node.etype
+        }
+        ASTType::Index => {
+            let lhs = .check_expression(node.u.binary.lhs, hint: null)
+            let rhs = .check_expression(node.u.binary.rhs, hint: null)
+            if not lhs? or not rhs? return null
+            if not rhs.is_integer() {
+                .error(Error::new(node.span, `Index must be an integer, got {rhs.str()}`))
+                return null
+            }
+            lhs = lhs.unaliased()
+            match lhs.base {
+                BaseType::Array => return lhs.u.arr.elem_type
+                BaseType::Pointer => return lhs.u.ptr
+                else => {
+                    .error(Error::new(node.span, `Cannot index type {lhs.str()}`))
+                    return null
+                }
+            }
         }
         ASTType::Identifier | ASTType::NSLookup => {
             let item = .resolve_scoped_identifier(node, hint, error: true)

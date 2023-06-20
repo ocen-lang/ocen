@@ -31,6 +31,7 @@ enum ASTType {
     Null
     MethodCall
     Match
+    Index
 
     // Unary operators
     Address
@@ -364,5 +365,6 @@ def AST::is_lvalue(&this): bool => match .type {
     Identifier => not .u.ident.is_function
     Member => true
     Dereference => true
+    Index => true
     else => false
 }
