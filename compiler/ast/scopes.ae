@@ -70,13 +70,25 @@ def Symbol::from_local_variable(name: string, var: &Variable, span: Span): &Symb
 
 struct Scope {
     items: &Map // &Map<string, &Symbol>
+    defers: &Vector // &Vector<&AST>
+
+    loop_count: u32
+    can_yield: bool
+    cur_func: &Function
+
     parent: &Scope
 }
 
 def Scope::new(parent: &Scope): &Scope {
     let scope = calloc(1, sizeof(Scope)) as &Scope
     scope.items = Map::new()
-    scope.parent = parent
+    scope.defers = Vector::new()
+    if parent? {
+        scope.loop_count = parent.loop_count
+        scope.can_yield = parent.can_yield
+        scope.cur_func = parent.cur_func
+        scope.parent = parent
+    }
     return scope
 }
 
