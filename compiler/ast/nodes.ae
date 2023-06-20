@@ -8,6 +8,7 @@ enum ASTType {
     BoolLiteral
     Break
     Call
+    Constant
     Continue
     Error
     Identifier

@@ -71,6 +71,7 @@ def GenericPass::insert_into_scope_checked(&this, item: &Symbol) {
         ))
         return
     }
+    println("Inserting %s into scope", item.name)
     .scope().insert(item.name, item)
 }
 
