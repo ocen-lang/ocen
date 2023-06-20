@@ -666,6 +666,9 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
 
     let var = Variable::new(type)
     var.sym = Symbol::from_local_variable(name.text, var, name.span)
+    if is_const {
+        var.sym.type = SymbolType::Constant
+    }
 
     node.u.var_decl.var = var
 

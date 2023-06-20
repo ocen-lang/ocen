@@ -597,7 +597,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
 
             match item.type {
                 Function => return item.u.func.type
-                Variable => return item.u.var.type
+                Variable | Constant => return item.u.var.type
                 Structure => {
                     .error(Error::new(node.span, "Cannot use a struct name as an expression"))
                     return null
@@ -1055,7 +1055,8 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         let node = ns.constants.at(i) as &AST
         let init = node.u.var_decl.init
         if init? {
-            .check_expression(init, hint: null)
+            .check_const_expression(init, hint: null)
+
         } else {
             .error(Error::new(node.span, "Constant must have an initializer"))
         }
@@ -1066,6 +1067,58 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     }
     .o.pop_namespace()
     .o.pop_scope()
+}
+
+def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type): &Type {
+    let typ = match node.type {
+        Identifier | NSLookup => {
+            let sym = .resolve_scoped_identifier(node, hint, error: true)
+            if sym.type != SymbolType::Constant {
+                .error(Error::new(node.span, "Expected a constant"))
+                return null
+            }
+            yield sym.u.var.type
+        }
+        IntLiteral  => .o.get_base_type(BaseType::I32, node.span)
+        FloatLiteral => .o.get_base_type(BaseType::F32, node.span)
+        BoolLiteral => .o.get_base_type(BaseType::Bool, node.span)
+        CharLiteral => .o.get_base_type(BaseType::Char, node.span)
+        StringLiteral => .o.get_type_by_name("str", node.span)
+        Plus |
+        Minus |
+        Multiply |
+        Divide |
+        LessThan |
+        LessThanEquals |
+        GreaterThan |
+        GreaterThanEquals |
+        Equals |
+        NotEquals |
+        And |
+        Or |
+        Modulus |
+        BitwiseNot |
+        BitwiseOr |
+        BitwiseAnd |
+        BitwiseXor |
+        LeftShift |
+        RightShift => {
+            let lhs = .check_const_expression(node.u.binary.lhs, hint: null)
+            let rhs = .check_const_expression(node.u.binary.rhs, hint: null)
+            if not lhs? or not rhs? return null
+
+            if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
+                .error(Error::new(node.span, "Cannot do pointer arithmetic in constant expressions"))
+            }
+            yield .check_binary_op(node, lhs, rhs)
+        }
+        else => {
+            .error(Error::new(node.span, "Unsupported operator in constant expression"))
+            return null
+        }
+    }
+    node.etype = typ
+    return typ
 }
 
 // Insert all the imported items defined in the Import AST statement into the current scope.
@@ -1217,7 +1270,7 @@ def TypeChecker::pre_check_struct(&this, struc: &Structure) {
 
 def TypeChecker::pre_check_globals(&this, node: &AST) {
     let var = node.u.var_decl.var
-    var.type = .resolve_type(var.type)
+    if var.type? then var.type = .resolve_type(var.type)
     .o.insert_into_scope_checked(var.sym)
 }
 
