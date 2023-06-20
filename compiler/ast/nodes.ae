@@ -209,6 +209,8 @@ struct FuncCall {
     callee: &AST
     args: &Vector    // Vector<&Argument>
     func: &Function
+
+    is_constructor: bool
     is_function_pointer: bool
     added_method_arg: bool
 }
@@ -359,6 +361,18 @@ def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
     ast.u.binary.lhs = lhs
     ast.u.binary.rhs = rhs
     return ast
+}
+
+def AST::is_identifier(&this): bool => match .type {
+    Identifier => true
+    NSLookup => true
+    else => false
+}
+
+def AST::symbol(&this): &Symbol => match .type {
+    Identifier => .resolved_symbol
+    NSLookup => .resolved_symbol
+    else => null
 }
 
 def AST::is_lvalue(&this): bool => match .type {

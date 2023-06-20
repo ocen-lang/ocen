@@ -208,6 +208,21 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     .yield_vars.pop()
 }
 
+def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
+    .out.putsf(`({struc.sym.out_name})\{`)
+    let fields = struc.fields
+    let args = node.u.call.args
+    for let i = 0; i < args.size; i += 1 {
+        if i != 0 then .out.puts(", ")
+        let arg = args.at(i) as &Argument
+        let field = fields.at(i) as &Variable
+
+        .out.putsf(`.{field.sym.out_name}=`)
+        .gen_expression(arg.expr)
+    }
+    .out.puts("}")
+}
+
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => {
@@ -288,6 +303,12 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             // FIXME: Expand out format strings inline
             if callee.type == Identifier and (callee.u.ident.name.eq("print") or callee.u.ident.name.eq("println")) {
                 .gen_internal_print(node)
+                return
+            }
+
+            let sym = callee.symbol()
+            if sym? and sym.type == Structure {
+                .gen_constructor(node, sym.u.struc)
                 return
             }
 
