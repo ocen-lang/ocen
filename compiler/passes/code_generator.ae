@@ -1,14 +1,10 @@
 use "lib/buffer.ae"
 
 struct CodeGenerator {
-    program: &Program
+    o: &GenericPass
     out: Buffer
     indent: i32
     yield_vars: &Vector  // &Vector<string>
-}
-
-def CodeGenerator::error(&this, err: &Error) {
-    .program.errors.push(err)
 }
 
 def CodeGenerator::gen_indent(&this) {
@@ -17,12 +13,15 @@ def CodeGenerator::gen_indent(&this) {
     }
 }
 
-
 def string::replace(&this, other: string) {
     let s: string = *this
     free(s)
     *this = other
 }
+
+// Some convenience accessors from the GenericPass
+def CodeGenerator::error(&this, err: &Error): &Error => .o.error(err)
+def CodeGenerator::scope(&this): &Scope => .o.scope()
 
 def CodeGenerator::get_op(&this, type: ASTType): string => match type {
     And => "&&",
@@ -57,24 +56,12 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
 
     .out.puts("printf(")
 
-    // FIXME: these checks should move to typechecker
     let args = node.u.call.args
-    if args.size < 1 {
-        .error(Error::new(
-            node.span, "Function requires at least one argument"
-        ))
-    }
     let first = args.at(0) as &Argument
-    if args.size == 1 and first.expr.type == ASTType::FormatStringLiteral {
+    if first.expr.type == FormatStringLiteral {
         .gen_format_string_variadic(first.expr, newline_after)
         .out.puts(")")
         return
-    }
-
-    if first.expr.type != StringLiteral {
-        .error(Error::new(
-            first.expr.span, "First argument must be a string literal"
-        ))
     }
 
     for let i = 0; i < args.size; i += 1 {
@@ -537,9 +524,34 @@ def CodeGenerator::gen_match(&this, node: &AST) {
     .out.puts("}\n")
 }
 
+def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
+    let first = true
+    for let cur = .scope(); cur?; cur = cur.parent {
+        for let i = 0; i < cur.defers.size; i += 1 {
+            if first {
+                first = false
+                .gen_indent()
+                .out.puts("/* defers */\n")
+            }
+
+            // Note: We want to run the defers in reverse order
+            let idx = cur.defers.size - i - 1
+            let stmt = cur.defers.at(idx) as &AST
+            .gen_statement(stmt)
+        }
+        if cur == end_scope then break
+    }
+}
+
 def CodeGenerator::gen_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return => {
+            let upto = .scope()
+            for let cur = .scope(); cur? and cur.cur_func?; cur = cur.parent {
+                upto = cur
+            }
+            .gen_defers_upto(upto)
+
             .gen_indent()
             .out.puts("return ")
             if node.u.unary? {
@@ -549,13 +561,20 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         }
         ASTType::Yield => .gen_yield_expression(node.u.unary)
         ASTType::Import => {}
-        ASTType::Break => {
+        ASTType::Break | ASTType::Continue => {
+            let loop_count = .scope().loop_count
+            let upto = .scope()
+            for let cur = .scope(); cur? and cur.loop_count == loop_count; cur = cur.parent {
+                upto = cur
+            }
+            .gen_defers_upto(upto)
+
             .gen_indent()
-            .out.puts("break;\n")
-        }
-        ASTType::Continue => {
-            .gen_indent()
-            .out.puts("continue;\n")
+            if node.type == ASTType::Break {
+                .out.puts("break;\n")
+            } else {
+                .out.puts("continue;\n")
+            }
         }
         ASTType::VarDeclaration => {
             .gen_indent()
@@ -566,6 +585,9 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .gen_indent()
             .gen_block(node)
             .out.puts("\n")
+        }
+        ASTType::Defer => {
+            .scope().defers.push(node.u.unary)
         }
         ASTType::If => {
             let cond = node.u.if_stmt.cond
@@ -628,6 +650,8 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
 
 def CodeGenerator::gen_block(&this, node: &AST) {
     .out.puts("{\n")
+    let scope = node.u.block.scope
+    .o.push_scope(node.u.block.scope)
 
     let statements = node.u.block.statements
     .indent += 1
@@ -635,9 +659,16 @@ def CodeGenerator::gen_block(&this, node: &AST) {
         let statement = statements.at(i) as &AST
         .gen_statement(statement)
     }
+
+    if not node.returns {
+        .gen_defers_upto(scope)
+    }
+
     .indent -= 1
     .gen_indent()
     .out.puts("}")
+
+    .o.pop_scope()
 }
 
 def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: string, is_func_def: bool): string {
@@ -743,6 +774,8 @@ def CodeGenerator::gen_function_decl(&this, func: &Function) {
 
 def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     let functions = ns.functions;
+    .o.push_scope(ns.scope)
+
     for let i = 0; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
         if not func.sym.is_extern then .gen_function(func)
@@ -753,6 +786,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
         let child = iter.value() as &Namespace
         .gen_functions(child)
     }
+    .o.pop_scope()
 }
 
 def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
@@ -842,7 +876,7 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
 }
 
 def CodeGenerator::gen_structs_and_typedefs(&this) {
-    let structs = .program.ordered_structs
+    let structs = .o.program.ordered_structs
 
     if structs.size == 0 then return
 
@@ -905,25 +939,25 @@ def CodeGenerator::generate(&this): string {
     .out.puts("\n")
 
     .out.puts("/* Enums */\n")
-    .gen_enum_types(.program.global)
+    .gen_enum_types(.o.program.global)
 
     .gen_structs_and_typedefs()
 
     .out.puts("/* function declarations */\n")
-    .gen_function_decls(.program.global)
+    .gen_function_decls(.o.program.global)
 
     .out.puts("/* function implementations */\n")
-    .gen_functions(.program.global)
+    .gen_functions(.o.program.global)
 
     return .out.str()
 }
 
 def CodeGenerator::make(program: &Program): CodeGenerator {
     return CodeGenerator(
-        program,
+        o: GenericPass::new(program),
         out: Buffer::make(),
         indent: 0,
-        yield_vars: Vector::new()
+        yield_vars: Vector::new(),
     )
 }
 

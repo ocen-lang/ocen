@@ -32,6 +32,7 @@ enum ASTType {
     MethodCall
     Match
     Index
+    Defer
 
     // Unary operators
     Address

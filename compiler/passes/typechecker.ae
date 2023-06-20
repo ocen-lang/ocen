@@ -6,10 +6,6 @@ use "lib/map.ae"
 
 struct TypeChecker {
     o: &GenericPass
-
-    cur_func: &Function
-    in_loop: bool
-    can_yield: bool
 }
 
 // Some convenience accessors from the GenericPass
@@ -102,10 +98,11 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, hint: &Type, error
 }
 
 def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type) {
-    let block = node.u.block
-    block.scope = Scope::new(.scope())
-    let could_yield = .can_yield
-    .can_yield = could_yield or is_expr
+    let block = &node.u.block
+
+    let scope = Scope::new(.scope())
+    scope.can_yield = scope.can_yield or is_expr
+    block.scope = scope
 
     .o.push_scope(block.scope)
     let stmts = block.statements
@@ -126,8 +123,6 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type) {
         yield_span = stmt.span
     }
     .o.pop_scope()
-    .can_yield = could_yield
-
 }
 
 def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
@@ -163,6 +158,30 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
     node.u.call.args.push_front(Argument::new(null, Span::default(), first_arg))
 }
 
+def TypeChecker::check_internal_print(&this, node: &AST): &Type {
+    let args = node.u.call.args
+    if args.size < 1 {
+        .o.error(Error::new(
+            node.span, "Function requires at least one argument"
+        ))
+    }
+    let first = args.at(0) as &Argument
+    let first_type = .check_expression(first.expr, hint: null)
+    if first_type? and not first_type.is_str() {
+        .o.error(Error::new(
+            first.expr.span, `First argument must be a string literal, got {first_type.str()}`
+        ))
+    }
+
+    for let i = 1; i < args.size; i += 1 {
+        let arg = args.at(i) as &Argument
+        .check_expression(arg.expr, hint: null)
+        .call_dbg_on_enum_value(&arg.expr)
+    }
+
+    return .o.get_base_type(Void, node.span)
+}
+
 def TypeChecker::check_call(&this, node: &AST): &Type {
     let callee = node.u.call.callee
     let args = node.u.call.args
@@ -173,12 +192,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         let name = callee.u.ident.name
 
         if name.eq("print") or name.eq("println") {
-            for let i = 0; i < args.size; i += 1 {
-                let arg = args.at(i) as &Argument
-                .check_expression(arg.expr, hint: null)
-                .call_dbg_on_enum_value(&arg.expr)
-            }
-            return .o.get_base_type(Void, node.span)
+            return .check_internal_print(node)
         }
     }
 
@@ -833,8 +847,10 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
 
 
 def TypeChecker::check_while(&this, node: &AST) {
-    let was_in_loop = .in_loop
-    .in_loop = true
+    let scope = Scope::new(.scope())
+    scope.loop_count += 1
+
+    .o.push_scope(scope)
     let cond = node.u.loop.cond
     let body = node.u.loop.body
 
@@ -846,13 +862,13 @@ def TypeChecker::check_while(&this, node: &AST) {
         ))
     }
     .check_statement(body)
-    .in_loop = was_in_loop
+    .o.pop_scope()
 }
 
 def TypeChecker::check_for(&this, node: &AST) {
-    let was_in_loop = .in_loop
-    .o.push_scope(Scope::new(.scope()))
-    .in_loop = true
+    let scope = Scope::new(.scope())
+    scope.loop_count += 1
+    .o.push_scope(scope)
 
     let init = node.u.loop.init
     let cond = node.u.loop.cond
@@ -873,7 +889,8 @@ def TypeChecker::check_for(&this, node: &AST) {
 
     if step? then .check_expression(step, hint: null)
     .check_statement(body)
-    .in_loop = was_in_loop
+
+
     .o.pop_scope()
 }
 
@@ -881,12 +898,13 @@ def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return => {
             // todo: make sure in function
-            if not .cur_func? {
+            let cur_func = .scope().cur_func
+            if not cur_func? {
                 .error(Error::new(node.span, "Cannot return from outside a function"))
                 return
             }
 
-            let expected = .cur_func.return_type
+            let expected = cur_func.return_type
             if expected.base == BaseType::Void {
                 if node.u.unary? {
                     .error(Error::new(node.span, "Cannot return a value from a void function"))
@@ -901,8 +919,9 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
             node.returns = true
         }
+        ASTType::Defer => .check_expression(node.u.unary, hint: null)
         ASTType::Yield => {
-            if not .can_yield {
+            if not .scope().can_yield {
                 .error(Error::new(node.span, "Cannot yield here"))
             }
             node.etype = .check_expression(node.u.unary, hint: null)
@@ -911,7 +930,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             .handle_import_statement(node)
         }
         ASTType::Break | ASTType::Continue => {
-            if not .in_loop {
+            if .scope().loop_count == 0 {
                 .error(Error::new(node.span, `{node.type} statement outside of loop`))
             }
         }
@@ -976,7 +995,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
         new_scope.items.insert(param.sym.name, param.sym)
     }
 
-    .cur_func = func
+    new_scope.cur_func = func
 
     if func.sym.is_extern then return
 
@@ -1180,9 +1199,6 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
 def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
-        cur_func: null,
-        in_loop: false,
-        can_yield: false,
     )
     pass.pre_check_namespace(program.global)
     pass.check_namespace(program.global)
