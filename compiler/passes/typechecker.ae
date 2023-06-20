@@ -1051,6 +1051,16 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         .check_function(ns, func)
     }
 
+    for let i = 0; i < ns.constants.size; i += 1 {
+        let node = ns.constants.at(i) as &AST
+        let init = node.u.var_decl.init
+        if init? {
+            .check_expression(init, hint: null)
+        } else {
+            .error(Error::new(node.span, "Constant must have an initializer"))
+        }
+    }
+
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .check_namespace(iter.value())
     }
@@ -1205,6 +1215,27 @@ def TypeChecker::pre_check_struct(&this, struc: &Structure) {
     }
 }
 
+def TypeChecker::pre_check_globals(&this, node: &AST) {
+    let var = node.u.var_decl.var
+    var.type = .resolve_type(var.type)
+    .o.insert_into_scope_checked(var.sym)
+}
+
+def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
+    .o.push_scope(ns.scope)
+
+    for let i = 0; i < ns.constants.size; i += 1 {
+        let node = ns.constants.at(i) as &AST
+        .pre_check_globals(node)
+    }
+
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        .pre_check_constants(iter.value())
+    }
+
+    .o.pop_scope()
+}
+
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
@@ -1216,6 +1247,11 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .pre_check_struct(struc)
+    }
+
+    for let i = 0; i < ns.variables.size; i += 1 {
+        let node = ns.variables.at(i) as &AST
+        .pre_check_globals(node)
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
@@ -1230,6 +1266,7 @@ def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
     )
+    pass.pre_check_constants(program.global)
     pass.pre_check_namespace(program.global)
     pass.check_namespace(program.global)
 }

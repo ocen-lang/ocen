@@ -36,6 +36,20 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
         .print_indent()
         println(`(enum) {enum_.sym.display}`)
     }
+ 
+    for let i = 0; i < ns.variables.size; i += 1 {
+        let node = ns.variables.at(i) as &AST
+        let var = node.u.var_decl.var
+        .print_indent()
+        println(`(var) {var.sym.display}`)
+    }
+
+    for let i = 0; i < ns.constants.size; i += 1 {
+        let node = ns.constants.at(i) as &AST
+        let var = node.u.var_decl.var
+        .print_indent()
+        println(`(const) {var.sym.display}`)
+    }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         let next = iter.value() as &Namespace

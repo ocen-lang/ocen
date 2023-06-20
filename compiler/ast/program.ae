@@ -34,6 +34,8 @@ struct Namespace {
     functions: &Vector    // Vector<&Function>
     structs: &Vector      // Vector<&Structure>
     enums: &Vector        // Vector<&Enum>
+    constants: &Vector    // Vector<&VarDeclaration>
+    variables: &Vector    // Vector<&VarDeclaration>
     imports: &Vector      // Vector<&AST>
     namespaces: &Map      // Map<string, &Namespace>
 
@@ -65,6 +67,8 @@ def Namespace::new(parent: &Namespace, path: string): &Namespace {
     ns.functions = Vector::new()
     ns.structs = Vector::new()
     ns.enums = Vector::new()
+    ns.constants = Vector::new()
+    ns.variables = Vector::new()
     ns.namespaces = Map::new()
     ns.imports = Vector::new()
     ns.path = path

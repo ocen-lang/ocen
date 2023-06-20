@@ -1,11 +1,11 @@
 /// compile
 
-const X = 1
-const Y = X * 2
-const Z = Y * 4
+const X: i32 = 1
+const Y: i32 = X * 2
+const Z: i32 = Y * 4
 
 struct Foo {
     values: [u8; Z]
 }
 
-def main() => 0
+def main() {}

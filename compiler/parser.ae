@@ -646,6 +646,38 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
     return root
 }
 
+def Parser::parse_global_value(&this, is_const: bool): &AST {
+    let start_token = if is_const {
+        yield .consume(TokenType::Const)
+    } else {
+        yield .consume(TokenType::Let)
+    }
+
+    let node = AST::new(ASTType::VarDeclaration, .token().span)
+    let name = if .token_is(TokenType::Identifier) {
+        yield .consume(TokenType::Identifier)
+    } else {
+        .error(Error::new(.token().span, "Expected identifier"))
+        return node
+    }
+
+    let type = null as &Type
+    if .consume_if(TokenType::Colon) { type = .parse_type(); }
+
+    let var = Variable::new(type)
+    var.sym = Symbol::from_local_variable(name.text, var, name.span)
+
+    node.u.var_decl.var = var
+
+    if .consume_if(TokenType::Equals) {
+        node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
+    } else if is_const {
+        .error(Error::new(start_token.span, "Constant must be initialized"))
+    }
+    .consume_newline_or(TokenType::Semicolon)
+    return node
+}
+
 def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
     let lhs = .parse_relational(end_type)
     while .token_is(TokenType::And) {
@@ -1127,6 +1159,14 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
             Enum => {
                 let enum_value = .parse_enum()
                 if enum_value? then .ns.enums.push(enum_value)
+            }
+            Let => {
+                let var = .parse_global_value(is_const: false)
+                if var? then .ns.variables.push(var)
+            }
+            Const => {
+                let con = .parse_global_value(is_const: true)
+                if con? then .ns.constants.push(con)
             }
             else => {
                 .error(Error::new(.token().span, `Unexpected token '{.token().text} in Parser`))
