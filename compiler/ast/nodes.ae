@@ -119,6 +119,7 @@ struct Structure {
     sym: &Symbol
     fields: &Vector     // Vector<&Variable>
     type: &Type
+    is_union: bool
 }
 
 def Structure::new(): &Structure {

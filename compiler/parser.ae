@@ -1113,10 +1113,17 @@ def Parser::parse_import(&this): &AST {
 }
 
 def Parser::parse_struct(&this): &Structure {
-    .consume(TokenType::Struct)
+    let is_union = if .token_is(TokenType::Union) {
+        .consume(TokenType::Union)
+        yield true
+    } else {
+        .consume(TokenType::Struct)
+        yield false
+    }
 
     let name = .consume(TokenType::Identifier)
     let struc = Structure::new()
+    struc.is_union = is_union
     struc.sym = Symbol::new_with_parent(Structure, .ns.sym, name.text, name.span)
     struc.sym.u.struc = struc
 
@@ -1200,7 +1207,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 .consume(TokenType::CloseCurly)
                 .ns = old_ns
             }
-            Struct => {
+            Struct | Union => {
                 let struc = .parse_struct()
                 if struc? then .ns.structs.push(struc)
             }
@@ -1217,7 +1224,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 if con? then .ns.constants.push(con)
             }
             else => {
-                .error(Error::new(.token().span, `Unexpected token '{.token().text} in Parser`))
+                .error(Error::new(.token().span, `Unexpected token '{.token().text}' in Parser`))
                 .curr += 1
             }
         }
