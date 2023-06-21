@@ -149,7 +149,6 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
     let member = callee.u.member
     let first_arg = member.lhs
 
-    println(`member is pointer: {member.is_pointer:d}, method param base: {method_param.base}`)
     if member.is_pointer and method_param.base != Pointer {
         first_arg = AST::new_unop(ASTType::Dereference, first_arg.span, first_arg)
     } else if not member.is_pointer and method_param.base == Pointer {
@@ -1074,7 +1073,10 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type): &Type {
         Identifier | NSLookup => {
             let sym = .resolve_scoped_identifier(node, hint, error: true)
             if sym.type != SymbolType::Constant {
-                .error(Error::new(node.span, "Expected a constant"))
+                .error(Error::new_hint(
+                    node.span, "Cannot use a non-constant value in a constant expression",
+                    sym.span, "Value was defined here"
+                ))
                 return null
             }
             yield sym.u.var.type
@@ -1121,6 +1123,41 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type): &Type {
     return typ
 }
 
+def TypeChecker::handle_import_path_base(&this, parts: &Vector, base: &Symbol, alias: string, start_idx: i32) {
+    for let i = start_idx; i < parts.size; i += 1 {
+        let part = parts.at(i) as &ImportPart
+
+        match part.type {
+            Wildcard => {
+                .o.import_all_from_symbol(base)
+                return
+            }
+            Multiple => {
+                let paths = part.u.paths
+                for let j = 0; j < paths.size; j += 1 {
+                    let path = paths.at(j) as &Vector
+                    .handle_import_path_base(path, base, null, 0)
+                }
+                return
+            }
+            Single => {} // continue below
+        }
+
+        let name = part.u.single.name
+        alias = part.u.single.alias
+        let new_base = .o.lookup_in_symbol(base, name, error: false)
+
+        if not new_base? {
+            .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
+            return
+        }
+        base = new_base
+    }
+
+    println(`imported symbol {base.display} with type {base.type} into namespace {.o.ns().sym.display}`)
+    .scope().insert(alias, base)
+}
+
 // Insert all the imported items defined in the Import AST statement into the current scope.
 def TypeChecker::handle_import_statement(&this, node: &AST) {
     let path = node.u.import_path
@@ -1130,7 +1167,14 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     //       cases, we just manually import the first part from these different locations, and then
     //       loop over the rest of the parts.
     let part = path.parts.at(0) as &ImportPart
-    let name = part.name
+    if part.type != Single {
+        .error(Error::new(part.span, "Invalid import, first part must be a single identifier"))
+        return
+    }
+
+    let name = part.u.single.name
+    let alias = part.u.single.alias
+
     let base = match path.type {
         FromRootNamespace => {
             yield .o.program.global.find_importable_symbol(name)
@@ -1160,20 +1204,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
-    for let i = 1; i < path.parts.size; i += 1 {
-        let part = path.parts.at(i) as &ImportPart
-        let name = part.name
-        let new_base = .o.lookup_in_symbol(base, name, error: false)
-
-        if not new_base? {
-            .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
-            return
-        }
-        base = new_base
-    }
-
-    println(`imported symbol {base.display} with type {base.type} into namespace {.o.ns().sym.display}`)
-    .scope().insert(base.name, base)
+    .handle_import_path_base(path.parts, base, alias, start_idx: 1)
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {

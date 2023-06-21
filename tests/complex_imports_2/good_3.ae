@@ -1,0 +1,20 @@
+/// out: "baz1\nbaz2\nbaz1\nbaz2"
+
+
+def first() {
+    import .foo::bar::baz::*
+    baz1()
+    baz2()
+}
+
+def second() {
+    import .foo::{bar::baz::baz1, bar::baz::baz2}
+    baz1()
+    baz2()
+}
+
+def main() {
+    first()
+    second()
+}
+

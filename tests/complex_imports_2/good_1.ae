@@ -1,0 +1,27 @@
+/// out: "1 2 3"
+
+namespace m1 {
+    namespace m11 {
+        def foo() {
+            print("1 ")
+        }
+
+        def bar() {
+            print("2 ")
+        }
+    }
+
+    namespace m12 {
+        def baz() {
+            print("3 ")
+        }
+    }
+}
+
+
+def main() {
+    import m1::{m11::*, m12::baz}
+    foo()
+    bar()
+    baz()
+}

@@ -1,0 +1,19 @@
+/// out: "5 0\n6 1"
+
+struct Foo {
+    x: i32
+}
+
+let x = 5
+let y: Foo
+
+def foo() {
+    println(`{x} {y.x}`)
+    x += 1
+    y.x += 1
+}
+
+def main() {
+    foo()
+    foo()
+}

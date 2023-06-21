@@ -6,9 +6,8 @@ use "@/passes/reorder_structs.ae"
 use "@/passes/code_generator.ae"
 
 
-
 def run_all_passes(program: &Program): string {
-    NamespaceDump::run(program) // Debug pass
+    // NamespaceDump::run(program) // Debug pass
 
     RegisterTypes::run(program)
     TypeChecker::run(program)

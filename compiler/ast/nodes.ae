@@ -216,14 +216,32 @@ struct FuncCall {
     added_method_arg: bool
 }
 
-struct ImportPart {
+enum ImportPartType {
+    Single
+    Multiple
+    Wildcard
+}
+
+struct ImportPartSingle {
     name: string
+    alias: string
+    alias_span: Span
+}
+
+union ImportPartUnion {
+    single: ImportPartSingle
+    paths: &Vector    // &Vector<Vector<&ImportPart>>
+}
+
+struct ImportPart {
+    type: ImportPartType
+    u: ImportPartUnion
     span: Span
 }
 
-def ImportPart::new(name: string, span: Span): &ImportPart {
+def ImportPart::new(type: ImportPartType, span: Span): &ImportPart {
     let part = calloc(1, sizeof(ImportPart)) as &ImportPart
-    part.name = name
+    part.type = type
     part.span = span
     return part
 }

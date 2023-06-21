@@ -1,0 +1,9 @@
+/// skip
+
+def baz1() {
+    println("baz1")
+}
+
+def baz2() {
+    println("baz2")
+}

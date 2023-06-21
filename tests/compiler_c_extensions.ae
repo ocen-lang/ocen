@@ -1,0 +1,16 @@
+/// out: "pass"
+
+// This tests to see if we are actually including the headers
+// and linking to the library correctly with the c flags
+
+@compiler c_include "SDL2/SDL.h"
+@compiler c_flag "-lSDL2"
+
+namespace SDL {
+    def init(flags: i32) extern("SDL_Init")
+}
+
+def main() {
+    SDL::init(0)
+    println("pass")
+}

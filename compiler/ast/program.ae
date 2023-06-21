@@ -72,15 +72,13 @@ def Namespace::new(parent: &Namespace, path: string): &Namespace {
     ns.namespaces = Map::new()
     ns.imports = Vector::new()
     ns.path = path
-    // ns.prefix = prefix
     ns.is_a_file = false
-    // ns.span = Span::default()
 
-    if parent? then {
-        println(`Created namespace: {ns.path} with parent {ns.parent.path}`)
-    } else {
-        println(`Created namespace: {ns.path} with no parent`)
-    }
+    // if parent? then {
+    //     println(`Created namespace: {ns.path} with parent {ns.parent.path}`)
+    // } else {
+    //     println(`Created namespace: {ns.path} with no parent`)
+    // }
     return ns
 }
 

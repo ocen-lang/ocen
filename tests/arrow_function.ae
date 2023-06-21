@@ -2,6 +2,8 @@
 
 def add_one(x: i32): i32 => x + 1
 
+def foo(): u8 => 0
+
 struct Foo {
     x: i32
 }
