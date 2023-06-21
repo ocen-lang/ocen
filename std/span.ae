@@ -1,0 +1,41 @@
+struct Location {
+    filename: str
+    line: i32
+    col: i32
+    index: i32
+}
+
+def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}
+
+def Location::is_before(&this, other: Location): bool {
+    if .line > other.line return false
+    if .line < other.line return true
+    return .col <= other.col
+}
+
+struct Span {
+    start: Location
+    end: Location
+}
+
+def Span::str(this): str => `{.start.str()} => {.end.str()}`
+
+def Span::default(): Span {
+    let span: Span
+    span.start = Location(filename: "<default>", line: 0, col: 0, index: 0)
+    span.end = Location(filename: "<default>", line: 0, col: 0, index: 0)
+    return span
+}
+
+// Needs to be called in the correct order!
+def Span::join(this, other: Span): Span {
+    let span: Span
+    span.start = this.start
+    span.end = other.end
+    return span
+}
+
+def Span::contains_loc(this, loc: Location): bool {
+    if not .start.filename.eq(loc.filename) return false
+    return .start.is_before(loc) and loc.is_before(.end)
+}

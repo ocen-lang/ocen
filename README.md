@@ -1,6 +1,6 @@
 # Aecor 2.0
 
-Heavily WIP. Need to have original `aecor` environment setup, [look here](https://github.com/mustafaquraish/aecor).
+Mildly WIP. Actually kind-of usable. Need to have original `aecor` environment setup, [look here](https://github.com/mustafaquraish/aecor).
 
 ## Usage
 

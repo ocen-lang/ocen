@@ -273,6 +273,7 @@ def Parser::parse_format_string(&this): &AST {
         let sub_parser = Parser::make(.program, .ns)
         sub_parser.tokens = tokens
         sub_parser.curr = 0
+        sub_parser.curr_func = .curr_func
 
         let expr = sub_parser.parse_expression(end_type: TokenType::CloseCurly)
         if not sub_parser.token_is(TokenType::EOF) {
@@ -1333,7 +1334,6 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
 }
 
 def Parser::load_file(&this, filename: string) {
-    println(`[+] Including file: {filename}`)
     let file = File::open(filename, "r")
     let contents = file.slurp()
 
