@@ -1,0 +1,188 @@
+// A simple hash-map that maps strs to arbitrary objects.
+
+import std::vector::Vector
+import std::libc::{calloc, realloc, free}
+
+struct MapNode {
+    key: str
+    value: untyped_ptr
+    next: &MapNode
+}
+
+def MapNode::new(key: str, value: untyped_ptr, next: &MapNode): &MapNode {
+    let node = calloc(1, sizeof(MapNode)) as &MapNode
+    node.key = key
+    node.value = value
+    node.next = next
+    return node
+}
+
+def MapNode::free_list(node: &MapNode) {
+    let cur = node
+    while cur? {
+        let next = cur.next
+        free(cur)
+        cur = next
+    }
+}
+
+struct Map {
+    buckets: &&MapNode
+    num_items: u32
+    num_buckets: u32
+    num_collisions: u32
+}
+
+def Map::new(): &Map {
+    let map = calloc(1, sizeof(Map)) as &Map
+    map.num_buckets = 4
+    map.buckets = calloc(map.num_buckets, sizeof(&MapNode)) as &&MapNode
+    return map
+}
+
+def Map::hash(&this, s: str): u32 {
+    let hash = 5381u32
+    let len = s.len()
+    for let i = 0; i < len; i += 1 {
+        hash = hash * 33 ^ s[i] as u32
+    }
+    hash = hash % .num_buckets
+    if hash < 0 {
+        hash += .num_buckets
+    }
+    return hash
+}
+
+def Map::get_node(&this, key: str): &MapNode {
+    let hash = .hash(key)
+    let node = .buckets[hash]
+    while node? {
+        if node.key.eq(key) {
+            return node
+        }
+        node = node.next
+    }
+    return null
+}
+
+def Map::get(&this, key: str): untyped_ptr {
+    let node = .get_node(key)
+    if node? {
+        return node.value
+    }
+    return null
+}
+
+def Map::exists(&this, key: str): bool {
+    return .get_node(key)?
+}
+
+def Map::insert(&this, key: str, value: untyped_ptr) {
+    let node = .get_node(key)
+    if node? {
+        node.value = value
+    } else {
+        let hash = .hash(key)
+        let new_node = MapNode::new(key, value, .buckets[hash])
+        if .buckets[hash]? {
+            .num_collisions += 1
+        }
+        .buckets[hash] = new_node
+        .num_items += 1
+        if .num_items > .num_buckets {
+            .resize()
+        }
+    }
+}
+
+def Map::resize(&this) {
+    let old_buckets = .buckets
+    let old_num_buckets = .num_buckets
+    let old_num_items = .num_items
+    .num_collisions = 0
+    .num_buckets *= 2
+    .buckets = calloc(.num_buckets, sizeof(&MapNode)) as &&MapNode
+    for let i = 0u32; i < old_num_buckets; i += 1 {
+        let node = old_buckets[i]
+        while node? {
+            let new_hash = .hash(node.key)
+            let new_node = MapNode::new(node.key, node.value, .buckets[new_hash])
+            if .buckets[new_hash]? {
+                .num_collisions += 1
+            }
+            .buckets[new_hash] = new_node
+            node = node.next
+        }
+    }
+    for let i = 0u32; i < old_num_buckets; i += 1 {
+        MapNode::free_list(old_buckets[i])
+    }
+    free(old_buckets)
+}
+
+def Map::print_keys(&this) {
+    for let i = 0u32; i < .num_buckets; i += 1 {
+        let node = .buckets[i]
+        while node? {
+            println("- '%s'\n", node.key)
+            node = node.next
+        }
+    }
+}
+
+def Map::push_keys(&this, vec: &Vector) {
+    for let i = 0u32; i < .num_buckets; i += 1 {
+        let node = .buckets[i]
+        while node? {
+            vec.push(node.key)
+            node = node.next
+        }
+    }
+}
+
+def Map::free(&this) {
+    for let i = 0u32; i < .num_buckets; i += 1 {
+        MapNode::free_list(.buckets[i])
+    }
+    free(.buckets)
+}
+
+def Map::iter(&this): MapIterator {
+    return MapIterator::make(this)
+}
+
+struct MapIterator {
+    idx: i32
+    cur: &MapNode
+    map: &Map
+}
+
+def MapIterator::key(&this): str {
+    return .cur.key
+}
+
+def MapIterator::value(&this): untyped_ptr {
+    return .cur.value
+}
+
+def MapIterator::make(map: &Map): MapIterator {
+    let it = MapIterator(idx: -1, cur: null, map)
+    it.next()
+    return it
+}
+
+def MapIterator::next(&this) {
+    while .idx < .map.num_buckets as i32 {
+        while .cur? {
+            .cur = .cur.next
+            if .cur? return
+        }
+        .idx += 1
+        .cur = if .idx < .map.num_buckets as i32 {
+            yield .map.buckets[.idx]
+        } else {
+            yield null
+        }
+        if .cur? return
+    }
+}

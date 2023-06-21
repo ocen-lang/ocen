@@ -1,0 +1,73 @@
+// Type representing a dynamic list of objects.
+//
+// Due to no generics being available, this is NOT type-safe, but rather
+// stored a list of `untyped_ptr`. When pushing / popping an object,
+// manually cast to the correct type.
+import std::libc::{calloc, realloc, free}
+
+
+struct Vector {
+    size: u32
+    capacity: u32
+    data: &untyped_ptr
+}
+
+def Vector::new_sized(capacity: u32): &Vector {
+    let vec = calloc(1, sizeof(Vector)) as &Vector
+    vec.size = 0
+    vec.capacity = capacity
+    vec.data = calloc(vec.capacity, sizeof(untyped_ptr)) as &untyped_ptr
+    return vec
+}
+
+def Vector::new(): &Vector => Vector::new_sized(16)
+
+def Vector::resize(&this, new_capacity: u32) {
+    .capacity = new_capacity
+    .data = realloc(.data ,
+                    .capacity * sizeof(untyped_ptr)) as &untyped_ptr
+}
+
+def Vector::push(&this, val: untyped_ptr) {
+    if .size == .capacity {
+        .resize(.capacity * 2)
+    }
+    .data[.size] = val
+    .size += 1
+}
+
+def Vector::push_front(&this, val: untyped_ptr) {
+    if .size == .capacity {
+        .resize(.capacity * 2)
+    }
+    for let i = .size; i > 0; i -= 1 {
+        .data[i] = .data[i - 1]
+    }
+    .data[0] = val
+    .size += 1
+}
+
+def Vector::pop(&this): untyped_ptr {
+    if .size == 0 then panic("pop on empty vector")
+    .size -= 1
+    return .data[.size]
+}
+
+def Vector::back(&this): untyped_ptr {
+    if .size == 0 then panic("back on empty vector")
+    return .data[.size - 1]
+}
+
+def Vector::at(&this, i: u32): untyped_ptr {
+    if i < 0 or i >= .size {
+        panic("at out of bounds in vector")
+    }
+    return .data[i]
+}
+
+def Vector::empty(&this): bool => .size == 0
+
+def Vector::free(&this) {
+    free(.data)
+    free(this)
+}

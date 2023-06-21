@@ -991,6 +991,12 @@ def CodeGenerator::generate(&this): string {
     .out.puts("}\n")
     .out.puts("\n")
 
+    for let i = 0; i < .o.program.c_includes.size; i += 1 {
+        let include = .o.program.c_includes.at(i) as string
+        .out.putsf(`#include "{include}"\n`)
+    }
+    .out.puts("\n")
+
     .out.puts("/* Enums */\n")
     .gen_enum_types(.o.program.global)
 

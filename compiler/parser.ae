@@ -336,6 +336,70 @@ def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
     return typ
 }
 
+def Parser::parse_call(&this, callee: &AST): &AST {
+    .consume(TokenType::OpenParen)
+    let args = Vector::new()
+    while not .token_is(TokenType::CloseParen) {
+        let label = null as string
+        let label_span = Span::default()
+
+        let expr = .parse_expression(end_type: TokenType::Comma)
+        if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
+            .consume(TokenType::Colon)
+            label = expr.u.ident.name
+            label_span = expr.span
+            expr = .parse_expression(end_type: TokenType::Comma)
+        }
+
+        args.push(Argument::new(label, label_span, expr))
+        if not .token_is(TokenType::CloseParen) {
+            .consume(TokenType::Comma)
+        }
+    }
+
+    let end = .consume(TokenType::CloseParen)
+    let call_type = ASTType::Call
+    let call = AST::new(call_type, callee.span.join(end.span))
+    call.u.call.callee = callee
+    call.u.call.args = args
+    return call
+}
+
+def Parser::parse_global_value(&this, is_const: bool): &AST {
+    let start_token = if is_const {
+        yield .consume(TokenType::Const)
+    } else {
+        yield .consume(TokenType::Let)
+    }
+
+    let node = AST::new(ASTType::VarDeclaration, .token().span)
+    let name = if .token_is(TokenType::Identifier) {
+        yield .consume(TokenType::Identifier)
+    } else {
+        .error(Error::new(.token().span, "Expected identifier"))
+        return node
+    }
+
+    let type = null as &Type
+    if .consume_if(TokenType::Colon) { type = .parse_type(); }
+
+    let var = Variable::new(type)
+    var.sym = Symbol::from_local_variable(name.text, var, name.span)
+    if is_const {
+        var.sym.type = SymbolType::Constant
+    }
+
+    node.u.var_decl.var = var
+
+    if .consume_if(TokenType::Equals) {
+        node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
+    } else if is_const {
+        .error(Error::new(start_token.span, "Constant must be initialized"))
+    }
+    .consume_newline_or(TokenType::Semicolon)
+    return node
+}
+
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node = null as &AST
     match .token().type {
@@ -383,6 +447,23 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             node = .parse_expression(end_type: TokenType::CloseParen)
             .consume(TokenType::CloseParen)
         }
+        TokenType::Dot => {
+            let tok = .consume(TokenType::Dot)
+            let ident = .consume(TokenType::Identifier)
+
+            if not .curr_func? or not .curr_func.is_method or .curr_func.is_static {
+                .error(Error::new(tok.span, "Cannot use dot shorthand outside of a method"))
+                return AST::new(ASTType::Error, tok.span)
+            }
+
+            let lhs = AST::new(ASTType::Identifier, tok.span)
+            lhs.u.ident.name = "this"
+
+            node = AST::new(ASTType::Member, tok.span.join(ident.span))
+            node.u.member.lhs = lhs
+            node.u.member.rhs_name = ident.text
+            node.u.member.rhs_span = ident.span
+        }
         else => {
             .unhandled_type("parse_expression")
             node = AST::new(ASTType::Error, .token().span)
@@ -390,35 +471,6 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         }
     }
     return node
-}
-
-def Parser::parse_call(&this, callee: &AST): &AST {
-    .consume(TokenType::OpenParen)
-    let args = Vector::new()
-    while not .token_is(TokenType::CloseParen) {
-        let label = null as string
-        let label_span = Span::default()
-
-        let expr = .parse_expression(end_type: TokenType::Comma)
-        if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
-            .consume(TokenType::Colon)
-            label = expr.u.ident.name
-            label_span = expr.span
-            expr = .parse_expression(end_type: TokenType::Comma)
-        }
-
-        args.push(Argument::new(label, label_span, expr))
-        if not .token_is(TokenType::CloseParen) {
-            .consume(TokenType::Comma)
-        }
-    }
-
-    let end = .consume(TokenType::CloseParen)
-    let call_type = ASTType::Call
-    let call = AST::new(call_type, callee.span.join(end.span))
-    call.u.call.callee = callee
-    call.u.call.args = args
-    return call
 }
 
 def Parser::parse_postfix(&this, end_type: TokenType): &AST {
@@ -506,24 +558,6 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             let expr = .parse_prefix(end_type)
             let node = AST::new(ASTType::Not, tok.span.join(expr.span))
             node.u.unary = expr
-            return node
-        }
-        TokenType::Dot => {
-            let tok = .consume(TokenType::Dot)
-            let ident = .consume(TokenType::Identifier)
-
-            if not .curr_func? or not .curr_func.is_method or .curr_func.is_static {
-                .error(Error::new(tok.span, "Cannot use dot shorthand outside of a method"))
-                return AST::new(ASTType::Error, tok.span)
-            }
-
-            let lhs = AST::new(ASTType::Identifier, tok.span)
-            lhs.u.ident.name = "this"
-
-            let node = AST::new(ASTType::Member, tok.span.join(ident.span))
-            node.u.member.lhs = lhs
-            node.u.member.rhs_name = ident.text
-            node.u.member.rhs_span = ident.span
             return node
         }
         else => return .parse_postfix(end_type)
@@ -643,41 +677,6 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
     operators.free()
 
     return root
-}
-
-def Parser::parse_global_value(&this, is_const: bool): &AST {
-    let start_token = if is_const {
-        yield .consume(TokenType::Const)
-    } else {
-        yield .consume(TokenType::Let)
-    }
-
-    let node = AST::new(ASTType::VarDeclaration, .token().span)
-    let name = if .token_is(TokenType::Identifier) {
-        yield .consume(TokenType::Identifier)
-    } else {
-        .error(Error::new(.token().span, "Expected identifier"))
-        return node
-    }
-
-    let type = null as &Type
-    if .consume_if(TokenType::Colon) { type = .parse_type(); }
-
-    let var = Variable::new(type)
-    var.sym = Symbol::from_local_variable(name.text, var, name.span)
-    if is_const {
-        var.sym.type = SymbolType::Constant
-    }
-
-    node.u.var_decl.var = var
-
-    if .consume_if(TokenType::Equals) {
-        node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
-    } else if is_const {
-        .error(Error::new(start_token.span, "Constant must be initialized"))
-    }
-    .consume_newline_or(TokenType::Semicolon)
-    return node
 }
 
 def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
@@ -1223,11 +1222,33 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 let con = .parse_global_value(is_const: true)
                 if con? then .ns.constants.push(con)
             }
+            AtSign => .parse_compiler_option()
             else => {
                 .error(Error::new(.token().span, `Unexpected token '{.token().text}' in Parser`))
                 .curr += 1
             }
         }
+    }
+}
+
+def Parser::parse_compiler_option(&this) {
+    .consume(TokenType::AtSign)
+    let compiler = .consume(TokenType::Identifier)
+    if not compiler.text.eq("compiler") {
+        .error(Error::new(compiler.span, "Expected 'compiler'"))
+    }
+
+    let name = .consume(TokenType::Identifier)
+    match name.text {
+        "c_include" => {
+            let filename = .consume(TokenType::StringLiteral)
+            .program.c_includes.push(filename.text)
+        }
+        "c_flag" => {
+            let flag = .consume(TokenType::StringLiteral)
+            .program.c_flags.push(flag.text)
+        }
+        else => .error(Error::new(name.span, "Unknown compiler option"))
     }
 }
 

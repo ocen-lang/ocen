@@ -1,0 +1,18 @@
+/// out: "3"
+
+
+import std::vector::Vector
+
+
+def foo(v: &Vector) {
+    v.push(null)
+}
+
+def main() {
+    let my_vector = Vector::new()
+    foo(my_vector)
+    foo(my_vector)
+    foo(my_vector)
+
+    println(`{my_vector.size}`)
+}
