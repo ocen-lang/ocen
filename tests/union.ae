@@ -1,0 +1,15 @@
+/// out: "int = 1085276160"
+
+
+union U {
+    i: i32,
+    f: f32,
+}
+
+
+def main() {
+    let u: U
+    u.f = 5.5
+
+    println(`int = {u.i}`)
+}

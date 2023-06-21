@@ -11,7 +11,7 @@ enum SymbolType {
     Constant
 }
 
-struct SymbolUnion {
+union SymbolUnion {
     func: &Function
     struc: &Structure
     enum_: &Enum

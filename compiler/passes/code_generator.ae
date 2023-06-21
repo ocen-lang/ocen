@@ -909,7 +909,11 @@ def CodeGenerator::gen_enum(&this, enum_: &Enum) {
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
     let struc_name = struc.sym.out_name
-    .out.putsf(`struct {struc_name} \{\n`)
+    if struc.is_union {
+        .out.putsf(`union {struc_name} \{\n`)
+    } else {
+        .out.putsf(`struct {struc_name} \{\n`)
+    }
     let fields = struc.fields
     for let j = 0; j < fields.size; j += 1 {
         let field = fields.at(j) as &Variable
@@ -931,7 +935,11 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
         if struc.sym.is_extern then continue
 
         let struc_name = struc.sym.out_name
-        .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
+        if struc.is_union {
+            .out.putsf(`typedef union {struc_name} {struc_name};\n`)
+        } else {
+            .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
+        }
     }
 
     .out.puts("\n/* Struct definitions */\n")

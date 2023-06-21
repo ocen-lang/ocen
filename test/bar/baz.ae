@@ -1,8 +1,0 @@
-import foo
-import .extra
-
-def do_baz(): i32 {
-    foo::do_foo()
-    extra::do_extra()
-    return 5
-}
