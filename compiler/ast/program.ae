@@ -10,6 +10,9 @@ struct Program {
 
     errors: &Vector // Vector<&Error>
     error_level: i32
+
+    c_includes: &Vector // Vector<str>
+    c_flags: &Vector // Vector<str>
 }
 
 def Program::new(): &Program {
@@ -20,6 +23,8 @@ def Program::new(): &Program {
     prog.global.sym.u.ns = prog.global
     prog.error_level = 1
     prog.errors = Vector::new()
+    prog.c_includes = Vector::new()
+    prog.c_flags = Vector::new()
     return prog
 }
 

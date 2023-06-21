@@ -424,6 +424,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
     let is_pointer = false
     if lhs.base == BaseType::Pointer {
         is_pointer = true
+        println("pointer %s", lhs.str())
         lhs = lhs.u.ptr
     }
 
@@ -1036,14 +1037,27 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
     .o.pop_scope()
 }
 
+def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
+    .o.push_namespace(ns)
+    .o.push_scope(ns.scope)
+
+    let imports = ns.imports
+    for let i = 0; i < imports.size; i += 1 {
+        let import = imports.at(i) as &AST
+        .handle_import_statement(import)
+    }
+
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        .handle_namespace_imports(iter.value())
+    }
+
+    .o.pop_scope()
+    .o.pop_namespace()
+}
+
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
-
-    for let i = 0; i < ns.imports.size; i += 1 {
-        let import = ns.imports.at(i) as &AST
-        .handle_import_statement(import)
-    }
 
     for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
@@ -1267,23 +1281,6 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
         let item = func.sym
         .o.insert_into_scope_checked(item)
     }
-
-    func.return_type = .resolve_type(func.return_type)
-    if not func.return_type? {
-        func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
-    }
-
-    let params = func.params
-    for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i) as &Variable
-        param.type = .resolve_type(param.type)
-    }
-
-    // A function keeps track of a type that represents an equivalent function pointer type
-    // This is used for type checking function calls
-    let typ = Type::new_resolved(Function, func.sym.span)
-    typ.u.func = FunctionType::from_func(func)
-    func.type = typ
 }
 
 def TypeChecker::pre_check_struct(&this, struc: &Structure) {
@@ -1297,6 +1294,42 @@ def TypeChecker::pre_check_struct(&this, struc: &Structure) {
             field.type = res
         }
     }
+}
+
+def TypeChecker::check_function_declaration(&this, func: &Function) {
+    func.return_type = .resolve_type(func.return_type)
+    if not func.return_type? {
+        func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
+    } else {
+        println(`return type of {func.sym.display} is {func.return_type.str()}`)
+    }
+
+    let params = func.params
+    for let i = 0; i < params.size; i += 1 {
+        let param = params.at(i) as &Variable
+        param.type = .resolve_type(param.type)
+    }
+    
+    // A function keeps track of a type that represents an equivalent function pointer type
+    // This is used for type checking function calls
+    let typ = Type::new_resolved(Function, func.sym.span)
+    typ.u.func = FunctionType::from_func(func)
+    func.type = typ
+}
+
+def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
+    .o.push_scope(ns.scope)
+
+    for let i = 0; i < ns.functions.size; i += 1 {
+        let func = ns.functions.at(i) as &Function
+        .check_function_declaration(func)
+    }
+
+    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+        .check_function_declarations(iter.value())
+    }
+
+    .o.pop_scope()
 }
 
 def TypeChecker::pre_check_globals(&this, node: &AST) {
@@ -1352,5 +1385,7 @@ def TypeChecker::run(program: &Program) {
     )
     pass.pre_check_constants(program.global)
     pass.pre_check_namespace(program.global)
+    pass.handle_namespace_imports(program.global)
+    pass.check_function_declarations(program.global)
     pass.check_namespace(program.global)
 }

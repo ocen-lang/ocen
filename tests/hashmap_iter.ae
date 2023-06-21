@@ -1,9 +1,8 @@
 /// out: "PASS"
 
-use "lib/map.ae"
 
 def main() {
-    let map = Map::new()
+    let map = std::map::Map::new()
 
     map.insert("key1", "value1")
     map.insert("key2", "value2")
@@ -22,11 +21,11 @@ def main() {
     map.insert("key15", "value15")
     map.insert("key16", "value16")
 
-    let count = 0
+    let count = 0u32
     for let iter = map.iter(); iter.cur?; iter.next() {
         count += 1
     }
-    if count == map.num_buckets {
+    if count == map.num_items {
         println("PASS")
     } else {
         println("FAIL")
