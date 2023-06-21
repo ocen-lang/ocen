@@ -1,0 +1,8 @@
+/// out: "2"
+
+const X = 1
+const Y = X + 1
+
+def main() {
+    println(`{Y}`)
+}

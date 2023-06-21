@@ -1,0 +1,5 @@
+/// fail: Wildcard import is not allowed from non-module
+
+import .foo::*
+
+def main() {}

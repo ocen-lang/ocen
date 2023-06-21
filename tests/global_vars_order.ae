@@ -1,0 +1,17 @@
+/// out: "3"
+
+// Note: we should be generating global vars in an order such that
+// their's dependencies are generated first.  This is not
+// guaranteed by the current implementation.
+
+// This particular example is a little goofy, but it's possible that
+// inter-namespace depencies could be generated in the wrong order in
+// an actual program.
+
+let Y: i32 = X + Z
+let X: i32 = 1
+const Z: i32 = 2
+
+def main() {
+    println(`{Y}`)
+}

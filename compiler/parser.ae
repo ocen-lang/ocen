@@ -237,7 +237,6 @@ def Parser::parse_format_string(&this): &AST {
                 return null
             }
 
-        // FIXME: Should this use semicolons?
         } else if fstr.text[i] == ':' and fstr.text[i - 1] != '\\' {
             // TODO: Handle errors properly
             if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
@@ -1012,6 +1011,65 @@ def Parser::parse_extern_into_symbol(&this, sym: &Symbol) {
     }
 }
 
+def Parser::parse_import_path(&this): &Vector { // &Vector<&ImportPart>
+    let parts = Vector::new()
+
+    while true {
+        let done = false
+        if .token().is_word() {
+            let word = .token()
+            .curr += 1
+
+            let part = ImportPart::new(Single, word.span)
+            part.u.single.name = word.text
+            part.u.single.alias = word.text
+            part.u.single.alias_span = word.span
+
+            if .consume_if(TokenType::As) {
+                let alias = .consume(TokenType::Identifier)
+                part.u.single.alias = alias.text
+                part.u.single.alias_span = alias.span
+                done = true
+            }
+
+            parts.push(part)
+
+        } else if .token_is(TokenType::Star) {
+            let tok = .consume(TokenType::Star)
+
+            let part = ImportPart::new(Wildcard, tok.span)
+            parts.push(part)
+            done = true
+
+        } else if .token_is(TokenType::OpenCurly) {
+            let open = .consume(TokenType::OpenCurly)
+
+            let sub_paths = Vector::new()
+            while not .token_is(TokenType::CloseCurly) {
+                let sub_path = .parse_import_path()
+                if not sub_path? return null
+
+                sub_paths.push(sub_path)
+                if not .consume_if(TokenType::Comma) break
+            }
+            let close = .consume(TokenType::CloseCurly)
+
+            let part = ImportPart::new(Multiple, open.span.join(close.span))
+            part.u.paths = sub_paths
+            parts.push(part)
+            done = true
+
+        } else {
+            .error(Error::new(.token().span, "Expected identifier"))
+            return null
+        }
+
+        if done break
+        if not .consume_if(TokenType::ColonColon) break
+    }
+    return parts
+}
+
 def Parser::parse_import(&this): &AST {
     let span = .token().span
     .consume(TokenType::Import)
@@ -1036,25 +1094,12 @@ def Parser::parse_import(&this): &AST {
         parent_count -= 1
     }
 
-    let parts = Vector::new()
-    while true {
-        if .token().is_word() {
-            let word = .token()
-            .curr += 1
-
-            span = span.join(word.span)
-            parts.push(ImportPart::new(word.text, word.span))
-            if not .consume_if(TokenType::ColonColon) break
-
-        } else {
-            .error(Error::new(.token().span, "Expected identifier"))
-            return null
-        }
-    }
+    let parts = .parse_import_path()
+    if not parts? return null
 
     if parts.size == 0 {
         .error(Error::new(span, "Invalid import statement"))
-        return AST::new(ASTType::Error, span)
+        return null
     }
 
     let node = AST::new(ASTType::Import, span)
@@ -1179,6 +1224,59 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
     }
 }
 
+def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace): bool {
+    for let i = 0; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
+        let part = parts.at(i) as &ImportPart
+
+        match part.type {
+            Wildcard => {
+                .error(Error::new(part.span, `Wildcard import is not allowed from non-module`))
+                return false
+            }
+            Multiple => {
+                let paths = part.u.paths
+                let success = true
+                for let i = 0; i < paths.size; i += 1 {
+                    let path = paths.at(i) as &Vector
+                    success = .load_import_path_from_base(path, base) and success
+                }
+                return success
+            }
+            Single => {} // continue below
+        }
+
+        let part_name = part.u.single.name
+        let next = base.namespaces.get(part_name) as &Namespace
+
+        let part_path = `{base.path}/{part_name}`
+        if not next? {
+            let dir_exists = directory_exists(part_path)
+            let path = `{base.path}/{part_name}.ae`
+            let file_exists = File::exists(path)
+
+            if not dir_exists and not file_exists {
+                .error(Error::new(part.span, `Could not find import path {part_path}(.ae)`))
+                .program.exit_with_errors()
+            }
+
+            next = Namespace::new(parent: base, path: part_path)
+            next.sym = Symbol::new_with_parent(Namespace, base.sym, part_name, part.span)
+            next.sym.u.ns = next
+
+            base.namespaces.insert(part_name, next)
+
+            if file_exists {
+                let parser = Parser::make(.program, next)
+                parser.load_file(path.copy())
+            }
+            free(path)
+        }
+
+        base = next
+    }
+    return true
+}
+
 def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let path = &import_stmt.u.import_path
 
@@ -1203,38 +1301,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
         }
     }
 
-    for let i = 0; i < path.parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
-        let part = path.parts.at(i) as &ImportPart
-        let next = base.namespaces.get(part.name) as &Namespace
-
-        let part_path = `{base.path}/{part.name}`
-        if not next? {
-            let dir_exists = directory_exists(part_path)
-            let path = `{base.path}/{part.name}.ae`
-            let file_exists = File::exists(path)
-
-            if not dir_exists and not file_exists {
-                .error(Error::new(part.span, `Could not find import path {part_path}(.ae)`))
-                .program.exit_with_errors()
-            }
-
-            next = Namespace::new(parent: base, path: part_path)
-            next.sym = Symbol::new_with_parent(Namespace, base.sym, part.name, part.span)
-            next.sym.u.ns = next
-
-            base.namespaces.insert(part.name, next)
-
-            if file_exists {
-                let parser = Parser::make(.program, next)
-                parser.load_file(path.copy())
-            }
-            free(path)
-        }
-
-        base = next
-    }
-
-    return true
+    return .load_import_path_from_base(path.parts, base)
 }
 
 def Parser::load_file(&this, filename: string) {
@@ -1262,7 +1329,7 @@ def Parser::parse_toplevel(filename: string, program: &Program) {
     // FIXME: hack
     base.remove_last_n(3)
 
-    let std_ns = Namespace::new(parent: program.global, path: "./std/")
+    let std_ns = Namespace::new(parent: program.global, path: "./std")
     std_ns.sym = Symbol::new_with_parent(Namespace, program.global.sym, "std", Span::default())
     std_ns.sym.u.ns = std_ns
 

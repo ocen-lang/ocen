@@ -1,0 +1,11 @@
+/// compile
+
+// Note: we should be generating constants in an order such that
+// the constant's dependencies are generated first.  This is not
+// guaranteed by the current implementation.
+
+// This particular example is a little goofy, but it's possible that
+// inter-namespace depencies could be generated in the wrong order in
+// an actual program.
+const Y: i32 = X + 1
+const X: i32 = 1
