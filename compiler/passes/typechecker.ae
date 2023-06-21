@@ -70,18 +70,20 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, hint: &Type, error
         }
         ASTType::Identifier => {
             let name = node.u.ident.name
-            let res = .scope().lookup_recursive(name)
+            let res = null as &Symbol
 
             // If we know that the type of this identifier is supposed to be a particular enum,
             // then we can look up the field in that enum implicitly.
-            if not res? and hint? {
-                if hint.base == Enum {
-                    let enum_ = hint.u.enum_
-                    let field = enum_.get_field(name) as &Variable
-                    if field? {
-                        res = field.sym
-                    }
+            if hint? and hint.base == Enum {
+                let enum_ = hint.u.enum_
+                let field = enum_.get_field(name) as &Variable
+                if field? {
+                    res = field.sym
                 }
+            }
+
+            if not res? {
+                res = .scope().lookup_recursive(name)
             }
 
             node.resolved_symbol = res
@@ -211,8 +213,8 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector) {
             }
 
             let arg_type = .check_expression(arg.expr, hint: param.type)
-            if arg_type? and not arg_type.eq(param.type) {
-                println(`span is {arg.expr.span.str()}`)
+            if not arg_type? then continue
+            if not arg_type.eq(param.type) {
                 .error(Error::new(arg.expr.span, `Argument {param.sym.name} has type {arg_type.str()} but expected {param.type.str()}`))
             }
 
@@ -424,7 +426,6 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
     let is_pointer = false
     if lhs.base == BaseType::Pointer {
         is_pointer = true
-        println("pointer %s", lhs.str())
         lhs = lhs.u.ptr
     }
 
@@ -517,6 +518,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::IsNotNull => {
             let typ = .check_expression(node.u.unary, hint: null)
             if not typ? return null
+            typ = typ.unaliased()
             if typ.base != BaseType::Pointer {
                 .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
             }
@@ -707,6 +709,7 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
         let name: string
 
         let cond_type = .check_expression(cond, hint: enum_.type)
+        if not cond_type? then continue
         if not cond_type.eq(enum_.type) {
             .error(Error::new_hint(
                 cond.span, "Condition does not match expression type",
@@ -1168,7 +1171,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector, base: &Symbol, a
         base = new_base
     }
 
-    println(`imported symbol {base.display} with type {base.type} into namespace {.o.ns().sym.display}`)
+    // println(`imported symbol {base.display} with type {base.type} into namespace {.o.ns().sym.display}`)
     .scope().insert(alias, base)
 }
 
@@ -1283,7 +1286,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     }
 }
 
-def TypeChecker::pre_check_struct(&this, struc: &Structure) {
+def TypeChecker::check_struct(&this, struc: &Structure) {
     let fields = struc.fields
     for let i = 0; i < fields.size; i += 1 {
         let field = fields.at(i) as &Variable
@@ -1300,8 +1303,6 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     func.return_type = .resolve_type(func.return_type)
     if not func.return_type? {
         func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
-    } else {
-        println(`return type of {func.sym.display} is {func.return_type.str()}`)
     }
 
     let params = func.params
@@ -1323,6 +1324,11 @@ def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
     for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         .check_function_declaration(func)
+    }
+    
+    for let i = 0; i < ns.structs.size; i += 1 {
+        let struc = ns.structs.at(i) as &Structure
+        .check_struct(struc)
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
@@ -1359,11 +1365,6 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         .pre_check_function(ns, func)
-    }
-
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i) as &Structure
-        .pre_check_struct(struc)
     }
 
     for let i = 0; i < ns.variables.size; i += 1 {

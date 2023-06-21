@@ -5,6 +5,7 @@ def realloc(old: untyped_ptr, size: u32): untyped_ptr extern
 def calloc(size: u32, elem_size: u32): untyped_ptr extern
 def free(ptr: untyped_ptr) extern
 def exit(code: i32) extern
+def getenv(name: str): str extern
 
 // stdio
 def fopen(name: str, mode: str): &std::File extern
@@ -19,3 +20,11 @@ def strcpy(dst: str, src: str): str extern
 def strcat(dst: str, src: str): str extern
 def strstr(haystack: str, needle: str): str extern
 def strchr(s: str, c: i32): str extern
+def strsep(str: &str, delim: str): str extern
+def memcpy(dest: untyped_ptr, src: untyped_ptr, size: i32) extern
+
+// ctype
+@compiler c_include "ctype.h"
+def isdigit(c: char): bool extern
+def isalpha(c: char): bool extern
+def isalnum(c: char): bool extern

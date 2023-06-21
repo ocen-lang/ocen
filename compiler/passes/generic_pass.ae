@@ -124,11 +124,15 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string, error: bool
     SymbolType::Enum => {
         let enum_ = sym.u.enum_
         let field = enum_.get_field(name) as &Variable
-        if error and not field? {
-            .error(Error::new(sym.span, `Could not find field {name} in enum {sym.display}`))
+        if field? then return field.sym
+
+        let method = enum_.type.methods.get(name) as &Function
+        if method? then return method.sym
+
+        if error {
+            .error(Error::new(sym.span, `Could not find value/method {name} in enum {sym.display}`))
         }
-        if not field? return null
-        yield field.sym
+        return null
     }
     else => {
         .error(Error::new(sym.span, `Can't lookup a name inside a {sym.type}`))

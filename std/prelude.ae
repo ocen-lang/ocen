@@ -1,6 +1,7 @@
 import .libc
 import .vector
 import .map
+import .span
 
 struct File extern("FILE")
 
@@ -22,6 +23,12 @@ def File::write(&this, buf: untyped_ptr, size: i32): i32 {
     return libc::fwrite(buf, 1, size, this)
 }
 
+def File::slurp(&this): str {
+    // TODO
+    println("TODO: File::slurp")
+    return ""
+}
+
 def exit(code: i32) exits extern
 
 def panic(msg: str) exits {
@@ -29,5 +36,19 @@ def panic(msg: str) exits {
     exit(1)
 }
 
+def str::to_i32(this): i32 extern("atoi")
 def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
 def str::len(this): i32 => libc::strlen(this)
+
+def str::substring(this, start: i32, len: i32): str {
+    let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str
+    libc::memcpy(new_str, &this[start], len)
+    return new_str
+}
+
+def char::is_digit(this): bool => libc::isdigit(this)
+def char::is_alpha(this): bool => libc::isalpha(this)
+def char::is_alnum(this): bool => libc::isalnum(this)
+
+def min(a: i32, b: i32): i32 => if a < b then a else b
+def max(a: i32, b: i32): i32 => if a > b then a else b
