@@ -1,0 +1,409 @@
+import std::vector::Vector
+import std::map::Map
+import std::span::Span
+import std::libc::calloc
+import @tokens::TokenType
+import @ast::scopes::{ Scope, Symbol }
+import @ast::program::Namespace
+import @types::Type
+
+enum ASTType {
+    Block
+    BoolLiteral
+    Break
+    Call
+    Constant
+    Continue
+    Error
+    Identifier
+    If
+    Import
+    IntLiteral
+    Member
+    NSLookup
+    Return
+    Yield
+    StringLiteral
+    SizeOf
+    VarDeclaration
+    While
+    For
+    CharLiteral
+    FloatLiteral
+    FormatStringLiteral
+    IsNotNull //  ptr? operator
+    Cast
+    Null
+    MethodCall
+    Match
+    Index
+    Defer
+
+    // Unary operators
+    Address
+    Dereference
+    Negate
+    Not
+
+    // Binary operators
+    And
+    Assignment
+    BitwiseAnd
+    BitwiseNot
+    BitwiseOr
+    BitwiseXor
+    Divide
+    DivideEquals
+    Equals
+    GreaterThan
+    GreaterThanEquals
+    LeftShift
+    LessThan
+    LessThanEquals
+    Minus
+    MinusEquals
+    Modulus
+    Multiply
+    MultiplyEquals
+    NotEquals
+    Or
+    Plus
+    PlusEquals
+    RightShift
+}
+
+def ASTType::from_token(type: TokenType): ASTType => match type {
+    Ampersand => ASTType::BitwiseAnd
+    And => ASTType::And
+    Caret => ASTType::BitwiseXor
+    EqualEquals => ASTType::Equals
+    Equals => ASTType::Assignment
+    GreaterThan => ASTType::GreaterThan
+    GreaterThanEquals => ASTType::GreaterThanEquals
+    GreaterThanGreaterThan => ASTType::RightShift
+    LessThan => ASTType::LessThan
+    LessThanEquals => ASTType::LessThanEquals
+    LessThanLessThan => ASTType::LeftShift
+    Line => ASTType::BitwiseOr
+    Minus => ASTType::Minus
+    MinusEquals => ASTType::MinusEquals
+    NotEquals => ASTType::NotEquals
+    Or => ASTType::Or
+    Percent => ASTType::Modulus
+    Plus => ASTType::Plus
+    PlusEquals => ASTType::PlusEquals
+    Slash => ASTType::Divide
+    SlashEquals => ASTType::DivideEquals
+    Star => ASTType::Multiply
+    StarEquals => ASTType::MultiplyEquals
+    Tilde => ASTType::BitwiseNot
+    else => std::panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
+}
+
+struct Variable {
+    sym: &Symbol
+    type: &Type
+
+    // Only for functions, FIXMNE: move to `Parameter` type?
+    default_value: &AST
+}
+
+def Variable::new(type: &Type): &Variable {
+    let var = calloc(1, sizeof(Variable)) as &Variable
+    var.type = type
+    return var
+}
+
+struct VarDeclaration {
+    var: &Variable
+    init: &AST
+}
+
+struct Structure {
+    sym: &Symbol
+    fields: &Vector     // Vector<&Variable>
+    type: &Type
+    is_union: bool
+}
+
+def Structure::new(): &Structure {
+    let struc = calloc(1, sizeof(Structure)) as &Structure
+    struc.fields = Vector::new()
+    return struc
+}
+
+def Structure::get_field(&this, name: str): &Variable {
+    for let i = 0; i < .fields.size as i32; i += 1 {
+        let field = .fields.at(i as u32) as &Variable
+        if field.sym.name.eq(name) {
+            return field
+        }
+    }
+    return null
+}
+
+struct Enum {
+    sym: &Symbol
+    fields: &Vector     // Vector<&Variable>
+    type: &Type
+}
+
+def Enum::new(): &Enum {
+    let enum_ = calloc(1, sizeof(Enum)) as &Enum
+    enum_.fields = Vector::new()
+    return enum_
+}
+
+def Enum::get_field(&this, name: str): &Variable {
+    for let i = 0; i < .fields.size as i32; i += 1 {
+        let field = .fields.at(i as u32) as &Variable
+        if field.sym.name.eq(name) {
+            return field
+        }
+    }
+    return null
+}
+
+struct Function {
+    sym: &Symbol
+    params: &Vector     // Vector<&Variable>
+    return_type: &Type
+    body: &AST
+    exits: bool
+
+    type: &Type
+
+    is_method: bool
+    is_static: bool
+    parent_type: &Type
+}
+
+def Function::new(): &Function {
+    let func = calloc(1, sizeof(Function)) as &Function
+    func.params = Vector::new()
+    return func
+}
+
+
+struct Block {
+    statements: &Vector     // Vector<&AST>
+    scope: &Scope
+}
+
+struct Identifier {
+    name: str
+    var: &Variable
+    is_function: bool
+    func: &Function
+}
+
+struct Argument {
+    expr: &AST
+    label: str // Identifier
+    label_span: Span
+}
+
+def Argument::new(label: str, label_span: Span, expr: &AST): &Argument {
+    let arg = calloc(1, sizeof(Argument)) as &Argument
+    arg.expr = expr
+    arg.label = label
+    arg.label_span = label_span
+    return arg
+}
+
+struct FuncCall {
+    callee: &AST
+    args: &Vector    // Vector<&Argument>
+    func: &Function
+
+    is_constructor: bool
+    is_function_pointer: bool
+    added_method_arg: bool
+}
+
+enum ImportPartType {
+    Single
+    Multiple
+    Wildcard
+}
+
+struct ImportPartSingle {
+    name: str
+    alias: str
+    alias_span: Span
+}
+
+union ImportPartUnion {
+    single: ImportPartSingle
+    paths: &Vector    // &Vector<Vector<&ImportPart>>
+}
+
+struct ImportPart {
+    type: ImportPartType
+    u: ImportPartUnion
+    span: Span
+}
+
+def ImportPart::new(type: ImportPartType, span: Span): &ImportPart {
+    let part = calloc(1, sizeof(ImportPart)) as &ImportPart
+    part.type = type
+    part.span = span
+    return part
+}
+
+enum ImportType {
+    FromCurrentScope
+    FromParentNamespace
+    FromRootNamespace
+}
+
+struct Import {
+    parts: &Vector    // &Vector<ImportPart>
+
+    type: ImportType
+    // For FromParentNamespace imports, we might have something like `import ..foo`, in which
+    // case we need to know how namespace levels to go up.
+    parent_count: i32
+}
+
+struct NumLiteral {
+    text: str
+    suffix: &Type
+}
+
+struct Binary {
+    lhs: &AST
+    rhs: &AST
+}
+
+struct NSLookup {
+    lhs: &AST
+    rhs_name: str
+    rhs_span: Span
+}
+
+struct Member {
+    lhs: &AST
+    rhs_name: str
+    rhs_span: Span
+    is_pointer: bool
+}
+
+struct IfStatement {
+    cond: &AST
+    body: &AST
+    els: &AST
+}
+
+struct Loop {
+    init: &AST
+    cond: &AST
+    step: &AST
+    body: &AST
+}
+
+struct Cast {
+    lhs: &AST
+    to: &Type
+}
+
+struct FormatString {
+    parts: &Vector    // Vector<str>
+    specs: &Vector    // Vector<str>
+    exprs: &Vector    // Vector<&AST>
+}
+
+
+struct MatchCase {
+    cond: &AST
+    body: &AST
+}
+
+def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
+    let _case = calloc(1, sizeof(MatchCase)) as &MatchCase
+    _case.cond = cond
+    _case.body = body
+    return _case
+}
+
+struct Match {
+    expr: &AST
+    cases: &Vector  // Vector<&MatchCase>
+    defolt: &AST
+    defolt_span: Span
+}
+
+union ASTUnion {
+    binary: Binary
+    block: Block
+    bool_literal: bool
+    call: FuncCall
+    cast: Cast
+    ident: Identifier
+    if_stmt: IfStatement
+    import_path: Import
+    lookup: NSLookup
+    loop: Loop
+    member: Member
+    num_literal: NumLiteral
+    string_literal: str
+    char_literal: str
+    unary: &AST
+    var_decl: VarDeclaration
+    fmt_str: FormatString
+    size_of_type: &Type
+    match_stmt: Match
+}
+
+struct AST {
+    type: ASTType
+    span: Span
+    u: ASTUnion
+
+    // Resolved by type checker
+    etype: &Type
+    resolved_symbol: &Symbol
+    returns: bool
+}
+
+def AST::new(type: ASTType, span: Span): &AST {
+    let ast = calloc(1, sizeof(AST)) as &AST
+    ast.type = type
+    ast.span = span
+    return ast
+}
+
+def AST::new_unop(type: ASTType, span: Span, expr: &AST): &AST {
+    let ast = AST::new(type, span)
+    ast.u.unary = expr
+    return ast
+}
+
+def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
+    let span = lhs.span.join(rhs.span)
+    let ast = AST::new(type, span)
+    ast.u.binary.lhs = lhs
+    ast.u.binary.rhs = rhs
+    return ast
+}
+
+def AST::is_identifier(&this): bool => match .type {
+    Identifier => true
+    NSLookup => true
+    else => false
+}
+
+def AST::symbol(&this): &Symbol => match .type {
+    Identifier => .resolved_symbol
+    NSLookup => .resolved_symbol
+    else => null
+}
+
+def AST::is_lvalue(&this): bool => match .type {
+    // FIXME: What about `a::b::c?`
+    Identifier => not .u.ident.is_function
+    Member => true
+    Dereference => true
+    Index => true
+    else => false
+}
