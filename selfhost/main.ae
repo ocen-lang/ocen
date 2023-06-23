@@ -2,5 +2,9 @@ import .tokens
 import .utils
 import .errors
 import .lexer
+import .ast::nodes
+import .types
+import .ast::scopes
+import .ast::program
 
 def main() {}
