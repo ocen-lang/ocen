@@ -168,9 +168,9 @@ def Type::eq(&this, other: &Type): bool {
             let bf = other.u.func
             if not af.return_type.eq(bf.return_type) return false
             if af.params.size != bf.params.size return false
-            for let i = 0; i < af.params.size as i32; i += 1 {
-                let a = af.params.at(i as u32) as &Variable
-                let b = bf.params.at(i as u32) as &Variable
+            for let i = 0u32; i < af.params.size; i += 1 {
+                let a = af.params.at(i) as &Variable
+                let b = bf.params.at(i) as &Variable
                 if not a.type.eq(b.type) return false
             }
             return true

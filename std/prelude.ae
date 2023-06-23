@@ -2,10 +2,11 @@ import .libc
 import .vector
 import .map
 import .span
+import .buffer
 
 struct File extern("FILE")
 
-def File::open(path: str, mode: str): &File {
+def File::open(path: str, mode: str = "r"): &File {
     let file = libc::fopen(path, mode)
     if not file? {
         panic(`failed to open file: {path}`)
@@ -24,9 +25,31 @@ def File::write(&this, buf: untyped_ptr, size: i32): i32 {
 }
 
 def File::slurp(&this): str {
-    // TODO
-    println("TODO: File::slurp")
-    return ""
+    let buf = libc::calloc(1, 1) as str
+    let len = 0u32
+    while true {
+        let read = this.read(buf + len, 1)
+        if read == 0 {
+            break
+        }
+        len += read as u32
+        buf = libc::realloc(buf, len + 1u32) as str
+    }
+    buf[len] = '\0'
+    return buf
+}
+
+def File::exists(path: str): bool {
+    let file = libc::fopen(path, "r")
+    if not file? {
+        return false
+    }
+    file.close()
+    return true
+}
+
+def File::puts(&this, s: str) {
+    libc::fwrite(s , 1, s.len(), this)
 }
 
 def exit(code: i32) exits extern
@@ -39,11 +62,25 @@ def panic(msg: str) exits {
 def str::to_i32(this): i32 extern("atoi")
 def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
 def str::len(this): i32 => libc::strlen(this)
+def str::concat(this, src: str) extern("strcat")
+
+def str::copy(this): str extern("strdup")
 
 def str::substring(this, start: i32, len: i32): str {
     let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str
     libc::memcpy(new_str, &this[start], len)
     return new_str
+}
+
+def str::strip_trailing_whitespace(this) {
+    for let i = .len() - 1; i >= 0; i -= 1 {
+        if this[i] != ' ' break
+        this[i] = '\0'
+    }
+}
+
+def str::remove_last_n(this, n: i32) {
+    this[.len() - n] = '\0'
 }
 
 def char::is_digit(this): bool => libc::isdigit(this)

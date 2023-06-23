@@ -133,8 +133,8 @@ def Structure::new(): &Structure {
 }
 
 def Structure::get_field(&this, name: str): &Variable {
-    for let i = 0; i < .fields.size as i32; i += 1 {
-        let field = .fields.at(i as u32) as &Variable
+    for let i = 0u32; i < .fields.size; i += 1 {
+        let field = .fields.at(i) as &Variable
         if field.sym.name.eq(name) {
             return field
         }
@@ -155,8 +155,8 @@ def Enum::new(): &Enum {
 }
 
 def Enum::get_field(&this, name: str): &Variable {
-    for let i = 0; i < .fields.size as i32; i += 1 {
-        let field = .fields.at(i as u32) as &Variable
+    for let i = 0u32; i < .fields.size; i += 1 {
+        let field = .fields.at(i) as &Variable
         if field.sym.name.eq(name) {
             return field
         }
