@@ -119,12 +119,13 @@ def pool_helper(args):
     return handle_test(*args)
 
 def main():
-    makedirs("build", exist_ok=True)
-    process = run(["aecor", "compiler/main.ae", "-o", "build/aecor"])
-    if process.returncode != 0:
-        raise RuntimeError("Failed to build aecor")
-
     parser = argparse.ArgumentParser(description="Runs aecor test suite")
+    parser.add_argument(
+        "-c",
+        "--compiler",
+        required=True,
+        help="Runs the self-hosted version"
+    )
     parser.add_argument(
         "files",
         nargs="?",
@@ -161,7 +162,7 @@ def main():
     num_total = len(tests_to_run)
 
     arguments = [
-        ("./build/aecor", num, test_path, expected)
+        (args.compiler, num, test_path, expected)
         for num, (test_path, expected) in enumerate(tests_to_run)
     ]
 

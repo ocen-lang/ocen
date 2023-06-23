@@ -1,0 +1,1037 @@
+import std::buffer::Buffer
+import std::vector::Vector
+import @types::{ Type, BaseType }
+import @ast::nodes::*
+import @ast::program::{ Program, Namespace }
+import @ast::scopes::Scope
+import @errors::Error
+import @passes::generic_pass::GenericPass
+import std::libc::free
+
+struct CodeGenerator {
+    o: &GenericPass
+    out: Buffer
+    indent: u32
+    yield_vars: &Vector  // &Vector<str>
+}
+
+def CodeGenerator::gen_indent(&this) {
+    for let i = 0u32; i < .indent; i += 1 {
+        .out.puts("  ")
+    }
+}
+
+def str::replace(&this, other: str) {
+    let s: str = *this
+    free(s)
+    *this = other
+}
+
+// Some convenience accessors from the GenericPass
+def CodeGenerator::error(&this, err: &Error): &Error => .o.error(err)
+def CodeGenerator::scope(&this): &Scope => .o.scope()
+
+def CodeGenerator::get_op(&this, type: ASTType): str => match type {
+    And => "&&",
+    Assignment => "=",
+    BitwiseAnd => "&",
+    BitwiseOr => "|",
+    BitwiseXor => "^",
+    Divide => "/",
+    Equals => "==",
+    GreaterThan => ">",
+    GreaterThanEquals => ">=",
+    LeftShift => "<<",
+    LessThan => "<",
+    LessThanEquals => "<=",
+    Minus => "-",
+    Modulus => "%",
+    Multiply => "*",
+    NotEquals => "!=",
+    Or => "||",
+    Plus => "+",
+    PlusEquals => "+=",
+    MinusEquals => "-=",
+    MultiplyEquals => "*=",
+    DivideEquals => "/=",
+    RightShift => ">>",
+    else => std::panic(`Unknown op type in get_op: {type}`)
+}
+
+def CodeGenerator::gen_internal_print(&this, node: &AST) {
+    let callee = node.u.call.callee
+    let newline_after = callee.u.ident.name.eq("println")
+
+    .out.puts("printf(")
+
+    let args = node.u.call.args
+    let first = args.at(0) as &Argument
+    if first.expr.type == FormatStringLiteral {
+        .gen_format_string_variadic(first.expr, newline_after)
+        .out.puts(")")
+        return
+    }
+
+    for let i = 0u32; i < args.size; i += 1 {
+        if i > 0 then .out.puts(", ")
+        let arg = args.at(i) as &Argument
+        .gen_expression(arg.expr)
+        if i == 0 and newline_after then .out.puts("\"\\n\"")
+    }
+    .out.puts(")")
+}
+
+// The point of this is to escape / unescape the correct characters
+def CodeGenerator::gen_format_string_part(&this, part: str) {
+    let len = part.len()
+    for let i = 0; i < len; i += 1 {
+        if part[i] == '\\' {
+            // This should be safe
+            i += 1
+            match part[i] {
+                // We want to unescape these
+                '`' | '{' | '}' => {}
+                // Anything else should remain escaped
+                else => .out.putc('\\')
+            }
+        } else if part[i] == '"' {
+            // If we have double quotes in a string we should escape it
+            .out.putc('\\')
+        } else if part[i] == '%' {
+            // Percent signs are special in printf, we need to do "%%"
+            .out.putc('%')
+        }
+        .out.putc(part[i])
+    }
+}
+
+def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: bool) {
+    let parts = node.u.fmt_str.parts
+    let exprs = node.u.fmt_str.exprs
+    let specs = node.u.fmt_str.specs
+
+    .out.putc('"')
+    for let i = 0u32; i < exprs.size; i += 1 {
+        let part = parts.at(i) as str
+        .gen_format_string_part(part)
+
+        let spec = specs.at(i) as str
+        if spec? {
+            .out.puts("%")
+            .out.puts(spec)
+            continue
+        }
+
+        let expr = exprs.at(i) as &AST
+        let expr_type = expr.etype.unaliased()
+        match expr_type.base {
+            I8 | I16 | I32 => .out.puts("%d")
+            U8 | U16 | U32 => .out.puts("%u")
+            I64 => .out.puts("%lld")
+            U64 => .out.puts("%llu")
+            Bool => .out.puts("%s")
+            F32 | F64 => .out.puts("%f")
+            Char => .out.puts("%c")
+            Pointer => match expr_type.u.ptr.base {
+                Char => .out.puts("%s")
+                else => .out.puts("%p")
+            }
+            else => {
+                .error(Error::new(
+                    expr.span, "Invalid type for format string"
+                ))
+                .out.puts("%s")
+            }
+        }
+    }
+    // Put the last part:
+    let part = parts.back() as str
+    .gen_format_string_part(part)
+    if newline_after then .out.puts("\\n")
+    .out.putc('"')
+
+    for let i = 0u32; i < exprs.size; i += 1 {
+        .out.puts(", ")
+        let expr = exprs.at(i) as &AST
+        .gen_expression(expr)
+    }
+}
+
+
+def CodeGenerator::gen_format_string(&this, node: &AST) {
+    .out.puts("format_string(")
+    .gen_format_string_variadic(node, newline_after: false)
+    .out.puts(")")
+}
+
+def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
+    let yield_var = .yield_vars.back()
+    .gen_indent()
+    .out.puts(yield_var)
+    .out.puts(" = ")
+    .gen_expression(expr)
+    .out.puts(";\n")
+}
+
+def CodeGenerator::gen_constant(&this, node: &AST) {
+    let const_ = node.u.var_decl.var
+
+    .gen_indent()
+    .out.puts("#define ")
+    .out.puts(const_.sym.out_name)
+    .out.puts(" (")
+    .gen_expression(node.u.var_decl.init)
+    .out.puts(")\n")
+}
+
+def CodeGenerator::gen_constants(&this, ns: &Namespace) {
+    for let i = 0u32; i < ns.constants.size; i += 1 {
+        let const_ = ns.constants.at(i) as &AST
+        .gen_constant(const_)
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_constants(child)
+    }
+}
+
+def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST) {
+    if body.type == ASTType::Block {
+        .gen_block(body)
+        .out.puts(" ")
+
+    } else {
+        if body.type != ASTType::If {
+            .out.puts("\n")
+        }
+        // In this case, we're implicitly yielding the result of the body.
+        if node.etype? and body.type != ASTType::Yield {
+            .gen_yield_expression(body)
+        } else {
+            .gen_statement(body)
+        }
+        .gen_indent()
+    }
+}
+
+def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
+    // Using a GCC extension for statement expressions
+    // https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
+
+    let yield_var = `__yield_{.yield_vars.size}`
+    .yield_vars.push(yield_var)
+
+    let ret_type = node.etype
+
+    .out.puts("({ ")
+    .gen_type_and_name(ret_type, yield_var)
+    .out.puts(";\n")
+
+    .indent += 1
+    .gen_statement(node)
+    .indent -= 1
+
+    .out.puts(";")
+    .out.puts(yield_var)
+    .out.puts("; })")
+
+    .yield_vars.pop()
+}
+
+def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
+    .out.putsf(`({struc.sym.out_name})\{`)
+    let fields = struc.fields
+    let args = node.u.call.args
+    for let i = 0u32; i < args.size; i += 1 {
+        if i != 0 then .out.puts(", ")
+        let arg = args.at(i) as &Argument
+        let field = fields.at(i) as &Variable
+
+        .out.putsf(`.{field.sym.out_name}=`)
+        .gen_expression(arg.expr)
+    }
+    .out.puts("}")
+}
+
+def CodeGenerator::gen_expression(&this, node: &AST) {
+    match node.type {
+        IntLiteral => {
+            let num_lit = &node.u.num_literal
+            if node.etype.base != I32 {
+                .out.puts("((")
+                .gen_type(node.etype)
+                .out.puts(")")
+                .out.puts(num_lit.text)
+                .out.puts(")")
+            } else {
+                .out.puts(num_lit.text)
+            }
+        }
+        FloatLiteral => {
+            let num_lit = &node.u.num_literal
+            .out.puts(num_lit.text)
+            if node.etype.base == F32 {
+                .out.puts("f")
+            }
+        }
+        FormatStringLiteral => .gen_format_string(node)
+        StringLiteral => {
+            let str_lit = node.u.string_literal
+            .out.puts("\"")
+            .out.puts(str_lit)
+            .out.puts("\"")
+        }
+        CharLiteral => {
+            let char_lit = node.u.char_literal
+            .out.puts("'")
+            .out.puts(char_lit)
+            .out.puts("'")
+        }
+        If => .gen_in_yield_context(node)
+        Match => .gen_in_yield_context(node)
+        Member => {
+            if node.resolved_symbol? {
+                // Method call
+                let sym = node.resolved_symbol
+                match sym.type {
+                    Function => .out.puts(sym.out_name)
+                    else => {
+                        .error(Error::new(
+                            node.span, `Unhandled symbol type in CodeGenerator::gen_expression: {sym.type}`
+                        ))
+                    }
+                }
+                return
+            }
+
+            let lhs = node.u.member.lhs
+            .gen_expression(lhs)
+            if node.u.member.is_pointer {
+                .out.puts("->")
+            } else {
+                .out.puts(".")
+            }
+            .out.puts(node.u.member.rhs_name)
+        }
+        Identifier | NSLookup => {
+            let sym = node.resolved_symbol
+            if not sym? {
+                .error(Error::new(node.span, "Symbol not found in CodeGenerator::gen_expression"))
+                return
+            }
+            match sym.type {
+                Function | Variable | Constant => .out.puts(sym.out_name)
+                else => std::panic(`Unhandled symbol type: {sym.type}`)
+            }
+        }
+        Call => {
+            let callee = node.u.call.callee
+
+            // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
+            // FIXME: Escape string characters
+            // FIXME: Plus newline to println
+            // FIXME: Expand out format strings inline
+            if callee.type == Identifier and (callee.u.ident.name.eq("print") or callee.u.ident.name.eq("println")) {
+                .gen_internal_print(node)
+                return
+            }
+
+            let sym = callee.symbol()
+            if sym? and sym.type == Structure {
+                .gen_constructor(node, sym.u.struc)
+                return
+            }
+
+            .gen_expression(callee)
+
+            .out.puts("(")
+            let args = node.u.call.args
+            for let i = 0u32; i < args.size; i += 1 {
+                if i != 0 then .out.puts(", ")
+                let arg = args.at(i) as &Argument
+                // FIXME: check arg.label
+                .gen_expression(arg.expr)
+            }
+            .out.puts(")")
+        }
+        BoolLiteral => {
+            let bool_lit = node.u.bool_literal
+            .out.puts(if bool_lit then "true" else "false")
+        }
+        Address => {
+            let expr = node.u.unary
+            .out.puts("&")
+            .gen_expression(expr)
+        }
+        Dereference => {
+            let expr = node.u.unary
+            .out.puts("*")
+            .gen_expression(expr)
+        }
+        Negate => {
+            let expr = node.u.unary
+            .out.puts("-")
+            .gen_expression(expr)
+        }
+        Not => {
+            let expr = node.u.unary
+            .out.puts("!")
+            .gen_expression(expr)
+        }
+        IsNotNull => {
+            let expr = node.u.unary
+            .out.puts("((bool)")
+            .gen_expression(expr)
+            .out.puts(")")
+        }
+        Cast => {
+            let expr = node.u.unary
+            let type = node.etype
+            .out.puts("((")
+            .out.puts(.get_type_name_string(type, name: "", is_func_def: false))
+            .out.puts(")")
+            .gen_expression(expr)
+            .out.puts(")")
+        }
+        SizeOf => {
+            .out.puts("((u32)sizeof(")
+            .gen_type(node.u.size_of_type)
+            .out.puts("))")
+        }
+        Null => .out.puts("NULL")
+
+        And |
+        BitwiseAnd |
+        BitwiseOr |
+        BitwiseXor |
+        Divide |
+        GreaterThan |
+        GreaterThanEquals |
+        LeftShift |
+        LessThan |
+        LessThanEquals |
+        Minus |
+        Modulus |
+        Multiply |
+        NotEquals |
+        Or |
+        Plus |
+        RightShift => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            .out.puts("(")
+            .gen_expression(lhs)
+            .out.puts(" ")
+            .out.puts(.get_op(node.type))
+            .out.puts(" ")
+            .gen_expression(rhs)
+            .out.puts(")")
+        }
+
+        Index => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            .gen_expression(lhs)
+            .out.puts("[")
+            .gen_expression(rhs)
+            .out.puts("]")
+        }
+
+        Equals |
+        Assignment |
+        PlusEquals |
+        MinusEquals |
+        DivideEquals |
+        MultiplyEquals => {
+            .gen_expression(node.u.binary.lhs)
+            .out.puts(.get_op(node.type))
+            .gen_expression(node.u.binary.rhs)
+        }
+
+        else => .error(Error::new(node.span, `Unhandled expression type in CodeGenerator: {node.type}`))
+    }
+}
+
+def CodeGenerator::gen_var_declaration(&this, node: &AST) {
+    let var = node.u.var_decl.var
+
+    .gen_type_and_name(var.type, var.sym.out_name)
+    if node.u.var_decl.init? {
+        .out.puts(" = ")
+        .gen_expression(node.u.var_decl.init)
+    }
+}
+
+def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST) {
+    if body.type == ASTType::Block {
+        .out.puts(" ")
+        .gen_block(body)
+
+    // The body is a call that exits, we don't need to yield it
+    } else if body.type == ASTType::Call and body.returns {
+        .out.puts(" ")
+        .gen_expression(body)
+        .out.puts(";")
+
+    // In this case, we're implicitly yielding the result of the body.
+    } else if node.etype? and body.type != ASTType::Yield {
+        .out.puts(" {\n")
+        .indent += 1
+        .gen_indent()
+        .gen_yield_expression(body)
+        .indent -= 1
+        .gen_indent()
+        .out.puts("}")
+
+    } else {
+        .out.puts(" {\n")
+        .indent += 1
+        .gen_statement(body)
+        .indent -= 1
+        .gen_indent()
+        .out.puts("}")
+    }
+}
+
+def CodeGenerator::gen_match_string(&this, node: &AST) {
+    let stmt = node.u.match_stmt
+    .gen_indent()
+    .out.puts("{\n")
+
+    .indent += 1
+    .gen_indent()
+
+    .out.puts("char *__match_str = ")
+    .gen_expression(stmt.expr)
+    .out.puts(";\n")
+
+    let cases = stmt.cases
+    .gen_indent()
+    .out.puts("if (")
+    for let i = 0u32; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        .out.puts("!strcmp(__match_str, ")
+        .gen_expression(_case.cond)
+        .out.puts(")")
+
+        if _case.body? {
+            .out.puts(")")
+            .gen_match_case_body(node, _case.body)
+            .out.puts(" else ")
+            if i != cases.size - 1 {
+                .out.puts("if (")
+            }
+        } else {
+            .out.puts(" || ")
+        }
+    }
+    if stmt.defolt? {
+        .gen_match_case_body(node, stmt.defolt)
+    }
+    .out.puts("\n")
+
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}\n")
+}
+
+def CodeGenerator::gen_match(&this, node: &AST) {
+    let stmt = node.u.match_stmt
+
+    if stmt.expr.etype.is_str() {
+        .gen_match_string(node)
+        return
+    }
+
+    .gen_indent()
+    .out.puts("switch (")
+    .gen_expression(stmt.expr)
+    .out.puts(") {\n")
+
+    let cases = stmt.cases
+    .indent += 1
+    for let i = 0u32; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        .gen_indent()
+        .out.puts("case ")
+        .gen_expression(_case.cond)
+        .out.puts(":")
+        if _case.body? {
+            .gen_match_case_body(node, _case.body)
+            .out.puts(" break;\n")
+
+        } else {
+            .out.puts("\n")
+        }
+    }
+    if stmt.defolt? {
+        .gen_indent()
+        .out.puts("default:")
+        .gen_match_case_body(node, stmt.defolt)
+        .out.puts(" break;\n")
+    }
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}\n")
+}
+
+def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
+    let first = true
+    for let cur = .scope(); cur?; cur = cur.parent {
+        for let i = 0u32; i < cur.defers.size; i += 1 {
+            if first {
+                first = false
+                .gen_indent()
+                .out.puts("/* defers */\n")
+            }
+
+            // Note: We want to run the defers in reverse order
+            let idx = cur.defers.size - i - 1
+            let stmt = cur.defers.at(idx) as &AST
+            .gen_statement(stmt)
+        }
+        if cur == end_scope then break
+    }
+}
+
+def CodeGenerator::gen_statement(&this, node: &AST) {
+    match node.type {
+        ASTType::Return => {
+            let upto = .scope()
+            for let cur = .scope(); cur? and cur.cur_func?; cur = cur.parent {
+                upto = cur
+            }
+            .gen_defers_upto(upto)
+
+            .gen_indent()
+            .out.puts("return ")
+            if node.u.unary? {
+                .gen_expression(node.u.unary)
+            }
+            .out.puts(";\n")
+        }
+        ASTType::Yield => .gen_yield_expression(node.u.unary)
+        ASTType::Import => {}
+        ASTType::Break | ASTType::Continue => {
+            let loop_count = .scope().loop_count
+            let upto = .scope()
+            for let cur = .scope(); cur? and cur.loop_count == loop_count; cur = cur.parent {
+                upto = cur
+            }
+            .gen_defers_upto(upto)
+
+            .gen_indent()
+            if node.type == ASTType::Break {
+                .out.puts("break;\n")
+            } else {
+                .out.puts("continue;\n")
+            }
+        }
+        ASTType::VarDeclaration => {
+            .gen_indent()
+            .gen_var_declaration(node)
+            .out.puts(";\n")
+        }
+        ASTType::Block => {
+            .gen_indent()
+            .gen_block(node)
+            .out.puts("\n")
+        }
+        ASTType::Defer => {
+            .scope().defers.push(node.u.unary)
+        }
+        ASTType::If => {
+            let cond = node.u.if_stmt.cond
+            let body = node.u.if_stmt.body
+            let else_body = node.u.if_stmt.els
+            .gen_indent()
+            .out.puts("if (")
+            .gen_expression(cond)
+            .out.puts(") ")
+            .gen_control_body(node, body)
+
+            if else_body? {
+                .out.puts(" else ")
+                .gen_control_body(node, else_body)
+                .out.puts("\n")
+            } else {
+                .out.puts("\n")
+            }
+        }
+        ASTType::Match => .gen_match(node)
+        ASTType::While => {
+            let cond = node.u.loop.cond
+            let body = node.u.loop.body
+            .gen_indent()
+            .out.puts("while (")
+            .gen_expression(cond)
+            .out.puts(") ")
+            .gen_block(body)
+            .out.puts("\n")
+        }
+        ASTType::For => {
+            let init = node.u.loop.init
+            let cond = node.u.loop.cond
+            let step = node.u.loop.step
+            let body = node.u.loop.body
+            .gen_indent()
+            .out.puts("for (")
+            if init? {
+                if init.type == ASTType::VarDeclaration {
+                    .gen_var_declaration(init)
+                } else {
+                    .gen_expression(init)
+                }
+            }
+            .out.puts("; ")
+            if cond? then .gen_expression(cond)
+            .out.puts("; ")
+            if step? then .gen_expression(step)
+            .out.puts(") ")
+            .gen_block(body)
+            .out.puts("\n")
+        }
+        else => {
+            .gen_indent()
+            .gen_expression(node)
+            .out.puts(";\n")
+        }
+    }
+}
+
+def CodeGenerator::gen_block(&this, node: &AST) {
+    .out.puts("{\n")
+    let scope = node.u.block.scope
+    .o.push_scope(node.u.block.scope)
+
+    let statements = node.u.block.statements
+    .indent += 1
+    for let i = 0u32; i < statements.size; i += 1 {
+        let statement = statements.at(i) as &AST
+        .gen_statement(statement)
+    }
+
+    if not node.returns {
+        .gen_defers_upto(scope)
+    }
+
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}")
+
+    .o.pop_scope()
+}
+
+def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_func_def: bool): str {
+    match cur.base {
+        // These should all be terminal types
+        Void | Bool | Char |
+        I8   | I16  | I32  | I64 |
+        U8   | U16  | U32  | U64 |
+        F32  | F64 => acc.replace(`{cur.base.str()} {acc}`)
+        Structure => acc.replace(`{cur.u.struc.sym.out_name} {acc}`)
+        Enum => acc.replace(`{cur.u.enum_.sym.out_name} {acc}`)
+
+        Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
+
+        Function => {
+            let args_str = Buffer::make()
+            let params = cur.u.func.params
+
+            if params.size == 0 then args_str.puts("void")
+
+            for let i = 0u32; i < params.size; i += 1 {
+                if i != 0 then args_str.puts(", ")
+                let var = params.at(i) as &Variable
+                let arg_str = .get_type_name_string(var.type, var.sym.out_name, is_func_def: false)
+                args_str.putsf(arg_str)
+            }
+            if is_func_def and cur == top {
+                // This allows us to also create function declarations
+                acc.replace(`{acc}({args_str.str()})`)
+            } else {
+                acc.replace(`(*{acc})({args_str.str()})`)
+            }
+            free(args_str.data)
+            acc = .helper_gen_type(
+                top,
+                cur.u.func.return_type,
+                acc,
+                is_func_def: false
+            )
+        }
+
+        Pointer => {
+            let needs_parens = (cur.u.ptr? and
+                (cur.u.ptr.base == BaseType::Function or
+                 cur.u.ptr.base == BaseType::Array))
+            if needs_parens {
+                acc.replace(`(*{acc})`)
+            } else {
+                acc.replace(`*{acc}`)
+            }
+            acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
+        }
+
+        Array => {
+            // Need to evaluate the expression into a string...
+            let prev_buffer: Buffer = .out
+
+            .out = Buffer::make()
+            .gen_expression(cur.u.arr.size_expr)
+
+            acc.replace(`{acc}[{.out.str()}]`)
+            free(.out.data)
+
+            .out = prev_buffer
+            acc = .helper_gen_type(top, cur.u.arr.elem_type, acc, is_func_def: false)
+        }
+
+        Unresolved => .error(Error::new(cur.span, "Unresolved type found"))
+        Error => .error(Error::new(cur.span, "Error found in type"))
+        else => .error(Error::new(cur.span, `Unhandled type found: {cur.str()}`))
+    }
+    return acc
+}
+
+def CodeGenerator::get_type_name_string(&this, type: &Type, name: str, is_func_def: bool): str {
+    if not type? { std::panic("Internal error: null type in codegen") }
+    let final = .helper_gen_type(type, type, name.copy(), is_func_def)
+    final.strip_trailing_whitespace()
+    return final
+}
+
+
+def CodeGenerator::gen_type_and_name(&this, type: &Type, name: str) {
+    .out.putsf(.get_type_name_string(type, name, is_func_def: false))
+}
+
+def CodeGenerator::gen_type(&this, type: &Type) {
+    .gen_type_and_name(type, name: "")
+}
+
+def CodeGenerator::gen_function(&this, func: &Function) {
+    .gen_function_decl(func)
+    .out.puts(" ")
+    .gen_block(func.body)
+    .out.puts("\n\n")
+}
+
+def CodeGenerator::gen_function_decl(&this, func: &Function) {
+    let func_name = func.sym.out_name
+    let s = .get_type_name_string(func.type, func_name, true)
+    .out.putsf(s)
+}
+
+def CodeGenerator::gen_functions(&this, ns: &Namespace) {
+    let functions = ns.functions;
+    .o.push_scope(ns.scope)
+
+    for let i = 0u32; i < functions.size; i += 1 {
+        let func = functions.at(i) as &Function
+        if not func.sym.is_extern then .gen_function(func)
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_functions(child)
+    }
+    .o.pop_scope()
+}
+
+def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
+    let functions = ns.functions;
+    for let i = 0u32; i < functions.size; i += 1 {
+        let func = functions.at(i) as &Function
+        if not func.sym.is_extern {
+            .gen_function_decl(func)
+            .out.puts(";\n")
+        }
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_function_decls(child)
+    }
+}
+
+def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
+    for let i = 0u32; i < ns.enums.size; i += 1 {
+        let enum_ = ns.enums.at(i) as &Enum
+        .gen_enum(enum_)
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_enum_types(child)
+    }
+}
+
+def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
+    // Output debug info for enum
+    let dbg = enum_.type.methods.get("dbg") as &Function
+    .gen_function_decl(dbg)
+    .out.puts(" {\n")
+    .indent += 1
+    .gen_indent()
+
+    .out.puts("switch (this) {\n")
+    .indent += 1
+    for let i = 0u32; i < enum_.fields.size; i += 1 {
+        let field = enum_.fields.at(i) as &Variable
+        .gen_indent()
+        .out.puts("case ")
+        .out.puts(field.sym.out_name)
+        .out.putsf(`: return "{field.sym.name}";\n`)
+    }
+    // This is mostly for extern enums, but is also useful for cases
+    // where a perhaps incorrect value was cast to the enum type.
+    .gen_indent()
+    .out.putsf(`default: return "<unknown>";\n`)
+
+    .indent -= 1
+    .gen_indent()
+    .out.puts("}\n")
+    .indent -= 1
+    .out.puts("}\n\n")
+}
+
+def CodeGenerator::gen_enum(&this, enum_: &Enum) {
+    let enum_name = enum_.sym.out_name
+    .out.putsf(`typedef enum {enum_name} \{\n`)
+    let fields = enum_.fields
+    for let i = 0u32; i < fields.size; i += 1 {
+        let field = fields.at(i) as &Variable
+        .out.puts("  ")
+        .out.puts(field.sym.out_name)
+        .out.puts(",\n")
+    }
+    .out.putsf(`\} {enum_name};\n\n`)
+    .gen_enum_dbg_method(enum_)
+}
+
+def CodeGenerator::gen_struct(&this, struc: &Structure) {
+    let struc_name = struc.sym.out_name
+    if struc.is_union {
+        .out.putsf(`union {struc_name} \{\n`)
+    } else {
+        .out.putsf(`struct {struc_name} \{\n`)
+    }
+    let fields = struc.fields
+    for let i = 0u32; i < fields.size; i += 1 {
+        let field = fields.at(i) as &Variable
+        .out.puts("  ")
+        .gen_type_and_name(field.type, field.sym.out_name)
+        .out.puts(";\n")
+    }
+    .out.puts("};\n\n")
+}
+
+def CodeGenerator::gen_structs_and_typedefs(&this) {
+    let structs = .o.program.ordered_structs
+
+    if structs.size == 0 then return
+
+    .out.puts("/* Struct typedefs */\n")
+    for let i = 0u32; i < structs.size; i += 1 {
+        let struc = structs.at(i) as &Structure
+        if struc.sym.is_extern then continue
+
+        let struc_name = struc.sym.out_name
+        if struc.is_union {
+            .out.putsf(`typedef union {struc_name} {struc_name};\n`)
+        } else {
+            .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
+        }
+    }
+
+    .out.puts("\n/* Struct definitions */\n")
+    for let i = 0u32; i < structs.size; i += 1 {
+        let struc = structs.at(i) as &Structure
+        if struc.sym.is_extern then continue
+
+        .gen_struct(struc)
+    }
+
+    .out.puts("\n")
+}
+
+def CodeGenerator::generate(&this): str {
+    // FIXME: Put all of this in a prelude file
+    .out.puts("#include <stdio.h>\n")
+    .out.puts("#include <stdlib.h>\n")
+    .out.puts("#include <stdint.h>\n")
+    .out.puts("#include <stdbool.h>\n")
+    .out.puts("#include <stdarg.h>\n")
+    .out.puts("#include <string.h>\n")
+    .out.puts("\n")
+
+    .out.puts("typedef int8_t i8;\n")
+    .out.puts("typedef int16_t i16;\n")
+    .out.puts("typedef int32_t i32;\n")
+    .out.puts("typedef int64_t i64;\n")
+
+    .out.puts("typedef uint8_t u8;\n")
+    .out.puts("typedef uint16_t u16;\n")
+    .out.puts("typedef uint32_t u32;\n")
+    .out.puts("typedef uint64_t u64;\n")
+
+    .out.puts("typedef float f32;\n")
+    .out.puts("typedef double f64;\n")
+    .out.puts("\n")
+
+    .out.puts("char* format_string(const char* format, ...) {\n")
+    .out.puts("  va_list args;\n")
+    .out.puts("  va_start(args, format);\n")
+    .out.puts("  int size = vsnprintf(NULL, 0, format, args);\n")
+    .out.puts("  va_end(args);\n")
+    .out.puts("  va_start(args, format);\n")
+    .out.puts("  char* s = calloc(1, size + 1);\n")
+    .out.puts("  vsprintf(s, format, args);\n")
+    .out.puts("  s[size] = '\\0';\n")
+    .out.puts("  va_end(args);\n")
+    .out.puts("  return s;\n")
+    .out.puts("}\n")
+    .out.puts("\n")
+
+    for let i = 0u32; i < .o.program.c_includes.size; i += 1 {
+        let include = .o.program.c_includes.at(i) as str
+        .out.putsf(`#include "{include}"\n`)
+    }
+    .out.puts("\n")
+
+    .out.puts("/* Enums */\n")
+    .gen_enum_types(.o.program.global)
+
+    .out.puts("/* Constants */\n")
+    .gen_constants(.o.program.global)
+
+    .gen_structs_and_typedefs()
+
+    .out.puts("/* function declarations */\n")
+    .gen_function_decls(.o.program.global)
+
+    .out.puts("/* function implementations */\n")
+    .gen_functions(.o.program.global)
+
+    return .out.str()
+}
+
+def CodeGenerator::make(program: &Program): CodeGenerator {
+    return CodeGenerator(
+        o: GenericPass::new(program),
+        out: Buffer::make(),
+        indent: 0,
+        yield_vars: Vector::new(),
+    )
+}
+
+def CodeGenerator::run(program: &Program): str {
+    let pass = CodeGenerator::make(program)
+    return pass.generate()
+}

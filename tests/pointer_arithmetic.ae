@@ -1,5 +1,8 @@
+/// out: "llo"
+
+
 def main() {
     let s = "hello"
     let y = s + 2
-    println("%s", s)
+    println("%s", y)
 }

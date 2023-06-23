@@ -6,6 +6,7 @@ def calloc(size: u32, elem_size: u32): untyped_ptr extern
 def free(ptr: untyped_ptr) extern
 def exit(code: i32) extern
 def getenv(name: str): str extern
+def system(cmd: str): i32 extern
 
 // stdio
 def fopen(name: str, mode: str): &std::File extern
