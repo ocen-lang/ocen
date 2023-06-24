@@ -1116,6 +1116,12 @@ def Parser::parse_import(&this): &AST {
         return null
     }
 
+    // FIXME: This is a hack to make sure `std::` is always looked up in the root namespace.
+    let first_part = parts.at(0) as &ImportPart
+    if first_part.type == Single and first_part.u.single.name.eq("std") {
+        type = ImportType::FromRootNamespace
+    }
+
     let node = AST::new(ASTType::Import, span)
     node.u.import_path = Import(
         parts,
@@ -1289,7 +1295,10 @@ def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace):
         }
 
         let part_name = part.u.single.name
-        let next = base.namespaces.get(part_name) as &Namespace
+        let sym = base.find_importable_symbol(part_name)
+
+        if sym? and sym.type != Namespace then return true
+        let next = if sym? then sym.u.ns else null
 
         let part_path = `{base.path}/{part_name}`
         if not next? {

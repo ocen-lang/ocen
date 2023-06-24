@@ -1,8 +1,4 @@
 import .libc
-import .vector
-import .map
-import .span
-import .buffer
 
 struct File extern("FILE")
 

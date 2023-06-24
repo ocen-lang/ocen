@@ -1,8 +1,9 @@
 /// out: "PASS"
 
+import std::map::Map
 
 def main() {
-    let map = std::map::Map::new()
+    let map = Map::new()
 
     map.insert("key1", "value1")
     map.insert("key2", "value2")
