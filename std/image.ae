@@ -1,0 +1,47 @@
+// A type that holds an Image, stored in 32-bit floating point format.
+// Each of the RGB values are supposed to be in the range [0,1].
+// The `Vec` type is used to represent the pixel colors as well.
+
+import std::vec::Vec
+import std::libc::{ calloc, free }
+import std::math::clamp01
+
+struct Image {
+    width: i32
+    height: i32
+    data: &Vec
+}
+
+def Image::new(width: i32, height: i32): &Image {
+    let img = calloc(1, sizeof(Image)) as &Image
+    *img = Image(width, height, calloc((width * height) as u32, sizeof(Vec)))
+    return img
+}
+
+def Image::free(&this) {
+    free(.data)
+    free(this)
+}
+
+def Image::get(&this, x: i32, y: i32): Vec => .data[y * .width + x]
+def Image::set(&this, x: i32, y: i32, col: Vec) { .data[y * .width + x] = col }
+
+def Image::save(&this, filename: str) {
+    let file = std::File::open(filename, "wb")
+    defer file.close()
+
+    let u8buf = calloc(1, (.width * .height) as u32 * 3u32 * sizeof(u8)) as &u8
+    defer free(u8buf)
+
+    for let i = 0; i < .width * .height; i += 1 {
+        let col = *(.data + i)
+        let offset = u8buf + i * 3
+        *(offset + 0) = (clamp01(col.x) * 255.0) as u8
+        *(offset + 1) = (clamp01(col.y) * 255.0) as u8
+        *(offset + 2) = (clamp01(col.z) * 255.0) as u8
+    }
+
+    let header = `P6 {.width} {.height} 255\n`
+    file.write(header , header.len())
+    file.write(u8buf , 3 * .width * .height)
+}

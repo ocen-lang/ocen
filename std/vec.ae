@@ -1,0 +1,40 @@
+// A type that represents a vector in 3D space
+
+import std::math::sqrt
+
+struct Vec {
+    x: f32
+    y: f32
+    z: f32
+}
+
+def Vec::print(this) {
+    println("%f %f %f\n", .x, .y, .z)
+}
+
+def Vec::add(this, other: Vec): Vec => Vec(.x + other.x, .y + other.y, .z + other.z)
+def Vec::addf(this, val: f32): Vec => Vec(.x + val, .y + val, .z + val)
+
+def Vec::sub(this, other: Vec): Vec => Vec(.x - other.x, .y - other.y, .z - other.z)
+def Vec::subf(this, val: f32): Vec => Vec(.x - val, .y - val, .z - val)
+
+def Vec::mult(this, other: Vec): Vec => Vec(.x * other.x, .y * other.y, .z * other.z)
+def Vec::multf(this, val: f32): Vec => Vec(.x * val, .y * val, .z * val)
+
+def Vec::div(this, other: Vec): Vec => Vec(.x / other.x, .y / other.y, .z / other.z)
+def Vec::divf(this, val: f32): Vec => Vec(.x / val, .y / val, .z / val)
+
+def Vec::dot(this, other: Vec): f32 => .x * other.x + .y * other.y + .z * other.z
+
+def Vec::cross(this, other: Vec): Vec {
+    return Vec(
+        .y * other.z - .z * other.y,
+        .z * other.x - .x * other.z,
+        .x * other.y - .y * other.x,
+    )
+}
+
+
+def Vec::length(this): f32 => sqrt(.x * .x + .y * .y + .z * .z)
+def Vec::length_sq(this): f32 => .x * .x + .y * .y + .z * .z
+def Vec::normalized(this): Vec => .divf(.length())

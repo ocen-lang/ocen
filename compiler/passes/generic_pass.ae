@@ -159,12 +159,14 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace) {
     }
 
     for let i = 0; i < ns.variables.size; i += 1 {
-        let var = ns.variables.at(i) as &Variable
+        let node = ns.variables.at(i) as &AST
+        let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
 
     for let i = 0; i < ns.constants.size; i += 1 {
-        let var = ns.constants.at(i) as &Variable
+        let node = ns.constants.at(i) as &AST
+        let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
 }

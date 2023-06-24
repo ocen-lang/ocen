@@ -13,6 +13,11 @@ def fopen(name: str, mode: str): &std::File extern
 def fclose(file: &std::File): i32 extern
 def fread(ptr: untyped_ptr, size: i32, count: i32, file: &std::File): i32 extern
 def fwrite(ptr: untyped_ptr, size: i32, count: i32, file: &std::File): i32 extern
+def ftell(file: &std::File): i32 extern
+def fseek(file: &std::File, offset: i32, whence: i32): i32 extern
+const SEEK_SET: i32 extern
+const SEEK_CUR: i32 extern
+const SEEK_END: i32 extern
 
 // string
 def strcmp(a: str, b: str): i32 extern

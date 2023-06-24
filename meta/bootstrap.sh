@@ -5,7 +5,7 @@ mkdir -p build
 set -e
 
 echo "[+] Building stage 1 compiler"
-gcc -o build/stage1 bootstrap/stage0.c
+gcc -o build/stage1 bootstrap/stage0.c -lm
 echo "[+] Building stage 2 compiler"
 ./build/stage1 selfhost/main.ae -o build/stage2
 echo "[+] Building stage 3 compiler"

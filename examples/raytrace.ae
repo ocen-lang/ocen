@@ -1,0 +1,172 @@
+// Make raytracer go brrr
+@compiler c_flag "-O3"
+
+import std::vec::Vec
+import std::vector::Vector
+import std::image::Image
+import std::math::{ rand01, sqrt }
+import std::libc::malloc
+
+const TOL = 0.00001;
+
+def random_vec(): Vec {
+    return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
+}
+
+def random_vec_unit(): Vec {
+    while (true) {
+        let vec = random_vec();
+        if vec.length_sq() < 1.0 {
+            return vec.normalized()
+        }
+    }
+    return Vec(0.0, 0.0, 0.0)
+}
+
+struct Ray {
+    ori: Vec
+    dir: Vec
+}
+
+def Ray::at(&this, t: f32): Vec {
+    return .dir.multf(t).add(.ori);
+}
+
+struct Sphere {
+    center: Vec
+    color: Vec
+    radius: f32
+}
+
+def Sphere::new(x: f32, y: f32, z: f32, radius: f32, r: f32, g: f32, b: f32): &Sphere {
+    let s = malloc(sizeof(Sphere)) as &Sphere
+    *s = Sphere(center: Vec(x, y, z), color: Vec(r, g, b), radius)
+    return s
+}
+
+def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec, col: &Vec): bool {
+    let oc = ray.ori.sub(.center);
+    let a = ray.dir.dot(ray.dir)
+    let b = 2.0 * oc.dot(ray.dir)
+    let c = oc.dot(oc) - .radius * .radius
+
+    let disc = b * b - 4.0 * a * c
+    if disc < 0.0
+        return false
+    let t0 = (-b - sqrt(disc)) / (2.0 * a)
+    let t1 = (-b + sqrt(disc)) / (2.0 * a)
+
+    let best = t0;
+    if best < TOL
+        best = t1
+    if best < TOL
+        return false
+
+    *t = best
+    *col = .color
+    *n = ray.at(best).sub(.center).normalized()
+
+    return true
+}
+
+def background_color(ray: &Ray): Vec {
+    let t = 0.5 * (ray.dir.y + 1.0)
+    let col2 = Vec(1.0, 1.0, 1.0).multf(1.0-t)
+
+    let res = Vec(0.5, 0.7, 1.0)
+    return res.multf(t).add(col2)
+}
+
+def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
+    let idx = -1
+
+    for let i = 0u32; i < objs.size; i += 1 {
+        let obj = objs.at(i) as &Sphere
+
+        let tmp_t: f32
+        let tmp_n: Vec
+        let tmp_col: Vec
+
+        if obj.hit(ray, &tmp_t, &tmp_n, &tmp_col) {
+            if *t < 0.0 or tmp_t < *t {
+                *t = tmp_t
+                idx = i as i32
+                *obj_col = tmp_col
+                *n = tmp_n
+            }
+        }
+    }
+    return idx
+}
+
+def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
+    if depth < 0
+        return Vec(0.0, 0.0, 0.0)
+
+    let t = -1.0
+    let n: Vec
+    let obj_col: Vec
+
+    if find_hit(ray, objs, &t, &n, &obj_col) < 0
+        return background_color(ray)
+
+    ray.ori = ray.at(t)
+    ray.dir = random_vec_unit().add(n)
+
+    let rec_col = raytrace(ray, objs, depth - 1)
+    return rec_col.mult(obj_col)
+}
+
+def main() {
+    let objs = Vector::new()
+    objs.push(Sphere::new(0.0,    0.0, -1.0,   0.5, 1.0, 0.6, 0.3))
+    objs.push(Sphere::new(0.0, -100.5, -1.0, 100.0, 0.5, 0.5, 0.5))
+
+    // Image
+    let aspect_ratio = 16.0 / 9.0
+    let image_width = 800
+    let image_height = (image_width as f32 / aspect_ratio) as i32
+    let samples_per_pixel = 100
+
+    // Camera
+    let viewport_height = 2.0
+    let viewport_width = aspect_ratio * viewport_height
+    let focal_length = 1.0
+
+    let origin = Vec(0.0, 0.0, 0.0)
+    let horizontal = Vec(viewport_width, 0.0, 0.0)
+    let vertical = Vec(0.0, viewport_height, 0.0)
+
+    let ll_corner = (origin
+        .sub(horizontal.divf(2.0))
+        .sub(vertical.divf(2.0))
+        .sub(Vec(0.0, 0.0, focal_length)))
+
+    let img = Image::new(image_width, image_height);
+    defer img.free()
+
+    let div_factor = 1.0 / samples_per_pixel as f32;
+    for let y = 0; y < image_height; y += 1 {
+        print("\r%d / %d done", y, image_height)
+        for let x = 0; x < image_width; x += 1 {
+
+            let total_col = Vec(0.0, 0.0, 0.0)
+            for let s = 0; s < samples_per_pixel; s += 1 {
+                let u = (rand01() + x as f32) / (image_width-1) as f32
+                let v = 1.0 - (rand01() + y as f32) / (image_height-1) as f32
+                let ray: Ray
+                ray.ori = origin
+                ray.dir = (ll_corner
+                    .add(horizontal.multf(u))
+                    .add(vertical.multf(v))
+                    .sub(origin)
+                    .normalized())
+                let color = raytrace(&ray, objs, 5)
+                total_col = total_col.add(color)
+            }
+            img.set(x, y, total_col.multf(div_factor))
+        }
+    }
+    println("")
+    img.save("out.ppm");
+}
