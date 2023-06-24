@@ -5,7 +5,8 @@ build
 .DS_Store
 
 # We will ignore this by default, add files manually
-bootstrap/
+bootstrap/*
+!bootstrap/stage0.c
 
 test.ae
 ./*.c

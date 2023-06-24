@@ -6,7 +6,7 @@ import @passes::reorder_structs::ReorderStructs
 import @passes::code_generator::CodeGenerator
 
 def run_all_passes(program: &Program): str {
-    NamespaceDump::run(program) // Debug pass
+    // NamespaceDump::run(program) // Debug pass
 
     RegisterTypes::run(program)
     TypeChecker::run(program)

@@ -1043,7 +1043,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
             // NOTE: This `.check_expression()` call uses the scope _outside_ of the function.
             //       We don't check the new scope here on purpose: the default value needs to be
             //       valid outside the scope of this function, which is where it will be evaluated.
-            let default_type = .check_expression(default_expr, hint: null)
+            let default_type = .check_expression(default_expr, hint: param.type)
 
             if default_type? and not default_type.eq(param.type) {
                 .error(Error::new(default_expr.span, `Default argument has type {default_type.str()} but expected {param.type.str()}`))

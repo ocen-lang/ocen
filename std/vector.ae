@@ -12,15 +12,13 @@ struct Vector {
     data: &untyped_ptr
 }
 
-def Vector::new_sized(capacity: u32): &Vector {
+def Vector::new(capacity: u32 = 16): &Vector {
     let vec = calloc(1, sizeof(Vector)) as &Vector
     vec.size = 0
     vec.capacity = capacity
     vec.data = calloc(vec.capacity, sizeof(untyped_ptr)) as &untyped_ptr
     return vec
 }
-
-def Vector::new(): &Vector => Vector::new_sized(16)
 
 def Vector::resize(&this, new_capacity: u32) {
     .capacity = new_capacity

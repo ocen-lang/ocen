@@ -52,9 +52,9 @@ def File::puts(&this, s: str) {
     libc::fwrite(s , 1, s.len(), this)
 }
 
-def exit(code: i32) exits extern
+def exit(code: i32 = 0) exits extern
 
-def panic(msg: str) exits {
+def panic(msg: str = "<panic>") exits {
     println("%s", msg)
     exit(1)
 }

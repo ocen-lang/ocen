@@ -838,10 +838,10 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     let functions = ns.functions;
     for let i = 0; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
-        if not func.sym.is_extern {
-            .gen_function_decl(func)
-            .out.puts(";\n")
-        }
+        if func.sym.is_extern continue
+        .gen_function_decl(func)
+        if func.exits then .out.puts(" __attribute__((noreturn))")
+        .out.puts(";\n")
     }
 
     let children = ns.namespaces
