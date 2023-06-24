@@ -419,6 +419,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
     match .token().type {
         TokenType::If => node = .parse_if()
         TokenType::Match => node = .parse_match()
+        TokenType::OpenCurly => node = .parse_block()
         TokenType::FormatStringLiteral => node = .parse_format_string()
         TokenType::Null => {
             let tok = .consume(TokenType::Null)

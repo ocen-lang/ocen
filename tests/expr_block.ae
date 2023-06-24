@@ -1,8 +1,8 @@
-/// compile
-
+/// out: "6"
 
 def main() {
-    let x = {
+    let x = 1 + {
         yield 5
     }
+    println(`{x}`)
 }

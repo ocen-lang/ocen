@@ -8,12 +8,11 @@ struct Buffer {
     capacity: u32
 }
 
-def Buffer::make(): Buffer {
-    let initial_capacity = 16u32;
+def Buffer::make(capacity: u32 = 16): Buffer {
     return Buffer(
-        data: calloc(initial_capacity, 1),
+        data: calloc(capacity, 1),
         size: 0,
-        capacity: initial_capacity
+        capacity
     )
 }
 

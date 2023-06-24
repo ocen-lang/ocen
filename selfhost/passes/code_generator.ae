@@ -229,9 +229,13 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     .gen_type_and_name(ret_type, yield_var)
     .out.puts(";\n")
 
-    .indent += 1
-    .gen_statement(node)
-    .indent -= 1
+    if node.type == Block {
+        .gen_block(node, with_braces: false)
+    } else {
+        .indent += 1
+        .gen_statement(node)
+        .indent -= 1
+    }
 
     .out.puts(";")
     .out.puts(yield_var)
@@ -291,6 +295,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         }
         If => .gen_in_yield_context(node)
         Match => .gen_in_yield_context(node)
+        Block => .gen_in_yield_context(node)
         Member => {
             if node.resolved_symbol? {
                 // Method call
@@ -701,8 +706,8 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
     }
 }
 
-def CodeGenerator::gen_block(&this, node: &AST) {
-    .out.puts("{\n")
+def CodeGenerator::gen_block(&this, node: &AST, with_braces: bool = true) {
+    if with_braces then .out.puts("{\n")
     let scope = node.u.block.scope
     .o.push_scope(node.u.block.scope)
 
@@ -719,8 +724,8 @@ def CodeGenerator::gen_block(&this, node: &AST) {
 
     .indent -= 1
     .gen_indent()
-    .out.puts("}")
 
+    if with_braces then .out.puts("}")
     .o.pop_scope()
 }
 
@@ -846,10 +851,10 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     let functions = ns.functions;
     for let i = 0u32; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
-        if not func.sym.is_extern {
-            .gen_function_decl(func)
-            .out.puts(";\n")
-        }
+        if func.sym.is_extern continue
+        .gen_function_decl(func)
+        if func.exits then .out.puts(" __attribute__((noreturn))")
+        .out.puts(";\n")
     }
 
     let children = ns.namespaces
