@@ -1128,6 +1128,12 @@ bool char_is_alpha(char this);
 bool char_is_alnum(char this);
 i32 std_min(i32 a, i32 b);
 i32 std_max(i32 a, i32 b);
+char *std_span_Location_str(std_span_Location *this);
+bool std_span_Location_is_before(std_span_Location *this, std_span_Location other);
+char *std_span_Span_str(std_span_Span this);
+std_span_Span std_span_Span_default(void);
+std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other);
+bool std_span_Span_contains_loc(std_span_Span this, std_span_Location loc);
 std_map_MapNode *std_map_MapNode_new(char *key, void *value, std_map_MapNode *next);
 void std_map_MapNode_free_list(std_map_MapNode *node);
 std_map_Map *std_map_Map_new(void);
@@ -1145,12 +1151,6 @@ char *std_map_MapIterator_key(std_map_MapIterator *this);
 void *std_map_MapIterator_value(std_map_MapIterator *this);
 std_map_MapIterator std_map_MapIterator_make(std_map_Map *map);
 void std_map_MapIterator_next(std_map_MapIterator *this);
-char *std_span_Location_str(std_span_Location *this);
-bool std_span_Location_is_before(std_span_Location *this, std_span_Location other);
-char *std_span_Span_str(std_span_Span this);
-std_span_Span std_span_Span_default(void);
-std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other);
-bool std_span_Span_contains_loc(std_span_Span this, std_span_Location loc);
 std_vector_Vector *std_vector_Vector_new(u32 capacity);
 void std_vector_Vector_resize(std_vector_Vector *this, u32 new_capacity);
 void std_vector_Vector_push(std_vector_Vector *this, void *val);
@@ -5106,6 +5106,10 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
     parser_Parser_error(this, errors_Error_new(span, "Invalid import statement"));
     return NULL;
   } 
+  ast_nodes_ImportPart *first_part = ((ast_nodes_ImportPart *)std_vector_Vector_at(parts, ((u32)0)));
+  if ((first_part->type==ast_nodes_ImportPartType_Single && str_eq(first_part->u.single.name, "std"))) {
+    type=ast_nodes_ImportType_FromRootNamespace;
+  } 
   ast_nodes_AST *node = ast_nodes_AST_new(ast_nodes_ASTType_Import, span);
   node->u.import_path=(ast_nodes_Import){.parts=parts, .type=type, .parent_count=parent_count};
   parser_Parser_load_import_path(this, node);
@@ -5275,7 +5279,17 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ve
       } break;
     }
     char *part_name = part->u.single.name;
-    ast_program_Namespace *next = ((ast_program_Namespace *)std_map_Map_get(base->namespaces, part_name));
+    ast_scopes_Symbol *sym = ast_program_Namespace_find_importable_symbol(base, part_name);
+    if ((((bool)sym) && (sym->type != ast_scopes_SymbolType_Namespace))) 
+    return true;
+    
+    ast_program_Namespace *next = ({ ast_program_Namespace *__yield_0;
+      if (((bool)sym)) 
+      __yield_0 = sym->u.ns;
+       else 
+      __yield_0 = NULL;
+      
+;__yield_0; });
     char *part_path = format_string("%s/%s", base->path, part_name);
     if (!((bool)next)) {
       bool dir_exists = utils_directory_exists(part_path);
@@ -6268,6 +6282,45 @@ i32 std_max(i32 a, i32 b) {
 ;__yield_0; });
 }
 
+char *std_span_Location_str(std_span_Location *this) {
+  return format_string("%s:%d:%d", this->filename, this->line, this->col);
+}
+
+bool std_span_Location_is_before(std_span_Location *this, std_span_Location other) {
+  if ((this->line > other.line)) 
+  return false;
+  
+  if ((this->line < other.line)) 
+  return true;
+  
+  return (this->col <= other.col);
+}
+
+char *std_span_Span_str(std_span_Span this) {
+  return format_string("%s => %s", std_span_Location_str(&this.start), std_span_Location_str(&this.end));
+}
+
+std_span_Span std_span_Span_default(void) {
+  std_span_Span span;
+  span.start=(std_span_Location){.filename="<default>", .line=0, .col=0, .index=0};
+  span.end=(std_span_Location){.filename="<default>", .line=0, .col=0, .index=0};
+  return span;
+}
+
+std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other) {
+  std_span_Span span;
+  span.start=this.start;
+  span.end=other.end;
+  return span;
+}
+
+bool std_span_Span_contains_loc(std_span_Span this, std_span_Location loc) {
+  if (!str_eq(this.start.filename, loc.filename)) 
+  return false;
+  
+  return (std_span_Location_is_before(&this.start, loc) && std_span_Location_is_before(&loc, this.end));
+}
+
 std_map_MapNode *std_map_MapNode_new(char *key, void *value, std_map_MapNode *next) {
   std_map_MapNode *node = ((std_map_MapNode *)calloc(((u32)1), ((u32)sizeof(std_map_MapNode))));
   node->key=key;
@@ -6437,45 +6490,6 @@ void std_map_MapIterator_next(std_map_MapIterator *this) {
     return ;
     
   }
-}
-
-char *std_span_Location_str(std_span_Location *this) {
-  return format_string("%s:%d:%d", this->filename, this->line, this->col);
-}
-
-bool std_span_Location_is_before(std_span_Location *this, std_span_Location other) {
-  if ((this->line > other.line)) 
-  return false;
-  
-  if ((this->line < other.line)) 
-  return true;
-  
-  return (this->col <= other.col);
-}
-
-char *std_span_Span_str(std_span_Span this) {
-  return format_string("%s => %s", std_span_Location_str(&this.start), std_span_Location_str(&this.end));
-}
-
-std_span_Span std_span_Span_default(void) {
-  std_span_Span span;
-  span.start=(std_span_Location){.filename="<default>", .line=0, .col=0, .index=0};
-  span.end=(std_span_Location){.filename="<default>", .line=0, .col=0, .index=0};
-  return span;
-}
-
-std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other) {
-  std_span_Span span;
-  span.start=this.start;
-  span.end=other.end;
-  return span;
-}
-
-bool std_span_Span_contains_loc(std_span_Span this, std_span_Location loc) {
-  if (!str_eq(this.start.filename, loc.filename)) 
-  return false;
-  
-  return (std_span_Location_is_before(&this.start, loc) && std_span_Location_is_before(&loc, this.end));
 }
 
 std_vector_Vector *std_vector_Vector_new(u32 capacity) {
