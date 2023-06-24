@@ -1,0 +1,95 @@
+import std::buffer::Buffer
+
+struct BufferIO {
+    data: &Buffer
+    index: u32
+}
+
+def BufferIO::make(data: &Buffer): BufferIO {
+    return BufferIO(
+        data: data,
+        index: 0u32,
+    )
+}
+
+def BufferIO::read_i64_be(&this): i64 { return .read_u64_be() as i64 }
+def BufferIO::read_u64_be(&this): u64 {
+    let value = 0u64
+    for let i = 0u32; i < 8; i += 1 {
+        value = value | .data.data[.index + i] as u64 << (56u64 - (i as u64) * 8)
+    }
+    .index += 8
+    return value as u64
+}
+
+
+def BufferIO::read_i32_be(&this): i32 { return .read_u32_be() as i32 }
+def BufferIO::read_u32_be(&this): u32 {
+    let value = 0u32
+    for let i = 0u32; i < 4; i += 1 {
+        value = value | .data.data[.index + i] as u32 << (24u32 - (i as u32) * 8)
+    }
+    .index += 4
+    return value
+}
+
+def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
+    let dst = _dst as &u8
+    for let i = 0u32; i < count; i += 1 {
+        dst[i] = .data.data[.index as u32 + i]
+    }
+    .index  += count
+}
+
+def BufferIO::read_i16_be(&this): i16 { return .read_i16_be() as i16 }
+def BufferIO::read_u16_be(&this): u16 {
+    let value = 0u16
+    for let i = 0u32; i < 2; i += 1 {
+        value = value | .data.data[.index + i] as u16 << (8u16 - i as u16 * 8)
+    }
+    .index += 2
+    return value as u16
+}
+
+def BufferIO::write_i64_be(&this, value: i64) { .write_u64_be(value as u64) }
+def BufferIO::write_u64_be(&this, value: u64) {
+    .data.resize_if_necessary(.data.size + 8)
+    for let i = 0u32; i < 8; i += 1 {
+        .data.data[.data.size + i] = ((value >> (56u64 - i as u64 * 8)) & 0xff) as u8
+    }
+    .data.size += 8
+}
+
+def BufferIO::write_i32_be(&this, value: i32) { .write_u32_be(value as u32) }
+def BufferIO::write_u32_be(&this, value: u32) {
+    .data.resize_if_necessary(.data.size + 4)
+    for let i = 0u32; i < 4; i += 1 {
+        .data.data[.data.size + i] = ((value >> (24u32 - i * 8)) & 0xff) as u8
+    }
+    .data.size += 4
+}
+
+def BufferIO::write_i16_be(&this, value: i16) { .write_u16_be(value as u16) }
+def BufferIO::write_u16_be(&this, value: u16) {
+    .data.resize_if_necessary(.data.size + 2)
+    for let i = 0u32; i < 2; i += 1 {
+        .data.data[.data.size + i] = ((value >> (8u16 - i as u16 * 8)) & 0xff) as u8
+    }
+    .data.size += 2
+}
+
+def BufferIO::write_i8(&this, value: i8) { .write_u8(value as u8) }
+def BufferIO::write_u8(&this, value: u8) {
+    .data.resize_if_necessary(.data.size + 1)
+    .data.data[.data.size] = value
+    .data.size += 1
+}
+
+def BufferIO::write_bytes(&this, _src: untyped_ptr, count: u32) {
+    let src = _src as &u8
+    .data.resize_if_necessary(.data.size as u32 + count as u32)
+    for let i = 0u32; i < count; i += 1 {
+        .data.data[.data.size + i] = src[i]
+    }
+    .data.size += count
+}

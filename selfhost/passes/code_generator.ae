@@ -176,12 +176,14 @@ def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
 def CodeGenerator::gen_constant(&this, node: &AST) {
     let const_ = node.u.var_decl.var
 
-    .gen_indent()
-    .out.puts("#define ")
-    .out.puts(const_.sym.out_name)
-    .out.puts(" (")
-    .gen_expression(node.u.var_decl.init)
-    .out.puts(")\n")
+    if not const_.sym.is_extern {
+        .gen_indent()
+        .out.puts("#define ")
+        .out.puts(const_.sym.out_name)
+        .out.puts(" (")
+        .gen_expression(node.u.var_decl.init)
+        .out.puts(")\n")
+    }
 }
 
 def CodeGenerator::gen_constants(&this, ns: &Namespace) {

@@ -1098,7 +1098,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         if init? {
             .check_const_expression(init, hint: null)
 
-        } else {
+        } else if not node.u.var_decl.var.sym.is_extern {
             .error(Error::new(node.span, "Constant must have an initializer"))
         }
     }

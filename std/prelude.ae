@@ -21,18 +21,15 @@ def File::write(&this, buf: untyped_ptr, size: i32): i32 {
 }
 
 def File::slurp(&this): str {
-    let buf = libc::calloc(1, 1) as str
-    let len = 0u32
-    while true {
-        let read = this.read(buf + len, 1)
-        if read == 0 {
-            break
-        }
-        len += read as u32
-        buf = libc::realloc(buf, len + 1u32) as str
-    }
-    buf[len] = '\0'
-    return buf
+    import libc::*
+    let pos = ftell(this)
+    fseek(this, 0, SEEK_END)
+    let size = ftell(this)
+    fseek(this, pos, SEEK_SET)
+    let buf = calloc((size as u32 + 1), sizeof(char))
+    fread(buf, 1, size, this)
+    fseek(this, pos, SEEK_SET)
+    return buf as str
 }
 
 def File::exists(path: str): bool {

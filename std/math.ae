@@ -1,0 +1,20 @@
+@compiler c_flag "-lm"
+@compiler c_include "math.h"
+
+def sqrt(x: f32): f32 extern
+def cos(x: f32): f32 extern
+def sin(x: f32): f32 extern
+def tan(x: f32): f32 extern
+def atan2(x: f32, y: f32): f32 extern
+def rand01(): f32 extern("drand48")
+def randint(): i32 extern("rand")
+
+def minf(a: f32, b: f32): f32 { if a < b return a; else return b; }
+def maxf(a: f32, b: f32): f32 { if a > b return a; else return b; }
+
+def clampf(x: f32, min: f32, max: f32): f32 { return maxf(minf(x, max), min); }
+def clamp01(x: f32): f32 { return clampf(x, 0.0, 1.0); }
+
+const PI: f32 extern("M_PI")
+def degrees(radians: f32): f32 { return radians * 180.0 / PI; }
+def radians(degrees: f32): f32 { return degrees * PI / 180.0; }

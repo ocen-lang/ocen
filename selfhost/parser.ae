@@ -402,13 +402,13 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     if is_const {
         var.sym.type = SymbolType::Constant
     }
+    
+    .parse_extern_into_symbol(var.sym)
 
     node.u.var_decl.var = var
 
     if .consume_if(TokenType::Equals) {
         node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
-    } else if is_const {
-        .error(Error::new(start_token.span, "Constant must be initialized"))
     }
     .consume_newline_or(TokenType::Semicolon)
     return node
