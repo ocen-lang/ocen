@@ -634,6 +634,7 @@ struct ast_program_Program {
   i32 error_level;
   std_vector_Vector *c_includes;
   std_vector_Vector *c_flags;
+  bool gen_debug_info;
 };
 
 struct ast_program_Namespace {
@@ -938,6 +939,7 @@ void passes_code_generator_CodeGenerator_gen_indent(passes_code_generator_CodeGe
 void str_replace(char **this, char *other);
 errors_Error *passes_code_generator_CodeGenerator_error(passes_code_generator_CodeGenerator *this, errors_Error *err);
 ast_scopes_Scope *passes_code_generator_CodeGenerator_scope(passes_code_generator_CodeGenerator *this);
+void passes_code_generator_CodeGenerator_gen_debug_info(passes_code_generator_CodeGenerator *this, std_span_Span span, bool force);
 char *passes_code_generator_CodeGenerator_get_op(passes_code_generator_CodeGenerator *this, ast_nodes_ASTType type);
 void passes_code_generator_CodeGenerator_gen_internal_print(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node);
 void passes_code_generator_CodeGenerator_gen_format_string_part(passes_code_generator_CodeGenerator *this, char *part);
@@ -1466,11 +1468,13 @@ void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pa
     passes_generic_pass_GenericPass_insert_into_scope_checked(this, enum_->sym);
   }
   for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
-    ast_nodes_Variable *var = ((ast_nodes_Variable *)std_vector_Vector_at(ns->variables, i));
+    ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(ns->variables, i));
+    ast_nodes_Variable *var = node->u.var_decl.var;
     passes_generic_pass_GenericPass_insert_into_scope_checked(this, var->sym);
   }
   for (u32 i = ((u32)0); (i < ns->constants->size); i+=((u32)1)) {
-    ast_nodes_Variable *var = ((ast_nodes_Variable *)std_vector_Vector_at(ns->constants, i));
+    ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(ns->constants, i));
+    ast_nodes_Variable *var = node->u.var_decl.var;
     passes_generic_pass_GenericPass_insert_into_scope_checked(this, var->sym);
   }
 }
@@ -1535,6 +1539,14 @@ errors_Error *passes_code_generator_CodeGenerator_error(passes_code_generator_Co
 
 ast_scopes_Scope *passes_code_generator_CodeGenerator_scope(passes_code_generator_CodeGenerator *this) {
   return passes_generic_pass_GenericPass_scope(this->o);
+}
+
+void passes_code_generator_CodeGenerator_gen_debug_info(passes_code_generator_CodeGenerator *this, std_span_Span span, bool force) {
+  if ((!this->o->program->gen_debug_info && !force)) 
+  return ;
+  
+  std_span_Location loc = span.start;
+  std_buffer_Buffer_putsf(&this->out, format_string("\n#line %d \"%s\"\n", loc.line, loc.filename));
 }
 
 char *passes_code_generator_CodeGenerator_get_op(passes_code_generator_CodeGenerator *this, ast_nodes_ASTType type) {
@@ -1752,12 +1764,14 @@ void passes_code_generator_CodeGenerator_gen_yield_expression(passes_code_genera
 
 void passes_code_generator_CodeGenerator_gen_constant(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node) {
   ast_nodes_Variable *const_ = node->u.var_decl.var;
-  passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "#define ");
-  std_buffer_Buffer_puts(&this->out, const_->sym->out_name);
-  std_buffer_Buffer_puts(&this->out, " (");
-  passes_code_generator_CodeGenerator_gen_expression(this, node->u.var_decl.init);
-  std_buffer_Buffer_puts(&this->out, ")\n");
+  if (!const_->sym->is_extern) {
+    passes_code_generator_CodeGenerator_gen_indent(this);
+    std_buffer_Buffer_puts(&this->out, "#define ");
+    std_buffer_Buffer_puts(&this->out, const_->sym->out_name);
+    std_buffer_Buffer_puts(&this->out, " (");
+    passes_code_generator_CodeGenerator_gen_expression(this, node->u.var_decl.init);
+    std_buffer_Buffer_puts(&this->out, ")\n");
+  } 
 }
 
 void passes_code_generator_CodeGenerator_gen_constants(passes_code_generator_CodeGenerator *this, ast_program_Namespace *ns) {
@@ -2165,6 +2179,7 @@ void passes_code_generator_CodeGenerator_gen_defers_upto(passes_code_generator_C
 }
 
 void passes_code_generator_CodeGenerator_gen_statement(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node) {
+  passes_code_generator_CodeGenerator_gen_debug_info(this, node->span, false);
   switch (node->type) {
     case ast_nodes_ASTType_Return: {
       ast_scopes_Scope *upto = passes_code_generator_CodeGenerator_scope(this);
@@ -2396,6 +2411,7 @@ void passes_code_generator_CodeGenerator_gen_type(passes_code_generator_CodeGene
 }
 
 void passes_code_generator_CodeGenerator_gen_function(passes_code_generator_CodeGenerator *this, ast_nodes_Function *func) {
+  passes_code_generator_CodeGenerator_gen_debug_info(this, func->sym->span, false);
   passes_code_generator_CodeGenerator_gen_function_decl(this, func);
   std_buffer_Buffer_puts(&this->out, " ");
   passes_code_generator_CodeGenerator_gen_block(this, func->body, true);
@@ -2483,15 +2499,17 @@ void passes_code_generator_CodeGenerator_gen_enum_dbg_method(passes_code_generat
 
 void passes_code_generator_CodeGenerator_gen_enum(passes_code_generator_CodeGenerator *this, ast_nodes_Enum *enum_) {
   char *enum_name = enum_->sym->out_name;
-  std_buffer_Buffer_putsf(&this->out, format_string("typedef enum %s {\n", enum_name));
-  std_vector_Vector *fields = enum_->fields;
-  for (u32 i = ((u32)0); (i < fields->size); i+=((u32)1)) {
-    ast_nodes_Variable *field = ((ast_nodes_Variable *)std_vector_Vector_at(fields, i));
-    std_buffer_Buffer_puts(&this->out, "  ");
-    std_buffer_Buffer_puts(&this->out, field->sym->out_name);
-    std_buffer_Buffer_puts(&this->out, ",\n");
-  }
-  std_buffer_Buffer_putsf(&this->out, format_string("} %s;\n\n", enum_name));
+  if (!enum_->sym->is_extern) {
+    std_buffer_Buffer_putsf(&this->out, format_string("typedef enum %s {\n", enum_name));
+    std_vector_Vector *fields = enum_->fields;
+    for (u32 i = ((u32)0); (i < fields->size); i+=((u32)1)) {
+      ast_nodes_Variable *field = ((ast_nodes_Variable *)std_vector_Vector_at(fields, i));
+      std_buffer_Buffer_puts(&this->out, "  ");
+      std_buffer_Buffer_puts(&this->out, field->sym->out_name);
+      std_buffer_Buffer_puts(&this->out, ",\n");
+    }
+    std_buffer_Buffer_putsf(&this->out, format_string("} %s;\n\n", enum_name));
+  } 
   passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enum_);
 }
 
@@ -3650,9 +3668,10 @@ void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeCheck
     ast_nodes_AST *init = node->u.var_decl.init;
     if (((bool)init)) {
       passes_typechecker_TypeChecker_check_const_expression(this, init, NULL);
-    }  else {
+    }  else     if (!node->u.var_decl.var->sym->is_extern) {
       passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Constant must have an initializer"));
     } 
+    
   }
   for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
     passes_typechecker_TypeChecker_check_namespace(this, std_map_MapIterator_value(&iter));
@@ -4393,13 +4412,11 @@ ast_nodes_AST *parser_Parser_parse_global_value(parser_Parser *this, bool is_con
   if (is_const) {
     var->sym->type=ast_scopes_SymbolType_Constant;
   } 
+  parser_Parser_parse_extern_into_symbol(this, var->sym);
   node->u.var_decl.var=var;
   if (parser_Parser_consume_if(this, tokens_TokenType_Equals)) {
     node->u.var_decl.init=parser_Parser_parse_expression(this, tokens_TokenType_Newline);
-  }  else   if (is_const) {
-    parser_Parser_error(this, errors_Error_new(start_token->span, "Constant must be initialized"));
   } 
-  
   parser_Parser_consume_newline_or(this, tokens_TokenType_Semicolon);
   return node;
 }
@@ -5156,12 +5173,16 @@ ast_nodes_Enum *parser_Parser_parse_enum(parser_Parser *this) {
   ast_nodes_Enum *enum_def = ast_nodes_Enum_new();
   enum_def->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Enum, this->ns->sym, name->text, start_span);
   enum_def->sym->u.enum_=enum_def;
+  parser_Parser_parse_extern_into_symbol(this, enum_def->sym);
   parser_Parser_consume(this, tokens_TokenType_OpenCurly);
   while (!parser_Parser_token_is(this, tokens_TokenType_CloseCurly)) {
     tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
     ast_nodes_Variable *var = ast_nodes_Variable_new(NULL);
     var->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Variable, enum_def->sym, name->text, name->span);
     var->sym->u.var=var;
+    if (parser_Parser_consume_if(this, tokens_TokenType_Equals)) {
+      parser_Parser_parse_extern_into_symbol(this, var->sym);
+    } 
     std_vector_Vector_push(enum_def->fields, var);
     if (!parser_Parser_token_is(this, tokens_TokenType_CloseCurly)) {
       parser_Parser_consume_newline_or(this, tokens_TokenType_Comma);
@@ -5561,6 +5582,13 @@ ast_scopes_Symbol *ast_program_Namespace_find_importable_symbol(ast_program_Name
   if (((bool)item)) 
   return item->sym;
   
+  for (u32 i = ((u32)0); (i < this->constants->size); i+=((u32)1)) {
+    ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(this->constants, i));
+    ast_nodes_Variable *var = node->u.var_decl.var;
+    if (str_eq(var->sym->name, name)) {
+      return var->sym;
+    } 
+  }
   for (u32 i = ((u32)0); (i < this->functions->size); i+=((u32)1)) {
     ast_nodes_Function *func = ((ast_nodes_Function *)std_vector_Vector_at(this->functions, i));
     if (str_eq(func->sym->name, name)) {
@@ -6191,18 +6219,14 @@ i32 FILE_write(FILE *this, void *buf, i32 size) {
 }
 
 char *FILE_slurp(FILE *this) {
-  char *buf = ((char *)calloc(((u32)1), ((u32)1)));
-  u32 len = ((u32)0);
-  while (true) {
-    i32 read = FILE_read(this, (buf + len), 1);
-    if (read==0) {
-      break;
-    } 
-    len+=((u32)read);
-    buf=((char *)realloc(buf, (len + ((u32)1))));
-  }
-  buf[len]='\0';
-  return buf;
+  i32 pos = ftell(this);
+  fseek(this, 0, SEEK_END);
+  i32 size = ftell(this);
+  fseek(this, pos, SEEK_SET);
+  void *buf = calloc((((u32)size) + ((u32)1)), ((u32)sizeof(char)));
+  fread(buf, 1, size, this);
+  fseek(this, pos, SEEK_SET);
+  return ((char *)buf);
 }
 
 bool FILE_exists(char *path) {
@@ -7249,6 +7273,7 @@ i32 main(i32 argc, char **argv) {
   } 
   ast_program_Program *program = ast_program_Program_new();
   program->error_level=error_level;
+  program->gen_debug_info=debug;
   parser_Parser_parse_toplevel(filename, program);
   if (!std_vector_Vector_empty(program->errors)) 
   ast_program_Program_exit_with_errors(program);

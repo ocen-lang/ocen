@@ -78,6 +78,7 @@ def main(argc: i32, argv: &str) {
 
     let program = Program::new()
     program.error_level = error_level
+    program.gen_debug_info = debug
     Parser::parse_toplevel(filename, program)
 
     if not program.errors.empty() then program.exit_with_errors()

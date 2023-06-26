@@ -19,6 +19,8 @@ struct Program {
 
     c_includes: &Vector // Vector<str>
     c_flags: &Vector // Vector<str>
+
+    gen_debug_info: bool
 }
 
 def Program::new(): &Program {
