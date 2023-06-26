@@ -1,12 +1,13 @@
 import std::buffer::Buffer
 import std::vector::Vector
+import std::libc::free
+import std::span::Span
 import @types::{ Type, BaseType }
 import @ast::nodes::*
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::Scope
 import @errors::Error
 import @passes::generic_pass::GenericPass
-import std::libc::free
 
 struct CodeGenerator {
     o: &GenericPass
@@ -30,6 +31,13 @@ def str::replace(&this, other: str) {
 // Some convenience accessors from the GenericPass
 def CodeGenerator::error(&this, err: &Error): &Error => .o.error(err)
 def CodeGenerator::scope(&this): &Scope => .o.scope()
+
+def CodeGenerator::gen_debug_info(&this, span: Span, force: bool = false) {
+    if not .o.program.gen_debug_info and not force return
+
+    let loc = span.start
+    .out.putsf(`\n#line {loc.line} "{loc.filename}"\n`)
+}
 
 def CodeGenerator::get_op(&this, type: ASTType): str => match type {
     And => "&&",
@@ -604,6 +612,7 @@ def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
 }
 
 def CodeGenerator::gen_statement(&this, node: &AST) {
+    .gen_debug_info(node.span)
     match node.type {
         ASTType::Return => {
             let upto = .scope()
@@ -820,6 +829,7 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
+    .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
     .out.puts(" ")
     .gen_block(func.body)
