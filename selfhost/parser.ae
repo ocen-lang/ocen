@@ -1179,12 +1179,18 @@ def Parser::parse_enum(&this): &Enum {
     enum_def.sym = Symbol::new_with_parent(Enum, .ns.sym, name.text, start_span)
     enum_def.sym.u.enum_ = enum_def
 
+    .parse_extern_into_symbol(enum_def.sym)
+
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
         let name = .consume(TokenType::Identifier)
         let var = Variable::new(null)
         var.sym = Symbol::new_with_parent(Variable, enum_def.sym, name.text, name.span)
         var.sym.u.var = var
+
+        if .consume_if(TokenType::Equals) {
+            .parse_extern_into_symbol(var.sym)
+        }
 
         enum_def.fields.push(var)
         if not .token_is(TokenType::CloseCurly) {

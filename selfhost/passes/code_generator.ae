@@ -920,15 +920,18 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
 
 def CodeGenerator::gen_enum(&this, enum_: &Enum) {
     let enum_name = enum_.sym.out_name
-    .out.putsf(`typedef enum {enum_name} \{\n`)
-    let fields = enum_.fields
-    for let i = 0u32; i < fields.size; i += 1 {
-        let field = fields.at(i) as &Variable
-        .out.puts("  ")
-        .out.puts(field.sym.out_name)
-        .out.puts(",\n")
+
+    if not enum_.sym.is_extern {
+        .out.putsf(`typedef enum {enum_name} \{\n`)
+        let fields = enum_.fields
+        for let i = 0u32; i < fields.size; i += 1 {
+            let field = fields.at(i) as &Variable
+            .out.puts("  ")
+            .out.puts(field.sym.out_name)
+            .out.puts(",\n")
+        }
+        .out.putsf(`\} {enum_name};\n\n`)
     }
-    .out.putsf(`\} {enum_name};\n\n`)
     .gen_enum_dbg_method(enum_)
 }
 
