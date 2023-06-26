@@ -1,0 +1,158 @@
+@compiler c_include "SDL2/SDL.h"
+@compiler c_include "SDL2/SDL_image.h"
+@compiler c_include "SDL2/SDL_mixer.h"
+@compiler c_include "SDL2/SDL_ttf.h"
+@compiler c_flag "-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer"
+
+struct Window extern("SDL_Window")
+struct Renderer extern("SDL_Renderer")
+
+struct Texture extern("SDL_Texture")
+def Texture::destroy(&this) extern("SDL_DestroyTexture")
+
+struct Rect extern("SDL_Rect") {
+    x: i32
+    y: i32
+    w: i32
+    h: i32
+}
+
+struct Surface extern("SDL_Surface")
+def Surface::destroy(&this) extern("SDL_FreeSurface")
+
+struct Color extern("SDL_Color") {
+    r: i32 // Not really i32, but it's convenient
+    g: i32
+    b: i32
+    a: i32
+}
+
+enum Key extern("SDL_Keycode") {
+    A = extern("SDLK_a")
+    B = extern("SDLK_b")
+    C = extern("SDLK_c")
+    D = extern("SDLK_d")
+    E = extern("SDLK_e")
+    F = extern("SDLK_f")
+    G = extern("SDLK_g")
+    H = extern("SDLK_h")
+    I = extern("SDLK_i")
+    J = extern("SDLK_j")
+    K = extern("SDLK_k")
+    L = extern("SDLK_l")
+    M = extern("SDLK_m")
+    N = extern("SDLK_n")
+    O = extern("SDLK_o")
+    P = extern("SDLK_p")
+    Q = extern("SDLK_q")
+    R = extern("SDLK_r")
+    S = extern("SDLK_s")
+    T = extern("SDLK_t")
+    U = extern("SDLK_u")
+    V = extern("SDLK_v")
+    W = extern("SDLK_w")
+    X = extern("SDLK_x")
+    Y = extern("SDLK_y")
+    Z = extern("SDLK_z")
+
+    Up = extern("SDLK_UP")
+    Down = extern("SDLK_DOWN")
+    Left = extern("SDLK_LEFT")
+    Right = extern("SDLK_RIGHT")
+    Space = extern("SDLK_SPACE")
+    Escape = extern("SDLK_ESCAPE")
+}
+
+struct Keysym extern("SDL_Keysym") {
+    scancode: i32
+    sym: Key
+    mod: i32
+}
+
+enum EventType extern("SDL_EventType") {
+    Quit = extern("SDL_QUIT")
+    KeyDown = extern("SDL_KEYDOWN")
+    KeyUp = extern("SDL_KEYUP")
+}
+
+struct KeyboardEvent extern("SDL_KeyboardEvent") {
+    type: i32
+    keysym: Keysym
+}
+
+struct Event extern("SDL_Event") {
+    type: EventType
+    key: KeyboardEvent
+}
+
+const INIT_EVERYTHING: i32 extern("SDL_INIT_EVERYTHING")
+const PIXELFORMAT_ABGR8888: i32 extern("SDL_PIXELFORMAT_ABGR8888")
+const TEXTUREACCESS_STREAMING: i32 extern("SDL_TEXTUREACCESS_STREAMING")
+const MIX_MAXVOLUME: i32 extern("SDL_MIX_MAX_VOLUME")
+
+def init(flags: i32) extern("SDL_Init")
+def quit() extern("SDL_Quit")
+def create_window_renderer(width: i32,
+    height: i32, flags: i32, window: &&Window,
+    renderer: &&Renderer) extern("SDL_CreateWindowAndRenderer")
+def delay(ms: i32) extern("SDL_Delay")
+def get_mouse_state(x: &i32, y: &i32): i32 extern("SDL_GetMouseState")
+def show_cursor(toggle: bool) extern("SDL_ShowCursor")
+
+def Renderer::clear(&this) extern("SDL_RenderClear")
+def Renderer::present(&this) extern("SDL_RenderPresent")
+def Renderer::copy(&this, texture: &Texture, src: &Rect, dst: &Rect) extern("SDL_RenderCopy")
+def Renderer::copy_ex(&this, texture: &Texture, src: &Rect, dst: &Rect, angle: f32, center: untyped_ptr, flip: i32) extern("SDL_RenderCopyEx")
+def Renderer::set_draw_color(&this, r: i32, g: i32, b: i32, a: i32) extern("SDL_SetRenderDrawColor")
+def Renderer::destroy(&this) extern("SDL_DestroyRenderer")
+def Renderer::load_image(&this, path: str): &Texture extern("IMG_LoadTexture")
+def Renderer::create_texture_from_surface(&this, surface: &Surface): &Texture extern("SDL_CreateTextureFromSurface")
+def Renderer::create_texture(&this, format: i32, access: i32, w: i32, h: i32): &Texture extern("SDL_CreateTexture")
+
+def Window::destroy(&this) extern("SDL_DestroyWindow")
+
+// FIXME: what's a and b?
+def Texture::query(&this, a: untyped_ptr, b: untyped_ptr, w: &i32, h: &i32) extern("SDL_QueryTexture")
+def Texture::lock(&this, rect: &Rect, pixels: &untyped_ptr, pitch: &i32) extern("SDL_LockTexture")
+def Texture::unlock(&this) extern("SDL_UnlockTexture")
+
+def poll_event(event: &Event): bool extern("SDL_PollEvent")
+
+// SDL2_TTF
+
+namespace TTF {
+    struct Font extern("TTF_Font")
+
+    def Font::load(path: str, size: i32): &Font extern("TTF_OpenFont")
+    def Font::render_solid(&this, text: str, color: Color): &Surface extern("TTF_RenderText_Solid")
+
+    def init(): i32 extern("TTF_Init")
+    def get_error(): str extern("TTF_GetError")
+}
+
+// Sound BS
+
+namespace Mix {
+    const DEFAULT_FORMAT: u16 extern("MIX_DEFAULT_FORMAT")
+
+    def open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32 extern("Mix_OpenAudio")
+
+    struct Chunk extern("Mix_Chunk")
+    struct Music extern("Mix_Music")
+
+    def load_music(path: str): &Music extern("Mix_LoadMUS")
+    def load_wav(path: str): &Chunk extern("Mix_LoadWAV")
+    def play_music(music: &Music, loops: i32): i32 extern("Mix_PlayMusic")
+    def play_channel(channel: i32, chunk: &Chunk, loops: i32): i32 extern("Mix_PlayChannel")
+    def allocate_channels(num: i32): i32 extern("Mix_AllocateChannels")
+
+    def pause(channel: i32) extern("Mix_Pause")
+    def resume(channel: i32) extern("Mix_Resume")
+
+    def free_chunk(chunk: &Chunk) extern("Mix_FreeChunk")
+    def free_music(music: &Music) extern("Mix_FreeMusic")
+    def quit() extern("Mix_Quit")
+
+    def get_error(): str extern("Mix_GetError")
+    def volume(channel: i32, volume: i32) extern("Mix_Volume")
+}
