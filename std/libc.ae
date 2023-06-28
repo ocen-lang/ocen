@@ -28,6 +28,7 @@ def strstr(haystack: str, needle: str): str extern
 def strchr(s: str, c: i32): str extern
 def strsep(str: &str, delim: str): str extern
 def memcpy(dest: untyped_ptr, src: untyped_ptr, size: i32) extern
+def memset(dest: untyped_ptr, c: i32, size: i32) extern
 
 // ctype
 @compiler c_include "ctype.h"

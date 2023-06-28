@@ -390,6 +390,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts("-")
             .gen_expression(expr)
         }
+        BitwiseNot => {
+            let expr = node.u.unary
+            .out.puts("~")
+            .gen_expression(expr)
+        }
         Not => {
             let expr = node.u.unary
             .out.puts("!")

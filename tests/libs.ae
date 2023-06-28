@@ -1,12 +1,12 @@
 /// compile
 
-use "lib/image.ae"
-use "lib/vec.ae"
-use "lib/vector.ae"
-use "lib/map.ae"
-use "lib/sdl.ae"
-use "lib/glut.ae"
-use "lib/math.ae"
+import std::image
+import std::vec
+import std::vector
+import std::map
+import std::sdl
+import std::glut
+import std::math
 
 // Just want to make sure that the code compiles
 
