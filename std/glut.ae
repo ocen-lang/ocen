@@ -1,0 +1,58 @@
+// macOS
+// @compiler c_include "GLUT/glut.h"
+// @compiler c_flag "-framework GLUT -framework OpenGL -Wno-deprecated-declarations"
+
+// Linux
+@compiler c_include "GL/glut.h"
+@compiler c_flag "-lGL -lGLU -lglut"
+
+
+const GL_COLOR_BUFFER_BIT: i32 extern
+const GL_DEPTH_BUFFER_BIT: i32 extern
+const GL_POLYGON: i32 extern
+const GL_LINES: i32 extern
+const GL_DEPTH_TEST: i32 extern
+const GLUT_RGB: i32 extern
+const GLUT_DOUBLE: i32 extern
+const GLUT_DEPTH: i32 extern
+
+def glutInit(argc: &i32, argv: &str) extern
+def glutInitDisplayMode(mode: i32) extern
+def glutInitWindowPosition(x: i32, y: i32) extern
+def glutInitWindowSize(width: i32, height: i32) extern
+def glutCreateWindow(title: str) extern
+
+def glutDisplayFunc(func: fn()) extern
+def glutReshapeFunc(func: fn(i32, i32)) extern
+def glutMainLoop() extern
+
+def glEnable(cap: i32) extern
+def glClear(mask: i32) extern
+def glBegin(mode: i32) extern
+def glColor3f(r: f32, g: f32, b: f32) extern
+def glVertex3f(x: f32, y: f32, z: f32) extern
+def glEnd() extern
+def glFlush() extern
+
+def glPushMatrix() extern
+def glPopMatrix() extern
+def glRotatef(angle: f32, x: f32, y: f32, z: f32) extern
+def glTranslatef(x: f32, y: f32, z: f32) extern
+
+def glViewport(x: i32, y: i32, width: i32, height: i32) extern
+def glMatrixMode(mode: i32) extern
+def glLoadIdentity() extern
+
+const GL_PROJECTION: i32 extern
+const GL_MODELVIEW: i32 extern
+
+def gluPerspective(fovy: f32, aspect: f32, zNear: f32, zFar: f32) extern
+def gluLookAt(ex: f32, ey: f32, ez: f32,
+              cx: f32, cy: f32, cz: f32,
+              ux: f32, uy: f32, uz: f32) extern
+
+
+def glutPostRedisplay() extern
+def glutTimerFunc(time: i32, func: fn(i32), value: i32) extern
+def glutSwapBuffers() extern
+def glutWireSphere(radius: f32, slices: i32, stacks: i32) extern

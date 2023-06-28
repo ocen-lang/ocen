@@ -1,0 +1,11 @@
+/// out: "(20 bytes): 2aae6c35_c94fcfb4_15dbe95f_408b9ce9_1ee846ed"
+
+
+import std::hash::sha1
+
+
+def main() {
+    let s = "hello world"
+    let h = sha1::hash_str(s)
+    h.hex_dump()
+}

@@ -547,6 +547,15 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             }
             return typ
         }
+        ASTType::BitwiseNot => {
+            let typ = .check_expression(node.u.unary, hint)
+            if not typ? return null
+            if not typ.is_integer() {
+                .error(Error::new(node.span, `Cannot do bitwise-not on non-integer type: {typ.str()}`))
+                return null
+            }
+            return typ
+        }
         ASTType::IsNotNull => {
             let typ = .check_expression(node.u.unary)
             if not typ? return null

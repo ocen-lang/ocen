@@ -1,0 +1,6 @@
+/// compile
+
+
+def main() {
+    sizeof(u32) as i32
+}

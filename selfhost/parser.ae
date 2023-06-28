@@ -512,14 +512,6 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 op.u.unary = node
                 node = op
             }
-            TokenType::As => {
-                let tok = .consume(TokenType::As)
-                let type_node = .parse_type()
-                let op = AST::new(ASTType::Cast, node.span.join(type_node.span))
-                op.u.cast.lhs = node
-                op.u.cast.to = type_node
-                node = op
-            }
             TokenType::OpenSquare => {
                 .consume(TokenType::OpenSquare)
                 let index = .parse_expression(end_type: TokenType::CloseSquare)
@@ -575,19 +567,40 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             node.u.unary = expr
             return node
         }
+        TokenType::Tilde => {
+            let tok = .consume(TokenType::Tilde)
+            let expr = .parse_prefix(end_type)
+            let node = AST::new(ASTType::BitwiseNot, tok.span.join(expr.span))
+            node.u.unary = expr
+            return node
+        }
         else => return .parse_postfix(end_type)
     }
 }
 
-def Parser::parse_term(&this, end_type: TokenType): &AST {
+def Parser::parse_cast(&this, end_type: TokenType): &AST {
     let lhs = .parse_prefix(end_type)
+    while .token_is(TokenType::As) {
+        if .token_is(end_type) break
+        let tok = .consume(TokenType::As)
+        let type_node = .parse_type()
+        let op = AST::new(ASTType::Cast, lhs.span.join(type_node.span))
+        op.u.cast.lhs = lhs
+        op.u.cast.to = type_node
+        lhs = op
+    }
+    return lhs
+}
+
+def Parser::parse_term(&this, end_type: TokenType): &AST {
+    let lhs = .parse_cast(end_type)
     while .token_is(TokenType::Star) or
             .token_is(TokenType::Slash) or
             .token_is(TokenType::Percent) {
         if .token_is(end_type) break
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_prefix(end_type)
+        let rhs = .parse_cast(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs

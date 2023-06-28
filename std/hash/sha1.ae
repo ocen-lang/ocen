@@ -1,0 +1,100 @@
+import std::buffer::Buffer
+import std::libc::{ memset, memcpy }
+
+def rotate_left(value: u32, bits: u32): u32 {
+    return (((value) << (bits)) | ((value) >> (32u32 - (bits))))
+}
+
+def hash(input: &Buffer): Buffer {
+    let data = input.data
+    let size = input.size as u64
+
+    let H: [u32; 5]
+    H[0] = 0x67452301
+    H[1] = 0xEFCDAB89
+    H[2] = 0x98BADCFE
+    H[3] = 0x10325476
+    H[4] = 0xC3D2E1F0
+
+    let loopcount = (size + 8) / 64 + 1
+    let tailbytes = loopcount * 64  - size
+
+    let datatail: [u8; 128]
+    memset(datatail, 0, 128)
+
+    datatail[0] = 0x80
+    for let i = 0u64; i < 8; i += 1 {
+        datatail[tailbytes - 1 - i] = (((size * 8) >> (i as u64 * 8)) & 0xFF) as u8
+    }
+
+    let W: [u32; 80]
+    let didx = 0u64
+
+    for let lidx = 0u64; lidx < loopcount; lidx += 1 {
+        memset(W, 0, 320)
+
+        for let widx = 0u32; widx < 16; widx += 1 {
+            let wcount = 24
+
+            while didx < size and wcount >= 0 {
+                W[widx] += (data[didx] as u32) << wcount as u32
+                wcount -= 8
+                didx += 1
+            }
+
+            while wcount >= 0 {
+                W[widx] += (datatail[didx - size] as u32) << wcount as u32
+                wcount -= 8
+                didx += 1
+            }
+        }
+
+        for let widx = 16u32; widx < 32; widx += 1 {
+            W[widx] = rotate_left((W[widx - 3] ^ W[widx - 8] ^ W[widx - 14] ^ W[widx - 16]), 1)
+        }
+
+        for let widx = 32u32; widx < 80; widx += 1 {
+            W[widx] = rotate_left((W[widx - 6] ^ W[widx - 16] ^ W[widx - 28] ^ W[widx - 32]), 2)
+        }
+
+        // Main loop
+        let T: [u32; 5]
+        memcpy(T, H, sizeof(u32) as i32 * 5)
+
+        for let idx = 0; idx <= 79; idx += 1 {
+            let factor: u32 = match idx / 20 {
+                0 => 0x5A827999u32 + ((T[1] & T[2]) | ((~T[1]) & T[3]))
+                1 => 0x6ED9EBA1u32 + ( T[1] ^ T[2] ^ T[3])
+                2 => 0x8F1BBCDCu32 + ((T[1] & T[2]) | (T[1] & T[3]) | (T[2] & T[3]))
+                3 => 0xCA62C1D6u32 + ( T[1] ^ T[2] ^ T[3])
+                else => 0
+            }
+            let temp = rotate_left(T[0], 5) + T[4] + factor + W[idx]
+            T[4] = T[3]
+            T[3] = T[2]
+            T[2] = rotate_left(T[1], 30)
+            T[1] = T[0]
+            T[0] = temp
+        }
+
+        for let i = 0; i < 5; i += 1 {
+            H[i] += T[i]
+        }
+    }
+
+    let out = Buffer::make()
+    out.resize_if_necessary(20)
+    for let idx = 0; idx < 5; idx += 1 {
+        out.data[idx * 4 + 0] = (H[idx] >> 24) as u8
+        out.data[idx * 4 + 1] = (H[idx] >> 16) as u8
+        out.data[idx * 4 + 2] = (H[idx] >> 8) as u8
+        out.data[idx * 4 + 3] = (H[idx]) as u8
+    }
+    out.size = 20
+    return out
+}
+
+def hash_str(data: str): Buffer {
+    let input_data = Buffer::from_str(data)
+    return hash(&input_data)
+}
