@@ -1,14 +1,15 @@
-use "lib/span.ae"
+import std::span::Span
+import std::libc::calloc
 
 struct Token {
     type: TokenType
     span: Span
-    text: string
+    text: str
     suffix: &Token
     seen_newline: bool
 }
 
-def Token::new(type: TokenType, span: Span, text: string): &Token {
+def Token::new(type: TokenType, span: Span, text: str): &Token {
     let tok = calloc(1, sizeof(Token)) as &Token
     *tok = Token(type, span, text, suffix: null, seen_newline: false)
     return tok
@@ -16,12 +17,12 @@ def Token::new(type: TokenType, span: Span, text: string): &Token {
 
 def Token::from_type(type: TokenType, span: Span): &Token => Token::new(type, span, "")
 
-def Token::from_ident(text: string, span: Span): &Token {
+def Token::from_ident(text: str, span: Span): &Token {
     let type = TokenType::from_text(text)
     return Token::new(type, span, text)
 }
 
-def Token::str(&this): string => `{.span.str()}: {.type.str()}`
+def Token::str(&this): str => `{.span.str()}: {.type.str()}`
 
 
 def Token::is_word(this): bool => match .type {
@@ -111,6 +112,7 @@ enum TokenType {
     Or
     Return
     SizeOf
+    String
     Struct
     True
     Then
@@ -126,7 +128,7 @@ enum TokenType {
     While
 }
 
-def TokenType::from_text(text: string): TokenType => match text {
+def TokenType::from_text(text: str): TokenType => match text {
     "and" => TokenType::And
     "as" => TokenType::As
     "bool" => TokenType::Bool
@@ -157,6 +159,7 @@ def TokenType::from_text(text: string): TokenType => match text {
     "or" => TokenType::Or
     "return" => TokenType::Return
     "sizeof" => TokenType::SizeOf
+    "string" => TokenType::String
     "struct" => TokenType::Struct
     "true" => TokenType::True
     "then" => TokenType::Then
@@ -173,7 +176,7 @@ def TokenType::from_text(text: string): TokenType => match text {
     else => TokenType::Identifier
 }
 
-def TokenType::str(this): string => match this {
+def TokenType::str(this): str => match this {
     // Keywords
     And => "and"
     As => "as"
@@ -205,6 +208,7 @@ def TokenType::str(this): string => match this {
     Or => "or"
     Return => "return"
     SizeOf => "sizeof"
+    String => "string"
     Struct => "struct"
     True => "true"
     Then => "then"

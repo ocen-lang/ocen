@@ -1,4 +1,4 @@
-/// compile
+/// skip
 
 // Note: we should be generating constants in an order such that
 // the constant's dependencies are generated first.  This is not

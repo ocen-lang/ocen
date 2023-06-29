@@ -1,12 +1,11 @@
-use "@/passes/generic_pass.ae"
-use "@/passes/register_types.ae"
-use "@/passes/typechecker.ae"
-use "@/passes/namespace_dump.ae"
-use "@/passes/reorder_structs.ae"
-use "@/passes/code_generator.ae"
+import @ast::program::Program
+import @passes::register_types::RegisterTypes
+import @passes::namespace_dump::NamespaceDump
+import @passes::typechecker::TypeChecker
+import @passes::reorder_structs::ReorderStructs
+import @passes::code_generator::CodeGenerator
 
-
-def run_all_passes(program: &Program): string {
+def run_all_passes(program: &Program): str {
     // NamespaceDump::run(program) // Debug pass
 
     RegisterTypes::run(program)

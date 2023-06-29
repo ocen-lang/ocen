@@ -1,0 +1,396 @@
+// This just reuses the lexer from the compiler,
+// since that's already capable of lexing JSON.
+// use "compiler/lexer.ae"
+import std::buffer::Buffer
+import std::vector::Vector
+import std::value::{ Value, ValueType }
+import std::span::{ Span, Location }
+import std::libc::calloc
+
+struct Parser {
+    tokens: &Vector
+    curr: u32
+}
+
+def Parser::make(tokens: &Vector): Parser {
+    let parser: Parser
+    parser.tokens = tokens
+    parser.curr = 0
+    return parser
+}
+ 
+def Parser::token(&this): &Token => .tokens.at(.curr)
+
+def Parser::consume(&this, type: TokenType): &Token {
+    if .token().type != type {
+        println("Expected %s but got %s", type.str(), .token().type.str())
+        exit(1)
+    }
+    let tok = .token()
+    .curr += 1
+    return tok
+}
+
+def Parser::parse_object(&this): &Value {
+    .consume(TokenType::OpenCurly)
+    let json = Value::new(ValueType::Dictionary)
+    while .token().type != TokenType::CloseCurly {
+        let key = .consume(TokenType::StringLiteral)
+        .consume(TokenType::Colon)
+        let value = .parse_value()
+        json.u.as_dict.insert(key.text, value)
+        if .token().type == TokenType::Comma {
+            .consume(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseCurly)
+    return json
+}
+
+def Parser::parse_array(&this): &Value {
+    .consume(TokenType::OpenSquare)
+    let json = Value::new(ValueType::List)
+    while .token().type != TokenType::CloseSquare {
+        let value = .parse_value()
+        json.u.as_list.push(value)
+        if .token().type == TokenType::Comma {
+            .consume(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseSquare)
+    return json
+}
+
+def Parser::parse_value(&this): &Value => match .token().type {
+    Null => {
+        .consume(TokenType::Null)
+        yield Value::new(ValueType::Null)
+    }
+    True | False => {
+        let json = Value::new(ValueType::Bool)
+        let tok = .token()
+        json.u.as_bool = tok.text.eq("true")
+        .curr += 1
+        yield json
+    }
+    IntLiteral => {
+        let json = Value::new(ValueType::Integer)
+        let tok = .consume(TokenType::IntLiteral)
+        json.u.as_num = tok.text.to_i32() as i64
+        yield json
+    }
+    StringLiteral => {
+        let json = Value::new(ValueType::String)
+        json.u.as_str = Buffer::from_str(.consume(TokenType::StringLiteral).text)
+        yield json
+    }
+    OpenCurly => .parse_object()
+    OpenSquare => .parse_array()
+    else => {
+        println("Unexpected token in json::Parser::parse_value: %s", .token().type.str())
+        exit(1)
+    }
+}
+
+def Parser::parse(&this): &Value => match .token().type {
+    OpenCurly => .parse_object()
+    OpenSquare => .parse_array()
+    else => {
+        println("Expected { or [ at JSON top level")
+        exit(1)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+def parse(source: str, filename: str): &Value {
+    let lexer = Lexer::make(source, filename)
+    let tokens = lexer.lex()
+    let parser = Parser::make(tokens)
+    return parser.parse()
+}
+
+def parse_from_str(json_str: str): &Value => parse(json_str, "<anonymous>")
+
+def parse_from_file(filename: str): &Value {
+    let file = File::open(filename, "r")
+    let source = file.slurp()
+    file.close()
+    return parse(source, filename)
+}
+
+def serialize_into(val: &Value, sb: &Buffer) {
+    match val.type {
+        Null => sb.puts("null")
+        Bool => sb.puts(if val.u.as_bool "true" else "false")
+        Integer => sb.putsf(`{val.u.as_num}`)
+        String => {
+            sb.puts("\"")
+            // Want to escape non-ASCII characters here
+            let buf = val.u.as_str
+            for let i = 0u32; i < buf.size; i += 1 {
+                let c = buf.data[i] as char
+                if c.is_print() {
+                    if c == '\\' or c == '"' {
+                        sb.putsf(`\\{c}`)
+                    } else {
+                        sb.putc(c)
+                    }
+                } else {
+                    sb.putsf(`\\x{buf.data[i]:02x}`)
+                }
+            }
+            sb.puts("\"")
+        }
+        List => {
+            sb.puts("[")
+            let lst = val.u.as_list
+            for let i = 0u32; i < lst.size; i += 1 {
+                let value = lst.at(i) as &Value
+                if i > 0 {
+                    sb.puts(", ")
+                }
+                serialize_into(value, sb)
+            }
+            sb.puts("]")
+        }
+        Dictionary => {
+            sb.puts("{")
+            let first = true
+            for let iter = val.u.as_dict.iter(); iter.cur?; iter.next() {
+                if not first {
+                    sb.puts(", ")
+                }
+                first = false
+                sb.puts("\"")
+                sb.puts(iter.key())
+                sb.puts("\": ")
+                let value = iter.value() as &Value
+                serialize_into(value, sb)
+            }
+            sb.puts("}")
+        }
+    }
+}
+
+def serialize(val: &Value): Buffer {
+    let sb = Buffer::make()
+    serialize_into(val, &sb)
+    return sb
+}
+
+
+
+
+
+
+
+
+struct Lexer {
+    source: str
+    source_len: i32
+    i: i32
+    loc: Location
+    tokens: &Vector
+
+}
+
+def Lexer::make(source: str, filename: str): Lexer {
+    return Lexer(
+        source,
+        source_len: source.len(),
+        i: 0,
+        loc: Location(filename, 1, 1, 0),
+        tokens: Vector::new()
+    )
+}
+
+def Lexer::push(&this, token: &Token) {
+    .tokens.push(token)
+}
+
+
+def Lexer::push_type(&this, type: TokenType, len: i32) {
+    let start_loc = .loc
+    for let i = 0; i < len; i += 1 {
+        .inc()
+    }
+    .push(Token::from_type(type, Span(start_loc, .loc)))
+}
+
+def Lexer::cur(&this): char => .source[.i]
+
+def Lexer::inc(&this) {
+    match .cur() {
+        '\n' => {
+            .loc.line += 1
+            .loc.col = 1
+        }
+        else => .loc.col += 1
+    }
+    .i += 1
+    .loc.index += 1
+}
+
+def Lexer::peek(&this, offset: i32): char {
+    if .cur() == '\0' {
+        return .cur()
+    }
+    return .source[.i + 1]
+}
+
+def Lexer::error(&this, msg: str) {
+    println(f"{.loc.str()} Error: {msg}")
+    exit(1)
+}
+
+def Lexer::lex_string_literal(&this) {
+    let start_loc = .loc
+    let end_char = .cur()
+    let start = .i + 1
+    .inc()
+    while .i < .source_len and .cur() != end_char {
+        if .cur() == '\\' {
+            .inc()
+        }
+        .inc()
+    }
+
+    let len = .i - start
+    let text = .source.substring(start, len)
+    .inc()
+
+    if .i >= .source_len {
+        .error("Unterminated string literal")
+    }
+
+    .push(Token::new(TokenType::StringLiteral, Span(start_loc, .loc), text))
+}
+
+def Lexer::lex_numeric_literal(&this) {
+    let start_loc = .loc
+    let start = .i
+    let token_type: TokenType
+    while .cur().is_digit() {
+        .inc()
+    }
+    if .cur() == '.' {
+        .inc()
+        while .cur().is_digit() {
+            .inc()
+        }
+        token_type = TokenType::FloatLiteral
+    } else {
+        token_type = TokenType::IntLiteral
+    }
+    let len = .i - start
+    let text = .source.substring(start, len)
+
+    let token = Token::new(token_type, Span(start_loc, .loc), text)
+    .push(token)
+}
+
+def Lexer::lex(&this): &Vector {
+    while .i < .source_len {
+        let c = .cur()
+        match c {
+            ' ' | '\t' | '\v' | '\r' | '\b'| '\n' => {
+                .inc()
+            }
+            ',' => .push_type(TokenType::Comma, len: 1)
+            '[' => .push_type(TokenType::OpenSquare, len: 1)
+            ']' => .push_type(TokenType::CloseSquare, len: 1)
+            '{' => .push_type(TokenType::OpenCurly, len: 1)
+            '}' => .push_type(TokenType::CloseCurly, len: 1)
+            ':' => .push_type(TokenType::Colon, len: 1)
+            '"' => .lex_string_literal()
+            else => {
+                let start_loc = .loc
+
+                if c.is_digit() {
+                    .lex_numeric_literal()
+
+                } else if c.is_alpha() or c == '_' {
+                    let start = .i
+                    while .cur().is_alnum() or .cur() == '_' {
+                        .inc()
+                    }
+                    let len = .i - start
+                    let text = .source.substring(start, len)
+
+                    .push(Token::from_ident(text, Span(start_loc, .loc)))
+
+                } else {
+                    .error(`Unrecognized char in lexer: '{c}'`)
+                    .inc()
+                }
+            }
+        }
+    }
+
+    .push_type(TokenType::EOF, len: 0)
+    return .tokens
+}
+
+struct Token {
+    type: TokenType
+    span: Span
+    text: str
+}
+
+def Token::new(type: TokenType, span: Span, text: str): &Token {
+    let tok = calloc(1, sizeof(Token)) as &Token
+    *tok = Token(type, span, text)
+    return tok
+}
+
+def Token::from_type(type: TokenType, span: Span): &Token => Token::new(type, span, "")
+
+def Token::from_ident(text: str, span: Span): &Token {
+    let type = TokenType::from_text(text)
+    return Token::new(type, span, text)
+}
+
+def Token::str(&this): str => `{.span.str()}: {.type.str()}`
+
+
+enum TokenType {
+    // Other tokens
+    OpenCurly
+    OpenSquare
+    CloseCurly
+    CloseSquare
+    Colon
+    Comma
+    EOF
+    FloatLiteral
+    Identifier
+    IntLiteral
+    StringLiteral
+
+    BEGIN_KEYWORDS
+
+    // Keywords
+    False
+    Null
+    True
+}
+
+def TokenType::from_text(text: str): TokenType => match text {
+    "false" => TokenType::False
+    "null" => TokenType::Null
+    "true" => TokenType::True
+    else => TokenType::Identifier
+}
+
+def TokenType::str(this): str => match this {
+    // Keywords
+    False => "false"
+    Null => "null"
+    True => "true"
+
+    // Others
+    else => .dbg()
+}
+

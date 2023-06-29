@@ -1,20 +1,29 @@
-use "lib/buffer.ae"
+import std::buffer::Buffer
+import std::vector::Vector
+import std::libc::free
+import std::span::Span
+import @types::{ Type, BaseType }
+import @ast::nodes::*
+import @ast::program::{ Program, Namespace }
+import @ast::scopes::Scope
+import @errors::Error
+import @passes::generic_pass::GenericPass
 
 struct CodeGenerator {
     o: &GenericPass
     out: Buffer
-    indent: i32
-    yield_vars: &Vector  // &Vector<string>
+    indent: u32
+    yield_vars: &Vector  // &Vector<str>
 }
 
 def CodeGenerator::gen_indent(&this) {
-    for let i = 0; i < .indent; i += 1 {
+    for let i = 0u32; i < .indent; i += 1 {
         .out.puts("  ")
     }
 }
 
-def string::replace(&this, other: string) {
-    let s: string = *this
+def str::replace(&this, other: str) {
+    let s: str = *this
     free(s)
     *this = other
 }
@@ -23,7 +32,14 @@ def string::replace(&this, other: string) {
 def CodeGenerator::error(&this, err: &Error): &Error => .o.error(err)
 def CodeGenerator::scope(&this): &Scope => .o.scope()
 
-def CodeGenerator::get_op(&this, type: ASTType): string => match type {
+def CodeGenerator::gen_debug_info(&this, span: Span, force: bool = false) {
+    if not .o.program.gen_debug_info and not force return
+
+    let loc = span.start
+    .out.putsf(`\n#line {loc.line} "{loc.filename}"\n`)
+}
+
+def CodeGenerator::get_op(&this, type: ASTType): str => match type {
     And => "&&",
     Assignment => "=",
     BitwiseAnd => "&",
@@ -47,7 +63,7 @@ def CodeGenerator::get_op(&this, type: ASTType): string => match type {
     MultiplyEquals => "*=",
     DivideEquals => "/=",
     RightShift => ">>",
-    else => panic(`Unknown op type in get_op: {type}`)
+    else => std::panic(`Unknown op type in get_op: {type}`)
 }
 
 def CodeGenerator::gen_internal_print(&this, node: &AST) {
@@ -64,7 +80,7 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
         return
     }
 
-    for let i = 0; i < args.size; i += 1 {
+    for let i = 0u32; i < args.size; i += 1 {
         if i > 0 then .out.puts(", ")
         let arg = args.at(i) as &Argument
         .gen_expression(arg.expr)
@@ -74,7 +90,7 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
 }
 
 // The point of this is to escape / unescape the correct characters
-def CodeGenerator::gen_format_string_part(&this, part: string) {
+def CodeGenerator::gen_format_string_part(&this, part: str) {
     let len = part.len()
     for let i = 0; i < len; i += 1 {
         if part[i] == '\\' {
@@ -103,11 +119,11 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
     let specs = node.u.fmt_str.specs
 
     .out.putc('"')
-    for let i = 0; i < exprs.size; i += 1 {
-        let part = parts.at(i) as string
+    for let i = 0u32; i < exprs.size; i += 1 {
+        let part = parts.at(i) as str
         .gen_format_string_part(part)
 
-        let spec = specs.at(i) as string
+        let spec = specs.at(i) as str
         if spec? {
             .out.puts("%")
             .out.puts(spec)
@@ -137,12 +153,12 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
         }
     }
     // Put the last part:
-    let part = parts.back() as string
+    let part = parts.back() as str
     .gen_format_string_part(part)
     if newline_after then .out.puts("\\n")
     .out.putc('"')
 
-    for let i = 0; i < exprs.size; i += 1 {
+    for let i = 0u32; i < exprs.size; i += 1 {
         .out.puts(", ")
         let expr = exprs.at(i) as &AST
         .gen_expression(expr)
@@ -179,7 +195,7 @@ def CodeGenerator::gen_constant(&this, node: &AST) {
 }
 
 def CodeGenerator::gen_constants(&this, ns: &Namespace) {
-    for let i = 0; i < ns.constants.size; i += 1 {
+    for let i = 0u32; i < ns.constants.size; i += 1 {
         let const_ = ns.constants.at(i) as &AST
         .gen_constant(const_)
     }
@@ -188,6 +204,23 @@ def CodeGenerator::gen_constants(&this, ns: &Namespace) {
     for let iter = children.iter(); iter.cur?; iter.next() {
         let child = iter.value() as &Namespace
         .gen_constants(child)
+    }
+}
+
+def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
+    for let i = 0u32; i < ns.variables.size; i += 1 {
+        let node = ns.variables.at(i) as &AST
+        let var = node.u.var_decl.var
+        if not var.sym.is_extern {
+            .gen_var_declaration(node)
+            .out.puts(";\n")
+        }
+    }
+
+    let children = ns.namespaces
+    for let iter = children.iter(); iter.cur?; iter.next() {
+        let child = iter.value() as &Namespace
+        .gen_global_variables(child)
     }
 }
 
@@ -223,9 +256,13 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     .gen_type_and_name(ret_type, yield_var)
     .out.puts(";\n")
 
-    .indent += 1
-    .gen_statement(node)
-    .indent -= 1
+    if node.type == Block {
+        .gen_block(node, with_braces: false)
+    } else {
+        .indent += 1
+        .gen_statement(node)
+        .indent -= 1
+    }
 
     .out.puts(";")
     .out.puts(yield_var)
@@ -238,7 +275,7 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
     .out.putsf(`({struc.sym.out_name})\{`)
     let fields = struc.fields
     let args = node.u.call.args
-    for let i = 0; i < args.size; i += 1 {
+    for let i = 0u32; i < args.size; i += 1 {
         if i != 0 then .out.puts(", ")
         let arg = args.at(i) as &Argument
         let field = fields.at(i) as &Variable
@@ -285,6 +322,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         }
         If => .gen_in_yield_context(node)
         Match => .gen_in_yield_context(node)
+        Block => .gen_in_yield_context(node)
         Member => {
             if node.resolved_symbol? {
                 // Method call
@@ -317,7 +355,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
             match sym.type {
                 Function | Variable | Constant => .out.puts(sym.out_name)
-                else => panic(`Unhandled symbol type: {sym.type}`)
+                else => std::panic(`Unhandled symbol type: {sym.type}`)
             }
         }
         Call => {
@@ -342,7 +380,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
 
             .out.puts("(")
             let args = node.u.call.args
-            for let i = 0; i < args.size; i += 1 {
+            for let i = 0u32; i < args.size; i += 1 {
                 if i != 0 then .out.puts(", ")
                 let arg = args.at(i) as &Argument
                 // FIXME: check arg.label
@@ -367,6 +405,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Negate => {
             let expr = node.u.unary
             .out.puts("-")
+            .gen_expression(expr)
+        }
+        BitwiseNot => {
+            let expr = node.u.unary
+            .out.puts("~")
             .gen_expression(expr)
         }
         Not => {
@@ -504,7 +547,7 @@ def CodeGenerator::gen_match_string(&this, node: &AST) {
     let cases = stmt.cases
     .gen_indent()
     .out.puts("if (")
-    for let i = 0; i < cases.size; i += 1 {
+    for let i = 0u32; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
         .out.puts("!strcmp(__match_str, ")
         .gen_expression(_case.cond)
@@ -546,7 +589,7 @@ def CodeGenerator::gen_match(&this, node: &AST) {
 
     let cases = stmt.cases
     .indent += 1
-    for let i = 0; i < cases.size; i += 1 {
+    for let i = 0u32; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
         .gen_indent()
         .out.puts("case ")
@@ -574,7 +617,7 @@ def CodeGenerator::gen_match(&this, node: &AST) {
 def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
     let first = true
     for let cur = .scope(); cur?; cur = cur.parent {
-        for let i = 0; i < cur.defers.size; i += 1 {
+        for let i = 0u32; i < cur.defers.size; i += 1 {
             if first {
                 first = false
                 .gen_indent()
@@ -591,6 +634,7 @@ def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
 }
 
 def CodeGenerator::gen_statement(&this, node: &AST) {
+    .gen_debug_info(node.span)
     match node.type {
         ASTType::Return => {
             let upto = .scope()
@@ -695,14 +739,14 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
     }
 }
 
-def CodeGenerator::gen_block(&this, node: &AST) {
-    .out.puts("{\n")
+def CodeGenerator::gen_block(&this, node: &AST, with_braces: bool = true) {
+    if with_braces then .out.puts("{\n")
     let scope = node.u.block.scope
     .o.push_scope(node.u.block.scope)
 
     let statements = node.u.block.statements
     .indent += 1
-    for let i = 0; i < statements.size; i += 1 {
+    for let i = 0u32; i < statements.size; i += 1 {
         let statement = statements.at(i) as &AST
         .gen_statement(statement)
     }
@@ -713,12 +757,12 @@ def CodeGenerator::gen_block(&this, node: &AST) {
 
     .indent -= 1
     .gen_indent()
-    .out.puts("}")
 
+    if with_braces then .out.puts("}")
     .o.pop_scope()
 }
 
-def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: string, is_func_def: bool): string {
+def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_func_def: bool): str {
     match cur.base {
         // These should all be terminal types
         Void | Bool | Char |
@@ -736,7 +780,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: string, i
 
             if params.size == 0 then args_str.puts("void")
 
-            for let i = 0; i < params.size; i += 1 {
+            for let i = 0u32; i < params.size; i += 1 {
                 if i != 0 then args_str.puts(", ")
                 let var = params.at(i) as &Variable
                 let arg_str = .get_type_name_string(var.type, var.sym.out_name, is_func_def: false)
@@ -790,15 +834,15 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: string, i
     return acc
 }
 
-def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_func_def: bool): string {
-    if not type? { panic("Internal error: null type in codegen") }
+def CodeGenerator::get_type_name_string(&this, type: &Type, name: str, is_func_def: bool): str {
+    if not type? { std::panic("Internal error: null type in codegen") }
     let final = .helper_gen_type(type, type, name.copy(), is_func_def)
     final.strip_trailing_whitespace()
     return final
 }
 
 
-def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
+def CodeGenerator::gen_type_and_name(&this, type: &Type, name: str) {
     .out.putsf(.get_type_name_string(type, name, is_func_def: false))
 }
 
@@ -807,6 +851,7 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
+    .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
     .out.puts(" ")
     .gen_block(func.body)
@@ -823,7 +868,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     let functions = ns.functions;
     .o.push_scope(ns.scope)
 
-    for let i = 0; i < functions.size; i += 1 {
+    for let i = 0u32; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
         if not func.sym.is_extern then .gen_function(func)
     }
@@ -838,7 +883,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
 
 def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     let functions = ns.functions;
-    for let i = 0; i < functions.size; i += 1 {
+    for let i = 0u32; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
         if func.sym.is_extern continue
         .gen_function_decl(func)
@@ -854,7 +899,7 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 }
 
 def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
-    for let i = 0; i < ns.enums.size; i += 1 {
+    for let i = 0u32; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
         .gen_enum(enum_)
     }
@@ -876,7 +921,7 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
 
     .out.puts("switch (this) {\n")
     .indent += 1
-    for let i = 0; i < enum_.fields.size; i += 1 {
+    for let i = 0u32; i < enum_.fields.size; i += 1 {
         let field = enum_.fields.at(i) as &Variable
         .gen_indent()
         .out.puts("case ")
@@ -897,15 +942,18 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
 
 def CodeGenerator::gen_enum(&this, enum_: &Enum) {
     let enum_name = enum_.sym.out_name
-    .out.putsf(`typedef enum {enum_name} \{\n`)
-    let fields = enum_.fields
-    for let j = 0; j < fields.size; j += 1 {
-        let field = fields.at(j) as &Variable
-        .out.puts("  ")
-        .out.puts(field.sym.out_name)
-        .out.puts(",\n")
+
+    if not enum_.sym.is_extern {
+        .out.putsf(`typedef enum {enum_name} \{\n`)
+        let fields = enum_.fields
+        for let i = 0u32; i < fields.size; i += 1 {
+            let field = fields.at(i) as &Variable
+            .out.puts("  ")
+            .out.puts(field.sym.out_name)
+            .out.puts(",\n")
+        }
+        .out.putsf(`\} {enum_name};\n\n`)
     }
-    .out.putsf(`\} {enum_name};\n\n`)
     .gen_enum_dbg_method(enum_)
 }
 
@@ -917,8 +965,8 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
         .out.putsf(`struct {struc_name} \{\n`)
     }
     let fields = struc.fields
-    for let j = 0; j < fields.size; j += 1 {
-        let field = fields.at(j) as &Variable
+    for let i = 0u32; i < fields.size; i += 1 {
+        let field = fields.at(i) as &Variable
         .out.puts("  ")
         .gen_type_and_name(field.type, field.sym.out_name)
         .out.puts(";\n")
@@ -932,7 +980,7 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     if structs.size == 0 then return
 
     .out.puts("/* Struct typedefs */\n")
-    for let i = 0; i < structs.size; i += 1 {
+    for let i = 0u32; i < structs.size; i += 1 {
         let struc = structs.at(i) as &Structure
         if struc.sym.is_extern then continue
 
@@ -945,7 +993,7 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     }
 
     .out.puts("\n/* Struct definitions */\n")
-    for let i = 0; i < structs.size; i += 1 {
+    for let i = 0u32; i < structs.size; i += 1 {
         let struc = structs.at(i) as &Structure
         if struc.sym.is_extern then continue
 
@@ -955,7 +1003,7 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     .out.puts("\n")
 }
 
-def CodeGenerator::generate(&this): string {
+def CodeGenerator::generate(&this): str {
     // FIXME: Put all of this in a prelude file
     .out.puts("#include <stdio.h>\n")
     .out.puts("#include <stdlib.h>\n")
@@ -993,8 +1041,8 @@ def CodeGenerator::generate(&this): string {
     .out.puts("}\n")
     .out.puts("\n")
 
-    for let i = 0; i < .o.program.c_includes.size; i += 1 {
-        let include = .o.program.c_includes.at(i) as string
+    for let i = 0u32; i < .o.program.c_includes.size; i += 1 {
+        let include = .o.program.c_includes.at(i) as str
         .out.putsf(`#include "{include}"\n`)
     }
     .out.puts("\n")
@@ -1006,6 +1054,8 @@ def CodeGenerator::generate(&this): string {
     .gen_constants(.o.program.global)
 
     .gen_structs_and_typedefs()
+
+    .gen_global_variables(.o.program.global)
 
     .out.puts("/* function declarations */\n")
     .gen_function_decls(.o.program.global)
@@ -1025,7 +1075,7 @@ def CodeGenerator::make(program: &Program): CodeGenerator {
     )
 }
 
-def CodeGenerator::run(program: &Program): string {
+def CodeGenerator::run(program: &Program): str {
     let pass = CodeGenerator::make(program)
     return pass.generate()
 }

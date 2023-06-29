@@ -1,5 +1,11 @@
-use "lib/vector.ae"
-use "lib/vector.ae"
+import std::vector::Vector
+import std::span::Span
+import std::map::Map
+import std::libc::{ calloc, exit }
+import @ast::scopes::{ Symbol, Scope }
+import @ast::nodes::{ AST, Function, Structure, Enum }
+import @types::Type
+import @errors::{ display_error_messages }
 
 struct Program {
     global: &Namespace
@@ -13,6 +19,8 @@ struct Program {
 
     c_includes: &Vector // Vector<str>
     c_flags: &Vector // Vector<str>
+
+    gen_debug_info: bool
 }
 
 def Program::new(): &Program {
@@ -42,11 +50,11 @@ struct Namespace {
     constants: &Vector    // Vector<&VarDeclaration>
     variables: &Vector    // Vector<&VarDeclaration>
     imports: &Vector      // Vector<&AST>
-    namespaces: &Map      // Map<string, &Namespace>
+    namespaces: &Map      // Map<str, &Namespace>
 
     sym: &Symbol
     scope: &Scope
-    path: string
+    path: str
 
     // Does this namespace correspond to an actual file with source code? Or is it just an
     // intermediate namespace for a directory?
@@ -64,7 +72,7 @@ struct Namespace {
     is_top_level: bool
 }
 
-def Namespace::new(parent: &Namespace, path: string): &Namespace {
+def Namespace::new(parent: &Namespace, path: str): &Namespace {
     let ns = calloc(1, sizeof(Namespace)) as &Namespace
     ns.parent = parent
     let parent_scope = if parent? then parent.scope else null
@@ -87,11 +95,11 @@ def Namespace::new(parent: &Namespace, path: string): &Namespace {
     return ns
 }
 
-def Namespace::find_importable_symbol(&this, name: string): &Symbol {
+def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     let item = .namespaces.get(name) as &Namespace
     if item? then return item.sym
 
-    for let i = 0; i < .constants.size; i += 1 {
+    for let i = 0u32; i < .constants.size; i += 1 {
         let node = .constants.at(i) as &AST
         let var = node.u.var_decl.var
         if var.sym.name.eq(name) {
@@ -99,21 +107,21 @@ def Namespace::find_importable_symbol(&this, name: string): &Symbol {
         }
     }
 
-    for let i = 0; i < .functions.size; i += 1 {
+    for let i = 0u32; i < .functions.size; i += 1 {
         let func = .functions.at(i) as &Function
         if func.sym.name.eq(name) {
             return func.sym
         }
     }
 
-    for let i = 0; i < .structs.size; i += 1 {
+    for let i = 0u32; i < .structs.size; i += 1 {
         let struc = .structs.at(i) as &Structure
         if struc.sym.name.eq(name) {
             return struc.sym
         }
     }
 
-    for let i = 0; i < .enums.size; i += 1 {
+    for let i = 0u32; i < .enums.size; i += 1 {
         let enum_ = .enums.at(i) as &Enum
         if enum_.sym.name.eq(name) {
             return enum_.sym

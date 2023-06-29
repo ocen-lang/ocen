@@ -10,9 +10,9 @@ mkdir -p build
 set -e
 
 echo "[+] Testing 3-stage bootstrap for validity"
-$initial selfhost/main.ae -o build/stage1
-./build/stage1 selfhost/main.ae -o build/stage2
-./build/stage2 selfhost/main.ae -o build/stage3
+$initial compiler/main.ae -o build/stage1
+./build/stage1 compiler/main.ae -o build/stage2
+./build/stage2 compiler/main.ae -o build/stage3
 if diff build/stage2.c build/stage3.c; then
     echo "[+] Verification successful!"
     echo
@@ -25,13 +25,9 @@ echo "[+] Running test suite"
 if python3 meta/test.py -c ./build/stage3; then
     echo
 else
-    read -p "Test Suite failed. Override? [y/N] " confirm
-    if [[ $confirm =~ ^[Yy]$ ]]; then
-        echo "[+] Overriding... "
-    else
-        echo "[-] Aborting"
-        exit 1
-    fi
+    echo
+    echo "[-] Error: Test suite failed"
+    exit 1
 fi
 
 
@@ -40,7 +36,7 @@ if [[ $confirm =~ ^[Yy]$ ]]; then
     echo "[+] cp build/stage3.c bootstrap/stage0.c"
     cp build/stage3.c bootstrap/stage0.c
     echo "[+] Creating debug version into /bootstrap/aecor"
-    ./build/stage3 -s -d selfhost/main.ae -o ./build/aecor
+    ./build/stage3 -s -d compiler/main.ae -o ./build/aecor
     cp build/aecor bootstrap/aecor
     echo "Done."
 else

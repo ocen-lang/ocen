@@ -1,6 +1,6 @@
-use "lib/vector.ae"
-use "compiler/tokens.ae"
-use "compiler/utils.ae"
+import std::vector::Vector
+import std::span::Span
+import std::libc::{free, strsep, exit, calloc, getenv as get_environment_variable}
 
 enum ErrorType {
     Standard
@@ -8,7 +8,7 @@ enum ErrorType {
     WithHint
 }
 
-def ErrorType::str(this): string => match this {
+def ErrorType::str(this): str => match this {
     Standard => "Standard"
     WithNote => "WithNote"
     WithHint => "WithHint"
@@ -16,9 +16,9 @@ def ErrorType::str(this): string => match this {
 
 struct Error {
     type: ErrorType
-    msg1: string
+    msg1: str
     span1: Span
-    msg2: string
+    msg2: str
     span2: Span
 }
 
@@ -28,13 +28,13 @@ enum MessageType {
     Note
 }
 
-def MessageType::to_color(this): string => match this {
+def MessageType::to_color(this): str => match this {
     Error => "\x1b[31m"
     Warning => "\x1b[33m"
     Note => "\x1b[32m"
 }
 
-def MessageType::str(this): string => match this {
+def MessageType::str(this): str => match this {
     Error => "Error"
     Warning => "Warning"
     Note => "Note"
@@ -44,28 +44,28 @@ def display_line() {
     println("--------------------------------------------------------------------------------")
 }
 
-def display_message(type: MessageType, span: Span, msg: string) {
+def display_message(type: MessageType, span: Span, msg: str) {
     display_line()
     println("%s: %s: %s", span.start.str(), type.str(), msg)
     display_line()
 }
 
-def display_message_span(type: MessageType, span: Span, msg: string) {
+def display_message_span(type: MessageType, span: Span, msg: str) {
     let color = MessageType::to_color(type)
     let reset = "\x1b[0m"
 
-    display_message(type, span, msg)
     let filename = span.start.filename;
-    let file = File::open(filename, "r")
+    let file = std::File::open(filename, "r")
     defer file.close()
 
     let contents = file.slurp()
     defer free(contents)
 
     let around_offset = 1
-    let min_line = max(span.start.line - around_offset, 1)
+    let min_line = std::max(span.start.line - around_offset, 1)
     let max_line = span.end.line + around_offset
 
+    display_message(type, span, msg)
     let lines = contents
     let cur = strsep(&lines, "\n")
     let line_no = 1
@@ -85,7 +85,7 @@ def display_message_span(type: MessageType, span: Span, msg: string) {
                 for let i = start_col; i < end_col; i += 1 {
                     print("%c", cur[i])
                 }
-                println("%s%s", reset, cur + end_col)
+                println("%s%s", reset, &cur[end_col])
                 println("%*s%s^ %s%s", start_col + 7, "", color, msg, reset)
             } else {
                 println("%s", cur)
@@ -119,7 +119,7 @@ def Error::panic(&this) exits {
     exit(1)
 }
 
-def Error::new(span: Span, msg: string): &Error {
+def Error::new(span: Span, msg: str): &Error {
     let err = calloc(1, sizeof(Error)) as &Error
     err.type = ErrorType::Standard
     err.msg1 = msg
@@ -127,7 +127,7 @@ def Error::new(span: Span, msg: string): &Error {
     return err
 }
 
-def Error::new_note(span: Span, msg: string, note: string): &Error {
+def Error::new_note(span: Span, msg: str, note: str): &Error {
     let err = calloc(1, sizeof(Error)) as &Error
     err.type = ErrorType::WithNote
     err.msg1 = msg
@@ -136,7 +136,7 @@ def Error::new_note(span: Span, msg: string, note: string): &Error {
     return err
 }
 
-def Error::new_hint(span: Span, msg: string, span2: Span, hint: string): &Error {
+def Error::new_hint(span: Span, msg: str, span2: Span, hint: str): &Error {
     let err = calloc(1, sizeof(Error)) as &Error
     err.type = ErrorType::WithHint
     err.msg1 = msg
@@ -150,10 +150,10 @@ def display_error_messages(errors: &Vector, detail_level: i32) {
     let num_errors_env = get_environment_variable("AECOR_NUM_ERRORS")
     let max_num_errors = if num_errors_env? then num_errors_env.to_i32() else 10
 
-    let num_errors = min(errors.size, max_num_errors)
+    let num_errors = std::min(errors.size as i32, max_num_errors)
     let first = true
     for let i = num_errors - 1; i >= 0; i -= 1 {
-        let err = errors.at(i) as &Error
+        let err = errors.at(i as u32) as &Error
 
         match detail_level {
             0 => println("%s: %s", err.span1.start.str(), err.msg1)
@@ -163,7 +163,7 @@ def display_error_messages(errors: &Vector, detail_level: i32) {
                 first = false
                 err.display()
             }
-            else => panic("invalid detail level")
+            else => std::panic("invalid detail level")
         }
     }
 }

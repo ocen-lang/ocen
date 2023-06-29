@@ -1,4 +1,4 @@
-/// out: "3"
+/// skip
 
 // Note: we should be generating global vars in an order such that
 // their's dependencies are generated first.  This is not

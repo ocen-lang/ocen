@@ -1,5 +1,11 @@
-use "@/ast/nodes.ae"
-use "@/tokens.ae"
+import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
+import @ast::scopes::Symbol
+import @ast::program::Namespace
+import std::vector::Vector
+import std::map::Map
+import std::span::Span
+import std::libc::calloc
+import @tokens::{ Token, TokenType }
 
 enum BaseType {
     Char
@@ -29,7 +35,7 @@ enum BaseType {
     Error
 }
 
-def BaseType::str(this): string => match this {
+def BaseType::str(this): str => match this {
     Char => "char"
     Bool => "bool"
     Void => "void"
@@ -89,11 +95,11 @@ struct TypeUnion {
 }
 
 struct Type {
-    name: string
+    name: str
     base: BaseType
     span: Span
     u: TypeUnion
-    methods: &Map // Map<string, &Function>
+    methods: &Map // Map<str, &Function>
     sym: &Symbol
 }
 
@@ -106,7 +112,7 @@ def Type::new_resolved(base: BaseType, span: Span): &Type {
     return type
 }
 
-def Type::new_unresolved(name: string, span: Span): &Type {
+def Type::new_unresolved(name: str, span: Span): &Type {
     let type = Type::new_resolved(BaseType::Unresolved, span)
     type.name = name
     return type
@@ -162,7 +168,7 @@ def Type::eq(&this, other: &Type): bool {
             let bf = other.u.func
             if not af.return_type.eq(bf.return_type) return false
             if af.params.size != bf.params.size return false
-            for let i = 0; i < af.params.size; i += 1 {
+            for let i = 0u32; i < af.params.size; i += 1 {
                 let a = af.params.at(i) as &Variable
                 let b = bf.params.at(i) as &Variable
                 if not a.type.eq(b.type) return false
@@ -195,7 +201,7 @@ def Type::decay_array(&this): &Type {
     return res
 }
 
-def Type::str(&this): string => match .base {
+def Type::str(&this): str => match .base {
     Pointer => `&{.u.ptr.str()}`
     Function => "<function>"
     Structure => .u.struc.sym.display

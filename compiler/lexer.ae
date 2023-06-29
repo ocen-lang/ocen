@@ -1,17 +1,21 @@
-use "lib/vector.ae"
-use "compiler/tokens.ae"
-use "compiler/errors.ae"
-use "compiler/utils.ae"
+import std::vector::Vector
+import @errors::Error
+import std::span::{Span, Location}
+import @tokens::{Token, TokenType}
+
+// use "compiler/tokens.ae"
+// use "compiler/errors.ae"
+// use "compiler/utils.ae"
 
 def is_hex_digit(c: char): bool {
-    if is_digit(c) return true
+    if c.is_digit() return true
     if 'a' <= c <= 'f' return true
     if 'A' <= c <= 'F' return true
     return false
 }
 
 struct Lexer {
-    source: string
+    source: str
     source_len: i32
     i: i32
     loc: Location
@@ -21,7 +25,7 @@ struct Lexer {
     errors: &Vector
 }
 
-def Lexer::make(source: string, filename: string): Lexer {
+def Lexer::make(source: str, filename: str): Lexer {
     return Lexer(
         source,
         source_len: source.len(),
@@ -159,12 +163,12 @@ def Lexer::lex_numeric_literal_helper(&this): &Token {
 
     let start = .i
     let token_type: TokenType
-    while is_digit(.cur()) {
+    while .cur().is_digit() {
         .inc()
     }
     if .cur() == '.' {
         .inc()
-        while is_digit(.cur()) {
+        while .cur().is_digit() {
             .inc()
         }
         token_type = TokenType::FloatLiteral
@@ -185,7 +189,7 @@ def Lexer::lex_numeric_literal(&this) {
         let start_loc = .loc
         let start = .i
         .inc()
-        while .i < .source_len and is_digit(.cur()) {
+        while .i < .source_len and .cur().is_digit() {
             .inc()
         }
         let len = .i - start
@@ -273,12 +277,12 @@ def Lexer::lex(&this): &Vector {
                     .inc()
                     .lex_string_literal(has_seen_f: true)
 
-                } else if is_digit(c) {
+                } else if c.is_digit() {
                     .lex_numeric_literal()
 
-                } else if is_alpha(c) or c == '_' {
+                } else if c.is_alpha() or c == '_' {
                     let start = .i
-                    while is_alnum(.cur()) or .cur() == '_' {
+                    while .cur().is_alnum() or .cur() == '_' {
                         .inc()
                     }
                     let len = .i - start

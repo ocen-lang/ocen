@@ -1,4 +1,9 @@
-use "@/passes/generic_pass.ae"
+import @passes::generic_pass::GenericPass
+import std::span::Span
+import @ast::scopes::{ Symbol, SymbolType }
+import @ast::program::{ Program, Namespace }
+import @types::{ Type, BaseType, FunctionType }
+import @ast::nodes::{ Function, Structure, Enum, Variable }
 
 // This pass adds all of the new structs / enums / namespaces to the symbol table
 
@@ -26,7 +31,7 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     typ.sym = enum_.sym
 
     // FIXME: Make sure enum values are unique
-    for let i = 0; i < enum_.fields.size; i += 1 {
+    for let i = 0u32; i < enum_.fields.size; i += 1 {
         let field = enum_.fields.at(i) as &Variable
         field.type = typ
     }
@@ -55,11 +60,11 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
 
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
-    for let i = 0; i < ns.structs.size; i += 1 {
+    for let i = 0u32; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .register_struct(ns, struc)
     }
-    for let i = 0; i < ns.enums.size; i += 1 {
+    for let i = 0u32; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
         .register_enum(ns, enum_)
         .add_dbg_method_for_enum(enum_)
@@ -87,7 +92,7 @@ def RegisterTypes::register_base_type(&this, base: BaseType) {
     .o.program.global.scope.items.insert(name, sym)
 }
 
-def RegisterTypes::register_alias(&this, name: string, orig: &Type) {
+def RegisterTypes::register_alias(&this, name: str, orig: &Type) {
     let sym = Symbol::new(TypeDef, name, name, name, Span::default())
 
     let alias = Type::new_resolved(BaseType::Alias, Span::default())

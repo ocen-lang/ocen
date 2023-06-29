@@ -1,5 +1,10 @@
-use "@/ast/nodes.ae"
-use "@/types.ae"
+import @ast::nodes::{ Structure, Enum, Variable, Function }
+import @ast::program::Namespace
+import @types::Type
+import std::span::Span
+import std::map::Map
+import std::vector::Vector
+import std::libc::calloc
 
 enum SymbolType {
     Function
@@ -21,9 +26,9 @@ union SymbolUnion {
 }
 
 struct Symbol {
-    name: string        // Name in the scope it was defined in
-    display: string     // Fully qualified display name, including namespaces
-    out_name: string    // Name used in the output C code
+    name: str        // Name in the scope it was defined in
+    display: str     // Fully qualified display name, including namespaces
+    out_name: str    // Name used in the output C code
     span: Span          // Span of the declaration
 
     type: SymbolType
@@ -31,7 +36,7 @@ struct Symbol {
     is_extern: bool
 }
 
-def Symbol::new(type: SymbolType, name: string, display: string, out_name: string, span: Span): &Symbol {
+def Symbol::new(type: SymbolType, name: str, display: str, out_name: str, span: Span): &Symbol {
     let item = calloc(1, sizeof(Symbol)) as &Symbol
     item.name = name
     item.display = display
@@ -41,10 +46,10 @@ def Symbol::new(type: SymbolType, name: string, display: string, out_name: strin
     return item
 }
 
-def Symbol::join_display(a: string, b: string): string => if a.len() == 0 then b else `{a}::{b}`
-def Symbol::join_out_name(a: string, b: string): string => if a.len() == 0 then b else `{a}_{b}`
+def Symbol::join_display(a: str, b: str): str => if a.len() == 0 then b else `{a}::{b}`
+def Symbol::join_out_name(a: str, b: str): str => if a.len() == 0 then b else `{a}_{b}`
 
-def Symbol::new_with_parent(type: SymbolType, parent: &Symbol, name: string, span: Span): &Symbol {
+def Symbol::new_with_parent(type: SymbolType, parent: &Symbol, name: str, span: Span): &Symbol {
     let display = Symbol::join_display(parent.display, name)
     let out_name = Symbol::join_out_name(parent.out_name, name)
     return Symbol::new(type, name, display, out_name, span)
@@ -57,7 +62,7 @@ def Symbol::update_parent(&this, parent: &Symbol) {
     }
 }
 
-def Symbol::from_local_variable(name: string, var: &Variable, span: Span): &Symbol {
+def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol {
     let item = Symbol::new(
         SymbolType::Variable,
         name: name,
@@ -70,7 +75,7 @@ def Symbol::from_local_variable(name: string, var: &Variable, span: Span): &Symb
 }
 
 struct Scope {
-    items: &Map // &Map<string, &Symbol>
+    items: &Map // &Map<str, &Symbol>
     defers: &Vector // &Vector<&AST>
 
     loop_count: u32
@@ -93,18 +98,18 @@ def Scope::new(parent: &Scope): &Scope {
     return scope
 }
 
-def Scope::lookup_recursive(&this, name: string): &Symbol {
+def Scope::lookup_recursive(&this, name: str): &Symbol {
     let item = .items.get(name) as &Symbol
     if item? return item
     if .parent? then return .parent.lookup_recursive(name)
     return null
 }
 
-def Scope::lookup_local(&this, name: string): &Symbol {
+def Scope::lookup_local(&this, name: str): &Symbol {
     return .items.get(name) as &Symbol
 }
 
-def Scope::insert(&this, name: string, symbol: &Symbol) {
+def Scope::insert(&this, name: str, symbol: &Symbol) {
     .items.insert(name, symbol)
 }
 

@@ -79,6 +79,7 @@ def str::remove_last_n(this, n: i32) {
 def char::is_digit(this): bool => libc::isdigit(this)
 def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
+def char::is_print(this): bool => libc::isprint(this)
 
 def min(a: i32, b: i32): i32 => if a < b then a else b
 def max(a: i32, b: i32): i32 => if a > b then a else b

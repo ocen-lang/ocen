@@ -1,4 +1,4 @@
-/// out: "2"
+/// fail: Constant must have a type
 
 const X = 1
 const Y = X + 1

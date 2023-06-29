@@ -4,7 +4,7 @@ struct Foo {
     x: i32
 }
 
-let x = 5
+let x: i32 = 5
 let y: Foo
 
 def foo() {
