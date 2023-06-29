@@ -3,14 +3,12 @@
 // This tests to see if we are actually including the headers
 // and linking to the library correctly with the c flags
 
-@compiler c_include "SDL2/SDL.h"
-@compiler c_flag "-lSDL2"
+@compiler c_include "math.h"
+@compiler c_flag "-lm"
 
-namespace SDL {
-    def init(flags: i32) extern("SDL_Init")
-}
+def sqrt(x: f32): f32 extern
 
 def main() {
-    SDL::init(0)
+    let x = sqrt(4.0)
     println("pass")
 }
