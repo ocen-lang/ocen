@@ -4,8 +4,6 @@ import std::image
 import std::vec
 import std::vector
 import std::map
-import std::sdl
-import std::glut
 import std::math
 
 // Just want to make sure that the code compiles
