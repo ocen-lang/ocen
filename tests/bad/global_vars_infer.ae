@@ -1,0 +1,8 @@
+/// fail: Global variable must have a type
+
+const X: i32 = 1
+let Y = X + 1
+
+def main() {
+    println(`{Y}`)
+}

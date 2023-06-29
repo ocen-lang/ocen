@@ -948,6 +948,7 @@ void passes_code_generator_CodeGenerator_gen_format_string(passes_code_generator
 void passes_code_generator_CodeGenerator_gen_yield_expression(passes_code_generator_CodeGenerator *this, ast_nodes_AST *expr);
 void passes_code_generator_CodeGenerator_gen_constant(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node);
 void passes_code_generator_CodeGenerator_gen_constants(passes_code_generator_CodeGenerator *this, ast_program_Namespace *ns);
+void passes_code_generator_CodeGenerator_gen_global_variables(passes_code_generator_CodeGenerator *this, ast_program_Namespace *ns);
 void passes_code_generator_CodeGenerator_gen_control_body(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node, ast_nodes_AST *body);
 void passes_code_generator_CodeGenerator_gen_in_yield_context(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node);
 void passes_code_generator_CodeGenerator_gen_constructor(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node, ast_nodes_Structure *struc);
@@ -1001,6 +1002,7 @@ void passes_typechecker_TypeChecker_check_for(passes_typechecker_TypeChecker *th
 void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns, ast_nodes_Function *func);
 void passes_typechecker_TypeChecker_handle_namespace_imports(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
+void passes_typechecker_TypeChecker_check_global_variable(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, types_Type *hint);
 void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_TypeChecker *this, std_vector_Vector *parts, ast_scopes_Symbol *base, char *alias, i32 start_idx);
@@ -1009,7 +1011,7 @@ void passes_typechecker_TypeChecker_pre_check_function(passes_typechecker_TypeCh
 void passes_typechecker_TypeChecker_check_struct(passes_typechecker_TypeChecker *this, ast_nodes_Structure *struc);
 void passes_typechecker_TypeChecker_check_function_declaration(passes_typechecker_TypeChecker *this, ast_nodes_Function *func);
 void passes_typechecker_TypeChecker_check_function_declarations(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
-void passes_typechecker_TypeChecker_pre_check_globals(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
+void passes_typechecker_TypeChecker_pre_check_globals(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, bool is_const);
 void passes_typechecker_TypeChecker_pre_check_constants(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 void passes_typechecker_TypeChecker_pre_check_namespace(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 void passes_typechecker_TypeChecker_run(ast_program_Program *program);
@@ -1042,6 +1044,7 @@ ast_nodes_AST *parser_Parser_parse_global_value(parser_Parser *this, bool is_con
 ast_nodes_AST *parser_Parser_parse_atom(parser_Parser *this, tokens_TokenType end_type);
 ast_nodes_AST *parser_Parser_parse_postfix(parser_Parser *this, tokens_TokenType end_type);
 ast_nodes_AST *parser_Parser_parse_prefix(parser_Parser *this, tokens_TokenType end_type);
+ast_nodes_AST *parser_Parser_parse_cast(parser_Parser *this, tokens_TokenType end_type);
 ast_nodes_AST *parser_Parser_parse_term(parser_Parser *this, tokens_TokenType end_type);
 ast_nodes_AST *parser_Parser_parse_additive(parser_Parser *this, tokens_TokenType end_type);
 ast_nodes_AST *parser_Parser_parse_shift(parser_Parser *this, tokens_TokenType end_type);
@@ -1128,6 +1131,7 @@ void str_remove_last_n(char *this, i32 n);
 bool char_is_digit(char this);
 bool char_is_alpha(char this);
 bool char_is_alnum(char this);
+bool char_is_print(char this);
 i32 std_min(i32 a, i32 b);
 i32 std_max(i32 a, i32 b);
 char *std_span_Location_str(std_span_Location *this);
@@ -1786,6 +1790,22 @@ void passes_code_generator_CodeGenerator_gen_constants(passes_code_generator_Cod
   }
 }
 
+void passes_code_generator_CodeGenerator_gen_global_variables(passes_code_generator_CodeGenerator *this, ast_program_Namespace *ns) {
+  for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
+    ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(ns->variables, i));
+    ast_nodes_Variable *var = node->u.var_decl.var;
+    if (!var->sym->is_extern) {
+      passes_code_generator_CodeGenerator_gen_var_declaration(this, node);
+      std_buffer_Buffer_puts(&this->out, ";\n");
+    } 
+  }
+  std_map_Map *children = ns->namespaces;
+  for (std_map_MapIterator iter = std_map_Map_iter(children); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+    passes_code_generator_CodeGenerator_gen_global_variables(this, child);
+  }
+}
+
 void passes_code_generator_CodeGenerator_gen_control_body(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node, ast_nodes_AST *body) {
   if (body->type==ast_nodes_ASTType_Block) {
     passes_code_generator_CodeGenerator_gen_block(this, body, true);
@@ -1968,6 +1988,11 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
     case ast_nodes_ASTType_Negate: {
       ast_nodes_AST *expr = node->u.unary;
       std_buffer_Buffer_puts(&this->out, "-");
+      passes_code_generator_CodeGenerator_gen_expression(this, expr);
+    } break;
+    case ast_nodes_ASTType_BitwiseNot: {
+      ast_nodes_AST *expr = node->u.unary;
+      std_buffer_Buffer_puts(&this->out, "~");
       passes_code_generator_CodeGenerator_gen_expression(this, expr);
     } break;
     case ast_nodes_ASTType_Not: {
@@ -2601,6 +2626,7 @@ char *passes_code_generator_CodeGenerator_generate(passes_code_generator_CodeGen
   std_buffer_Buffer_puts(&this->out, "/* Constants */\n");
   passes_code_generator_CodeGenerator_gen_constants(this, this->o->program->global);
   passes_code_generator_CodeGenerator_gen_structs_and_typedefs(this);
+  passes_code_generator_CodeGenerator_gen_global_variables(this, this->o->program->global);
   std_buffer_Buffer_puts(&this->out, "/* function declarations */\n");
   passes_code_generator_CodeGenerator_gen_function_decls(this, this->o->program->global);
   std_buffer_Buffer_puts(&this->out, "/* function implementations */\n");
@@ -2630,15 +2656,25 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
   switch (old->base) {
     case types_BaseType_Pointer:
     case types_BaseType_Alias: {
-      resolved->u.ptr=passes_typechecker_TypeChecker_resolve_type(this, old->u.ptr);
+      types_Type *ptr = passes_typechecker_TypeChecker_resolve_type(this, old->u.ptr);
+      if (!((bool)ptr)) 
+      return NULL;
+      
+      resolved->u.ptr=ptr;
     } break;
     case types_BaseType_Function: {
       types_FunctionType *func = old->u.func;
       for (u32 i = ((u32)0); (i < func->params->size); i+=((u32)1)) {
         ast_nodes_Variable *var = ((ast_nodes_Variable *)std_vector_Vector_at(func->params, i));
         var->type=passes_typechecker_TypeChecker_resolve_type(this, var->type);
+        if (!((bool)var->type)) 
+        return NULL;
+        
       }
       func->return_type=passes_typechecker_TypeChecker_resolve_type(this, func->return_type);
+      if (!((bool)func->return_type)) 
+      return NULL;
+      
     } break;
     case types_BaseType_Unresolved: {
       ast_scopes_Symbol *res = passes_typechecker_TypeChecker_resolve_scoped_identifier(this, old->u.unresolved, false, NULL);
@@ -2666,7 +2702,13 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
     case types_BaseType_Array: {
       types_ArrayType *arr = old->u.arr;
       arr->elem_type=passes_typechecker_TypeChecker_resolve_type(this, arr->elem_type);
-      passes_typechecker_TypeChecker_check_expression(this, arr->size_expr, NULL);
+      if (!((bool)arr->elem_type)) 
+      return NULL;
+      
+      types_Type *res = passes_typechecker_TypeChecker_check_expression(this, arr->size_expr, NULL);
+      if (!((bool)res)) 
+      return NULL;
+      
     } break;
     default: {
       passes_typechecker_TypeChecker_error(this, errors_Error_new(old->span, format_string("Unhandled type in resolve %s", types_BaseType_str(old->base))));
@@ -2810,7 +2852,7 @@ void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeCheck
         passes_typechecker_TypeChecker_error(this, errors_Error_new(arg->label_span, format_string("Argument label '%s' does not match parameter name '%s'", arg->label, param->sym->name)));
       } 
       types_Type *arg_type = passes_typechecker_TypeChecker_check_expression(this, arg->expr, param->type);
-      if (!((bool)arg_type)) 
+      if ((!((bool)arg_type) || !((bool)param->type))) 
       continue;
       
       if (!types_Type_eq(arg_type, param->type)) {
@@ -3135,6 +3177,17 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
       
       if (!types_Type_is_numeric(typ)) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Cannot negate non-numeric type: %s", types_Type_str(typ))));
+        return NULL;
+      } 
+      return typ;
+    } break;
+    case ast_nodes_ASTType_BitwiseNot: {
+      types_Type *typ = passes_typechecker_TypeChecker_check_expression(this, node->u.unary, hint);
+      if (!((bool)typ)) 
+      return NULL;
+      
+      if (!types_Type_is_integer(typ)) {
+        passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Cannot do bitwise-not on non-integer type: %s", types_Type_str(typ))));
         return NULL;
       } 
       return typ;
@@ -3656,6 +3709,21 @@ void passes_typechecker_TypeChecker_handle_namespace_imports(passes_typechecker_
   passes_generic_pass_GenericPass_pop_namespace(this->o);
 }
 
+void passes_typechecker_TypeChecker_check_global_variable(passes_typechecker_TypeChecker *this, ast_nodes_AST *node) {
+  ast_nodes_AST *init = node->u.var_decl.init;
+  if (!((bool)init)) 
+  return ;
+  
+  ast_nodes_Variable *var = node->u.var_decl.var;
+  types_Type *init_type = passes_typechecker_TypeChecker_check_expression(this, init, NULL);
+  if ((!((bool)init_type) || !((bool)var->type))) 
+  return ;
+  
+  if (!types_Type_eq(init_type, var->type)) {
+    passes_typechecker_TypeChecker_error(this, errors_Error_new(init->span, format_string("Variable %s has type %p but initializer has type %p", var->sym->name, var->type, init_type)));
+  } 
+}
+
 void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns) {
   passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
   passes_generic_pass_GenericPass_push_namespace(this->o, ns);
@@ -3673,6 +3741,10 @@ void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeCheck
     } 
     
   }
+  for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
+    ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(ns->variables, i));
+    passes_typechecker_TypeChecker_check_global_variable(this, node);
+  }
   for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
     passes_typechecker_TypeChecker_check_namespace(this, std_map_MapIterator_value(&iter));
   }
@@ -3686,6 +3758,9 @@ types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typeche
       case ast_nodes_ASTType_Identifier:
       case ast_nodes_ASTType_NSLookup: {
         ast_scopes_Symbol *sym = passes_typechecker_TypeChecker_resolve_scoped_identifier(this, node, true, hint);
+        if (!((bool)sym)) 
+        return NULL;
+        
         if ((sym->type != ast_scopes_SymbolType_Constant)) {
           passes_typechecker_TypeChecker_error(this, errors_Error_new_hint(node->span, "Cannot use a non-constant value in a constant expression", sym->span, "Value was defined here"));
           return NULL;
@@ -3902,10 +3977,22 @@ void passes_typechecker_TypeChecker_check_function_declarations(passes_typecheck
   passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
-void passes_typechecker_TypeChecker_pre_check_globals(passes_typechecker_TypeChecker *this, ast_nodes_AST *node) {
+void passes_typechecker_TypeChecker_pre_check_globals(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, bool is_const) {
   ast_nodes_Variable *var = node->u.var_decl.var;
-  if (((bool)var->type)) 
+  if (!((bool)var->type)) {
+    char *c = ({ char *__yield_0;
+      if (is_const) 
+      __yield_0 = "Constant";
+       else 
+      __yield_0 = "Global variable";
+      
+;__yield_0; });
+    passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("%s must have a type", c)));
+    return ;
+  } 
   var->type=passes_typechecker_TypeChecker_resolve_type(this, var->type);
+  if (!((bool)var->type)) 
+  return ;
   
   passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, var->sym);
 }
@@ -3914,7 +4001,7 @@ void passes_typechecker_TypeChecker_pre_check_constants(passes_typechecker_TypeC
   passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
   for (u32 i = ((u32)0); (i < ns->constants->size); i+=((u32)1)) {
     ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(ns->constants, i));
-    passes_typechecker_TypeChecker_pre_check_globals(this, node);
+    passes_typechecker_TypeChecker_pre_check_globals(this, node, true);
   }
   for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
     passes_typechecker_TypeChecker_pre_check_constants(this, std_map_MapIterator_value(&iter));
@@ -3930,7 +4017,7 @@ void passes_typechecker_TypeChecker_pre_check_namespace(passes_typechecker_TypeC
   }
   for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
     ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_Vector_at(ns->variables, i));
-    passes_typechecker_TypeChecker_pre_check_globals(this, node);
+    passes_typechecker_TypeChecker_pre_check_globals(this, node, false);
   }
   for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
     passes_typechecker_TypeChecker_pre_check_namespace(this, std_map_MapIterator_value(&iter));
@@ -4051,7 +4138,6 @@ void passes_reorder_structs_ReorderStructs_run(ast_program_Program *program) {
   passes_reorder_structs_ReorderStructs *pass = passes_reorder_structs_ReorderStructs_new(program);
   passes_reorder_structs_ReorderStructs_collect_all_structs(pass, program->global);
   passes_reorder_structs_ReorderStructs_reorder_structs(pass);
-  printf("Program reordered structs count: %u\n", program->ordered_structs->size);
   passes_reorder_structs_ReorderStructs_free(pass);
 }
 
@@ -4523,14 +4609,6 @@ ast_nodes_AST *parser_Parser_parse_postfix(parser_Parser *this, tokens_TokenType
         op->u.unary=node;
         node=op;
       } break;
-      case tokens_TokenType_As: {
-        tokens_Token *tok = parser_Parser_consume(this, tokens_TokenType_As);
-        types_Type *type_node = parser_Parser_parse_type(this);
-        ast_nodes_AST *op = ast_nodes_AST_new(ast_nodes_ASTType_Cast, std_span_Span_join(node->span, type_node->span));
-        op->u.cast.lhs=node;
-        op->u.cast.to=type_node;
-        node=op;
-      } break;
       case tokens_TokenType_OpenSquare: {
         parser_Parser_consume(this, tokens_TokenType_OpenSquare);
         ast_nodes_AST *index = parser_Parser_parse_expression(this, tokens_TokenType_CloseSquare);
@@ -4587,21 +4665,44 @@ ast_nodes_AST *parser_Parser_parse_prefix(parser_Parser *this, tokens_TokenType 
       node->u.unary=expr;
       return node;
     } break;
+    case tokens_TokenType_Tilde: {
+      tokens_Token *tok = parser_Parser_consume(this, tokens_TokenType_Tilde);
+      ast_nodes_AST *expr = parser_Parser_parse_prefix(this, end_type);
+      ast_nodes_AST *node = ast_nodes_AST_new(ast_nodes_ASTType_BitwiseNot, std_span_Span_join(tok->span, expr->span));
+      node->u.unary=expr;
+      return node;
+    } break;
     default: {
       return parser_Parser_parse_postfix(this, end_type);
     } break;
   }
 }
 
-ast_nodes_AST *parser_Parser_parse_term(parser_Parser *this, tokens_TokenType end_type) {
+ast_nodes_AST *parser_Parser_parse_cast(parser_Parser *this, tokens_TokenType end_type) {
   ast_nodes_AST *lhs = parser_Parser_parse_prefix(this, end_type);
+  while (parser_Parser_token_is(this, tokens_TokenType_As)) {
+    if (parser_Parser_token_is(this, end_type)) 
+    break;
+    
+    tokens_Token *tok = parser_Parser_consume(this, tokens_TokenType_As);
+    types_Type *type_node = parser_Parser_parse_type(this);
+    ast_nodes_AST *op = ast_nodes_AST_new(ast_nodes_ASTType_Cast, std_span_Span_join(lhs->span, type_node->span));
+    op->u.cast.lhs=lhs;
+    op->u.cast.to=type_node;
+    lhs=op;
+  }
+  return lhs;
+}
+
+ast_nodes_AST *parser_Parser_parse_term(parser_Parser *this, tokens_TokenType end_type) {
+  ast_nodes_AST *lhs = parser_Parser_parse_cast(this, end_type);
   while (((parser_Parser_token_is(this, tokens_TokenType_Star) || parser_Parser_token_is(this, tokens_TokenType_Slash)) || parser_Parser_token_is(this, tokens_TokenType_Percent))) {
     if (parser_Parser_token_is(this, end_type)) 
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
     this->curr+=1;
-    ast_nodes_AST *rhs = parser_Parser_parse_prefix(this, end_type);
+    ast_nodes_AST *rhs = parser_Parser_parse_cast(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
   return lhs;
@@ -6284,6 +6385,10 @@ bool char_is_alpha(char this) {
 
 bool char_is_alnum(char this) {
   return isalnum(this);
+}
+
+bool char_is_print(char this) {
+  return isprint(this);
 }
 
 i32 std_min(i32 a, i32 b) {

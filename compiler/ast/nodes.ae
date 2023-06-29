@@ -1,7 +1,11 @@
-use "lib/vector.ae"
-use "lib/map.ae"
-use "@/ast/program.ae"
-use "@/ast/scopes.ae"
+import std::vector::Vector
+import std::map::Map
+import std::span::Span
+import std::libc::calloc
+import @tokens::TokenType
+import @ast::scopes::{ Scope, Symbol }
+import @ast::program::Namespace
+import @types::Type
 
 enum ASTType {
     Block
@@ -93,7 +97,7 @@ def ASTType::from_token(type: TokenType): ASTType => match type {
     Star => ASTType::Multiply
     StarEquals => ASTType::MultiplyEquals
     Tilde => ASTType::BitwiseNot
-    else => panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
+    else => std::panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
 }
 
 struct Variable {
@@ -128,8 +132,8 @@ def Structure::new(): &Structure {
     return struc
 }
 
-def Structure::get_field(&this, name: string): &Variable {
-    for let i = 0; i < .fields.size; i += 1 {
+def Structure::get_field(&this, name: str): &Variable {
+    for let i = 0u32; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
         if field.sym.name.eq(name) {
             return field
@@ -150,8 +154,8 @@ def Enum::new(): &Enum {
     return enum_
 }
 
-def Enum::get_field(&this, name: string): &Variable {
-    for let i = 0; i < .fields.size; i += 1 {
+def Enum::get_field(&this, name: str): &Variable {
+    for let i = 0u32; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
         if field.sym.name.eq(name) {
             return field
@@ -187,7 +191,7 @@ struct Block {
 }
 
 struct Identifier {
-    name: string
+    name: str
     var: &Variable
     is_function: bool
     func: &Function
@@ -195,11 +199,11 @@ struct Identifier {
 
 struct Argument {
     expr: &AST
-    label: string // Identifier
+    label: str // Identifier
     label_span: Span
 }
 
-def Argument::new(label: string, label_span: Span, expr: &AST): &Argument {
+def Argument::new(label: str, label_span: Span, expr: &AST): &Argument {
     let arg = calloc(1, sizeof(Argument)) as &Argument
     arg.expr = expr
     arg.label = label
@@ -224,8 +228,8 @@ enum ImportPartType {
 }
 
 struct ImportPartSingle {
-    name: string
-    alias: string
+    name: str
+    alias: str
     alias_span: Span
 }
 
@@ -263,7 +267,7 @@ struct Import {
 }
 
 struct NumLiteral {
-    text: string
+    text: str
     suffix: &Type
 }
 
@@ -274,13 +278,13 @@ struct Binary {
 
 struct NSLookup {
     lhs: &AST
-    rhs_name: string
+    rhs_name: str
     rhs_span: Span
 }
 
 struct Member {
     lhs: &AST
-    rhs_name: string
+    rhs_name: str
     rhs_span: Span
     is_pointer: bool
 }
@@ -304,8 +308,8 @@ struct Cast {
 }
 
 struct FormatString {
-    parts: &Vector    // Vector<string>
-    specs: &Vector    // Vector<string>
+    parts: &Vector    // Vector<str>
+    specs: &Vector    // Vector<str>
     exprs: &Vector    // Vector<&AST>
 }
 
@@ -342,8 +346,8 @@ union ASTUnion {
     loop: Loop
     member: Member
     num_literal: NumLiteral
-    string_literal: string
-    char_literal: string
+    string_literal: str
+    char_literal: str
     unary: &AST
     var_decl: VarDeclaration
     fmt_str: FormatString

@@ -1,7 +1,7 @@
 /// fail: Cannot use a non-constant value in a constant expression
 
-let x = 0
-const y = x + 1
+let x: i32 = 0
+const y: i32 = x + 1
 
 def main() {
     y = 5

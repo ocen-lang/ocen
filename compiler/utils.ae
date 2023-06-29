@@ -1,10 +1,8 @@
-use "lib/vector.ae"
-use "lib/math.ae"
-use "compiler/tokens.ae"
+import std::vector::Vector
 
-def strsep(s: &string, delim: string): string extern
+def strsep(s: &str, delim: str): str extern
 
-def edit_distance(str1: string, str2: string): i32 {
+def edit_distance(str1: str, str2: str): i32 {
     let n = str1.len()
     let m = str2.len()
     let stride = m + 1
@@ -28,23 +26,23 @@ def edit_distance(str1: string, str2: string): i32 {
             } else {
                 z = d[i - 1][j - 1] + 1
             }
-            d[i][j] = min(x, min(y, z))
+            d[i][j] = std::min(x, std::min(y, z))
         }
     }
     let result = d[n][m]
     return result
 }
 
-def find_word_suggestion(s: string, options: &Vector): string {
+def find_word_suggestion(s: str, options: &Vector): str {
     let threshold = 5 // edit distance threshold
 
     if options.size == 0 return null
 
-    let closest = options.at(0) as string
+    let closest = options.at(0) as str
     let closest_distance = edit_distance(s, closest)
 
-    for let i = 1; i < options.size; i += 1 {
-        let option = options.at(i) as string
+    for let i = 1u32; i < options.size; i += 1 {
+        let option = options.at(i) as str
         let distance = edit_distance(s, option)
         if distance < closest_distance {
             closest = option
@@ -58,10 +56,10 @@ def find_word_suggestion(s: string, options: &Vector): string {
 @compiler c_include "dirent.h"
 
 struct DIR extern("DIR")
-def opendir(path: string): &DIR extern("opendir")
+def opendir(path: str): &DIR extern("opendir")
 def closedir(dir: &DIR) extern("closedir")
 
-def directory_exists(path: string): bool {
+def directory_exists(path: str): bool {
     let dir = opendir(path)
     if dir == null return false
     closedir(dir)

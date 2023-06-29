@@ -1,4 +1,10 @@
-use "@/passes/generic_pass.ae"
+import @passes::generic_pass::GenericPass
+import std::vector::Vector
+import std::map::Map
+import @ast::program::{ Program, Namespace }
+import @ast::nodes::{ Structure, Variable }
+import std::libc::{ calloc, free }
+
 
 // This pass reorders structs so that they can be generated in the correct order for C,
 // and stores the result inside `program.ordered_structs`
@@ -28,7 +34,7 @@ def ReorderStructs::free(&this) {
 
 // Collects all structs we have in the namespace into the vector
 def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
-    for let i = 0; i < ns.structs.size; i += 1 {
+    for let i = 0u32; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .all_structs.push(struc)
     }
@@ -41,9 +47,9 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
     if .done.get(struc.sym.out_name)? return
     .done.insert(struc.sym.out_name, struc)
 
-    for let i = 0; i < struc.fields.size; i += 1 {
+    for let i = 0u32; i < struc.fields.size; i += 1 {
         let field = struc.fields.at(i) as &Variable
-        if field.type? and field.type.base == BaseType::Structure {
+        if field.type? and field.type.base == Structure {
             let other = field.type.u.struc
             .dfs(other)
         }
@@ -54,7 +60,7 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
 // This function topologically sorts the structs based on depedencies, and stores
 // the result inside `program.ordered_structs`
 def ReorderStructs::reorder_structs(&this) {
-    for let i = 0; i < .all_structs.size; i += 1 {
+    for let i = 0u32; i < .all_structs.size; i += 1 {
         let struc = .all_structs.at(i) as &Structure
         .dfs(struc)
     }
@@ -62,11 +68,7 @@ def ReorderStructs::reorder_structs(&this) {
 
 def ReorderStructs::run(program: &Program) {
     let pass = ReorderStructs::new(program)
-
     pass.collect_all_structs(program.global)
     pass.reorder_structs()
-
-    println(`Program reordered structs count: {program.ordered_structs.size}`)
-
     pass.free()
 }

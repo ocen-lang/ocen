@@ -35,3 +35,4 @@ def memset(dest: untyped_ptr, c: i32, size: i32) extern
 def isdigit(c: char): bool extern
 def isalpha(c: char): bool extern
 def isalnum(c: char): bool extern
+def isprint(c: char): bool extern

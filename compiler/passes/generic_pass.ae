@@ -1,6 +1,12 @@
-use "lib/vector.ae"
-use "@/ast/nodes.ae"
-use "@/ast/scopes.ae"
+import std::vector::Vector
+import std::span::Span
+import std::map::Map
+import @ast::scopes::{ Scope, Symbol, SymbolType }
+import @ast::program::{ Program, Namespace }
+import @errors::Error
+import @types::{ Type, BaseType }
+import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
+import std::libc::calloc
 
 // This is a helper class to use in passes to accomplish common tasks like managing
 // scopes / namespaces, resolving types, and inserting symbols into scopes.
@@ -84,7 +90,7 @@ def GenericPass::get_base_type(&this, base: BaseType, span: Span): &Type {
     }
 }
 
-def GenericPass::get_type_by_name(&this, name: string, span: Span): &Type {
+def GenericPass::get_type_by_name(&this, name: str, span: Span): &Type {
     let sym = .program.global.scope.lookup_local(name)
     if sym? and sym.type == SymbolType::TypeDef {
         return sym.u.type_def
@@ -94,12 +100,12 @@ def GenericPass::get_type_by_name(&this, name: string, span: Span): &Type {
     }
 }
 
-def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string, span: Span, error: bool): &Symbol => match sym.type {
+def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): &Symbol => match sym.type {
     SymbolType::Namespace => {
         let ns = sym.u.ns
         let res = ns.find_importable_symbol(name)
         if error and not res? {
-            .error(Error::new(span, `Could not find symbol {name} in namespace {sym.display}`))
+            .error(Error::new(sym.span, `Could not find symbol {name} in namespace {sym.display}`))
         }
         yield res
     }
@@ -107,7 +113,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string, span: Span,
         let struc = sym.u.struc
         let method = struc.type.methods.get(name) as &Function
         if error and not method? {
-            .error(Error::new(span, `Could not find method {name} in structure {sym.display}`))
+            .error(Error::new(sym.span, `Could not find method {name} in structure {sym.display}`))
         }
         if not method? return null
         yield method.sym
@@ -116,7 +122,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string, span: Span,
         let type_def = sym.u.type_def
         let method = type_def.methods.get(name) as &Function
         if error and not method? {
-            .error(Error::new(span, `Could not find method {name} in type {sym.display}`))
+            .error(Error::new(sym.span, `Could not find method {name} in type {sym.display}`))
         }
         if not method? return null
         yield method.sym
@@ -130,41 +136,41 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: string, span: Span,
         if method? then return method.sym
 
         if error {
-            .error(Error::new(span, `Could not find value/method {name} in enum {sym.display}`))
+            .error(Error::new(sym.span, `Could not find value/method {name} in enum {sym.display}`))
         }
         return null
     }
     else => {
-        .error(Error::new(span, `Can't lookup a name inside a {sym.type}`))
+        .error(Error::new(sym.span, `Can't lookup a name inside a {sym.type}`))
         return null
     }
 }
 
 def GenericPass::import_all_from_namespace(&this, ns: &Namespace) {
-    for let i = 0; i < ns.functions.size; i += 1 {
+    for let i = 0u32; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         if not func.is_method {
             .insert_into_scope_checked(func.sym)
         }
     }
 
-    for let i = 0; i < ns.structs.size; i += 1 {
+    for let i = 0u32; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .insert_into_scope_checked(struc.sym)
     }
 
-    for let i = 0; i < ns.enums.size; i += 1 {
+    for let i = 0u32; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
         .insert_into_scope_checked(enum_.sym)
     }
 
-    for let i = 0; i < ns.variables.size; i += 1 {
+    for let i = 0u32; i < ns.variables.size; i += 1 {
         let node = ns.variables.at(i) as &AST
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
 
-    for let i = 0; i < ns.constants.size; i += 1 {
+    for let i = 0u32; i < ns.constants.size; i += 1 {
         let node = ns.constants.at(i) as &AST
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
@@ -190,7 +196,7 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
         }
         SymbolType::Enum => {
             let fields = sym.u.enum_.fields
-            for let i = 0; i < fields.size; i += 1 {
+            for let i = 0u32; i < fields.size; i += 1 {
                 let field = fields.at(i) as &Variable
                 .insert_into_scope_checked(field.sym)
             }
