@@ -433,7 +433,6 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         if not typ? continue
 
         typ = .call_dbg_on_enum_value(&expr)
-        // FIXME: Assigning to the exprs vector is a bit of a hack
         exprs.data[i] = expr
 
         if not typ? continue
@@ -860,8 +859,6 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     } else {
         .check_expression_statement(node, defolt, is_expr, hint)
     }
-
-    // FIXME: check if we early return in here...
 
     if is_expr and not node.etype? and not node.returns {
         .error(Error::new(node.span, "Expression-match must yield a value"))
@@ -1331,7 +1328,6 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
             else => {}
         }
 
-        // FIXME: check for duplicate methods
         let res = parent_type.methods.get(func.sym.name) as &Function
         if res? {
             .o.error(Error::new_hint(

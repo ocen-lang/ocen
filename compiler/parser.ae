@@ -254,8 +254,8 @@ def Parser::parse_format_string(&this): &AST {
                 return null
             }
 
-        } else if fstr.text[i] == ':' and (i == 0 or fstr.text[i - 1] != '\\') {
-            // TODO: Handle errors properly
+        } else if fstr.text[i] == ':' {
+            // TODO: Handle errors properly (actually, maybe just add an assert)
             if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
                 specifier_loc = i
                 specifier_found = true
