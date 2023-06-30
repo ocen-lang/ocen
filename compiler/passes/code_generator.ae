@@ -451,6 +451,26 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_type(node.u.size_of_type)
             .out.puts("))")
         }
+        Assert => {
+            let expr = node.u.assertion.expr
+            .out.puts("ae_assert(")
+            .gen_expression(expr)
+            .out.puts(", ")
+            {
+                .out.puts("\"")
+                .out.putsf(expr.span.start.str())
+                let expr_str = .o.program.get_source_text(expr.span) 
+                .out.putsf(f": Assertion failed: `{expr_str}`")
+                .out.puts("\"")
+            }
+            .out.puts(", ")
+            if node.u.assertion.msg? {
+                .gen_expression(node.u.assertion.msg)
+            } else {
+                .out.puts("NULL")
+            }
+            .out.puts(")")
+        }
         Null => .out.puts("NULL")
 
         And |
@@ -1052,6 +1072,19 @@ def CodeGenerator::generate(&this): str {
     .out.puts("  s[size] = '\\0';\n")
     .out.puts("  va_end(args);\n")
     .out.puts("  return s;\n")
+    .out.puts("}\n")
+    .out.puts("\n")
+
+    .out.puts("void ae_assert(int cond, char *dbg_msg, char *msg) {\n")
+    .out.puts("  if (!cond) {\n")
+    .out.puts("    printf(\"--------------------------------------------------------------------------------\\n\");\n")
+    .out.puts("    printf(\"%s\\n\", dbg_msg);\n")
+    .out.puts("    if (msg) {\n")
+    .out.puts("      printf(\"  Message: %s\\n\", msg);\n")
+    .out.puts("    }\n")
+    .out.puts("    printf(\"--------------------------------------------------------------------------------\\n\");\n")
+    .out.puts("    exit(1);\n")
+    .out.puts("  }\n")
     .out.puts("}\n")
     .out.puts("\n")
 

@@ -29,6 +29,18 @@ char* format_string(const char* format, ...) {
   return s;
 }
 
+void ae_assert(int cond, char *dbg_msg, char *msg) {
+  if (!cond) {
+    printf("--------------------------------------------------------------------------------\n");
+    printf("%s\n", dbg_msg);
+    if (msg) {
+      printf("  Message: %s\n", msg);
+    }
+    printf("--------------------------------------------------------------------------------\n");
+    exit(1);
+  }
+}
+
 #include "ctype.h"
 #include "dirent.h"
 #include "libgen.h"
@@ -58,6 +70,7 @@ char *ast_scopes_SymbolType_dbg(ast_scopes_SymbolType this) {
 }
 
 typedef enum ast_nodes_ASTType {
+  ast_nodes_ASTType_Assert,
   ast_nodes_ASTType_Block,
   ast_nodes_ASTType_BoolLiteral,
   ast_nodes_ASTType_Break,
@@ -120,6 +133,7 @@ typedef enum ast_nodes_ASTType {
 
 char *ast_nodes_ASTType_dbg(ast_nodes_ASTType this) {
   switch (this) {
+    case ast_nodes_ASTType_Assert: return "Assert";
     case ast_nodes_ASTType_Block: return "Block";
     case ast_nodes_ASTType_BoolLiteral: return "BoolLiteral";
     case ast_nodes_ASTType_Break: return "Break";
@@ -262,6 +276,7 @@ typedef enum tokens_TokenType {
   tokens_TokenType_BEGIN_KEYWORDS,
   tokens_TokenType_And,
   tokens_TokenType_As,
+  tokens_TokenType_Assert,
   tokens_TokenType_Bool,
   tokens_TokenType_Break,
   tokens_TokenType_Char,
@@ -357,6 +372,7 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_BEGIN_KEYWORDS: return "BEGIN_KEYWORDS";
     case tokens_TokenType_And: return "And";
     case tokens_TokenType_As: return "As";
+    case tokens_TokenType_Assert: return "Assert";
     case tokens_TokenType_Bool: return "Bool";
     case tokens_TokenType_Break: return "Break";
     case tokens_TokenType_Char: return "Char";
@@ -520,6 +536,7 @@ typedef struct ast_nodes_NumLiteral ast_nodes_NumLiteral;
 typedef struct ast_nodes_Binary ast_nodes_Binary;
 typedef struct ast_nodes_NSLookup ast_nodes_NSLookup;
 typedef struct ast_nodes_Member ast_nodes_Member;
+typedef struct ast_nodes_Assertion ast_nodes_Assertion;
 typedef struct ast_nodes_IfStatement ast_nodes_IfStatement;
 typedef struct ast_nodes_Loop ast_nodes_Loop;
 typedef struct ast_nodes_Cast ast_nodes_Cast;
@@ -635,6 +652,7 @@ struct ast_program_Program {
   std_vector_Vector *c_includes;
   std_vector_Vector *c_flags;
   bool gen_debug_info;
+  std_map_Map *sources;
 };
 
 struct ast_program_Namespace {
@@ -763,6 +781,11 @@ struct ast_nodes_Member {
   bool is_pointer;
 };
 
+struct ast_nodes_Assertion {
+  ast_nodes_AST *expr;
+  ast_nodes_AST *msg;
+};
+
 struct ast_nodes_IfStatement {
   ast_nodes_AST *cond;
   ast_nodes_AST *body;
@@ -800,6 +823,7 @@ struct ast_nodes_Match {
 };
 
 union ast_nodes_ASTUnion {
+  ast_nodes_Assertion assertion;
   ast_nodes_Binary binary;
   ast_nodes_Block block;
   bool bool_literal;
@@ -1085,6 +1109,7 @@ ast_scopes_Symbol *ast_scopes_Scope_lookup_local(ast_scopes_Scope *this, char *n
 void ast_scopes_Scope_insert(ast_scopes_Scope *this, char *name, ast_scopes_Symbol *symbol);
 ast_program_Program *ast_program_Program_new(void);
 void ast_program_Program_exit_with_errors(ast_program_Program *this);
+char *ast_program_Program_get_source_text(ast_program_Program *this, std_span_Span span);
 ast_program_Namespace *ast_program_Namespace_new(ast_program_Namespace *parent, char *path);
 ast_scopes_Symbol *ast_program_Namespace_find_importable_symbol(ast_program_Namespace *this, char *name);
 ast_nodes_ASTType ast_nodes_ASTType_from_token(tokens_TokenType type);
@@ -2029,6 +2054,26 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
       passes_code_generator_CodeGenerator_gen_type(this, node->u.size_of_type);
       std_buffer_Buffer_puts(&this->out, "))");
     } break;
+    case ast_nodes_ASTType_Assert: {
+      ast_nodes_AST *expr = node->u.assertion.expr;
+      std_buffer_Buffer_puts(&this->out, "ae_assert(");
+      passes_code_generator_CodeGenerator_gen_expression(this, expr);
+      std_buffer_Buffer_puts(&this->out, ", ");
+      {
+        std_buffer_Buffer_puts(&this->out, "\"");
+        std_buffer_Buffer_putsf(&this->out, std_span_Location_str(&expr->span.start));
+        char *expr_str = ast_program_Program_get_source_text(this->o->program, expr->span);
+        std_buffer_Buffer_putsf(&this->out, format_string(": Assertion failed: `%s`", expr_str));
+        std_buffer_Buffer_puts(&this->out, "\"");
+      }
+      std_buffer_Buffer_puts(&this->out, ", ");
+      if (((bool)node->u.assertion.msg)) {
+        passes_code_generator_CodeGenerator_gen_expression(this, node->u.assertion.msg);
+      }  else {
+        std_buffer_Buffer_puts(&this->out, "NULL");
+      } 
+      std_buffer_Buffer_puts(&this->out, ")");
+    } break;
     case ast_nodes_ASTType_Null: {
       std_buffer_Buffer_puts(&this->out, "NULL");
     } break;
@@ -2623,6 +2668,18 @@ char *passes_code_generator_CodeGenerator_generate(passes_code_generator_CodeGen
   std_buffer_Buffer_puts(&this->out, "  s[size] = '\\0';\n");
   std_buffer_Buffer_puts(&this->out, "  va_end(args);\n");
   std_buffer_Buffer_puts(&this->out, "  return s;\n");
+  std_buffer_Buffer_puts(&this->out, "}\n");
+  std_buffer_Buffer_puts(&this->out, "\n");
+  std_buffer_Buffer_puts(&this->out, "void ae_assert(int cond, char *dbg_msg, char *msg) {\n");
+  std_buffer_Buffer_puts(&this->out, "  if (!cond) {\n");
+  std_buffer_Buffer_puts(&this->out, "    printf(\"--------------------------------------------------------------------------------\\n\");\n");
+  std_buffer_Buffer_puts(&this->out, "    printf(\"%s\\n\", dbg_msg);\n");
+  std_buffer_Buffer_puts(&this->out, "    if (msg) {\n");
+  std_buffer_Buffer_puts(&this->out, "      printf(\"  Message: %s\\n\", msg);\n");
+  std_buffer_Buffer_puts(&this->out, "    }\n");
+  std_buffer_Buffer_puts(&this->out, "    printf(\"--------------------------------------------------------------------------------\\n\");\n");
+  std_buffer_Buffer_puts(&this->out, "    exit(1);\n");
+  std_buffer_Buffer_puts(&this->out, "  }\n");
   std_buffer_Buffer_puts(&this->out, "}\n");
   std_buffer_Buffer_puts(&this->out, "\n");
   for (u32 i = ((u32)0); (i < this->o->program->c_includes->size); i+=((u32)1)) {
@@ -3615,6 +3672,18 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
       
       node->returns=true;
     } break;
+    case ast_nodes_ASTType_Assert: {
+      types_Type *expr_typ = passes_typechecker_TypeChecker_check_expression(this, node->u.assertion.expr, passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_Bool, node->span));
+      if ((((bool)expr_typ) && (expr_typ->base != types_BaseType_Bool))) {
+        passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only assert boolean types, got %s", types_Type_str(expr_typ))));
+      } 
+      if (((bool)node->u.assertion.msg)) {
+        types_Type *msg_typ = passes_typechecker_TypeChecker_check_expression(this, node->u.assertion.msg, NULL);
+        if ((((bool)msg_typ) && (msg_typ != passes_generic_pass_GenericPass_get_type_by_name(this->o, "str", node->span)))) {
+          passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only assert strings, got %s", types_Type_str(msg_typ))));
+        } 
+      } 
+    } break;
     case ast_nodes_ASTType_Defer: {
       passes_typechecker_TypeChecker_check_statement(this, node->u.unary);
     } break;
@@ -4364,7 +4433,7 @@ ast_nodes_AST *parser_Parser_parse_format_string(parser_Parser *this) {
         return NULL;
       } 
       
-    }  else     if ((fstr->text[i]==':' && (i==((u32)0) || (fstr->text[(i - ((u32)1))] != '\\')))) {
+    }  else     if (fstr->text[i]==':') {
       if (((count==((u32)1) && (fstr->text[(i - ((u32)1))] != ':')) && (fstr->text[(i + ((u32)1))] != ':'))) {
         specifier_loc=i;
         specifier_found=true;
@@ -4922,6 +4991,20 @@ ast_nodes_AST *parser_Parser_parse_statement(parser_Parser *this) {
       node->u.loop.cond=cond;
       node->u.loop.body=body;
     } break;
+    case tokens_TokenType_Assert: {
+      tokens_Token *start = parser_Parser_consume(this, tokens_TokenType_Assert);
+      ast_nodes_AST *expr = parser_Parser_parse_expression(this, tokens_TokenType_Newline);
+      ast_nodes_AST *msg = ((ast_nodes_AST *)NULL);
+      std_span_Span end_span = expr->span;
+      if (parser_Parser_consume_if(this, tokens_TokenType_Comma)) {
+        msg=parser_Parser_parse_expression(this, tokens_TokenType_Newline);
+        end_span=msg->span;
+      } 
+      ast_nodes_AST *node = ast_nodes_AST_new(ast_nodes_ASTType_Assert, std_span_Span_join(start->span, end_span));
+      node->u.assertion.expr=expr;
+      node->u.assertion.msg=msg;
+      return node;
+    } break;
     case tokens_TokenType_Defer: {
       parser_Parser_consume(this, tokens_TokenType_Defer);
       ast_nodes_AST *expr = parser_Parser_parse_expression(this, tokens_TokenType_Newline);
@@ -5038,6 +5121,9 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
 ;__yield_1; });
     } 
 ;__yield_0; });
+  if (!((bool)ident)) 
+  return NULL;
+  
   std_span_Span name_span = ident->span;
   ast_nodes_Function *func = ast_nodes_Function_new();
   char *name = ({ char *__yield_0;
@@ -5470,6 +5556,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
 void parser_Parser_load_file(parser_Parser *this, char *filename) {
   FILE *file = FILE_open(filename, "r");
   char *contents = FILE_slurp(file);
+  std_map_Map_insert(this->program->sources, filename, contents);
   lexer_Lexer lexer = lexer_Lexer_make(contents, filename);
   this->tokens=lexer_Lexer_lex(&lexer);
   this->curr=0;
@@ -5640,12 +5727,24 @@ ast_program_Program *ast_program_Program_new(void) {
   prog->errors=std_vector_Vector_new(((u32)16));
   prog->c_includes=std_vector_Vector_new(((u32)16));
   prog->c_flags=std_vector_Vector_new(((u32)16));
+  prog->sources=std_map_Map_new();
   return prog;
 }
 
 void ast_program_Program_exit_with_errors(ast_program_Program *this) {
   errors_display_error_messages(this->errors, this->error_level);
   exit(1);
+}
+
+char *ast_program_Program_get_source_text(ast_program_Program *this, std_span_Span span) {
+  std_span_Location start = span.start;
+  std_span_Location end = span.end;
+  char *contents = ((char *)std_map_Map_get(this->sources, start.filename));
+  if (contents==NULL) 
+  return "<unknown source>";
+  
+  u32 len = (end.index - start.index);
+  return str_substring(contents, start.index, len);
 }
 
 ast_program_Namespace *ast_program_Namespace_new(ast_program_Namespace *parent, char *path) {
@@ -6788,6 +6887,8 @@ tokens_TokenType tokens_TokenType_from_text(char *text) {
                 __yield_0 = tokens_TokenType_And;
       } else if (!strcmp(__match_str, "as")) {
                 __yield_0 = tokens_TokenType_As;
+      } else if (!strcmp(__match_str, "assert")) {
+                __yield_0 = tokens_TokenType_Assert;
       } else if (!strcmp(__match_str, "bool")) {
                 __yield_0 = tokens_TokenType_Bool;
       } else if (!strcmp(__match_str, "break")) {
@@ -6887,6 +6988,9 @@ char *tokens_TokenType_str(tokens_TokenType this) {
       } break;
       case tokens_TokenType_As: {
                 __yield_0 = "as";
+      } break;
+      case tokens_TokenType_Assert: {
+                __yield_0 = "assert";
       } break;
       case tokens_TokenType_Bool: {
                 __yield_0 = "bool";

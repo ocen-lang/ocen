@@ -8,6 +8,7 @@ import @ast::program::Namespace
 import @types::Type
 
 enum ASTType {
+    Assert
     Block
     BoolLiteral
     Break
@@ -289,6 +290,11 @@ struct Member {
     is_pointer: bool
 }
 
+struct Assertion {
+    expr: &AST
+    msg: &AST
+}
+
 struct IfStatement {
     cond: &AST
     body: &AST
@@ -334,6 +340,7 @@ struct Match {
 }
 
 union ASTUnion {
+    assertion: Assertion
     binary: Binary
     block: Block
     bool_literal: bool
