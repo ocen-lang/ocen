@@ -999,6 +999,19 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
             node.returns = true
         }
+        ASTType::Assert => {
+            let expr_typ = .check_expression(node.u.assertion.expr, hint: .o.get_base_type(BaseType::Bool, node.span))
+            if expr_typ? and expr_typ.base != BaseType::Bool {
+                .error(Error::new(node.span, `Can only assert boolean types, got {expr_typ.str()}`))
+            }
+
+            if node.u.assertion.msg? {
+                let msg_typ = .check_expression(node.u.assertion.msg)
+                if msg_typ? and msg_typ != .o.get_type_by_name("str", node.span) {
+                    .error(Error::new(node.span, `Can only assert strings, got {msg_typ.str()}`))
+                }
+            }
+        }
         ASTType::Defer => .check_statement(node.u.unary)
         ASTType::Yield => {
             if not .scope().can_yield {

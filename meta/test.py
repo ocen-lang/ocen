@@ -20,6 +20,7 @@ class Result(Enum):
     COMPILE_SUCCESS = 4
     SKIP_SILENTLY = 5
     SKIP_REPORT = 6
+    RUNTIME_FAIL = 7
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,8 @@ def get_expected(filename) -> Optional[Expected]:
                 return Expected(Result.EXIT_WITH_OUTPUT, value)
             if name == "fail":
                 return Expected(Result.COMPILE_FAIL, value)
+            if name == "runfail":
+                return Expected(Result.RUNTIME_FAIL, value)
 
             print(f'[-] Invalid parameter in {filename}: {line}')
             break
@@ -100,14 +103,14 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
     except FileNotFoundError:
         return False, "Executable not found", path
 
-    if process.returncode != 0 and expected.type != Result.EXIT_WITH_CODE:
+    if process.returncode != 0 and expected.type not in [Result.EXIT_WITH_CODE, Result.RUNTIME_FAIL]:
         return False, f"Expected exit code 0, but got {process.returncode}", path
 
     if expected.type == Result.EXIT_WITH_CODE:
         if process.returncode != expected.value:
             return False, "Expected exit code {expected.value}, but got {process.returncode}", path
 
-    if expected.type == Result.EXIT_WITH_OUTPUT:
+    if expected.type in [Result.EXIT_WITH_OUTPUT, Result.RUNTIME_FAIL]:
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:

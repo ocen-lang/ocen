@@ -84,6 +84,7 @@ enum TokenType {
     // Keywords
     And
     As
+    Assert
     Bool
     Break
     Char
@@ -131,6 +132,7 @@ enum TokenType {
 def TokenType::from_text(text: str): TokenType => match text {
     "and" => TokenType::And
     "as" => TokenType::As
+    "assert" => TokenType::Assert
     "bool" => TokenType::Bool
     "break" => TokenType::Break
     "char" => TokenType::Char
@@ -180,6 +182,7 @@ def TokenType::str(this): str => match this {
     // Keywords
     And => "and"
     As => "as"
+    Assert => "assert"
     Bool => "bool"
     Break => "break"
     Char => "char"

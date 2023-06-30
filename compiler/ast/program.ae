@@ -21,6 +21,7 @@ struct Program {
     c_flags: &Vector // Vector<str>
 
     gen_debug_info: bool
+    sources: &Map  // Map<str, str>
 }
 
 def Program::new(): &Program {
@@ -33,12 +34,24 @@ def Program::new(): &Program {
     prog.errors = Vector::new()
     prog.c_includes = Vector::new()
     prog.c_flags = Vector::new()
+    prog.sources = Map::new()
     return prog
 }
 
 def Program::exit_with_errors(&this) {
     display_error_messages(.errors, .error_level)
     exit(1)
+}
+
+def Program::get_source_text(&this, span: Span): str {
+    let start = span.start
+    let end = span.end
+
+    let contents = .sources.get(start.filename) as str
+    if contents == null return "<unknown source>"
+    
+    let len = end.index - start.index
+    return contents.substring(start.index, len)
 }
 
 struct Namespace {
