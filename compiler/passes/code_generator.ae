@@ -380,9 +380,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let callee = node.u.call.callee
 
             // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
-            // FIXME: Escape string characters
-            // FIXME: Plus newline to println
-            // FIXME: Expand out format strings inline
             if callee.type == Identifier and (callee.u.ident.name.eq("print") or callee.u.ident.name.eq("println")) {
                 .gen_internal_print(node)
                 return
@@ -401,7 +398,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             for let i = 0; i < args.size; i += 1 {
                 if i != 0 then .out.puts(", ")
                 let arg = args.at(i) as &Argument
-                // FIXME: check arg.label
                 .gen_expression(arg.expr)
             }
             .out.puts(")")

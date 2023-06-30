@@ -33,6 +33,13 @@ def GenericPass::new(program: &Program): &GenericPass {
     pass.namespace_stack = Vector::new()
     pass.program = program
     return pass
+
+    return new GenericPass(
+        scope_stack: Vector::new(),
+        namespace_stack: Vector::new(),
+        program: program,
+        error_type: ---,
+    )
 }
 
 def GenericPass::push_scope(&this, scope: &Scope) {

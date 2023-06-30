@@ -184,7 +184,6 @@ def Lexer::lex_numeric_literal_helper(&this): &Token {
 def Lexer::lex_numeric_literal(&this) {
     let token = .lex_numeric_literal_helper()
 
-    // TODO: check for invalid suffixes
     if .cur() == 'u' or .cur() == 'i' or .cur() == 'f' {
         let start_loc = .loc
         let start = .i
