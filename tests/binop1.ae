@@ -1,5 +1,5 @@
 /// exit: 143
 
-def main() : i32 {
+def main() : u32 {
     return 11 * (10 + 3)
 }

@@ -7,14 +7,14 @@ import std::libc::{ calloc, free }
 import std::math::clamp01
 
 struct Image {
-    width: i32
-    height: i32
+    width: u32
+    height: u32
     data: &Vec
 }
 
-def Image::new(width: i32, height: i32): &Image {
+def Image::new(width: u32, height: u32): &Image {
     let img = calloc(1, sizeof(Image)) as &Image
-    *img = Image(width, height, calloc((width * height) as u32, sizeof(Vec)))
+    *img = Image(width, height, calloc(width * height, sizeof(Vec)))
     return img
 }
 
@@ -23,14 +23,14 @@ def Image::free(&this) {
     free(this)
 }
 
-def Image::get(&this, x: i32, y: i32): Vec => .data[y * .width + x]
-def Image::set(&this, x: i32, y: i32, col: Vec) { .data[y * .width + x] = col }
+def Image::get(&this, x: u32, y: u32): Vec => .data[y * .width + x]
+def Image::set(&this, x: u32, y: u32, col: Vec) { .data[y * .width + x] = col }
 
 def Image::save(&this, filename: str) {
     let file = std::File::open(filename, "wb")
     defer file.close()
 
-    let u8buf = calloc(1, (.width * .height) as u32 * 3u32 * sizeof(u8)) as &u8
+    let u8buf = calloc(1, .width * .height * 3) as &u8
     defer free(u8buf)
 
     for let i = 0; i < .width * .height; i += 1 {

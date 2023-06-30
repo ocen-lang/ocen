@@ -1,4 +1,4 @@
-/// fail: Cannot dereference non-pointer type: i32
+/// fail: Cannot dereference non-pointer type: u32
 
 def main() {
     let x = 5

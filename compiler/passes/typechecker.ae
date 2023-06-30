@@ -29,7 +29,7 @@ def TypeChecker::resolve_type(&this, old: &Type): &Type {
         }
         Function => {
             let func = old.u.func
-            for let i = 0u32; i < func.params.size; i += 1 {
+            for let i = 0; i < func.params.size; i += 1 {
                 let var = func.params.at(i) as &Variable
                 var.type = .resolve_type(var.type)
                 if not var.type? return null
@@ -122,7 +122,7 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type = nul
     .o.push_scope(block.scope)
     let stmts = block.statements
     let yield_span = Span::default()
-    for let i = 0u32; i < stmts.size; i += 1 {
+    for let i = 0; i < stmts.size; i += 1 {
         let stmt = stmts.at(i) as &AST
         .check_statement(stmt)
         if stmt.returns then node.returns = true
@@ -187,7 +187,7 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
         ))
     }
 
-    for let i = 1u32; i < args.size; i += 1 {
+    for let i = 1; i < args.size; i += 1 {
         let arg = args.at(i) as &Argument
         .check_expression(arg.expr)
         .call_dbg_on_enum_value(&arg.expr)
@@ -215,7 +215,7 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector) {
         .error(Error::new(node.span, `Too many arguments, expected {params.size} but got {args.size}`))
     }
 
-    for let i = 0u32; i < params.size; i += 1 {
+    for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
         // Normal case
         if i < args.size {
@@ -427,7 +427,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         .error(Error::new(node.span, "Number of format string parts does not match number of expressions"))
     }
 
-    for let i = 0u32; i < exprs.size; i += 1 {
+    for let i = 0; i < exprs.size; i += 1 {
         let expr = exprs.at(i) as &AST
         let typ = .check_expression(expr)
         if not typ? continue
@@ -514,7 +514,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 return .resolve_type(node.u.num_literal.suffix)
             }
             if hint? and hint.is_integer() then return hint
-            return .o.get_base_type(BaseType::I32, node.span)
+            return .o.get_base_type(BaseType::U32, node.span)
         }
         ASTType::FloatLiteral => {
             if node.u.num_literal.suffix? {
@@ -545,6 +545,9 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return .o.get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Negate => {
+            if not hint? {
+                hint = .o.get_base_type(BaseType::I32, node.span)
+            }
             let typ = .check_expression(node.u.unary, hint)
             if not typ? return null
             if not typ.is_numeric() {
@@ -750,7 +753,7 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
     let cases = node.u.match_stmt.cases
     node.returns = (cases.size > 0)
 
-    for let i = 0u32; i < cases.size; i += 1 {
+    for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
         let cond = _case.cond
         let name: str
@@ -830,7 +833,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     let cases = node.u.match_stmt.cases
     node.returns = (cases.size > 0)
 
-    for let i = 0u32; i < cases.size; i += 1 {
+    for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
         let cond_type = .check_expression(_case.cond, hint: expr_type)
         if not cond_type? then continue
@@ -1057,7 +1060,7 @@ def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
     let new_scope = Scope::new(ns.scope)
 
     let params = func.params
-    for let i = 0u32; i < params.size; i += 1 {
+    for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
 
         let default_expr = param.default_value
@@ -1092,7 +1095,7 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
     let imports = ns.imports
-    for let i = 0u32; i < imports.size; i += 1 {
+    for let i = 0; i < imports.size; i += 1 {
         let import_ = imports.at(i) as &AST
         .handle_import_statement(import_)
     }
@@ -1110,11 +1113,11 @@ def TypeChecker::check_global_variable(&this, node: &AST) {
     if not init? return
 
     let var = node.u.var_decl.var
-    let init_type = .check_expression(init)
+    let init_type = .check_expression(init, hint: var.type)
     if not init_type? or not var.type? return
 
     if not init_type.eq(var.type) {
-        .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type} but initializer has type {init_type}`))
+        .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {init_type.str()}`))
     }
 }
 
@@ -1122,12 +1125,12 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
-    for let i = 0u32; i < ns.functions.size; i += 1 {
+    for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         .check_function(ns, func)
     }
 
-    for let i = 0u32; i < ns.constants.size; i += 1 {
+    for let i = 0; i < ns.constants.size; i += 1 {
         let node = ns.constants.at(i) as &AST
         let init = node.u.var_decl.init
         if init? {
@@ -1137,7 +1140,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         }
     }
 
-    for let i = 0u32; i < ns.variables.size; i += 1 {
+    for let i = 0; i < ns.variables.size; i += 1 {
         let node = ns.variables.at(i) as &AST
         .check_global_variable(node)
     }
@@ -1216,7 +1219,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector, base: &Symbol, a
             }
             Multiple => {
                 let paths = part.u.paths
-                for let j = 0u32; j < paths.size; j += 1 {
+                for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j) as &Vector
                     .handle_import_path_base(path, base, null, 0)
                 }
@@ -1353,7 +1356,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 
 def TypeChecker::check_struct(&this, struc: &Structure) {
     let fields = struc.fields
-    for let i = 0u32; i < fields.size; i += 1 {
+    for let i = 0; i < fields.size; i += 1 {
         let field = fields.at(i) as &Variable
         let res = .resolve_type(field.type)
         if not res? {
@@ -1371,7 +1374,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     }
 
     let params = func.params
-    for let i = 0u32; i < params.size; i += 1 {
+    for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
         param.type = .resolve_type(param.type)
     }
@@ -1386,12 +1389,12 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
-    for let i = 0u32; i < ns.functions.size; i += 1 {
+    for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         .check_function_declaration(func)
     }
     
-    for let i = 0u32; i < ns.structs.size; i += 1 {
+    for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .check_struct(struc)
     }
@@ -1418,7 +1421,7 @@ def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
 def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
-    for let i = 0u32; i < ns.constants.size; i += 1 {
+    for let i = 0; i < ns.constants.size; i += 1 {
         let node = ns.constants.at(i) as &AST
         .pre_check_globals(node, is_const: true)
     }
@@ -1433,12 +1436,12 @@ def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
-    for let i = 0u32; i < ns.functions.size; i += 1 {
+    for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         .pre_check_function(ns, func)
     }
 
-    for let i = 0u32; i < ns.variables.size; i += 1 {
+    for let i = 0; i < ns.variables.size; i += 1 {
         let node = ns.variables.at(i) as &AST
         .pre_check_globals(node, is_const: false)
     }

@@ -1,6 +1,6 @@
 /// exit: 0
 
-def foo(): i32 {
+def foo(): u32 {
 	let x = 5;
 	return x;
 }

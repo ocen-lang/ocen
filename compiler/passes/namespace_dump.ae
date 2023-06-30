@@ -3,7 +3,7 @@ import @ast::nodes::*
 
 
 struct NamespaceDump {
-    indent: i32
+    indent: u32
 }
 
 def NamespaceDump::print_indent(&this) {
@@ -21,32 +21,32 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
     }
 
     .indent += 1
-    for let i = 0u32; i < ns.functions.size; i += 1 {
+    for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         .print_indent()
         println(`(func) {func.sym.display}`)
     }
 
-    for let i = 0u32; i < ns.structs.size; i += 1 {
+    for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .print_indent()
         println(`(struct) {struc.sym.display}`)
     }
 
-    for let i = 0u32; i < ns.enums.size; i += 1 {
+    for let i = 0; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
         .print_indent()
         println(`(enum) {enum_.sym.display}`)
     }
  
-    for let i = 0u32; i < ns.variables.size; i += 1 {
+    for let i = 0; i < ns.variables.size; i += 1 {
         let node = ns.variables.at(i) as &AST
         let var = node.u.var_decl.var
         .print_indent()
         println(`(var) {var.sym.display}`)
     }
 
-    for let i = 0u32; i < ns.constants.size; i += 1 {
+    for let i = 0; i < ns.constants.size; i += 1 {
         let node = ns.constants.at(i) as &AST
         let var = node.u.var_decl.var
         .print_indent()

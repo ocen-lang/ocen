@@ -2,7 +2,7 @@ import std::buffer::Buffer
 import std::libc::{ memset, memcpy }
 
 def rotate_left(value: u32, bits: u32): u32 {
-    return (((value) << (bits)) | ((value) >> (32u32 - (bits))))
+    return (((value) << (bits)) | ((value) >> (32 - (bits))))
 }
 
 def hash(input: &Buffer): Buffer {
@@ -33,8 +33,8 @@ def hash(input: &Buffer): Buffer {
     for let lidx = 0u64; lidx < loopcount; lidx += 1 {
         memset(W, 0, 320)
 
-        for let widx = 0u32; widx < 16; widx += 1 {
-            let wcount = 24
+        for let widx = 0; widx < 16; widx += 1 {
+            let wcount: i32 = 24
 
             while didx < size and wcount >= 0 {
                 W[widx] += (data[didx] as u32) << wcount as u32
@@ -49,24 +49,24 @@ def hash(input: &Buffer): Buffer {
             }
         }
 
-        for let widx = 16u32; widx < 32; widx += 1 {
+        for let widx = 16; widx < 32; widx += 1 {
             W[widx] = rotate_left((W[widx - 3] ^ W[widx - 8] ^ W[widx - 14] ^ W[widx - 16]), 1)
         }
 
-        for let widx = 32u32; widx < 80; widx += 1 {
+        for let widx = 32; widx < 80; widx += 1 {
             W[widx] = rotate_left((W[widx - 6] ^ W[widx - 16] ^ W[widx - 28] ^ W[widx - 32]), 2)
         }
 
         // Main loop
         let T: [u32; 5]
-        memcpy(T, H, sizeof(u32) as i32 * 5)
+        memcpy(T, H, sizeof(u32) * 5)
 
         for let idx = 0; idx <= 79; idx += 1 {
             let factor: u32 = match idx / 20 {
-                0 => 0x5A827999u32 + ((T[1] & T[2]) | ((~T[1]) & T[3]))
-                1 => 0x6ED9EBA1u32 + ( T[1] ^ T[2] ^ T[3])
-                2 => 0x8F1BBCDCu32 + ((T[1] & T[2]) | (T[1] & T[3]) | (T[2] & T[3]))
-                3 => 0xCA62C1D6u32 + ( T[1] ^ T[2] ^ T[3])
+                0 => 0x5A827999 + ((T[1] & T[2]) | ((~T[1]) & T[3]))
+                1 => 0x6ED9EBA1 + ( T[1] ^ T[2] ^ T[3])
+                2 => 0x8F1BBCDC + ((T[1] & T[2]) | (T[1] & T[3]) | (T[2] & T[3]))
+                3 => 0xCA62C1D6 + ( T[1] ^ T[2] ^ T[3])
                 else => 0
             }
             let temp = rotate_left(T[0], 5) + T[4] + factor + W[idx]

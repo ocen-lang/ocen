@@ -570,7 +570,7 @@ struct passes_typechecker_TypeChecker {
 };
 
 struct passes_namespace_dump_NamespaceDump {
-  i32 indent;
+  u32 indent;
 };
 
 struct passes_reorder_structs_ReorderStructs {
@@ -598,9 +598,9 @@ union ast_scopes_SymbolUnion {
 
 struct std_span_Location {
   char *filename;
-  i32 line;
-  i32 col;
-  i32 index;
+  u32 line;
+  u32 col;
+  u32 index;
 };
 
 struct std_span_Span {
@@ -631,7 +631,7 @@ struct ast_program_Program {
   ast_program_Namespace *global;
   std_vector_Vector *ordered_structs;
   std_vector_Vector *errors;
-  i32 error_level;
+  u32 error_level;
   std_vector_Vector *c_includes;
   std_vector_Vector *c_flags;
   bool gen_debug_info;
@@ -737,7 +737,7 @@ struct ast_nodes_ImportPart {
 struct ast_nodes_Import {
   std_vector_Vector *parts;
   ast_nodes_ImportType type;
-  i32 parent_count;
+  u32 parent_count;
 };
 
 struct ast_nodes_NumLiteral {
@@ -832,8 +832,8 @@ struct ast_nodes_AST {
 
 struct lexer_Lexer {
   char *source;
-  i32 source_len;
-  i32 i;
+  u32 source_len;
+  u32 i;
   std_span_Location loc;
   bool seen_newline;
   std_vector_Vector *tokens;
@@ -1070,7 +1070,7 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ve
 bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_stmt);
 void parser_Parser_load_file(parser_Parser *this, char *filename);
 void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program);
-i32 utils_edit_distance(char *str1, char *str2);
+u32 utils_edit_distance(char *str1, char *str2);
 char *utils_find_word_suggestion(char *s, std_vector_Vector *options);
 bool utils_directory_exists(char *path);
 ast_scopes_Symbol *ast_scopes_Symbol_new(ast_scopes_SymbolType type, char *name, char *display, char *out_name, std_span_Span span);
@@ -1106,7 +1106,7 @@ bool ast_nodes_AST_is_lvalue(ast_nodes_AST *this);
 bool lexer_is_hex_digit(char c);
 lexer_Lexer lexer_Lexer_make(char *source, char *filename);
 void lexer_Lexer_push(lexer_Lexer *this, tokens_Token *token);
-void lexer_Lexer_push_type(lexer_Lexer *this, tokens_TokenType type, i32 len);
+void lexer_Lexer_push_type(lexer_Lexer *this, tokens_TokenType type, u32 len);
 char lexer_Lexer_cur(lexer_Lexer *this);
 void lexer_Lexer_inc(lexer_Lexer *this);
 char lexer_Lexer_peek(lexer_Lexer *this, i32 offset);
@@ -1117,23 +1117,26 @@ tokens_Token *lexer_Lexer_lex_numeric_literal_helper(lexer_Lexer *this);
 void lexer_Lexer_lex_numeric_literal(lexer_Lexer *this);
 std_vector_Vector *lexer_Lexer_lex(lexer_Lexer *this);
 FILE *FILE_open(char *path, char *mode);
-i32 FILE_read(FILE *this, void *buf, i32 size);
-i32 FILE_write(FILE *this, void *buf, i32 size);
+i32 FILE_read(FILE *this, void *buf, u32 size);
+i32 FILE_write(FILE *this, void *buf, u32 size);
 char *FILE_slurp(FILE *this);
 bool FILE_exists(char *path);
 void FILE_puts(FILE *this, char *s);
 void std_panic(char *msg) __attribute__((noreturn));
+u32 str_to_u32(char *this);
 bool str_eq(char *this, char *other);
-i32 str_len(char *this);
-char *str_substring(char *this, i32 start, i32 len);
+u32 str_len(char *this);
+char *str_substring(char *this, u32 start, u32 len);
 void str_strip_trailing_whitespace(char *this);
-void str_remove_last_n(char *this, i32 n);
+void str_remove_last_n(char *this, u32 n);
 bool char_is_digit(char this);
 bool char_is_alpha(char this);
 bool char_is_alnum(char this);
 bool char_is_print(char this);
 i32 std_min(i32 a, i32 b);
 i32 std_max(i32 a, i32 b);
+u32 u32_min(u32 this, u32 other);
+u32 u32_max(u32 this, u32 other);
 char *std_span_Location_str(std_span_Location *this);
 bool std_span_Location_is_before(std_span_Location *this, std_span_Location other);
 char *std_span_Span_str(std_span_Span this);
@@ -1216,7 +1219,7 @@ void errors_Error_panic(errors_Error *this) __attribute__((noreturn));
 errors_Error *errors_Error_new(std_span_Span span, char *msg);
 errors_Error *errors_Error_new_note(std_span_Span span, char *msg, char *note);
 errors_Error *errors_Error_new_hint(std_span_Span span, char *msg, std_span_Span span2, char *hint);
-void errors_display_error_messages(std_vector_Vector *errors, i32 detail_level);
+void errors_display_error_messages(std_vector_Vector *errors, u32 detail_level);
 /* function implementations */
 void passes_register_types_RegisterTypes_register_struct(passes_register_types_RegisterTypes *this, ast_program_Namespace *ns, ast_nodes_Structure *struc) {
   ast_scopes_Symbol *item = struc->sym;
@@ -1298,7 +1301,7 @@ void passes_register_types_RegisterTypes_register_alias(passes_register_types_Re
 }
 
 void passes_register_types_RegisterTypes_register_builtin_types(passes_register_types_RegisterTypes *this) {
-  for (i32 i = 0; (i < ((i32)types_BaseType_NUM_BASE_TYPES)); i+=1) {
+  for (u32 i = ((u32)0); (i < ((u32)types_BaseType_NUM_BASE_TYPES)); i+=((u32)1)) {
     passes_register_types_RegisterTypes_register_base_type(this, ((types_BaseType)i));
   }
   {
@@ -1550,7 +1553,7 @@ void passes_code_generator_CodeGenerator_gen_debug_info(passes_code_generator_Co
   return ;
   
   std_span_Location loc = span.start;
-  std_buffer_Buffer_putsf(&this->out, format_string("\n#line %d \"%s\"\n", loc.line, loc.filename));
+  std_buffer_Buffer_putsf(&this->out, format_string("\n#line %u \"%s\"\n", loc.line, loc.filename));
 }
 
 char *passes_code_generator_CodeGenerator_get_op(passes_code_generator_CodeGenerator *this, ast_nodes_ASTType type) {
@@ -1655,10 +1658,10 @@ void passes_code_generator_CodeGenerator_gen_internal_print(passes_code_generato
 }
 
 void passes_code_generator_CodeGenerator_gen_format_string_part(passes_code_generator_CodeGenerator *this, char *part) {
-  i32 len = str_len(part);
-  for (i32 i = 0; (i < len); i+=1) {
+  u32 len = str_len(part);
+  for (u32 i = ((u32)0); (i < len); i+=((u32)1)) {
     if (part[i]=='\\') {
-      i+=1;
+      i+=((u32)1);
       switch (part[i]) {
         case '`':
         case '{':
@@ -1896,7 +1899,19 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
       std_buffer_Buffer_puts(&this->out, "'");
     } break;
     case ast_nodes_ASTType_If: {
-      passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
+      ast_nodes_AST *a = node->u.if_stmt.body;
+      ast_nodes_AST *b = node->u.if_stmt.els;
+      if (((a->type != ast_nodes_ASTType_Block) && (b->type != ast_nodes_ASTType_Block))) {
+        std_buffer_Buffer_puts(&this->out, "(");
+        passes_code_generator_CodeGenerator_gen_expression(this, node->u.if_stmt.cond);
+        std_buffer_Buffer_puts(&this->out, " ? ");
+        passes_code_generator_CodeGenerator_gen_expression(this, a);
+        std_buffer_Buffer_puts(&this->out, " : ");
+        passes_code_generator_CodeGenerator_gen_expression(this, b);
+        std_buffer_Buffer_puts(&this->out, ")");
+      }  else {
+        passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
+      } 
     } break;
     case ast_nodes_ASTType_Match: {
       passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
@@ -1967,13 +1982,7 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
     } break;
     case ast_nodes_ASTType_BoolLiteral: {
       bool bool_lit = node->u.bool_literal;
-      std_buffer_Buffer_puts(&this->out, ({ char *__yield_0;
-        if (bool_lit) 
-        __yield_0 = "true";
-         else 
-        __yield_0 = "false";
-        
-;__yield_0; }));
+      std_buffer_Buffer_puts(&this->out, (bool_lit ? "true" : "false"));
     } break;
     case ast_nodes_ASTType_Address: {
       ast_nodes_AST *expr = node->u.unary;
@@ -3133,7 +3142,7 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
       if ((((bool)hint) && types_Type_is_integer(hint))) 
       return hint;
       
-      return passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_I32, node->span);
+      return passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_U32, node->span);
     } break;
     case ast_nodes_ASTType_FloatLiteral: {
       if (((bool)node->u.num_literal.suffix)) {
@@ -3171,6 +3180,9 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
       return passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_Bool, node->span);
     } break;
     case ast_nodes_ASTType_Negate: {
+      if (!((bool)hint)) {
+        hint=passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_I32, node->span);
+      } 
       types_Type *typ = passes_typechecker_TypeChecker_check_expression(this, node->u.unary, hint);
       if (!((bool)typ)) 
       return NULL;
@@ -3715,12 +3727,12 @@ void passes_typechecker_TypeChecker_check_global_variable(passes_typechecker_Typ
   return ;
   
   ast_nodes_Variable *var = node->u.var_decl.var;
-  types_Type *init_type = passes_typechecker_TypeChecker_check_expression(this, init, NULL);
+  types_Type *init_type = passes_typechecker_TypeChecker_check_expression(this, init, var->type);
   if ((!((bool)init_type) || !((bool)var->type))) 
   return ;
   
   if (!types_Type_eq(init_type, var->type)) {
-    passes_typechecker_TypeChecker_error(this, errors_Error_new(init->span, format_string("Variable %s has type %p but initializer has type %p", var->sym->name, var->type, init_type)));
+    passes_typechecker_TypeChecker_error(this, errors_Error_new(init->span, format_string("Variable %s has type %s but initializer has type %s", var->sym->name, types_Type_str(var->type), types_Type_str(init_type))));
   } 
 }
 
@@ -3868,7 +3880,7 @@ void passes_typechecker_TypeChecker_handle_import_statement(passes_typechecker_T
       } break;
       case ast_nodes_ImportType_FromParentNamespace: {
         ast_program_Namespace *cur = passes_generic_pass_GenericPass_ns(this->o);
-        for (i32 i = 0; (i < path.parent_count); i+=1) {
+        for (u32 i = ((u32)0); (i < path.parent_count); i+=((u32)1)) {
           if (!((bool)cur->parent)) {
             errors_Error_panic(passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Cannot import from parent of root namespace")));
             return ;
@@ -3980,13 +3992,7 @@ void passes_typechecker_TypeChecker_check_function_declarations(passes_typecheck
 void passes_typechecker_TypeChecker_pre_check_globals(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, bool is_const) {
   ast_nodes_Variable *var = node->u.var_decl.var;
   if (!((bool)var->type)) {
-    char *c = ({ char *__yield_0;
-      if (is_const) 
-      __yield_0 = "Constant";
-       else 
-      __yield_0 = "Global variable";
-      
-;__yield_0; });
+    char *c = (is_const ? "Constant" : "Global variable");
     passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("%s must have a type", c)));
     return ;
   } 
@@ -4035,19 +4041,19 @@ void passes_typechecker_TypeChecker_run(ast_program_Program *program) {
 }
 
 void passes_namespace_dump_NamespaceDump_print_indent(passes_namespace_dump_NamespaceDump *this) {
-  for (i32 i = 0; (i < this->indent); i+=1) {
+  for (u32 i = ((u32)0); (i < this->indent); i+=((u32)1)) {
     printf("  ");
   }
 }
 
 void passes_namespace_dump_NamespaceDump_print_namespace(passes_namespace_dump_NamespaceDump *this, ast_program_Namespace *ns) {
   passes_namespace_dump_NamespaceDump_print_indent(this);
-  if (str_len(ns->sym->display)==0) {
+  if (str_len(ns->sym->display)==((u32)0)) {
     printf("(ns) <root>""\n");
   }  else {
     printf("(ns) %s\n", ns->sym->display);
   } 
-  this->indent+=1;
+  this->indent+=((u32)1);
   for (u32 i = ((u32)0); (i < ns->functions->size); i+=((u32)1)) {
     ast_nodes_Function *func = ((ast_nodes_Function *)std_vector_Vector_at(ns->functions, i));
     passes_namespace_dump_NamespaceDump_print_indent(this);
@@ -4079,11 +4085,11 @@ void passes_namespace_dump_NamespaceDump_print_namespace(passes_namespace_dump_N
     ast_program_Namespace *next = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
     passes_namespace_dump_NamespaceDump_print_namespace(this, next);
   }
-  this->indent-=1;
+  this->indent-=((u32)1);
 }
 
 void passes_namespace_dump_NamespaceDump_run(ast_program_Program *program) {
-  passes_namespace_dump_NamespaceDump pass = (passes_namespace_dump_NamespaceDump){.indent=0};
+  passes_namespace_dump_NamespaceDump pass = (passes_namespace_dump_NamespaceDump){.indent=((u32)0)};
   printf("---------------------- Namespace Dump ----------------------""\n");
   passes_namespace_dump_NamespaceDump_print_namespace(&pass, program->global);
   printf("------------------------------------------------------------""\n");
@@ -4304,38 +4310,40 @@ ast_nodes_AST *parser_Parser_parse_scoped_identifier(parser_Parser *this) {
 
 ast_nodes_AST *parser_Parser_parse_format_string(parser_Parser *this) {
   tokens_Token *fstr = parser_Parser_consume(this, tokens_TokenType_FormatStringLiteral);
-  i32 fstr_len = str_len(fstr->text);
+  u32 fstr_len = str_len(fstr->text);
   std_vector_Vector *expr_parts = std_vector_Vector_new(((u32)16));
   std_vector_Vector *expr_start = std_vector_Vector_new(((u32)16));
   std_vector_Vector *format_parts = std_vector_Vector_new(((u32)16));
   std_vector_Vector *specifiers = std_vector_Vector_new(((u32)16));
-  i32 count = 0;
-  i32 cur_start = 0;
-  i32 specifier_loc = -1;
-  for (i32 i = 0; (i < fstr_len); i+=1) {
+  u32 specifier_loc = ((u32)0);
+  bool specifier_found = false;
+  u32 count = ((u32)0);
+  u32 cur_start = ((u32)0);
+  for (u32 i = ((u32)0); (i < fstr_len); i+=((u32)1)) {
     if (fstr->text[i]=='\\') {
-      i+=1;
+      i+=((u32)1);
     }  else     if (fstr->text[i]=='{') {
-      if (count==0) {
+      if (count==((u32)0)) {
         char *part = str_substring(fstr->text, cur_start, (i - cur_start));
         std_vector_Vector_push(format_parts, part);
-        cur_start=(i + 1);
+        cur_start=(i + ((u32)1));
       } 
-      count+=1;
+      count+=((u32)1);
     }  else     if (fstr->text[i]=='}') {
-      count-=1;
-      if (count==0) {
-        if ((specifier_loc > 0)) {
-          char *part = str_substring(fstr->text, cur_start, (specifier_loc - cur_start));
+      count-=((u32)1);
+      if (count==((u32)0)) {
+        if ((specifier_loc > ((u32)0))) {
+          u32 len = ((u32)(specifier_loc - cur_start));
+          char *part = str_substring(fstr->text, cur_start, len);
           std_vector_Vector_push(expr_parts, part);
           std_vector_Vector_push(expr_start, &fstr->text[cur_start]);
-          specifier_loc+=1;
+          specifier_loc+=((u32)1);
           while (((specifier_loc < i) && fstr->text[specifier_loc]==' ')) {
-            specifier_loc+=1;
+            specifier_loc+=((u32)1);
           }
           if (specifier_loc==i) {
             std_span_Location loc = fstr->span.start;
-            loc.col+=(specifier_loc + 1);
+            loc.col+=(specifier_loc + ((u32)1));
             std_span_Span span = (std_span_Span){.start=loc, .end=loc};
             parser_Parser_error(this, errors_Error_new(span, "Expected format specifier"));
             return NULL;
@@ -4348,23 +4356,25 @@ ast_nodes_AST *parser_Parser_parse_format_string(parser_Parser *this) {
           std_vector_Vector_push(expr_start, &fstr->text[cur_start]);
           std_vector_Vector_push(specifiers, NULL);
         } 
-        cur_start=(i + 1);
-        specifier_loc=-1;
-      }  else       if ((count < 0)) {
+        cur_start=(i + ((u32)1));
+        specifier_loc=((u32)0);
+        specifier_found=false;
+      }  else       if ((count < ((u32)0))) {
         parser_Parser_error(this, errors_Error_new(fstr->span, "Unmatched '}' in format string"));
         return NULL;
       } 
       
-    }  else     if ((fstr->text[i]==':' && (fstr->text[(i - 1)] != '\\'))) {
-      if (((count==1 && (fstr->text[(i - 1)] != ':')) && (fstr->text[(i + 1)] != ':'))) {
+    }  else     if ((fstr->text[i]==':' && (i==((u32)0) || (fstr->text[(i - ((u32)1))] != '\\')))) {
+      if (((count==((u32)1) && (fstr->text[(i - ((u32)1))] != ':')) && (fstr->text[(i + ((u32)1))] != ':'))) {
         specifier_loc=i;
+        specifier_found=true;
       } 
     } 
     
     
     
   }
-  if ((count != 0)) {
+  if ((count != ((u32)0))) {
     parser_Parser_error(this, errors_Error_new(fstr->span, "Unmatched '{' in format string"));
     return NULL;
   } 
@@ -4375,14 +4385,14 @@ ast_nodes_AST *parser_Parser_parse_format_string(parser_Parser *this) {
   std_span_Location fstr_start = fstr->span.start;
   std_vector_Vector *expr_nodes = std_vector_Vector_new(((u32)16));
   for (u32 i = ((u32)0); (i < expr_parts->size); i+=((u32)1)) {
-    char *part = ((char *)std_vector_Vector_at(expr_parts, ((u32)i)));
-    i64 start = (((char *)std_vector_Vector_at(expr_start, ((u32)i))) - fstr->text);
+    char *part = ((char *)std_vector_Vector_at(expr_parts, i));
+    u32 start = ((u32)(((char *)std_vector_Vector_at(expr_start, i)) - fstr->text));
     lexer_Lexer lexer = lexer_Lexer_make(part, fstr_start.filename);
     lexer.loc=fstr_start;
-    lexer.loc.col+=(((i32)start) + 1);
+    lexer.loc.col+=(start + ((u32)1));
     std_vector_Vector *tokens = lexer_Lexer_lex(&lexer);
-    for (i32 i = 0; (i < ((i32)lexer.errors->size)); i+=1) {
-      parser_Parser_error(this, std_vector_Vector_at(lexer.errors, ((u32)i)));
+    for (u32 i = ((u32)0); (i < lexer.errors->size); i+=((u32)1)) {
+      parser_Parser_error(this, std_vector_Vector_at(lexer.errors, i));
     }
     std_vector_Vector_free(lexer.errors);
     parser_Parser sub_parser = parser_Parser_make(this->program, this->ns);
@@ -5195,7 +5205,7 @@ std_vector_Vector *parser_Parser_parse_import_path(parser_Parser *this) {
 ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
   std_span_Span span = parser_Parser_token(this)->span;
   parser_Parser_consume(this, tokens_TokenType_Import);
-  i32 parent_count = 0;
+  u32 parent_count = ((u32)0);
   ast_nodes_ImportType type = ({ ast_nodes_ImportType __yield_0;
     switch (parser_Parser_token(this)->type) {
       case tokens_TokenType_AtSign: {
@@ -5204,7 +5214,7 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
       } break;
       case tokens_TokenType_Dot: {
         while (parser_Parser_consume_if(this, tokens_TokenType_Dot)) {
-          parent_count+=1;
+          parent_count+=((u32)1);
         }
         __yield_0 = ast_nodes_ImportType_FromParentNamespace;
       } break;
@@ -5214,7 +5224,7 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
     }
 ;__yield_0; });
   if (this->ns->is_top_level) {
-    parent_count-=1;
+    parent_count-=((u32)1);
   } 
   std_vector_Vector *parts = parser_Parser_parse_import_path(this);
   if (!((bool)parts)) 
@@ -5405,13 +5415,7 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ve
     if ((((bool)sym) && (sym->type != ast_scopes_SymbolType_Namespace))) 
     return true;
     
-    ast_program_Namespace *next = ({ ast_program_Namespace *__yield_0;
-      if (((bool)sym)) 
-      __yield_0 = sym->u.ns;
-       else 
-      __yield_0 = NULL;
-      
-;__yield_0; });
+    ast_program_Namespace *next = (((bool)sym) ? sym->u.ns : NULL);
     char *part_path = format_string("%s/%s", base->path, part_name);
     if (!((bool)next)) {
       bool dir_exists = utils_directory_exists(part_path);
@@ -5448,7 +5452,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
       } break;
       case ast_nodes_ImportType_FromParentNamespace: {
         ast_program_Namespace *cur = this->ns;
-        for (i32 i = 0; (i < path->parent_count); i+=1) {
+        for (u32 i = ((u32)0); (i < path->parent_count); i+=((u32)1)) {
           if (!((bool)cur->parent)) {
             ast_nodes_ImportPart *first_part = ((ast_nodes_ImportPart *)std_vector_Vector_at(path->parts, ((u32)0)));
             parser_Parser_error(this, errors_Error_new(first_part->span, "Cannot import from parent of root namespace"));
@@ -5480,7 +5484,7 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   char *t2 = strdup(filename);
   char *base = strdup(basename(t2));
   free(t2);
-  str_remove_last_n(base, 3);
+  str_remove_last_n(base, ((u32)3));
   ast_program_Namespace *std_ns = ast_program_Namespace_new(program->global, "./std");
   std_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, program->global->sym, "std", std_span_Span_default());
   std_ns->sym->u.ns=std_ns;
@@ -5498,44 +5502,45 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   parser_Parser_load_file(&parser, filename);
 }
 
-i32 utils_edit_distance(char *str1, char *str2) {
-  i32 n = str_len(str1);
-  i32 m = str_len(str2);
-  i32 stride = (m + 1);
-  i32 d[(n + 1)][(m + 1)];
-  for (i32 i = 0; (i <= n); i+=1) {
-    d[i][0]=i;
+u32 utils_edit_distance(char *str1, char *str2) {
+  u32 n = str_len(str1);
+  u32 m = str_len(str2);
+  u32 stride = (m + ((u32)1));
+  u32 d[(n + ((u32)1))][(m + ((u32)1))];
+  for (u32 i = ((u32)0); (i <= n); i+=((u32)1)) {
+    d[i][((u32)0)]=i;
   }
-  for (i32 j = 0; (j <= m); j+=1) {
-    d[0][j]=j;
+  for (u32 j = ((u32)0); (j <= m); j+=((u32)1)) {
+    d[((u32)0)][j]=j;
   }
-  for (i32 i = 1; (i <= n); i+=1) {
-    for (i32 j = 1; (j <= m); j+=1) {
-      i32 x = (d[(i - 1)][j] + 1);
-      i32 y = (d[i][(j - 1)] + 1);
-      i32 z;
-      if (str1[(i - 1)]==str2[(j - 1)]) {
-        z=d[(i - 1)][(j - 1)];
-      }  else {
-        z=(d[(i - 1)][(j - 1)] + 1);
-      } 
-      d[i][j]=std_min(x, std_min(y, z));
+  for (u32 i = ((u32)1); (i <= n); i+=((u32)1)) {
+    for (u32 j = ((u32)1); (j <= m); j+=((u32)1)) {
+      u32 x = (d[(i - ((u32)1))][j] + ((u32)1));
+      u32 y = (d[i][(j - ((u32)1))] + ((u32)1));
+      u32 z = ({ u32 __yield_0;
+        if (str1[(i - ((u32)1))]==str2[(j - ((u32)1))]) {
+          __yield_0 = d[(i - ((u32)1))][(j - ((u32)1))];
+        }  else {
+          __yield_0 = (d[(i - ((u32)1))][(j - ((u32)1))] + ((u32)1));
+        } 
+;__yield_0; });
+      d[i][j]=u32_min(u32_min(x, y), z);
     }
   }
-  i32 result = d[n][m];
+  u32 result = d[n][m];
   return result;
 }
 
 char *utils_find_word_suggestion(char *s, std_vector_Vector *options) {
-  i32 threshold = 5;
+  u32 threshold = ((u32)5);
   if (options->size==((u32)0)) 
   return NULL;
   
   char *closest = ((char *)std_vector_Vector_at(options, ((u32)0)));
-  i32 closest_distance = utils_edit_distance(s, closest);
+  u32 closest_distance = utils_edit_distance(s, closest);
   for (u32 i = ((u32)1); (i < options->size); i+=((u32)1)) {
     char *option = ((char *)std_vector_Vector_at(options, i));
-    i32 distance = utils_edit_distance(s, option);
+    u32 distance = utils_edit_distance(s, option);
     if ((distance < closest_distance)) {
       closest=option;
       closest_distance=distance;
@@ -5567,23 +5572,11 @@ ast_scopes_Symbol *ast_scopes_Symbol_new(ast_scopes_SymbolType type, char *name,
 }
 
 char *ast_scopes_Symbol_join_display(char *a, char *b) {
-  return ({ char *__yield_0;
-    if (str_len(a)==0) 
-    __yield_0 = b;
-     else 
-    __yield_0 = format_string("%s::%s", a, b);
-    
-;__yield_0; });
+  return (str_len(a)==((u32)0) ? b : format_string("%s::%s", a, b));
 }
 
 char *ast_scopes_Symbol_join_out_name(char *a, char *b) {
-  return ({ char *__yield_0;
-    if (str_len(a)==0) 
-    __yield_0 = b;
-     else 
-    __yield_0 = format_string("%s_%s", a, b);
-    
-;__yield_0; });
+  return (str_len(a)==((u32)0) ? b : format_string("%s_%s", a, b));
 }
 
 ast_scopes_Symbol *ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType type, ast_scopes_Symbol *parent, char *name, std_span_Span span) {
@@ -5643,7 +5636,7 @@ ast_program_Program *ast_program_Program_new(void) {
   prog->ordered_structs=std_vector_Vector_new(((u32)16));
   prog->global->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, "", "", "", std_span_Span_default());
   prog->global->sym->u.ns=prog->global;
-  prog->error_level=1;
+  prog->error_level=((u32)1);
   prog->errors=std_vector_Vector_new(((u32)16));
   prog->c_includes=std_vector_Vector_new(((u32)16));
   prog->c_flags=std_vector_Vector_new(((u32)16));
@@ -5658,13 +5651,7 @@ void ast_program_Program_exit_with_errors(ast_program_Program *this) {
 ast_program_Namespace *ast_program_Namespace_new(ast_program_Namespace *parent, char *path) {
   ast_program_Namespace *ns = ((ast_program_Namespace *)calloc(((u32)1), ((u32)sizeof(ast_program_Namespace))));
   ns->parent=parent;
-  ast_scopes_Scope *parent_scope = ({ ast_scopes_Scope *__yield_0;
-    if (((bool)parent)) 
-    __yield_0 = parent->scope;
-     else 
-    __yield_0 = NULL;
-    
-;__yield_0; });
+  ast_scopes_Scope *parent_scope = (((bool)parent) ? parent->scope : NULL);
   ns->scope=ast_scopes_Scope_new(parent_scope);
   ns->functions=std_vector_Vector_new(((u32)16));
   ns->structs=std_vector_Vector_new(((u32)16));
@@ -5946,7 +5933,7 @@ bool lexer_is_hex_digit(char c) {
 }
 
 lexer_Lexer lexer_Lexer_make(char *source, char *filename) {
-  return (lexer_Lexer){.source=source, .source_len=str_len(source), .i=0, .loc=(std_span_Location){.filename=filename, .line=1, .col=1, .index=0}, .seen_newline=false, .tokens=std_vector_Vector_new(((u32)16)), .errors=std_vector_Vector_new(((u32)16))};
+  return (lexer_Lexer){.source=source, .source_len=str_len(source), .i=((u32)0), .loc=(std_span_Location){.filename=filename, .line=((u32)1), .col=((u32)1), .index=((u32)0)}, .seen_newline=false, .tokens=std_vector_Vector_new(((u32)16)), .errors=std_vector_Vector_new(((u32)16))};
 }
 
 void lexer_Lexer_push(lexer_Lexer *this, tokens_Token *token) {
@@ -5955,9 +5942,9 @@ void lexer_Lexer_push(lexer_Lexer *this, tokens_Token *token) {
   this->seen_newline=false;
 }
 
-void lexer_Lexer_push_type(lexer_Lexer *this, tokens_TokenType type, i32 len) {
+void lexer_Lexer_push_type(lexer_Lexer *this, tokens_TokenType type, u32 len) {
   std_span_Location start_loc = this->loc;
-  for (i32 i = 0; (i < len); i+=1) {
+  for (u32 i = ((u32)0); (i < len); i+=((u32)1)) {
     lexer_Lexer_inc(this);
   }
   lexer_Lexer_push(this, tokens_Token_from_type(type, (std_span_Span){.start=start_loc, .end=this->loc}));
@@ -5970,28 +5957,28 @@ char lexer_Lexer_cur(lexer_Lexer *this) {
 void lexer_Lexer_inc(lexer_Lexer *this) {
   switch (lexer_Lexer_cur(this)) {
     case '\n': {
-      this->loc.line+=1;
-      this->loc.col=1;
+      this->loc.line+=((u32)1);
+      this->loc.col=((u32)1);
       this->seen_newline=true;
     } break;
     default: {
-      this->loc.col+=1;
+      this->loc.col+=((u32)1);
     } break;
   }
-  this->i+=1;
-  this->loc.index+=1;
+  this->i+=((u32)1);
+  this->loc.index+=((u32)1);
 }
 
 char lexer_Lexer_peek(lexer_Lexer *this, i32 offset) {
   if (lexer_Lexer_cur(this)=='\0') {
     return lexer_Lexer_cur(this);
   } 
-  return this->source[(this->i + 1)];
+  return this->source[(this->i + ((u32)1))];
 }
 
 void lexer_Lexer_lex_char_literal(lexer_Lexer *this) {
   std_span_Location start_loc = this->loc;
-  i32 start = (this->i + 1);
+  u32 start = (this->i + ((u32)1));
   lexer_Lexer_inc(this);
   if (lexer_Lexer_cur(this)=='\\') {
     lexer_Lexer_inc(this);
@@ -6000,7 +5987,7 @@ void lexer_Lexer_lex_char_literal(lexer_Lexer *this) {
   if ((lexer_Lexer_cur(this) != '\'')) {
     std_vector_Vector_push(this->errors, errors_Error_new((std_span_Span){.start=this->loc, .end=this->loc}, "Expected ' after character literal"));
   } 
-  i32 len = (this->i - start);
+  u32 len = (this->i - start);
   char *text = str_substring(this->source, start, len);
   lexer_Lexer_inc(this);
   lexer_Lexer_push(this, tokens_Token_new(tokens_TokenType_CharLiteral, (std_span_Span){.start=start_loc, .end=this->loc}, text));
@@ -6009,7 +5996,7 @@ void lexer_Lexer_lex_char_literal(lexer_Lexer *this) {
 void lexer_Lexer_lex_string_literal(lexer_Lexer *this, bool has_seen_f) {
   std_span_Location start_loc = this->loc;
   char end_char = lexer_Lexer_cur(this);
-  i32 start = (this->i + 1);
+  u32 start = (this->i + ((u32)1));
   lexer_Lexer_inc(this);
   while (((this->i < this->source_len) && (lexer_Lexer_cur(this) != end_char))) {
     if (lexer_Lexer_cur(this)=='\\') {
@@ -6017,7 +6004,7 @@ void lexer_Lexer_lex_string_literal(lexer_Lexer *this, bool has_seen_f) {
     } 
     lexer_Lexer_inc(this);
   }
-  i32 len = (this->i - start);
+  u32 len = (this->i - start);
   char *text = str_substring(this->source, start, len);
   lexer_Lexer_inc(this);
   if ((this->i >= this->source_len)) {
@@ -6032,7 +6019,7 @@ void lexer_Lexer_lex_string_literal(lexer_Lexer *this, bool has_seen_f) {
 
 tokens_Token *lexer_Lexer_lex_int_literal_different_base(lexer_Lexer *this) {
   std_span_Location start_loc = this->loc;
-  i32 start = this->i;
+  u32 start = this->i;
   lexer_Lexer_inc(this);
   switch (lexer_Lexer_cur(this)) {
     case 'x': {
@@ -6050,7 +6037,7 @@ tokens_Token *lexer_Lexer_lex_int_literal_different_base(lexer_Lexer *this) {
     default: {
     } break;
   }
-  i32 len = (this->i - start);
+  u32 len = (this->i - start);
   char *text = str_substring(this->source, start, len);
   return tokens_Token_new(tokens_TokenType_IntLiteral, (std_span_Span){.start=start_loc, .end=this->loc}, text);
 }
@@ -6067,7 +6054,7 @@ tokens_Token *lexer_Lexer_lex_numeric_literal_helper(lexer_Lexer *this) {
       } break;
     }
   } 
-  i32 start = this->i;
+  u32 start = this->i;
   tokens_TokenType token_type;
   while (char_is_digit(lexer_Lexer_cur(this))) {
     lexer_Lexer_inc(this);
@@ -6081,7 +6068,7 @@ tokens_Token *lexer_Lexer_lex_numeric_literal_helper(lexer_Lexer *this) {
   }  else {
     token_type=tokens_TokenType_IntLiteral;
   } 
-  i32 len = (this->i - start);
+  u32 len = (this->i - start);
   char *text = str_substring(this->source, start, len);
   return tokens_Token_new(token_type, (std_span_Span){.start=start_loc, .end=this->loc}, text);
 }
@@ -6090,12 +6077,12 @@ void lexer_Lexer_lex_numeric_literal(lexer_Lexer *this) {
   tokens_Token *token = lexer_Lexer_lex_numeric_literal_helper(this);
   if (((lexer_Lexer_cur(this)=='u' || lexer_Lexer_cur(this)=='i') || lexer_Lexer_cur(this)=='f')) {
     std_span_Location start_loc = this->loc;
-    i32 start = this->i;
+    u32 start = this->i;
     lexer_Lexer_inc(this);
     while (((this->i < this->source_len) && char_is_digit(lexer_Lexer_cur(this)))) {
       lexer_Lexer_inc(this);
     }
-    i32 len = (this->i - start);
+    u32 len = (this->i - start);
     char *suffix = str_substring(this->source, start, len);
     token->suffix=tokens_Token_from_ident(suffix, (std_span_Span){.start=start_loc, .end=this->loc});
   } 
@@ -6115,139 +6102,139 @@ std_vector_Vector *lexer_Lexer_lex(lexer_Lexer *this) {
         lexer_Lexer_inc(this);
       } break;
       case ';': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Semicolon, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Semicolon, ((u32)1));
       } break;
       case ',': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Comma, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Comma, ((u32)1));
       } break;
       case '.': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Dot, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Dot, ((u32)1));
       } break;
       case '(': {
-        lexer_Lexer_push_type(this, tokens_TokenType_OpenParen, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_OpenParen, ((u32)1));
       } break;
       case ')': {
-        lexer_Lexer_push_type(this, tokens_TokenType_CloseParen, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_CloseParen, ((u32)1));
       } break;
       case '[': {
-        lexer_Lexer_push_type(this, tokens_TokenType_OpenSquare, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_OpenSquare, ((u32)1));
       } break;
       case ']': {
-        lexer_Lexer_push_type(this, tokens_TokenType_CloseSquare, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_CloseSquare, ((u32)1));
       } break;
       case '{': {
-        lexer_Lexer_push_type(this, tokens_TokenType_OpenCurly, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_OpenCurly, ((u32)1));
       } break;
       case '}': {
-        lexer_Lexer_push_type(this, tokens_TokenType_CloseCurly, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_CloseCurly, ((u32)1));
       } break;
       case '@': {
-        lexer_Lexer_push_type(this, tokens_TokenType_AtSign, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_AtSign, ((u32)1));
       } break;
       case '%': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Percent, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Percent, ((u32)1));
       } break;
       case '^': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Caret, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Caret, ((u32)1));
       } break;
       case '&': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Ampersand, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Ampersand, ((u32)1));
       } break;
       case '|': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Line, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Line, ((u32)1));
       } break;
       case '?': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Question, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Question, ((u32)1));
       } break;
       case '~': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Tilde, 1);
+        lexer_Lexer_push_type(this, tokens_TokenType_Tilde, ((u32)1));
       } break;
       case '!': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_NotEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_NotEquals, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Exclamation, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Exclamation, ((u32)1));
           } break;
         }
       } break;
       case ':': {
         switch (lexer_Lexer_peek(this, 1)) {
           case ':': {
-            lexer_Lexer_push_type(this, tokens_TokenType_ColonColon, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_ColonColon, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Colon, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Colon, ((u32)1));
           } break;
         }
       } break;
       case '=': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_EqualEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_EqualEquals, ((u32)2));
           } break;
           case '>': {
-            lexer_Lexer_push_type(this, tokens_TokenType_FatArrow, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_FatArrow, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Equals, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Equals, ((u32)1));
           } break;
         }
       } break;
       case '*': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_StarEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_StarEquals, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Star, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Star, ((u32)1));
           } break;
         }
       } break;
       case '+': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_PlusEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_PlusEquals, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Plus, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Plus, ((u32)1));
           } break;
         }
       } break;
       case '-': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_MinusEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_MinusEquals, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Minus, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Minus, ((u32)1));
           } break;
         }
       } break;
       case '<': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_LessThanEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_LessThanEquals, ((u32)2));
           } break;
           case '<': {
-            lexer_Lexer_push_type(this, tokens_TokenType_LessThanLessThan, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_LessThanLessThan, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_LessThan, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_LessThan, ((u32)1));
           } break;
         }
       } break;
       case '>': {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThanEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThanEquals, ((u32)2));
           } break;
           case '>': {
-            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThanGreaterThan, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThanGreaterThan, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThan, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThan, ((u32)1));
           } break;
         }
       } break;
@@ -6260,10 +6247,10 @@ std_vector_Vector *lexer_Lexer_lex(lexer_Lexer *this) {
             }
           } break;
           case '=': {
-            lexer_Lexer_push_type(this, tokens_TokenType_SlashEquals, 2);
+            lexer_Lexer_push_type(this, tokens_TokenType_SlashEquals, ((u32)2));
           } break;
           default: {
-            lexer_Lexer_push_type(this, tokens_TokenType_Slash, 1);
+            lexer_Lexer_push_type(this, tokens_TokenType_Slash, ((u32)1));
           } break;
         }
       } break;
@@ -6282,11 +6269,11 @@ std_vector_Vector *lexer_Lexer_lex(lexer_Lexer *this) {
         }  else         if (char_is_digit(c)) {
           lexer_Lexer_lex_numeric_literal(this);
         }  else         if ((char_is_alpha(c) || c=='_')) {
-          i32 start = this->i;
+          u32 start = this->i;
           while ((char_is_alnum(lexer_Lexer_cur(this)) || lexer_Lexer_cur(this)=='_')) {
             lexer_Lexer_inc(this);
           }
-          i32 len = (this->i - start);
+          u32 len = (this->i - start);
           char *text = str_substring(this->source, start, len);
           lexer_Lexer_push(this, tokens_Token_from_ident(text, (std_span_Span){.start=start_loc, .end=this->loc}));
         }  else {
@@ -6299,7 +6286,7 @@ std_vector_Vector *lexer_Lexer_lex(lexer_Lexer *this) {
     }
   }
   this->seen_newline=true;
-  lexer_Lexer_push_type(this, tokens_TokenType_EOF, 0);
+  lexer_Lexer_push_type(this, tokens_TokenType_EOF, ((u32)0));
   return this->tokens;
 }
 
@@ -6311,21 +6298,21 @@ FILE *FILE_open(char *path, char *mode) {
   return file;
 }
 
-i32 FILE_read(FILE *this, void *buf, i32 size) {
-  return fread(buf, 1, size, this);
+i32 FILE_read(FILE *this, void *buf, u32 size) {
+  return fread(buf, ((u32)1), size, this);
 }
 
-i32 FILE_write(FILE *this, void *buf, i32 size) {
-  return fwrite(buf, 1, size, this);
+i32 FILE_write(FILE *this, void *buf, u32 size) {
+  return fwrite(buf, ((u32)1), size, this);
 }
 
 char *FILE_slurp(FILE *this) {
   i32 pos = ftell(this);
   fseek(this, 0, SEEK_END);
-  i32 size = ftell(this);
+  u32 size = ((u32)ftell(this));
   fseek(this, pos, SEEK_SET);
   void *buf = calloc((((u32)size) + ((u32)1)), ((u32)sizeof(char)));
-  fread(buf, 1, size, this);
+  fread(buf, ((u32)1), size, this);
   fseek(this, pos, SEEK_SET);
   return ((char *)buf);
 }
@@ -6340,7 +6327,7 @@ bool FILE_exists(char *path) {
 }
 
 void FILE_puts(FILE *this, char *s) {
-  fwrite(s, 1, str_len(s), this);
+  fwrite(s, ((u32)1), str_len(s), this);
 }
 
 void std_panic(char *msg) {
@@ -6348,22 +6335,26 @@ void std_panic(char *msg) {
   exit(1);
 }
 
+u32 str_to_u32(char *this) {
+  return ((u32)atoi(this));
+}
+
 bool str_eq(char *this, char *other) {
   return strcmp(this, other)==0;
 }
 
-i32 str_len(char *this) {
+u32 str_len(char *this) {
   return strlen(this);
 }
 
-char *str_substring(char *this, i32 start, i32 len) {
-  char *new_str = ((char *)calloc(((u32)(len + 1)), ((u32)sizeof(char))));
+char *str_substring(char *this, u32 start, u32 len) {
+  char *new_str = ((char *)calloc(((u32)(len + ((u32)1))), ((u32)sizeof(char))));
   memcpy(new_str, &this[start], len);
   return new_str;
 }
 
 void str_strip_trailing_whitespace(char *this) {
-  for (i32 i = (str_len(this) - 1); (i >= 0); i-=1) {
+  for (u32 i = (str_len(this) - ((u32)1)); (i >= ((u32)0)); i-=((u32)1)) {
     if ((this[i] != ' ')) 
     break;
     
@@ -6371,7 +6362,7 @@ void str_strip_trailing_whitespace(char *this) {
   }
 }
 
-void str_remove_last_n(char *this, i32 n) {
+void str_remove_last_n(char *this, u32 n) {
   this[(str_len(this) - n)]='\0';
 }
 
@@ -6392,27 +6383,23 @@ bool char_is_print(char this) {
 }
 
 i32 std_min(i32 a, i32 b) {
-  return ({ i32 __yield_0;
-    if ((a < b)) 
-    __yield_0 = a;
-     else 
-    __yield_0 = b;
-    
-;__yield_0; });
+  return ((a < b) ? a : b);
 }
 
 i32 std_max(i32 a, i32 b) {
-  return ({ i32 __yield_0;
-    if ((a > b)) 
-    __yield_0 = a;
-     else 
-    __yield_0 = b;
-    
-;__yield_0; });
+  return ((a > b) ? a : b);
+}
+
+u32 u32_min(u32 this, u32 other) {
+  return ((this < other) ? this : other);
+}
+
+u32 u32_max(u32 this, u32 other) {
+  return ((this > other) ? this : other);
 }
 
 char *std_span_Location_str(std_span_Location *this) {
-  return format_string("%s:%d:%d", this->filename, this->line, this->col);
+  return format_string("%s:%u:%u", this->filename, this->line, this->col);
 }
 
 bool std_span_Location_is_before(std_span_Location *this, std_span_Location other) {
@@ -6431,8 +6418,8 @@ char *std_span_Span_str(std_span_Span this) {
 
 std_span_Span std_span_Span_default(void) {
   std_span_Span span;
-  span.start=(std_span_Location){.filename="<default>", .line=0, .col=0, .index=0};
-  span.end=(std_span_Location){.filename="<default>", .line=0, .col=0, .index=0};
+  span.start=(std_span_Location){.filename="<default>", .line=((u32)0), .col=((u32)0), .index=((u32)0)};
+  span.end=(std_span_Location){.filename="<default>", .line=((u32)0), .col=((u32)0), .index=((u32)0)};
   return span;
 }
 
@@ -6476,8 +6463,8 @@ std_map_Map *std_map_Map_new(void) {
 
 u32 std_map_Map_hash(std_map_Map *this, char *s) {
   u32 hash = ((u32)5381);
-  i32 len = str_len(s);
-  for (i32 i = 0; (i < len); i+=1) {
+  u32 len = str_len(s);
+  for (u32 i = ((u32)0); (i < len); i+=((u32)1)) {
     hash=((hash * ((u32)33)) ^ ((u32)s[i]));
   }
   hash=(hash % this->num_buckets);
@@ -6649,7 +6636,7 @@ void std_vector_Vector_push_front(std_vector_Vector *this, void *val) {
   for (u32 i = this->size; (i > ((u32)0)); i-=((u32)1)) {
     this->data[i]=this->data[(i - ((u32)1))];
   }
-  this->data[0]=val;
+  this->data[((u32)0)]=val;
   this->size+=((u32)1);
 }
 
@@ -6720,7 +6707,7 @@ void std_buffer_Buffer_hex_dump(std_buffer_Buffer *this) {
 
 void std_buffer_Buffer_putb(std_buffer_Buffer *this, std_buffer_Buffer *buf) {
   std_buffer_Buffer_resize_if_necessary(this, ((this->size + buf->size) + ((u32)1)));
-  memcpy((this->data + this->size), buf->data, ((i32)buf->size));
+  memcpy((this->data + this->size), buf->data, buf->size);
   this->data[(this->size + buf->size)]=((u8)'\0');
   this->size+=buf->size;
 }
@@ -6733,7 +6720,7 @@ void std_buffer_Buffer_putbf(std_buffer_Buffer *this, std_buffer_Buffer *buf) {
 void std_buffer_Buffer_puts(std_buffer_Buffer *this, char *s) {
   u32 len = ((u32)str_len(s));
   std_buffer_Buffer_resize_if_necessary(this, ((this->size + ((u32)len)) + ((u32)1)));
-  memcpy((this->data + this->size), s, (((i32)len) + 1));
+  memcpy((this->data + this->size), s, (len + ((u32)1)));
   this->size+=len;
 }
 
@@ -7328,8 +7315,8 @@ i32 main(i32 argc, char **argv) {
   bool silent = false;
   char *lib_path = ((char *)NULL);
   bool debug = false;
-  i32 error_level = 1;
-  for (i32 i = 1; (i < argc); i+=1) {
+  u32 error_level = ((u32)1);
+  for (u32 i = ((u32)1); (i < ((u32)argc)); i+=((u32)1)) {
     {
       char *__match_str = argv[i];
       if (!strcmp(__match_str, "-h")) {
@@ -7341,22 +7328,22 @@ i32 main(i32 argc, char **argv) {
       } else if (!strcmp(__match_str, "-n")) {
         compile_c=false;
       } else if (!strcmp(__match_str, "-o")) {
-        i+=1;
+        i+=((u32)1);
         exec_path=argv[i];
       } else if (!strcmp(__match_str, "-l")) {
-        i+=1;
+        i+=((u32)1);
         lib_path=argv[i];
       } else if (!strcmp(__match_str, "-c")) {
-        i+=1;
+        i+=((u32)1);
         c_path=argv[i];
       } else if (!strcmp(__match_str, "-e0")) {
-        error_level=0;
+        error_level=((u32)0);
       } else if (!strcmp(__match_str, "-e1")) {
-        error_level=1;
+        error_level=((u32)1);
       } else if (!strcmp(__match_str, "-e2")) {
-        error_level=2;
+        error_level=((u32)2);
       } else  {
-        if (argv[i][0]=='-') {
+        if (argv[i][((u32)0)]=='-') {
           printf("Unknown option: %s""\n", argv[i]);
           usage(1);
         }  else         if (!((bool)filename)) {
@@ -7477,36 +7464,36 @@ void errors_display_message_span(errors_MessageType type, std_span_Span span, ch
   char *filename = span.start.filename;
   FILE *file = FILE_open(filename, "r");
   char *contents = FILE_slurp(file);
-  i32 around_offset = 1;
-  i32 min_line = std_max((span.start.line - around_offset), 1);
-  i32 max_line = (span.end.line + around_offset);
+  u32 around_offset = ((u32)1);
+  u32 min_line = u32_max((span.start.line - around_offset), ((u32)1));
+  u32 max_line = (span.end.line + around_offset);
   errors_display_message(type, span, msg);
   char *lines = contents;
   char *cur = strsep(&lines, "\n");
-  i32 line_no = 1;
+  u32 line_no = ((u32)1);
   while ((((bool)cur) && (line_no <= max_line))) {
     if (((line_no >= min_line) && (line_no <= max_line))) {
       printf("%4d | ", line_no);
       if (line_no==span.start.line) {
-        i32 start_col = (span.start.col - 1);
-        i32 end_col = (span.end.col - 1);
+        u32 start_col = (span.start.col - ((u32)1));
+        u32 end_col = (span.end.col - ((u32)1));
         if ((span.end.line != span.start.line)) {
           end_col=str_len(cur);
         } 
-        for (i32 i = 0; (i < start_col); i+=1) {
+        for (u32 i = ((u32)0); (i < start_col); i+=((u32)1)) {
           printf("%c", cur[i]);
         }
         printf("%s", color);
-        for (i32 i = start_col; (i < end_col); i+=1) {
+        for (u32 i = start_col; (i < end_col); i+=((u32)1)) {
           printf("%c", cur[i]);
         }
         printf("%s%s""\n", reset, &cur[end_col]);
-        printf("%*s%s^ %s%s""\n", (start_col + 7), "", color, msg, reset);
+        printf("%*s%s^ %s%s""\n", (start_col + ((u32)7)), "", color, msg, reset);
       }  else {
         printf("%s""\n", cur);
       } 
     } 
-    line_no+=1;
+    line_no+=((u32)1);
     cur=strsep(&lines, "\n");
   }
   /* defers */
@@ -7564,27 +7551,21 @@ errors_Error *errors_Error_new_hint(std_span_Span span, char *msg, std_span_Span
   return err;
 }
 
-void errors_display_error_messages(std_vector_Vector *errors, i32 detail_level) {
+void errors_display_error_messages(std_vector_Vector *errors, u32 detail_level) {
   char *num_errors_env = getenv("AECOR_NUM_ERRORS");
-  i32 max_num_errors = ({ i32 __yield_0;
-    if (((bool)num_errors_env)) 
-    __yield_0 = atoi(num_errors_env);
-     else 
-    __yield_0 = 10;
-    
-;__yield_0; });
-  i32 num_errors = std_min(((i32)errors->size), max_num_errors);
+  u32 max_num_errors = (((bool)num_errors_env) ? str_to_u32(num_errors_env) : ((u32)10));
+  u32 num_errors = u32_min(errors->size, max_num_errors);
   bool first = true;
-  for (i32 i = (num_errors - 1); (i >= 0); i-=1) {
+  for (u32 i = (num_errors - ((u32)1)); (i >= ((u32)0)); i-=((u32)1)) {
     errors_Error *err = ((errors_Error *)std_vector_Vector_at(errors, ((u32)i)));
     switch (detail_level) {
-      case 0: {
+      case ((u32)0): {
         printf("%s: %s""\n", std_span_Location_str(&err->span1.start), err->msg1);
       } break;
-      case 1: {
+      case ((u32)1): {
         errors_display_message_span(errors_MessageType_Error, err->span1, err->msg1);
       } break;
-      case 2: {
+      case ((u32)2): {
         if (first) 
         printf("""\n");
         

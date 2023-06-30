@@ -1,8 +1,8 @@
 struct Location {
     filename: str
-    line: i32
-    col: i32
-    index: i32
+    line: u32
+    col: u32
+    index: u32
 }
 
 def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}

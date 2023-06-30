@@ -199,9 +199,11 @@ def Parser::parse_format_string(&this): &AST {
     let format_parts = Vector::new()  // Vector<str>
     let specifiers = Vector::new()    // Vector<str>
 
+    let specifier_loc = 0
+    let specifier_found = false
+
     let count = 0
     let cur_start = 0
-    let specifier_loc = -1
 
     for let i = 0; i < fstr_len; i += 1 {
         if fstr.text[i] == '\\' {
@@ -217,7 +219,8 @@ def Parser::parse_format_string(&this): &AST {
             count -= 1
             if count == 0 {
                 if specifier_loc > 0 {
-                    let part = fstr.text.substring(cur_start, specifier_loc - cur_start)
+                    let len = (specifier_loc - cur_start) as u32
+                    let part = fstr.text.substring(cur_start, len)
                     expr_parts.push(part)
                     expr_start.push(&fstr.text[cur_start])
 
@@ -243,17 +246,19 @@ def Parser::parse_format_string(&this): &AST {
                     specifiers.push(null)
                 }
                 cur_start = i + 1
-                specifier_loc = -1
+                specifier_loc = 0
+                specifier_found = false
 
             } else if count < 0 {
                 .error(Error::new(fstr.span, "Unmatched '}' in format string"))
                 return null
             }
 
-        } else if fstr.text[i] == ':' and fstr.text[i - 1] != '\\' {
+        } else if fstr.text[i] == ':' and (i == 0 or fstr.text[i - 1] != '\\') {
             // TODO: Handle errors properly
             if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
                 specifier_loc = i
+                specifier_found = true
             }
         }
     }
@@ -269,17 +274,17 @@ def Parser::parse_format_string(&this): &AST {
 
     let fstr_start = fstr.span.start
     let expr_nodes = Vector::new()
-    for let i = 0u32; i < expr_parts.size; i += 1 {
-        let part = expr_parts.at(i as u32) as str
-        let start = (expr_start.at(i as u32) as str) - fstr.text
+    for let i = 0; i < expr_parts.size; i += 1 {
+        let part = expr_parts.at(i) as str
+        let start = ((expr_start.at(i) as str) - fstr.text) as u32
 
         let lexer = Lexer::make(part, fstr_start.filename)
         lexer.loc = fstr_start
-        lexer.loc.col += start as i32 + 1
+        lexer.loc.col += start + 1
 
         let tokens = lexer.lex()
-        for let i = 0; i < lexer.errors.size as i32; i += 1 {
-            .error(lexer.errors.at(i as u32))
+        for let i = 0; i < lexer.errors.size; i += 1 {
+            .error(lexer.errors.at(i))
         }
         lexer.errors.free()
 
@@ -689,7 +694,7 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
     if operators.size == 0 then return operands.at(0)
 
     let root = null as &AST
-    for let i = 0u32; i < operators.size; i += 1 {
+    for let i = 0; i < operators.size; i += 1 {
         let tok = operators.at(i) as &Token
         let lhs = operands.at(i) as &AST
         let rhs = operands.at(i+1) as &AST
@@ -1293,7 +1298,7 @@ def Parser::parse_compiler_option(&this) {
 }
 
 def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace): bool {
-    for let i = 0u32; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
+    for let i = 0; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
         let part = parts.at(i) as &ImportPart
 
         match part.type {
@@ -1304,7 +1309,7 @@ def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace):
             Multiple => {
                 let paths = part.u.paths
                 let success = true
-                for let i = 0u32; i < paths.size; i += 1 {
+                for let i = 0; i < paths.size; i += 1 {
                     let path = paths.at(i) as &Vector
                     success = .load_import_path_from_base(path, base) and success
                 }

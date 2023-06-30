@@ -16,8 +16,8 @@ def is_hex_digit(c: char): bool {
 
 struct Lexer {
     source: str
-    source_len: i32
-    i: i32
+    source_len: u32
+    i: u32
     loc: Location
     seen_newline: bool
     tokens: &Vector
@@ -43,7 +43,7 @@ def Lexer::push(&this, token: &Token) {
     .seen_newline = false
 }
 
-def Lexer::push_type(&this, type: TokenType, len: i32) {
+def Lexer::push_type(&this, type: TokenType, len: u32) {
     let start_loc = .loc
     for let i = 0; i < len; i += 1 {
         .inc()

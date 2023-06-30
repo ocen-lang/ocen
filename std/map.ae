@@ -41,7 +41,7 @@ def Map::new(): &Map {
 }
 
 def Map::hash(&this, s: str): u32 {
-    let hash = 5381u32
+    let hash = 5381
     let len = s.len()
     for let i = 0; i < len; i += 1 {
         hash = hash * 33 ^ s[i] as u32
@@ -102,7 +102,7 @@ def Map::resize(&this) {
     .num_collisions = 0
     .num_buckets *= 2
     .buckets = calloc(.num_buckets, sizeof(&MapNode)) as &&MapNode
-    for let i = 0u32; i < old_num_buckets; i += 1 {
+    for let i = 0; i < old_num_buckets; i += 1 {
         let node = old_buckets[i]
         while node? {
             let new_hash = .hash(node.key)
@@ -114,14 +114,14 @@ def Map::resize(&this) {
             node = node.next
         }
     }
-    for let i = 0u32; i < old_num_buckets; i += 1 {
+    for let i = 0; i < old_num_buckets; i += 1 {
         MapNode::free_list(old_buckets[i])
     }
     free(old_buckets)
 }
 
 def Map::print_keys(&this) {
-    for let i = 0u32; i < .num_buckets; i += 1 {
+    for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
         while node? {
             println("- '%s'\n", node.key)
@@ -131,7 +131,7 @@ def Map::print_keys(&this) {
 }
 
 def Map::push_keys(&this, vec: &Vector) {
-    for let i = 0u32; i < .num_buckets; i += 1 {
+    for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
         while node? {
             vec.push(node.key)
@@ -141,7 +141,7 @@ def Map::push_keys(&this, vec: &Vector) {
 }
 
 def Map::free(&this) {
-    for let i = 0u32; i < .num_buckets; i += 1 {
+    for let i = 0; i < .num_buckets; i += 1 {
         MapNode::free_list(.buckets[i])
     }
     free(.buckets)

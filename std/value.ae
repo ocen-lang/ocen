@@ -151,7 +151,7 @@ def Value::free(&this) {
         String => .u.as_str.free()
         List => {
             let vec = .u.as_list
-            for let i = 0u32; i < vec.size; i += 1 {
+            for let i = 0; i < vec.size; i += 1 {
                 Value::free(vec.at(i))
             }
             Vector::free(.u.as_list)

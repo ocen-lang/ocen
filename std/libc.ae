@@ -11,8 +11,8 @@ def system(cmd: str): i32 extern
 // stdio
 def fopen(name: str, mode: str): &std::File extern
 def fclose(file: &std::File): i32 extern
-def fread(ptr: untyped_ptr, size: i32, count: i32, file: &std::File): i32 extern
-def fwrite(ptr: untyped_ptr, size: i32, count: i32, file: &std::File): i32 extern
+def fread(ptr: untyped_ptr, size: u32, count: u32, file: &std::File): i32 extern
+def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &std::File): i32 extern
 def ftell(file: &std::File): i32 extern
 def fseek(file: &std::File, offset: i32, whence: i32): i32 extern
 const SEEK_SET: i32 extern
@@ -21,14 +21,14 @@ const SEEK_END: i32 extern
 
 // string
 def strcmp(a: str, b: str): i32 extern
-def strlen(s: str): i32 extern
+def strlen(s: str): u32 extern
 def strcpy(dst: str, src: str): str extern
 def strcat(dst: str, src: str): str extern
 def strstr(haystack: str, needle: str): str extern
 def strchr(s: str, c: i32): str extern
 def strsep(str: &str, delim: str): str extern
-def memcpy(dest: untyped_ptr, src: untyped_ptr, size: i32) extern
-def memset(dest: untyped_ptr, c: i32, size: i32) extern
+def memcpy(dest: untyped_ptr, src: untyped_ptr, size: u32) extern
+def memset(dest: untyped_ptr, c: i32, size: u32) extern
 
 // ctype
 @compiler c_include "ctype.h"

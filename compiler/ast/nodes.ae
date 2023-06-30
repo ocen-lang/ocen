@@ -133,7 +133,7 @@ def Structure::new(): &Structure {
 }
 
 def Structure::get_field(&this, name: str): &Variable {
-    for let i = 0u32; i < .fields.size; i += 1 {
+    for let i = 0; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
         if field.sym.name.eq(name) {
             return field
@@ -155,7 +155,7 @@ def Enum::new(): &Enum {
 }
 
 def Enum::get_field(&this, name: str): &Variable {
-    for let i = 0u32; i < .fields.size; i += 1 {
+    for let i = 0; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
         if field.sym.name.eq(name) {
             return field
@@ -263,7 +263,7 @@ struct Import {
     type: ImportType
     // For FromParentNamespace imports, we might have something like `import ..foo`, in which
     // case we need to know how namespace levels to go up.
-    parent_count: i32
+    parent_count: u32
 }
 
 struct NumLiteral {

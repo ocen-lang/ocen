@@ -12,11 +12,11 @@ def File::open(path: str, mode: str = "r"): &File {
 
 def File::close(&this) extern("fclose")
 
-def File::read(&this, buf: untyped_ptr, size: i32): i32 {
+def File::read(&this, buf: untyped_ptr, size: u32): i32 {
     return libc::fread(buf, 1, size, this)
 }
 
-def File::write(&this, buf: untyped_ptr, size: i32): i32 {
+def File::write(&this, buf: untyped_ptr, size: u32): i32 {
     return libc::fwrite(buf, 1, size, this)
 }
 
@@ -24,7 +24,7 @@ def File::slurp(&this): str {
     import libc::*
     let pos = ftell(this)
     fseek(this, 0, SEEK_END)
-    let size = ftell(this)
+    let size = ftell(this) as u32
     fseek(this, pos, SEEK_SET)
     let buf = calloc((size as u32 + 1), sizeof(char))
     fread(buf, 1, size, this)
@@ -53,13 +53,15 @@ def panic(msg: str = "<panic>") exits {
 }
 
 def str::to_i32(this): i32 extern("atoi")
+def str::to_u32(this): u32 => this.to_i32() as u32 // FIXME: this doesn't always work
+
 def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
-def str::len(this): i32 => libc::strlen(this)
+def str::len(this): u32 => libc::strlen(this)
 def str::concat(this, src: str) extern("strcat")
 
 def str::copy(this): str extern("strdup")
 
-def str::substring(this, start: i32, len: i32): str {
+def str::substring(this, start: u32, len: u32): str {
     let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str
     libc::memcpy(new_str, &this[start], len)
     return new_str
@@ -72,7 +74,7 @@ def str::strip_trailing_whitespace(this) {
     }
 }
 
-def str::remove_last_n(this, n: i32) {
+def str::remove_last_n(this, n: u32) {
     this[.len() - n] = '\0'
 }
 
@@ -83,3 +85,6 @@ def char::is_print(this): bool => libc::isprint(this)
 
 def min(a: i32, b: i32): i32 => if a < b then a else b
 def max(a: i32, b: i32): i32 => if a > b then a else b
+
+def u32::min(this, other: u32): u32 => if this < other then this else other
+def u32::max(this, other: u32): u32 => if this > other then this else other
