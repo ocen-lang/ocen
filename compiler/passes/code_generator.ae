@@ -320,7 +320,25 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(char_lit)
             .out.puts("'")
         }
-        If => .gen_in_yield_context(node)
+        If => {
+            let a = node.u.if_stmt.body
+            let b = node.u.if_stmt.els
+
+            // If we've gotten past type checking, this should only be a block/match/if/expression
+            if a.type != ASTType::Block and b.type != ASTType::Block {
+                .out.puts("(")
+                .gen_expression(node.u.if_stmt.cond)
+                .out.puts(" ? ")
+                .gen_expression(a)
+                .out.puts(" : ")
+                .gen_expression(b)
+                .out.puts(")")
+
+            // We tried our best, let's fall back:
+            } else {
+                .gen_in_yield_context(node)
+            }
+        }
         Match => .gen_in_yield_context(node)
         Block => .gen_in_yield_context(node)
         Member => {
