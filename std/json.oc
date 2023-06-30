@@ -1,6 +1,3 @@
-// This just reuses the lexer from the compiler,
-// since that's already capable of lexing JSON.
-// use "compiler/lexer.oc"
 import std::buffer::Buffer
 import std::vector::Vector
 import std::value::{ Value, ValueType }

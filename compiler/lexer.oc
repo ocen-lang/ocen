@@ -3,10 +3,6 @@ import @errors::Error
 import std::span::{Span, Location}
 import @tokens::{Token, TokenType}
 
-// use "compiler/tokens.oc"
-// use "compiler/errors.oc"
-// use "compiler/utils.oc"
-
 def is_hex_digit(c: char): bool {
     if c.is_digit() return true
     if 'a' <= c <= 'f' return true
