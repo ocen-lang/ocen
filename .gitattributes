@@ -1,2 +1,2 @@
-*.ae linguist-language=Rust
+*.oc linguist-language=Rust
 bootstrap/*.c binary -text -diff

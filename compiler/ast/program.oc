@@ -77,9 +77,9 @@ struct Namespace {
     // the standard library, or user-defined namespaces with the `namespace` keyword.
     always_add_to_scope: bool
 
-    // FIXME: This is hacky, but we want to include everything in `std/prelude.ae` in the
+    // FIXME: This is hacky, but we want to include everything in `std/prelude.oc` in the
     //        `std` namespace, as opposed to the `std::prelude` namespace. This is done by
-    //        treating `std/prelude.ae` as "top-level", which means all it's contents are put
+    //        treating `std/prelude.oc` as "top-level", which means all it's contents are put
     //        in the same namespace as the containing folder. All other files that are imported
     //        from the same folder will go into a new namespace as per usual.
     is_top_level: bool

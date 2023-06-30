@@ -1,5 +1,5 @@
-// use "@/lexer.ae"
-// use "@/utils.ae"
+// use "@/lexer.oc"
+// use "@/utils.oc"
 
 import @ast::nodes::*
 import @ast::program::{ Namespace, Program }
@@ -1345,11 +1345,11 @@ def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace):
         let part_path = `{base.path}/{part_name}`
         if not next? {
             let dir_exists = directory_exists(part_path)
-            let path = `{base.path}/{part_name}.ae`
+            let path = `{base.path}/{part_name}.oc`
             let file_exists = std::File::exists(path)
 
             if not dir_exists and not file_exists {
-                .error(Error::new(part.span, `Could not find import path {part_path}(.ae)`))
+                .error(Error::new(part.span, `Could not find import path {part_path}(.oc)`))
                 .program.exit_with_errors()
             }
 
@@ -1432,7 +1432,7 @@ def Parser::parse_toplevel(filename: str, program: &Program) {
     std_ns.is_top_level = true
 
     let parser = Parser::make(program, std_ns)
-    parser.load_file("./std/prelude.ae")
+    parser.load_file("./std/prelude.oc")
 
     let ns = Namespace::new(parent: program.global, path: filename)
     ns.sym = Symbol::new(Namespace, "", "", "", Span::default())

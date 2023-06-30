@@ -6,7 +6,7 @@ import .passes::mod::run_all_passes
 
 def usage(code: i32) {
     println("--------------------------------------------------------")
-    println("Usage: ./aecor [options] <file>")
+    println("Usage: ./ocen [options] <file>")
     println("Options:")
     println("    -o path   Output executable (default: ./out)")
     println("    -c path   Output C code (default: {out}.c)")
@@ -16,7 +16,6 @@ def usage(code: i32) {
     println("    -s        Silent mode (no debug output)")
     println("    -n        Don't compile C code (default: false)")
     println("    -d        Emit debug information (default: false)")
-    println("    -l        Library path (root of aecor repo)")
     println("                   (Default: working directory)")
     println("--------------------------------------------------------")
     exit(code)

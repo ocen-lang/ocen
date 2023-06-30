@@ -550,7 +550,6 @@ def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST) {
     } else if node.etype? and body.type != ASTType::Yield {
         .out.puts(" {\n")
         .indent += 1
-        .gen_indent()
         .gen_yield_expression(body)
         .indent -= 1
         .gen_indent()

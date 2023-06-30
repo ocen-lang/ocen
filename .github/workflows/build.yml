@@ -15,4 +15,4 @@ jobs:
       - name: Running tests with self-hosted compiler
         run: |
           cd ${{ github.workspace }}
-          python3 meta/test.py -c bootstrap/aecor
+          python3 meta/test.py -c bootstrap/ocen
