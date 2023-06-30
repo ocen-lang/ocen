@@ -1,6 +1,3 @@
-// use "@/lexer.oc"
-// use "@/utils.oc"
-
 import @ast::nodes::*
 import @ast::program::{ Namespace, Program }
 import @lexer::Lexer
