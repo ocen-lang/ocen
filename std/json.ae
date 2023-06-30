@@ -129,7 +129,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
             sb.puts("\"")
             // Want to escape non-ASCII characters here
             let buf = val.u.as_str
-            for let i = 0u32; i < buf.size; i += 1 {
+            for let i = 0; i < buf.size; i += 1 {
                 let c = buf.data[i] as char
                 if c.is_print() {
                     if c == '\\' or c == '"' {
@@ -146,7 +146,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
         List => {
             sb.puts("[")
             let lst = val.u.as_list
-            for let i = 0u32; i < lst.size; i += 1 {
+            for let i = 0; i < lst.size; i += 1 {
                 let value = lst.at(i) as &Value
                 if i > 0 {
                     sb.puts(", ")
@@ -189,11 +189,10 @@ def serialize(val: &Value): Buffer {
 
 struct Lexer {
     source: str
-    source_len: i32
-    i: i32
+    source_len: u32
+    i: u32
     loc: Location
     tokens: &Vector
-
 }
 
 def Lexer::make(source: str, filename: str): Lexer {
@@ -211,7 +210,7 @@ def Lexer::push(&this, token: &Token) {
 }
 
 
-def Lexer::push_type(&this, type: TokenType, len: i32) {
+def Lexer::push_type(&this, type: TokenType, len: u32) {
     let start_loc = .loc
     for let i = 0; i < len; i += 1 {
         .inc()

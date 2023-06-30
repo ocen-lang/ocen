@@ -45,7 +45,7 @@ def Buffer::resize_if_necessary(&this, new_size: u32) {
 
 def Buffer::hex_dump(&this) {
     print("(%d bytes): ", .size)
-    for let i = 0u32; i < .size; i += 1 {
+    for let i = 0; i < .size; i += 1 {
         if (i % 4 == 0 and i > 0) print("_")
         print("%02x", .data[i])
     }
@@ -54,7 +54,7 @@ def Buffer::hex_dump(&this) {
 
 def Buffer::putb(&this, buf: &Buffer) {
     .resize_if_necessary(new_size: .size + buf.size + 1)
-    memcpy(.data + .size, buf.data, buf.size as i32)
+    memcpy(.data + .size, buf.data, buf.size)
     .data[.size + buf.size] = '\0' as u8
     .size += buf.size
 }
@@ -67,7 +67,7 @@ def Buffer::putbf(&this, buf: &Buffer) {
 def Buffer::puts(&this, s: str) {
     let len = s.len() as u32
     .resize_if_necessary(new_size: .size + len as u32 + 1) // +1 for null terminator
-    memcpy(.data + .size, s, len as i32 + 1) // Copy over null terminator
+    memcpy(.data + .size, s, len + 1) // Copy over null terminator
     .size += len
 }
 

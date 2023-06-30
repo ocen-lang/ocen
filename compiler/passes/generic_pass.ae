@@ -147,30 +147,30 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): 
 }
 
 def GenericPass::import_all_from_namespace(&this, ns: &Namespace) {
-    for let i = 0u32; i < ns.functions.size; i += 1 {
+    for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
         if not func.is_method {
             .insert_into_scope_checked(func.sym)
         }
     }
 
-    for let i = 0u32; i < ns.structs.size; i += 1 {
+    for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .insert_into_scope_checked(struc.sym)
     }
 
-    for let i = 0u32; i < ns.enums.size; i += 1 {
+    for let i = 0; i < ns.enums.size; i += 1 {
         let enum_ = ns.enums.at(i) as &Enum
         .insert_into_scope_checked(enum_.sym)
     }
 
-    for let i = 0u32; i < ns.variables.size; i += 1 {
+    for let i = 0; i < ns.variables.size; i += 1 {
         let node = ns.variables.at(i) as &AST
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
 
-    for let i = 0u32; i < ns.constants.size; i += 1 {
+    for let i = 0; i < ns.constants.size; i += 1 {
         let node = ns.constants.at(i) as &AST
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
@@ -196,7 +196,7 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
         }
         SymbolType::Enum => {
             let fields = sym.u.enum_.fields
-            for let i = 0u32; i < fields.size; i += 1 {
+            for let i = 0; i < fields.size; i += 1 {
                 let field = fields.at(i) as &Variable
                 .insert_into_scope_checked(field.sym)
             }

@@ -22,8 +22,7 @@ def func2(sfoo: SFoo): u8 => match sfoo.x {
     Qux => 5
 }
 
-
-def main() : i32 {
+def main() : u32 {
     let x = 5
     let a: u64 = 7
     let j = a + 3u64

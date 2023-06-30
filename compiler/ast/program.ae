@@ -15,7 +15,7 @@ struct Program {
     ordered_structs: &Vector // Vector<&Structure>
 
     errors: &Vector // Vector<&Error>
-    error_level: i32
+    error_level: u32
 
     c_includes: &Vector // Vector<str>
     c_flags: &Vector // Vector<str>
@@ -99,7 +99,7 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     let item = .namespaces.get(name) as &Namespace
     if item? then return item.sym
 
-    for let i = 0u32; i < .constants.size; i += 1 {
+    for let i = 0; i < .constants.size; i += 1 {
         let node = .constants.at(i) as &AST
         let var = node.u.var_decl.var
         if var.sym.name.eq(name) {
@@ -107,21 +107,21 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
         }
     }
 
-    for let i = 0u32; i < .functions.size; i += 1 {
+    for let i = 0; i < .functions.size; i += 1 {
         let func = .functions.at(i) as &Function
         if func.sym.name.eq(name) {
             return func.sym
         }
     }
 
-    for let i = 0u32; i < .structs.size; i += 1 {
+    for let i = 0; i < .structs.size; i += 1 {
         let struc = .structs.at(i) as &Structure
         if struc.sym.name.eq(name) {
             return struc.sym
         }
     }
 
-    for let i = 0u32; i < .enums.size; i += 1 {
+    for let i = 0; i < .enums.size; i += 1 {
         let enum_ = .enums.at(i) as &Enum
         if enum_.sym.name.eq(name) {
             return enum_.sym

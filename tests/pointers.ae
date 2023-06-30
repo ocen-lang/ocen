@@ -1,6 +1,6 @@
 /// out: "10 20\n20 10"
 
-def swap_i32(a: &i32, b: &i32) {
+def swap_i32(a: &u32, b: &u32) {
     let tmp = *a
     *a = *b
     *b = tmp

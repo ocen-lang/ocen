@@ -5,7 +5,7 @@ def main() {
 	if not x? {
 		print("pa")
 	}
-	let y = 10
+	let y: i32 = 10
 	x = &y
 	if x? {
 		print("ss")

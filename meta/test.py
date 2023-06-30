@@ -182,9 +182,9 @@ def main():
                 num_failed += 1
                 if sys.stdout.isatty():
                     print(f"\33[2K\033[91m[-] Failed {path}\033[0m")
+                    print(f"  - {message}", flush=True)
                 else:
                     print(f"[-] Failed {path}")
-                # print(f"  - {message}", flush=True)
 
     if sys.stdout.isatty():
         print("\33[2K")

@@ -3,7 +3,7 @@
 def main() {
     let x: u8 = 0x10u8
     let y: u16 = 0b1010u16
-    let z: u32 = 30u32
+    let z: u32 = 30
     let w: u64 = 40u64
     let a: i8 = -10i8
     let b: i16 = -20i16
