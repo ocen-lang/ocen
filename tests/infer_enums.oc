@@ -3,12 +3,12 @@
 enum Foo {
     Hello
     World
-    Aecor
+    Ocen
 }
 
 enum Bar {
     World
-    Aecor
+    Ocen
     Hello
 }
 

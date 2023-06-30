@@ -122,12 +122,12 @@ def pool_helper(args):
     return handle_test(*args)
 
 def main():
-    parser = argparse.ArgumentParser(description="Runs aecor test suite")
+    parser = argparse.ArgumentParser(description="Runs ocen test suite")
     parser.add_argument(
         "-c",
         "--compiler",
         required=True,
-        help="Runs the self-hosted version"
+        help="Path to the compiler executable"
     )
     parser.add_argument(
         "files",

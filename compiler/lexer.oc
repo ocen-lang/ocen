@@ -3,9 +3,9 @@ import @errors::Error
 import std::span::{Span, Location}
 import @tokens::{Token, TokenType}
 
-// use "compiler/tokens.ae"
-// use "compiler/errors.ae"
-// use "compiler/utils.ae"
+// use "compiler/tokens.oc"
+// use "compiler/errors.oc"
+// use "compiler/utils.oc"
 
 def is_hex_digit(c: char): bool {
     if c.is_digit() return true

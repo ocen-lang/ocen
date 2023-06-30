@@ -8,11 +8,11 @@ build
 bootstrap/*
 !bootstrap/stage0.c
 
-test.ae
+test.oc
 ./*.c
 
 a.out
 out
-aecor
+ocen
 find
 test.txt

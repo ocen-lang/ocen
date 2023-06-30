@@ -1585,73 +1585,73 @@ char *passes_code_generator_CodeGenerator_get_op(passes_code_generator_CodeGener
   return ({ char *__yield_0;
     switch (type) {
       case ast_nodes_ASTType_And: {
-                __yield_0 = "&&";
+        __yield_0 = "&&";
       } break;
       case ast_nodes_ASTType_Assignment: {
-                __yield_0 = "=";
+        __yield_0 = "=";
       } break;
       case ast_nodes_ASTType_BitwiseAnd: {
-                __yield_0 = "&";
+        __yield_0 = "&";
       } break;
       case ast_nodes_ASTType_BitwiseOr: {
-                __yield_0 = "|";
+        __yield_0 = "|";
       } break;
       case ast_nodes_ASTType_BitwiseXor: {
-                __yield_0 = "^";
+        __yield_0 = "^";
       } break;
       case ast_nodes_ASTType_Divide: {
-                __yield_0 = "/";
+        __yield_0 = "/";
       } break;
       case ast_nodes_ASTType_Equals: {
-                __yield_0 = "==";
+        __yield_0 = "==";
       } break;
       case ast_nodes_ASTType_GreaterThan: {
-                __yield_0 = ">";
+        __yield_0 = ">";
       } break;
       case ast_nodes_ASTType_GreaterThanEquals: {
-                __yield_0 = ">=";
+        __yield_0 = ">=";
       } break;
       case ast_nodes_ASTType_LeftShift: {
-                __yield_0 = "<<";
+        __yield_0 = "<<";
       } break;
       case ast_nodes_ASTType_LessThan: {
-                __yield_0 = "<";
+        __yield_0 = "<";
       } break;
       case ast_nodes_ASTType_LessThanEquals: {
-                __yield_0 = "<=";
+        __yield_0 = "<=";
       } break;
       case ast_nodes_ASTType_Minus: {
-                __yield_0 = "-";
+        __yield_0 = "-";
       } break;
       case ast_nodes_ASTType_Modulus: {
-                __yield_0 = "%";
+        __yield_0 = "%";
       } break;
       case ast_nodes_ASTType_Multiply: {
-                __yield_0 = "*";
+        __yield_0 = "*";
       } break;
       case ast_nodes_ASTType_NotEquals: {
-                __yield_0 = "!=";
+        __yield_0 = "!=";
       } break;
       case ast_nodes_ASTType_Or: {
-                __yield_0 = "||";
+        __yield_0 = "||";
       } break;
       case ast_nodes_ASTType_Plus: {
-                __yield_0 = "+";
+        __yield_0 = "+";
       } break;
       case ast_nodes_ASTType_PlusEquals: {
-                __yield_0 = "+=";
+        __yield_0 = "+=";
       } break;
       case ast_nodes_ASTType_MinusEquals: {
-                __yield_0 = "-=";
+        __yield_0 = "-=";
       } break;
       case ast_nodes_ASTType_MultiplyEquals: {
-                __yield_0 = "*=";
+        __yield_0 = "*=";
       } break;
       case ast_nodes_ASTType_DivideEquals: {
-                __yield_0 = "/=";
+        __yield_0 = "/=";
       } break;
       case ast_nodes_ASTType_RightShift: {
-                __yield_0 = ">>";
+        __yield_0 = ">>";
       } break;
       default: std_panic(format_string("Unknown op type in get_op: %s", ast_nodes_ASTType_dbg(type))); break;
     }
@@ -2148,7 +2148,6 @@ void passes_code_generator_CodeGenerator_gen_match_case_body(passes_code_generat
   }  else   if ((((bool)node->etype) && (body->type != ast_nodes_ASTType_Yield))) {
     std_buffer_Buffer_puts(&this->out, " {\n");
     this->indent+=((u32)1);
-    passes_code_generator_CodeGenerator_gen_indent(this);
     passes_code_generator_CodeGenerator_gen_yield_expression(this, body);
     this->indent-=((u32)1);
     passes_code_generator_CodeGenerator_gen_indent(this);
@@ -2947,7 +2946,7 @@ types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChe
   types_Type *res = ({ types_Type *__yield_0;
     switch (callee->type) {
       case ast_nodes_ASTType_Member: {
-                __yield_0 = passes_typechecker_TypeChecker_check_member(this, callee, true);
+        __yield_0 = passes_typechecker_TypeChecker_check_member(this, callee, true);
       } break;
       case ast_nodes_ASTType_Identifier:
       case ast_nodes_ASTType_NSLookup: {
@@ -2962,13 +2961,13 @@ types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChe
               return passes_typechecker_TypeChecker_check_constructor(this, node);
             } break;
             default: {
-                            __yield_1 = passes_typechecker_TypeChecker_check_expression(this, callee, NULL);
+              __yield_1 = passes_typechecker_TypeChecker_check_expression(this, callee, NULL);
             } break;
           }
 ;__yield_1; });
       } break;
       default: {
-                __yield_0 = passes_typechecker_TypeChecker_check_expression(this, callee, NULL);
+        __yield_0 = passes_typechecker_TypeChecker_check_expression(this, callee, NULL);
       } break;
     }
 ;__yield_0; });
@@ -3849,19 +3848,19 @@ types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typeche
         __yield_0 = sym->u.var->type;
       } break;
       case ast_nodes_ASTType_IntLiteral: {
-                __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_I32, node->span);
+        __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_I32, node->span);
       } break;
       case ast_nodes_ASTType_FloatLiteral: {
-                __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_F32, node->span);
+        __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_F32, node->span);
       } break;
       case ast_nodes_ASTType_BoolLiteral: {
-                __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_Bool, node->span);
+        __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_Bool, node->span);
       } break;
       case ast_nodes_ASTType_CharLiteral: {
-                __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_Char, node->span);
+        __yield_0 = passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_Char, node->span);
       } break;
       case ast_nodes_ASTType_StringLiteral: {
-                __yield_0 = passes_generic_pass_GenericPass_get_type_by_name(this->o, "str", node->span);
+        __yield_0 = passes_generic_pass_GenericPass_get_type_by_name(this->o, "str", node->span);
       } break;
       case ast_nodes_ASTType_Plus:
       case ast_nodes_ASTType_Minus:
@@ -5129,7 +5128,7 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   char *name = ({ char *__yield_0;
     switch (ident->type) {
       case ast_nodes_ASTType_Identifier: {
-                __yield_0 = ident->u.ident.name;
+        __yield_0 = ident->u.ident.name;
       } break;
       case ast_nodes_ASTType_NSLookup: {
         parent_type=types_Type_new_unresolved("<unresolved>", ident->span);
@@ -5305,7 +5304,7 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
         __yield_0 = ast_nodes_ImportType_FromParentNamespace;
       } break;
       default: {
-                __yield_0 = ast_nodes_ImportType_FromCurrentScope;
+        __yield_0 = ast_nodes_ImportType_FromCurrentScope;
       } break;
     }
 ;__yield_0; });
@@ -5505,10 +5504,10 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ve
     char *part_path = format_string("%s/%s", base->path, part_name);
     if (!((bool)next)) {
       bool dir_exists = utils_directory_exists(part_path);
-      char *path = format_string("%s/%s.ae", base->path, part_name);
+      char *path = format_string("%s/%s.oc", base->path, part_name);
       bool file_exists = FILE_exists(path);
       if ((!dir_exists && !file_exists)) {
-        parser_Parser_error(this, errors_Error_new(part->span, format_string("Could not find import path %s(.ae)", part_path)));
+        parser_Parser_error(this, errors_Error_new(part->span, format_string("Could not find import path %s(.oc)", part_path)));
         ast_program_Program_exit_with_errors(this->program);
       } 
       next=ast_program_Namespace_new(base, part_path);
@@ -5534,7 +5533,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
         return true;
       } break;
       case ast_nodes_ImportType_FromRootNamespace: {
-                __yield_0 = this->program->global;
+        __yield_0 = this->program->global;
       } break;
       case ast_nodes_ImportType_FromParentNamespace: {
         ast_program_Namespace *cur = this->ns;
@@ -5579,7 +5578,7 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   std_ns->always_add_to_scope=true;
   std_ns->is_top_level=true;
   parser_Parser parser = parser_Parser_make(program, std_ns);
-  parser_Parser_load_file(&parser, "./std/prelude.ae");
+  parser_Parser_load_file(&parser, "./std/prelude.oc");
   ast_program_Namespace *ns = ast_program_Namespace_new(program->global, filename);
   ns->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, "", "", "", std_span_Span_default());
   ns->sym->u.ns=ns;
@@ -5801,76 +5800,76 @@ ast_nodes_ASTType ast_nodes_ASTType_from_token(tokens_TokenType type) {
   return ({ ast_nodes_ASTType __yield_0;
     switch (type) {
       case tokens_TokenType_Ampersand: {
-                __yield_0 = ast_nodes_ASTType_BitwiseAnd;
+        __yield_0 = ast_nodes_ASTType_BitwiseAnd;
       } break;
       case tokens_TokenType_And: {
-                __yield_0 = ast_nodes_ASTType_And;
+        __yield_0 = ast_nodes_ASTType_And;
       } break;
       case tokens_TokenType_Caret: {
-                __yield_0 = ast_nodes_ASTType_BitwiseXor;
+        __yield_0 = ast_nodes_ASTType_BitwiseXor;
       } break;
       case tokens_TokenType_EqualEquals: {
-                __yield_0 = ast_nodes_ASTType_Equals;
+        __yield_0 = ast_nodes_ASTType_Equals;
       } break;
       case tokens_TokenType_Equals: {
-                __yield_0 = ast_nodes_ASTType_Assignment;
+        __yield_0 = ast_nodes_ASTType_Assignment;
       } break;
       case tokens_TokenType_GreaterThan: {
-                __yield_0 = ast_nodes_ASTType_GreaterThan;
+        __yield_0 = ast_nodes_ASTType_GreaterThan;
       } break;
       case tokens_TokenType_GreaterThanEquals: {
-                __yield_0 = ast_nodes_ASTType_GreaterThanEquals;
+        __yield_0 = ast_nodes_ASTType_GreaterThanEquals;
       } break;
       case tokens_TokenType_GreaterThanGreaterThan: {
-                __yield_0 = ast_nodes_ASTType_RightShift;
+        __yield_0 = ast_nodes_ASTType_RightShift;
       } break;
       case tokens_TokenType_LessThan: {
-                __yield_0 = ast_nodes_ASTType_LessThan;
+        __yield_0 = ast_nodes_ASTType_LessThan;
       } break;
       case tokens_TokenType_LessThanEquals: {
-                __yield_0 = ast_nodes_ASTType_LessThanEquals;
+        __yield_0 = ast_nodes_ASTType_LessThanEquals;
       } break;
       case tokens_TokenType_LessThanLessThan: {
-                __yield_0 = ast_nodes_ASTType_LeftShift;
+        __yield_0 = ast_nodes_ASTType_LeftShift;
       } break;
       case tokens_TokenType_Line: {
-                __yield_0 = ast_nodes_ASTType_BitwiseOr;
+        __yield_0 = ast_nodes_ASTType_BitwiseOr;
       } break;
       case tokens_TokenType_Minus: {
-                __yield_0 = ast_nodes_ASTType_Minus;
+        __yield_0 = ast_nodes_ASTType_Minus;
       } break;
       case tokens_TokenType_MinusEquals: {
-                __yield_0 = ast_nodes_ASTType_MinusEquals;
+        __yield_0 = ast_nodes_ASTType_MinusEquals;
       } break;
       case tokens_TokenType_NotEquals: {
-                __yield_0 = ast_nodes_ASTType_NotEquals;
+        __yield_0 = ast_nodes_ASTType_NotEquals;
       } break;
       case tokens_TokenType_Or: {
-                __yield_0 = ast_nodes_ASTType_Or;
+        __yield_0 = ast_nodes_ASTType_Or;
       } break;
       case tokens_TokenType_Percent: {
-                __yield_0 = ast_nodes_ASTType_Modulus;
+        __yield_0 = ast_nodes_ASTType_Modulus;
       } break;
       case tokens_TokenType_Plus: {
-                __yield_0 = ast_nodes_ASTType_Plus;
+        __yield_0 = ast_nodes_ASTType_Plus;
       } break;
       case tokens_TokenType_PlusEquals: {
-                __yield_0 = ast_nodes_ASTType_PlusEquals;
+        __yield_0 = ast_nodes_ASTType_PlusEquals;
       } break;
       case tokens_TokenType_Slash: {
-                __yield_0 = ast_nodes_ASTType_Divide;
+        __yield_0 = ast_nodes_ASTType_Divide;
       } break;
       case tokens_TokenType_SlashEquals: {
-                __yield_0 = ast_nodes_ASTType_DivideEquals;
+        __yield_0 = ast_nodes_ASTType_DivideEquals;
       } break;
       case tokens_TokenType_Star: {
-                __yield_0 = ast_nodes_ASTType_Multiply;
+        __yield_0 = ast_nodes_ASTType_Multiply;
       } break;
       case tokens_TokenType_StarEquals: {
-                __yield_0 = ast_nodes_ASTType_MultiplyEquals;
+        __yield_0 = ast_nodes_ASTType_MultiplyEquals;
       } break;
       case tokens_TokenType_Tilde: {
-                __yield_0 = ast_nodes_ASTType_BitwiseNot;
+        __yield_0 = ast_nodes_ASTType_BitwiseNot;
       } break;
       default: std_panic(format_string("Unhandled token type in ASTType::from_token: %s", tokens_TokenType_str(type))); break;
     }
@@ -5968,13 +5967,13 @@ bool ast_nodes_AST_is_identifier(ast_nodes_AST *this) {
   return ({ bool __yield_0;
     switch (this->type) {
       case ast_nodes_ASTType_Identifier: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       case ast_nodes_ASTType_NSLookup: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       default: {
-                __yield_0 = false;
+        __yield_0 = false;
       } break;
     }
 ;__yield_0; });
@@ -5984,13 +5983,13 @@ ast_scopes_Symbol *ast_nodes_AST_symbol(ast_nodes_AST *this) {
   return ({ ast_scopes_Symbol *__yield_0;
     switch (this->type) {
       case ast_nodes_ASTType_Identifier: {
-                __yield_0 = this->resolved_symbol;
+        __yield_0 = this->resolved_symbol;
       } break;
       case ast_nodes_ASTType_NSLookup: {
-                __yield_0 = this->resolved_symbol;
+        __yield_0 = this->resolved_symbol;
       } break;
       default: {
-                __yield_0 = NULL;
+        __yield_0 = NULL;
       } break;
     }
 ;__yield_0; });
@@ -6000,19 +5999,19 @@ bool ast_nodes_AST_is_lvalue(ast_nodes_AST *this) {
   return ({ bool __yield_0;
     switch (this->type) {
       case ast_nodes_ASTType_Identifier: {
-                __yield_0 = !this->u.ident.is_function;
+        __yield_0 = !this->u.ident.is_function;
       } break;
       case ast_nodes_ASTType_Member: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       case ast_nodes_ASTType_Dereference: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       case ast_nodes_ASTType_Index: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       default: {
-                __yield_0 = false;
+        __yield_0 = false;
       } break;
     }
 ;__yield_0; });
@@ -6870,10 +6869,10 @@ bool tokens_Token_is_word(tokens_Token this) {
   return ({ bool __yield_0;
     switch (this.type) {
       case tokens_TokenType_Identifier: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       default: {
-                __yield_0 = (((u64)this.type) > ((u64)tokens_TokenType_BEGIN_KEYWORDS));
+        __yield_0 = (((u64)this.type) > ((u64)tokens_TokenType_BEGIN_KEYWORDS));
       } break;
     }
 ;__yield_0; });
@@ -6884,97 +6883,97 @@ tokens_TokenType tokens_TokenType_from_text(char *text) {
     {
       char *__match_str = text;
       if (!strcmp(__match_str, "and")) {
-                __yield_0 = tokens_TokenType_And;
+        __yield_0 = tokens_TokenType_And;
       } else if (!strcmp(__match_str, "as")) {
-                __yield_0 = tokens_TokenType_As;
+        __yield_0 = tokens_TokenType_As;
       } else if (!strcmp(__match_str, "assert")) {
-                __yield_0 = tokens_TokenType_Assert;
+        __yield_0 = tokens_TokenType_Assert;
       } else if (!strcmp(__match_str, "bool")) {
-                __yield_0 = tokens_TokenType_Bool;
+        __yield_0 = tokens_TokenType_Bool;
       } else if (!strcmp(__match_str, "break")) {
-                __yield_0 = tokens_TokenType_Break;
+        __yield_0 = tokens_TokenType_Break;
       } else if (!strcmp(__match_str, "char")) {
-                __yield_0 = tokens_TokenType_Char;
+        __yield_0 = tokens_TokenType_Char;
       } else if (!strcmp(__match_str, "const")) {
-                __yield_0 = tokens_TokenType_Const;
+        __yield_0 = tokens_TokenType_Const;
       } else if (!strcmp(__match_str, "continue")) {
-                __yield_0 = tokens_TokenType_Continue;
+        __yield_0 = tokens_TokenType_Continue;
       } else if (!strcmp(__match_str, "def")) {
-                __yield_0 = tokens_TokenType_Def;
+        __yield_0 = tokens_TokenType_Def;
       } else if (!strcmp(__match_str, "defer")) {
-                __yield_0 = tokens_TokenType_Defer;
+        __yield_0 = tokens_TokenType_Defer;
       } else if (!strcmp(__match_str, "else")) {
-                __yield_0 = tokens_TokenType_Else;
+        __yield_0 = tokens_TokenType_Else;
       } else if (!strcmp(__match_str, "enum")) {
-                __yield_0 = tokens_TokenType_Enum;
+        __yield_0 = tokens_TokenType_Enum;
       } else if (!strcmp(__match_str, "extern")) {
-                __yield_0 = tokens_TokenType_Extern;
+        __yield_0 = tokens_TokenType_Extern;
       } else if (!strcmp(__match_str, "false")) {
-                __yield_0 = tokens_TokenType_False;
+        __yield_0 = tokens_TokenType_False;
       } else if (!strcmp(__match_str, "f32")) {
-                __yield_0 = tokens_TokenType_F32;
+        __yield_0 = tokens_TokenType_F32;
       } else if (!strcmp(__match_str, "f64")) {
-                __yield_0 = tokens_TokenType_F64;
+        __yield_0 = tokens_TokenType_F64;
       } else if (!strcmp(__match_str, "for")) {
-                __yield_0 = tokens_TokenType_For;
+        __yield_0 = tokens_TokenType_For;
       } else if (!strcmp(__match_str, "fn")) {
-                __yield_0 = tokens_TokenType_Fn;
+        __yield_0 = tokens_TokenType_Fn;
       } else if (!strcmp(__match_str, "i8")) {
-                __yield_0 = tokens_TokenType_I8;
+        __yield_0 = tokens_TokenType_I8;
       } else if (!strcmp(__match_str, "i16")) {
-                __yield_0 = tokens_TokenType_I16;
+        __yield_0 = tokens_TokenType_I16;
       } else if (!strcmp(__match_str, "i32")) {
-                __yield_0 = tokens_TokenType_I32;
+        __yield_0 = tokens_TokenType_I32;
       } else if (!strcmp(__match_str, "i64")) {
-                __yield_0 = tokens_TokenType_I64;
+        __yield_0 = tokens_TokenType_I64;
       } else if (!strcmp(__match_str, "if")) {
-                __yield_0 = tokens_TokenType_If;
+        __yield_0 = tokens_TokenType_If;
       } else if (!strcmp(__match_str, "let")) {
-                __yield_0 = tokens_TokenType_Let;
+        __yield_0 = tokens_TokenType_Let;
       } else if (!strcmp(__match_str, "match")) {
-                __yield_0 = tokens_TokenType_Match;
+        __yield_0 = tokens_TokenType_Match;
       } else if (!strcmp(__match_str, "namespace")) {
-                __yield_0 = tokens_TokenType_Namespace;
+        __yield_0 = tokens_TokenType_Namespace;
       } else if (!strcmp(__match_str, "not")) {
-                __yield_0 = tokens_TokenType_Not;
+        __yield_0 = tokens_TokenType_Not;
       } else if (!strcmp(__match_str, "null")) {
-                __yield_0 = tokens_TokenType_Null;
+        __yield_0 = tokens_TokenType_Null;
       } else if (!strcmp(__match_str, "or")) {
-                __yield_0 = tokens_TokenType_Or;
+        __yield_0 = tokens_TokenType_Or;
       } else if (!strcmp(__match_str, "return")) {
-                __yield_0 = tokens_TokenType_Return;
+        __yield_0 = tokens_TokenType_Return;
       } else if (!strcmp(__match_str, "sizeof")) {
-                __yield_0 = tokens_TokenType_SizeOf;
+        __yield_0 = tokens_TokenType_SizeOf;
       } else if (!strcmp(__match_str, "string")) {
-                __yield_0 = tokens_TokenType_String;
+        __yield_0 = tokens_TokenType_String;
       } else if (!strcmp(__match_str, "struct")) {
-                __yield_0 = tokens_TokenType_Struct;
+        __yield_0 = tokens_TokenType_Struct;
       } else if (!strcmp(__match_str, "true")) {
-                __yield_0 = tokens_TokenType_True;
+        __yield_0 = tokens_TokenType_True;
       } else if (!strcmp(__match_str, "then")) {
-                __yield_0 = tokens_TokenType_Then;
+        __yield_0 = tokens_TokenType_Then;
       } else if (!strcmp(__match_str, "u8")) {
-                __yield_0 = tokens_TokenType_U8;
+        __yield_0 = tokens_TokenType_U8;
       } else if (!strcmp(__match_str, "u16")) {
-                __yield_0 = tokens_TokenType_U16;
+        __yield_0 = tokens_TokenType_U16;
       } else if (!strcmp(__match_str, "u32")) {
-                __yield_0 = tokens_TokenType_U32;
+        __yield_0 = tokens_TokenType_U32;
       } else if (!strcmp(__match_str, "u64")) {
-                __yield_0 = tokens_TokenType_U64;
+        __yield_0 = tokens_TokenType_U64;
       } else if (!strcmp(__match_str, "untyped_ptr")) {
-                __yield_0 = tokens_TokenType_UntypedPtr;
+        __yield_0 = tokens_TokenType_UntypedPtr;
       } else if (!strcmp(__match_str, "union")) {
-                __yield_0 = tokens_TokenType_Union;
+        __yield_0 = tokens_TokenType_Union;
       } else if (!strcmp(__match_str, "import")) {
-                __yield_0 = tokens_TokenType_Import;
+        __yield_0 = tokens_TokenType_Import;
       } else if (!strcmp(__match_str, "void")) {
-                __yield_0 = tokens_TokenType_Void;
+        __yield_0 = tokens_TokenType_Void;
       } else if (!strcmp(__match_str, "yield")) {
-                __yield_0 = tokens_TokenType_Yield;
+        __yield_0 = tokens_TokenType_Yield;
       } else if (!strcmp(__match_str, "while")) {
-                __yield_0 = tokens_TokenType_While;
+        __yield_0 = tokens_TokenType_While;
       } else  {
-                __yield_0 = tokens_TokenType_Identifier;
+        __yield_0 = tokens_TokenType_Identifier;
       }
     }
 ;__yield_0; });
@@ -6984,142 +6983,142 @@ char *tokens_TokenType_str(tokens_TokenType this) {
   return ({ char *__yield_0;
     switch (this) {
       case tokens_TokenType_And: {
-                __yield_0 = "and";
+        __yield_0 = "and";
       } break;
       case tokens_TokenType_As: {
-                __yield_0 = "as";
+        __yield_0 = "as";
       } break;
       case tokens_TokenType_Assert: {
-                __yield_0 = "assert";
+        __yield_0 = "assert";
       } break;
       case tokens_TokenType_Bool: {
-                __yield_0 = "bool";
+        __yield_0 = "bool";
       } break;
       case tokens_TokenType_Break: {
-                __yield_0 = "break";
+        __yield_0 = "break";
       } break;
       case tokens_TokenType_Char: {
-                __yield_0 = "char";
+        __yield_0 = "char";
       } break;
       case tokens_TokenType_Const: {
-                __yield_0 = "const";
+        __yield_0 = "const";
       } break;
       case tokens_TokenType_Continue: {
-                __yield_0 = "continue";
+        __yield_0 = "continue";
       } break;
       case tokens_TokenType_Def: {
-                __yield_0 = "def";
+        __yield_0 = "def";
       } break;
       case tokens_TokenType_Defer: {
-                __yield_0 = "defer";
+        __yield_0 = "defer";
       } break;
       case tokens_TokenType_Else: {
-                __yield_0 = "else";
+        __yield_0 = "else";
       } break;
       case tokens_TokenType_Enum: {
-                __yield_0 = "enum";
+        __yield_0 = "enum";
       } break;
       case tokens_TokenType_Extern: {
-                __yield_0 = "extern";
+        __yield_0 = "extern";
       } break;
       case tokens_TokenType_False: {
-                __yield_0 = "false";
+        __yield_0 = "false";
       } break;
       case tokens_TokenType_F32: {
-                __yield_0 = "f32";
+        __yield_0 = "f32";
       } break;
       case tokens_TokenType_F64: {
-                __yield_0 = "f64";
+        __yield_0 = "f64";
       } break;
       case tokens_TokenType_For: {
-                __yield_0 = "for";
+        __yield_0 = "for";
       } break;
       case tokens_TokenType_Fn: {
-                __yield_0 = "fn";
+        __yield_0 = "fn";
       } break;
       case tokens_TokenType_I8: {
-                __yield_0 = "i8";
+        __yield_0 = "i8";
       } break;
       case tokens_TokenType_I16: {
-                __yield_0 = "i16";
+        __yield_0 = "i16";
       } break;
       case tokens_TokenType_I32: {
-                __yield_0 = "i32";
+        __yield_0 = "i32";
       } break;
       case tokens_TokenType_I64: {
-                __yield_0 = "i64";
+        __yield_0 = "i64";
       } break;
       case tokens_TokenType_If: {
-                __yield_0 = "if";
+        __yield_0 = "if";
       } break;
       case tokens_TokenType_Let: {
-                __yield_0 = "let";
+        __yield_0 = "let";
       } break;
       case tokens_TokenType_Match: {
-                __yield_0 = "match";
+        __yield_0 = "match";
       } break;
       case tokens_TokenType_Namespace: {
-                __yield_0 = "namespace";
+        __yield_0 = "namespace";
       } break;
       case tokens_TokenType_Not: {
-                __yield_0 = "not";
+        __yield_0 = "not";
       } break;
       case tokens_TokenType_Null: {
-                __yield_0 = "null";
+        __yield_0 = "null";
       } break;
       case tokens_TokenType_Or: {
-                __yield_0 = "or";
+        __yield_0 = "or";
       } break;
       case tokens_TokenType_Return: {
-                __yield_0 = "return";
+        __yield_0 = "return";
       } break;
       case tokens_TokenType_SizeOf: {
-                __yield_0 = "sizeof";
+        __yield_0 = "sizeof";
       } break;
       case tokens_TokenType_String: {
-                __yield_0 = "string";
+        __yield_0 = "string";
       } break;
       case tokens_TokenType_Struct: {
-                __yield_0 = "struct";
+        __yield_0 = "struct";
       } break;
       case tokens_TokenType_True: {
-                __yield_0 = "true";
+        __yield_0 = "true";
       } break;
       case tokens_TokenType_Then: {
-                __yield_0 = "then";
+        __yield_0 = "then";
       } break;
       case tokens_TokenType_U8: {
-                __yield_0 = "u8";
+        __yield_0 = "u8";
       } break;
       case tokens_TokenType_U16: {
-                __yield_0 = "u16";
+        __yield_0 = "u16";
       } break;
       case tokens_TokenType_U32: {
-                __yield_0 = "u32";
+        __yield_0 = "u32";
       } break;
       case tokens_TokenType_U64: {
-                __yield_0 = "u64";
+        __yield_0 = "u64";
       } break;
       case tokens_TokenType_UntypedPtr: {
-                __yield_0 = "untyped_ptr";
+        __yield_0 = "untyped_ptr";
       } break;
       case tokens_TokenType_Union: {
-                __yield_0 = "union";
+        __yield_0 = "union";
       } break;
       case tokens_TokenType_Import: {
-                __yield_0 = "import";
+        __yield_0 = "import";
       } break;
       case tokens_TokenType_Void: {
-                __yield_0 = "void";
+        __yield_0 = "void";
       } break;
       case tokens_TokenType_Yield: {
-                __yield_0 = "yield";
+        __yield_0 = "yield";
       } break;
       case tokens_TokenType_While: {
-                __yield_0 = "while";
+        __yield_0 = "while";
       } break;
       default: {
-                __yield_0 = tokens_TokenType_dbg(this);
+        __yield_0 = tokens_TokenType_dbg(this);
       } break;
     }
 ;__yield_0; });
@@ -7129,46 +7128,46 @@ char *types_BaseType_str(types_BaseType this) {
   return ({ char *__yield_0;
     switch (this) {
       case types_BaseType_Char: {
-                __yield_0 = "char";
+        __yield_0 = "char";
       } break;
       case types_BaseType_Bool: {
-                __yield_0 = "bool";
+        __yield_0 = "bool";
       } break;
       case types_BaseType_Void: {
-                __yield_0 = "void";
+        __yield_0 = "void";
       } break;
       case types_BaseType_I8: {
-                __yield_0 = "i8";
+        __yield_0 = "i8";
       } break;
       case types_BaseType_I16: {
-                __yield_0 = "i16";
+        __yield_0 = "i16";
       } break;
       case types_BaseType_I32: {
-                __yield_0 = "i32";
+        __yield_0 = "i32";
       } break;
       case types_BaseType_I64: {
-                __yield_0 = "i64";
+        __yield_0 = "i64";
       } break;
       case types_BaseType_U8: {
-                __yield_0 = "u8";
+        __yield_0 = "u8";
       } break;
       case types_BaseType_U16: {
-                __yield_0 = "u16";
+        __yield_0 = "u16";
       } break;
       case types_BaseType_U32: {
-                __yield_0 = "u32";
+        __yield_0 = "u32";
       } break;
       case types_BaseType_U64: {
-                __yield_0 = "u64";
+        __yield_0 = "u64";
       } break;
       case types_BaseType_F32: {
-                __yield_0 = "f32";
+        __yield_0 = "f32";
       } break;
       case types_BaseType_F64: {
-                __yield_0 = "f64";
+        __yield_0 = "f64";
       } break;
       default: {
-                __yield_0 = types_BaseType_dbg(this);
+        __yield_0 = types_BaseType_dbg(this);
       } break;
     }
 ;__yield_0; });
@@ -7230,10 +7229,10 @@ bool types_Type_is_integer(types_Type *this) {
       case types_BaseType_U16:
       case types_BaseType_U32:
       case types_BaseType_U64: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       default: {
-                __yield_0 = false;
+        __yield_0 = false;
       } break;
     }
 ;__yield_0; });
@@ -7256,10 +7255,10 @@ bool types_Type_is_numeric(types_Type *this) {
       case types_BaseType_U64:
       case types_BaseType_F32:
       case types_BaseType_F64: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       default: {
-                __yield_0 = false;
+        __yield_0 = false;
       } break;
     }
 ;__yield_0; });
@@ -7288,10 +7287,10 @@ bool types_Type_can_have_methods(types_Type *this) {
       case types_BaseType_Structure:
       case types_BaseType_Enum:
       case types_BaseType_Alias: {
-                __yield_0 = true;
+        __yield_0 = true;
       } break;
       default: {
-                __yield_0 = false;
+        __yield_0 = false;
       } break;
     }
 ;__yield_0; });
@@ -7372,22 +7371,22 @@ char *types_Type_str(types_Type *this) {
   return ({ char *__yield_0;
     switch (this->base) {
       case types_BaseType_Pointer: {
-                __yield_0 = format_string("&%s", types_Type_str(this->u.ptr));
+        __yield_0 = format_string("&%s", types_Type_str(this->u.ptr));
       } break;
       case types_BaseType_Function: {
-                __yield_0 = "<function>";
+        __yield_0 = "<function>";
       } break;
       case types_BaseType_Structure: {
-                __yield_0 = this->u.struc->sym->display;
+        __yield_0 = this->u.struc->sym->display;
       } break;
       case types_BaseType_Enum: {
-                __yield_0 = this->u.enum_->sym->display;
+        __yield_0 = this->u.enum_->sym->display;
       } break;
       case types_BaseType_Alias: {
-                __yield_0 = format_string("%s(%s)", this->name, types_Type_str(this->u.ptr));
+        __yield_0 = format_string("%s(%s)", this->name, types_Type_str(this->u.ptr));
       } break;
       default: {
-                __yield_0 = types_BaseType_str(this->base);
+        __yield_0 = types_BaseType_str(this->base);
       } break;
     }
 ;__yield_0; });
@@ -7395,7 +7394,7 @@ char *types_Type_str(types_Type *this) {
 
 void usage(i32 code) {
   printf("--------------------------------------------------------""\n");
-  printf("Usage: ./aecor [options] <file>""\n");
+  printf("Usage: ./ocen [options] <file>""\n");
   printf("Options:""\n");
   printf("    -o path   Output executable (default: ./out)""\n");
   printf("    -c path   Output C code (default: {out}.c)""\n");
@@ -7405,7 +7404,6 @@ void usage(i32 code) {
   printf("    -s        Silent mode (no debug output)""\n");
   printf("    -n        Don't compile C code (default: false)""\n");
   printf("    -d        Emit debug information (default: false)""\n");
-  printf("    -l        Library path (root of aecor repo)""\n");
   printf("                   (Default: working directory)""\n");
   printf("--------------------------------------------------------""\n");
   exit(code);
@@ -7508,13 +7506,13 @@ char *errors_ErrorType_str(errors_ErrorType this) {
   return ({ char *__yield_0;
     switch (this) {
       case errors_ErrorType_Standard: {
-                __yield_0 = "Standard";
+        __yield_0 = "Standard";
       } break;
       case errors_ErrorType_WithNote: {
-                __yield_0 = "WithNote";
+        __yield_0 = "WithNote";
       } break;
       case errors_ErrorType_WithHint: {
-                __yield_0 = "WithHint";
+        __yield_0 = "WithHint";
       } break;
     }
 ;__yield_0; });
@@ -7524,13 +7522,13 @@ char *errors_MessageType_to_color(errors_MessageType this) {
   return ({ char *__yield_0;
     switch (this) {
       case errors_MessageType_Error: {
-                __yield_0 = "\x1b[31m";
+        __yield_0 = "\x1b[31m";
       } break;
       case errors_MessageType_Warning: {
-                __yield_0 = "\x1b[33m";
+        __yield_0 = "\x1b[33m";
       } break;
       case errors_MessageType_Note: {
-                __yield_0 = "\x1b[32m";
+        __yield_0 = "\x1b[32m";
       } break;
     }
 ;__yield_0; });
@@ -7540,13 +7538,13 @@ char *errors_MessageType_str(errors_MessageType this) {
   return ({ char *__yield_0;
     switch (this) {
       case errors_MessageType_Error: {
-                __yield_0 = "Error";
+        __yield_0 = "Error";
       } break;
       case errors_MessageType_Warning: {
-                __yield_0 = "Warning";
+        __yield_0 = "Warning";
       } break;
       case errors_MessageType_Note: {
-                __yield_0 = "Note";
+        __yield_0 = "Note";
       } break;
     }
 ;__yield_0; });
@@ -7656,7 +7654,7 @@ errors_Error *errors_Error_new_hint(std_span_Span span, char *msg, std_span_Span
 }
 
 void errors_display_error_messages(std_vector_Vector *errors, u32 detail_level) {
-  char *num_errors_env = getenv("AECOR_NUM_ERRORS");
+  char *num_errors_env = getenv("OCEN_NUM_ERRORS");
   u32 max_num_errors = (((bool)num_errors_env) ? str_to_u32(num_errors_env) : ((u32)10));
   u32 num_errors = u32_min(errors->size, max_num_errors);
   bool first = true;
