@@ -2,7 +2,7 @@ import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
 import @ast::program::Namespace
 import @types::Type
 import std::span::Span
-import std::map::OldMap
+import std::map::Map
 import std::vector::Vector
 import std::libc::calloc
 
@@ -78,7 +78,7 @@ def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol 
 }
 
 struct Scope {
-    items: &OldMap // &OldMap<str, &Symbol>
+    items: &Map<str, &Symbol>
     defers: &Vector<&AST>
 
     loop_count: u32
@@ -90,7 +90,7 @@ struct Scope {
 
 def Scope::new(parent: &Scope): &Scope {
     let scope = calloc(1, sizeof(Scope)) as &Scope
-    scope.items = OldMap::new()
+    scope.items = Map<str, &Symbol>::new()
     scope.defers = Vector<&AST>::new()
     if parent? {
         scope.loop_count = parent.loop_count
@@ -102,14 +102,14 @@ def Scope::new(parent: &Scope): &Scope {
 }
 
 def Scope::lookup_recursive(&this, name: str): &Symbol {
-    let item = .items.get(name) as &Symbol
+    let item = .items.get(name, null)
     if item? return item
     if .parent? then return .parent.lookup_recursive(name)
     return null
 }
 
 def Scope::lookup_local(&this, name: str): &Symbol {
-    return .items.get(name) as &Symbol
+    return .items.get(name, null)
 }
 
 def Scope::insert(&this, name: str, symbol: &Symbol) {

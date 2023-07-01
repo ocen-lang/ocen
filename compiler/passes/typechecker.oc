@@ -1,7 +1,7 @@
 import std::vector::Vector
 import std::span::Span
 import std::buffer::Buffer
-import std::map::OldMap
+import std::map::Map
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
@@ -654,7 +654,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
     }
 
     if lhs.can_have_methods() {
-        let method = lhs.methods.get(node.u.member.rhs_name) as &Function
+        let method = lhs.methods.get(node.u.member.rhs_name, null)
         if method? {
             if not is_being_called {
                 .error(Error::new(node.span, "Cannot access method without calling it"))
@@ -924,7 +924,7 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
 
 
 def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: bool, hint: &Type = null) {
-    let mapping = OldMap::new()
+    let mapping = Map<str, &MatchCase>::new()
     defer mapping.free()
 
     let cases = node.u.match_stmt.cases
@@ -949,7 +949,7 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
         }
 
         name = cond.resolved_symbol.name
-        let prev = mapping.get(name) as &MatchCase
+        let prev = mapping.get(name, null)
         if prev? {
             .error(Error::new_hint(
                 cond.span, "Duplicate condition name in match",
@@ -1530,7 +1530,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
             else => {}
         }
 
-        let res = parent_type.methods.get(func.sym.name) as &Function
+        let res = parent_type.methods.get(func.sym.name, null)
         if res? {
             .o.error(Error::new_hint(
                 func.sym.span, "Method with this name already exists",

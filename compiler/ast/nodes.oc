@@ -1,5 +1,5 @@
 import std::vector::Vector
-import std::map::OldMap
+import std::map::Map
 import std::span::Span
 import std::libc::calloc
 import @tokens::TokenType

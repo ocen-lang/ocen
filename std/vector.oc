@@ -1,8 +1,5 @@
-// Type representing a dynamic list of objects.
-//
-// Due to no generics being available, this is NOT type-safe, but rather
-// stored a list of `untyped_ptr`. When pushing / popping an object,
-// manually cast to the correct type.
+// A dynbamic list of objects
+
 import std::libc::{calloc, realloc, free}
 
 
