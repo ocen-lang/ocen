@@ -1,5 +1,5 @@
 // A dynamically typed value, useful for JSON + other stuff
-import std::vector::OldVector
+import std::vector::Vector
 import std::map::OldMap
 import std::json
 import std::buffer::Buffer
@@ -15,20 +15,13 @@ enum ValueType {
     Dictionary
 }
 
-def ValueType::str(this): str => match this {
-    Null => "Null"
-    Bool => "Bool"
-    Integer => "Integer"
-    String => "String"
-    List => "List"
-    Dictionary => "Dictionary"
-}
+def ValueType::str(this): str => .dbg()
 
 union ValueUnion {
     as_bool: bool
     as_num: i64
     as_str: Buffer
-    as_list: &OldVector // &OldVector<Value>
+    as_list: &Vector<&Value>
     as_dict: &OldMap    // &OldMap<str, Value>
 }
 
@@ -43,7 +36,7 @@ def Value::new(type: ValueType): &Value {
     val.type = type
     match type {
         Dictionary => val.u.as_dict = OldMap::new()
-        List => val.u.as_list = OldVector::new()
+        List => val.u.as_list = Vector<&Value>::new()
         else => {}
     }
     val.span = Span::default()
@@ -68,14 +61,14 @@ def Value::new_number(num: i64): &Value {
     return val
 }
 
-def Value::new_array(vec: &OldVector): &Value {
+def Value::new_list(vec: &Vector<&Value>): &Value {
     let val = Value::new(List)
     free(val.u.as_list)
     val.u.as_list = vec
     return val
 }
 
-def Value::new_dictect(map: &OldMap): &Value {
+def Value::new_dict(map: &OldMap): &Value {
     let val = Value::new(Dictionary)
     free(val.u.as_dict)
     val.u.as_dict = map
@@ -131,7 +124,7 @@ def Value::as_str(&this): Buffer {
     return .u.as_str
 }
 
-def Value::as_arr(&this): &OldVector {
+def Value::as_list(&this): &Vector<&Value> {
     .ensure(List)
     return .u.as_list
 }
@@ -152,9 +145,9 @@ def Value::free(&this) {
         List => {
             let vec = .u.as_list
             for let i = 0; i < vec.size; i += 1 {
-                Value::free(vec.at(i))
+                vec.at(i).free()
             }
-            OldVector::free(.u.as_list)
+            .u.as_list.free()
         }
         Dictionary => {
             let map = .u.as_dict

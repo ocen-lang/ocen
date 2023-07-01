@@ -1,4 +1,4 @@
-import std::vector::OldVector
+import std::vector::Vector
 
 def strsep(s: &str, delim: str): str extern
 
@@ -32,7 +32,7 @@ def edit_distance(str1: str, str2: str): u32 {
     return result
 }
 
-def find_word_suggestion(s: str, options: &OldVector): str {
+def find_word_suggestion(s: str, options: &Vector<str>): str {
     let threshold = 5 // edit distance threshold
 
     if options.size == 0 return null

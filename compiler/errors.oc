@@ -1,4 +1,4 @@
-import std::vector::OldVector
+import std::vector::Vector
 import std::span::Span
 import std::libc::{free, strsep, exit, calloc, getenv as get_environment_variable}
 
@@ -149,7 +149,7 @@ def Error::new_hint(span: Span, msg: str, span2: Span, hint: str): &Error {
     return err
 }
 
-def display_error_messages(errors: &OldVector, detail_level: u32) {
+def display_error_messages(errors: &Vector<&Error>, detail_level: u32) {
     let num_errors_env = get_environment_variable("OCEN_NUM_ERRORS")
     let max_num_errors = if num_errors_env? then num_errors_env.to_u32() else 10
 

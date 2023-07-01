@@ -4,7 +4,7 @@ import @lexer::Lexer
 import @types::{ Type, BaseType, FunctionType, ArrayType }
 import std::span::Span
 import std::map::OldMap
-import std::vector::OldVector
+import std::vector::Vector
 import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType }
 import @errors::Error
@@ -16,7 +16,7 @@ def dirname(path: str): str extern
 def basename(path: str): str extern
 
 struct Parser {
-    tokens: &OldVector  // &OldVector<Token>
+    tokens: &Vector<&Token>
     curr: i32
 
     curr_func: &Function
@@ -115,7 +115,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         let start_span = .token().span
         .consume(TokenType::Fn)
         .consume(TokenType::OpenParen)
-        let params = OldVector::new()
+        let params = Vector<&Variable>::new()
         while not .token_is(TokenType::CloseParen) {
             let param_type = .parse_type()
 
@@ -176,7 +176,7 @@ def Parser::parse_scoped_identifier(&this): &AST {
                 // FIXME: Is there a more robust way to do this?
                 // We want to be able to differentiate between a `<` that starts a specialization and
                 // a `<` that is part of a less-than comparison before typechecking, I don't know of
-                // the best way to do this, but here's a few heuristics:
+                // the best way to do this, but here's a couple heuristics:
 
                 // 1. Make sure that we don't have a space between the identifier and the `<`
                 let prev_token = .tokens.at(.curr as u32 - 1) as &Token
@@ -184,13 +184,7 @@ def Parser::parse_scoped_identifier(&this): &AST {
                     return node
                 }
 
-                // 2. Make sure that we have an identifier after the `<`
-                let next_token = .tokens.at(.curr as u32 + 1) as &Token
-                if next_token.type != TokenType::Identifier {
-                    return node
-                }
-
-                // 3. Make sure the token after that isn't a `.`
+                // 2. Make sure the token after that isn't a `.`
                 let next_next_token = .tokens.at(.curr as u32 + 2) as &Token
                 if next_next_token.type == TokenType::Dot {
                     return node
@@ -198,7 +192,7 @@ def Parser::parse_scoped_identifier(&this): &AST {
 
                 // Okay... so we're kinda-sorta sure that this is a specialization, let's parse it.
                 let start = .consume(TokenType::LessThan)
-                let args = OldVector::new()
+                let args = Vector<&Type>::new()
 
                 while not .token_is(TokenType::GreaterThan) {
                     args.push(.parse_type())
@@ -229,11 +223,11 @@ def Parser::parse_format_string(&this): &AST {
     let fstr = .consume(TokenType::FormatStringLiteral)
     let fstr_len = fstr.text.len()
 
-    let expr_parts = OldVector::new()    // OldVector<str>
-    let expr_start = OldVector::new()    // OldVector<i32>
+    let expr_parts = Vector<str>::new()
+    let expr_start = Vector<u32>::new()
 
-    let format_parts = OldVector::new()  // OldVector<str>
-    let specifiers = OldVector::new()    // OldVector<str>
+    let format_parts = Vector<str>::new()
+    let specifiers = Vector<str>::new()
 
     let specifier_loc = 0
     let specifier_found = false
@@ -255,10 +249,10 @@ def Parser::parse_format_string(&this): &AST {
             count -= 1
             if count == 0 {
                 if specifier_loc > 0 {
-                    let len = (specifier_loc - cur_start) as u32
+                    let len = specifier_loc - cur_start
                     let part = fstr.text.substring(cur_start, len)
                     expr_parts.push(part)
-                    expr_start.push(&fstr.text[cur_start])
+                    expr_start.push(cur_start)
 
                     specifier_loc += 1
                     while specifier_loc < i and fstr.text[specifier_loc] == ' ' {
@@ -278,7 +272,7 @@ def Parser::parse_format_string(&this): &AST {
                 } else {
                     let part = fstr.text.substring(cur_start, i - cur_start)
                     expr_parts.push(part)
-                    expr_start.push(&fstr.text[cur_start])
+                    expr_start.push(cur_start)
                     specifiers.push(null)
                 }
                 cur_start = i + 1
@@ -309,10 +303,10 @@ def Parser::parse_format_string(&this): &AST {
     node.u.fmt_str.parts = format_parts
 
     let fstr_start = fstr.span.start
-    let expr_nodes = OldVector::new()
+    let expr_nodes = Vector<&AST>::new()
     for let i = 0; i < expr_parts.size; i += 1 {
-        let part = expr_parts.at(i) as str
-        let start = ((expr_start.at(i) as str) - fstr.text) as u32
+        let part = expr_parts.at(i)
+        let start = expr_start.at(i)
 
         let lexer = Lexer::make(part, fstr_start.filename)
         lexer.loc = fstr_start
@@ -349,7 +343,7 @@ def Parser::parse_match(&this): &AST {
     let node = AST::new(ASTType::Match, op.span.join(expr.span))
     node.u.match_stmt.expr = expr
 
-    let cases = OldVector::new()
+    let cases = Vector<&MatchCase>::new()
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
         if .token_is(TokenType::Else) {
@@ -393,7 +387,7 @@ def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
 
 def Parser::parse_call(&this, callee: &AST): &AST {
     .consume(TokenType::OpenParen)
-    let args = OldVector::new()
+    let args = Vector<&Argument>::new()
     while not .token_is(TokenType::CloseParen) {
         let label = null as str
         let label_span = Span::default()
@@ -710,8 +704,8 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
 }
 
 def Parser::parse_relational(&this, end_type: TokenType): &AST {
-    let operands = OldVector::new()
-    let operators = OldVector::new()
+    let operands = Vector<&AST>::new()
+    let operators = Vector<&Token>::new()
 
     operands.push(.parse_bw_or(end_type))
     while .token_is(TokenType::LessThan) or
@@ -930,7 +924,7 @@ def Parser::parse_statement(&this): &AST {
 def Parser::parse_block(&this): &AST {
     let start = .consume(TokenType::OpenCurly)
 
-    let statements = OldVector::new()
+    let statements = Vector<&AST>::new()
     while not .token_is(TokenType::CloseCurly) {
         let statement = .parse_statement()
         statements.push(statement)
@@ -943,9 +937,9 @@ def Parser::parse_block(&this): &AST {
     return node
 }
 
-def Parser::parse_template_params(&this, out_span: &Span = null): &OldVector {
+def Parser::parse_template_params(&this, out_span: &Span = null): &Vector<&Variable> {
     let start = .consume(TokenType::LessThan).span
-    let params = OldVector::new()
+    let params = Vector<&Variable>::new()
     while not .token_is(TokenType::GreaterThan) {
         let type = .consume(TokenType::Identifier)
         let var = Variable::new(Type::new_unresolved(type.text, type.span))
@@ -1067,7 +1061,7 @@ def Parser::parse_function(&this): &Function {
 
         let body = AST::new(ASTType::Block, ret.span)
 
-        let statements = OldVector::new()
+        let statements = Vector<&AST>::new()
         statements.push(ret)
         body.u.block.statements = statements
 
@@ -1095,8 +1089,8 @@ def Parser::parse_extern_into_symbol(&this, sym: &Symbol) {
     }
 }
 
-def Parser::parse_import_path(&this): &OldVector { // &OldVector<&ImportPart>
-    let parts = OldVector::new()
+def Parser::parse_import_path(&this): &Vector<&ImportPart> {
+    let parts = Vector<&ImportPart>::new()
 
     while true {
         let done = false
@@ -1128,7 +1122,7 @@ def Parser::parse_import_path(&this): &OldVector { // &OldVector<&ImportPart>
         } else if .token_is(TokenType::OpenCurly) {
             let open = .consume(TokenType::OpenCurly)
 
-            let sub_paths = OldVector::new()
+            let sub_paths = Vector<&Vector<&ImportPart> >::new()
             while not .token_is(TokenType::CloseCurly) {
                 let sub_path = .parse_import_path()
                 if not sub_path? return null
@@ -1220,7 +1214,7 @@ def Parser::parse_struct(&this): &Structure {
     if .token_is(TokenType::LessThan) {
         struc.is_templated = true
         struc.template_params = .parse_template_params()
-        struc.template_instances = OldVector::new()
+        struc.template_instances = Vector<&TemplateInstance>::new()
     }
 
     .parse_extern_into_symbol(struc.sym)
@@ -1355,7 +1349,7 @@ def Parser::parse_compiler_option(&this) {
     }
 }
 
-def Parser::load_import_path_from_base(&this, parts: &OldVector, base: &Namespace): bool {
+def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base: &Namespace): bool {
     for let i = 0; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
         let part = parts.at(i) as &ImportPart
 
@@ -1368,7 +1362,7 @@ def Parser::load_import_path_from_base(&this, parts: &OldVector, base: &Namespac
                 let paths = part.u.paths
                 let success = true
                 for let i = 0; i < paths.size; i += 1 {
-                    let path = paths.at(i) as &OldVector
+                    let path = paths.at(i)
                     success = .load_import_path_from_base(path, base) and success
                 }
                 return success

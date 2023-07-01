@@ -1,7 +1,7 @@
 import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
 import @ast::scopes::Symbol
 import @ast::program::Namespace
-import std::vector::OldVector
+import std::vector::Vector
 import std::map::OldMap
 import std::span::Span
 import std::libc::calloc
@@ -55,7 +55,7 @@ def BaseType::str(this): str => match this {
 struct FunctionType {
     orig: &Function      // null if this is a function pointer
     return_type: &Type
-    params: &OldVector      // OldVector<&Variable>
+    params: &Vector<&Variable>
 }
 
 def FunctionType::from_func(func: &Function): &FunctionType {
@@ -66,7 +66,7 @@ def FunctionType::from_func(func: &Function): &FunctionType {
     return type
 }
 
-def FunctionType::from_args(params: &OldVector, return_type: &Type): &FunctionType {
+def FunctionType::from_args(params: &Vector<&Variable>, return_type: &Type): &FunctionType {
     let type = calloc(1, sizeof(FunctionType)) as &FunctionType
     type.return_type = return_type
     type.params = params
