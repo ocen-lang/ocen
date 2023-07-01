@@ -2,7 +2,7 @@ import @passes::generic_pass::GenericPass
 import std::vector::Vector
 import std::map::Map
 import @ast::program::{ Program, Namespace }
-import @ast::nodes::{ Structure, Variable }
+import @ast::nodes::{ Structure, Variable, TemplateInstance }
 import std::libc::{ calloc, free }
 
 
@@ -36,7 +36,17 @@ def ReorderStructs::free(&this) {
 def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
-        .all_structs.push(struc)
+        if struc.is_templated {
+            for let j = 0; j < struc.template_instances.size; j += 1 {
+                let instance = struc.template_instances.at(j) as &TemplateInstance
+                let sym = instance.resolved
+                assert sym.type == Structure
+                .all_structs.push(sym.u.struc)
+            }
+
+        } else {
+            .all_structs.push(struc)
+        }
     }
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .collect_all_structs(iter.value())

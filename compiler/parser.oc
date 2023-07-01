@@ -163,15 +163,65 @@ def Parser::parse_scoped_identifier(&this): &AST {
     let node = AST::new(ASTType::Identifier, tok.span)
     node.u.ident.name = tok.text
 
-    while .token_is(TokenType::ColonColon) {
-        .consume(TokenType::ColonColon)
-        let name = .consume(TokenType::Identifier)
-        let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
-        lookup.u.lookup = NSLookup(node, name.text, name.span)
-        node = lookup
+    while true {
+        match .token().type {
+            TokenType::ColonColon => {
+                .consume(TokenType::ColonColon)
+                let name = .consume(TokenType::Identifier)
+                let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
+                lookup.u.lookup = NSLookup(node, name.text, name.span)
+                node = lookup
+            }
+            TokenType::LessThan => {
+                // FIXME: Is there a more robust way to do this?
+                // We want to be able to differentiate between a `<` that starts a specialization and
+                // a `<` that is part of a less-than comparison before typechecking, I don't know of
+                // the best way to do this, but here's a few heuristics:
+
+                // 1. Make sure that we don't have a space between the identifier and the `<`
+                let prev_token = .tokens.at(.curr as u32 - 1) as &Token
+                if not .token().span.starts_right_after(prev_token.span) {
+                    return node
+                }
+
+                // 2. Make sure that we have an identifier after the `<`
+                let next_token = .tokens.at(.curr as u32 + 1) as &Token
+                if next_token.type != TokenType::Identifier {
+                    return node
+                }
+
+                // 3. Make sure the token after that isn't a `.`
+                let next_next_token = .tokens.at(.curr as u32 + 2) as &Token
+                if next_next_token.type == TokenType::Dot {
+                    return node
+                }
+
+                // Okay... so we're kinda-sorta sure that this is a specialization, let's parse it.
+                let start = .consume(TokenType::LessThan)
+                let args = Vector::new()
+
+                while not .token_is(TokenType::GreaterThan) {
+                    args.push(.parse_type())
+                    if not .token_is(TokenType::GreaterThan) {
+                        if not .consume_if(TokenType::Comma) {
+                            .error(Error::new_note(
+                                .token().span, "Parsing template specialization: expected `,` or `>`",
+                                "If you're comparing values, put a space before the `<` earlier"
+                            ))
+                            return AST::new(ASTType::Error, node.span)
+                        }
+                    }
+                }
+                let end = .consume(TokenType::GreaterThan)
+                let spec = AST::new(ASTType::Specialization, node.span.join(end.span))
+                spec.u.spec = Specialization(base: node, template_args: args)
+                node = spec
+            }
+            else => return node
+        }
     }
 
-    return node
+    return null // unreachable
 }
 
 
@@ -915,7 +965,7 @@ def Parser::parse_template_params(&this, out_span: &Span = null): &Vector {
 }
 
 def Parser::parse_function(&this): &Function {
-    .consume(TokenType::Def)
+    let start = .consume(TokenType::Def).span
 
     let parent_type = null as &Type
     let is_method = false
@@ -1028,7 +1078,7 @@ def Parser::parse_function(&this): &Function {
     }
 
     .curr_func = null
-
+    func.span = start.join(func.body.span)
     return func
 }
 
@@ -1167,13 +1217,13 @@ def Parser::parse_struct(&this): &Structure {
     struc.sym = Symbol::new_with_parent(Structure, .ns.sym, name.text, name.span)
     struc.sym.u.struc = struc
 
-    .parse_extern_into_symbol(struc.sym)
-
     if .token_is(TokenType::LessThan) {
         struc.is_templated = true
         struc.template_params = .parse_template_params()
         struc.template_instances = Vector::new()
     }
+
+    .parse_extern_into_symbol(struc.sym)
 
     // Extern structs don't need to have a body.
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {

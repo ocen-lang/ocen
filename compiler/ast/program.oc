@@ -5,6 +5,8 @@ import std::libc::{ calloc, exit }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
 import @types::Type
+import @parser::Parser
+import @lexer::Lexer
 import @errors::{ display_error_messages }
 
 struct Program {
@@ -49,9 +51,47 @@ def Program::get_source_text(&this, span: Span): str {
 
     let contents = .sources.get(start.filename) as str
     if contents == null return "<unknown source>"
-    
+
     let len = end.index - start.index
     return contents.substring(start.index, len)
+}
+
+def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Function {
+    // FIXME: This is a hack to get around the fact that we can't deep-copy
+    // functions yet. We're just going to get the source code of the function
+    // and re-parse it. This is obviously not ideal.
+
+    let func_text = .get_source_text(old.span)
+    let lexer = Lexer::make(func_text, null)
+    lexer.loc = old.span.start
+
+    let tokens = lexer.lex()
+    let parser = Parser::make(this, ns)
+
+    parser.tokens = tokens
+    parser.curr = 0
+
+    let func = parser.parse_function()
+    return func
+}
+
+def Program::get_type_deep_copy(&this, old: &Type, ns: &Namespace): &Type {
+    // FIXME: This is a hack to get around the fact that we can't deep-copy
+    // types yet. We're just going to get the source code of the type
+    // and re-parse it. This is obviously not ideal.
+
+    let text = .get_source_text(old.span)
+    let lexer = Lexer::make(text, null)
+    lexer.loc = old.span.start
+
+    let tokens = lexer.lex()
+    let parser = Parser::make(this, ns)
+
+    parser.tokens = tokens
+    parser.curr = 0
+
+    let type = parser.parse_type()
+    return type
 }
 
 struct Namespace {

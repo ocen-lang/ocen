@@ -1,5 +1,6 @@
 import std::vector::Vector
 import std::span::Span
+import std::buffer::Buffer
 import std::map::Map
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
@@ -19,7 +20,7 @@ struct TypeChecker {
 def TypeChecker::error(&this, err: &Error): &Error => .o.error(err)
 def TypeChecker::scope(&this): &Scope => .o.scope()
 
-def TypeChecker::resolve_type(&this, old: &Type): &Type {
+def TypeChecker::resolve_type(&this, old: &Type, allow_incomplete: bool = false): &Type {
     let resolved = old
     match old.base {
         Pointer | Alias => {
@@ -42,7 +43,14 @@ def TypeChecker::resolve_type(&this, old: &Type): &Type {
             if res? {
                 match res.type {
                     SymbolType::TypeDef => resolved = res.u.type_def
-                    SymbolType::Structure => resolved = res.u.struc.type
+                    SymbolType::Structure => {
+                        let struc = res.u.struc
+                        if struc.is_templated and not allow_incomplete {
+                            .error(Error::new(old.span, `Cannot use templated struct {struc.sym.name} as a type`))
+                            return null
+                        }
+                        resolved = res.u.struc.type
+                    }
                     SymbolType::Enum => resolved = res.u.enum_.type
                     else => {
                         .error(Error::new(res.span, `Cannot use {res.display} as a type`))
@@ -61,12 +69,135 @@ def TypeChecker::resolve_type(&this, old: &Type): &Type {
             let res = .check_expression(arr.size_expr)
             if not res? return null
         }
+        Structure | Char | Bool | Void | I8 | I16 |
+        I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 |
+        Enum => {}
+
         else => {
             .error(Error::new(old.span, `Unhandled type in resolve {old.base.str()}`))
             resolved = null
         }
     }
     return resolved
+}
+
+def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &Structure) {
+    let old_type = old.type
+    let cur_type = cur.type
+
+    let old_methods = old_type.methods
+    let cur_methods = cur_type.methods
+
+    for let iter = old_methods.iter(); iter.cur?; iter.next() {
+        let name = iter.key()
+        let method = iter.value() as &Function
+
+        let new_method = .o.program.get_function_deep_copy(method, .o.ns())
+        new_method.parent_type = cur_type
+        cur_methods.insert(name, new_method)
+
+        new_method.sym.update_parent(cur_type.sym)
+        .o.ns().functions.push(new_method)
+
+        if not method.is_static {
+            let this_param = new_method.params.at(0) as &Variable
+            if this_param.type.base == Pointer {
+                this_param.type.u.ptr = cur_type
+            } else {
+                this_param.type = cur_type
+            }
+        }
+
+        .check_function_declaration(new_method)
+        .check_function(.scope(), new_method)
+    }
+}
+
+def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST): &Symbol {
+    // If we've already resolved this template, just return the symbol
+    {
+        let found = struc.find_template_instance(node.u.spec.template_args)
+        if found? return found
+    }
+
+    // OK, so we need to make a new instance of this template (aka a specialization)
+    let resolved_struc = Structure::new()
+
+    // This is the scope that we'll use to resolve the template parameters
+    let scope = Scope::new(.scope())
+    .o.push_scope(scope)
+
+    // Some sanity checks
+    let template_params = struc.template_params
+    let template_args = node.u.spec.template_args
+    if template_params.size != template_args.size {
+        .error(Error::new(node.span, `Invalid number of template arguments for {struc.sym.name}`))
+        return null
+    }
+
+    // Want to also build a new display name for the specialization
+    let new_display_name = Buffer::make()
+    new_display_name.puts(struc.sym.name)
+    new_display_name.puts("<")
+
+    // Add the template arguments to the scope with corresponding names
+    for let i = 0; i < template_params.size; i += 1 {
+        let param = template_params.at(i) as &Variable
+        let arg = template_args.at(i) as &Type
+
+        if i > 0 then new_display_name.puts(", ")
+        new_display_name.puts(arg.str())
+
+        let sym = Symbol::new(
+            TypeDef,
+            param.sym.name, // name
+            param.sym.name, // display
+            param.sym.name, // out_name
+            param.sym.span,
+        )
+        sym.u.type_def = arg
+        .o.insert_into_scope_checked(sym)
+    }
+
+    new_display_name.puts(">")
+
+    // Update the display/output name of the specialization
+    // FIXME: Maybe a better name-mangling scheme? This is not very debuggable.
+    let new_out_name = `{struc.sym.out_name}__{struc.template_instances.size}`
+    let sym = Symbol::new_with_parent(Structure, .o.ns().sym, new_out_name, struc.sym.span)
+    sym.display = new_display_name.str()
+
+    sym.u.struc = resolved_struc
+    resolved_struc.sym = sym
+
+    // Note: We _need_ to deep-copy the fields here, otherwise we'll end up with a bunch of
+    // pointers to the same types across different specializations, which is not what we want.
+    for let i = 0; i < struc.fields.size; i += 1 {
+        let field = struc.fields.at(i) as &Variable
+
+        let new_type = .o.program.get_type_deep_copy(field.type, .o.ns())
+        let new_field = Variable::new(new_type)
+        new_field.sym = Symbol::from_local_variable(field.sym.name, new_field, field.sym.span)
+
+        resolved_struc.fields.push(new_field)
+    }
+
+    let instance = TemplateInstance::new(template_args, sym)
+    struc.template_instances.push(instance)
+
+    let typ = Type::new_resolved(Structure, sym.span)
+    typ.u.struc = resolved_struc
+    resolved_struc.type = typ
+    typ.sym = sym
+
+    // Resolve the types of the fields
+    .resolve_struct(resolved_struc)
+
+    // Instantiate all the methods for this specialization
+    .resolve_templated_struct_methods(struc, resolved_struc)
+
+    .o.pop_scope()
+    return sym
 }
 
 def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true, hint: &Type = null): &Symbol {
@@ -104,6 +235,40 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 .error(Error::new(node.span, "Couldn't find this identifier"))
             }
             return res
+        }
+        ASTType::Specialization => {
+            let base = .resolve_scoped_identifier(node.u.spec.base)
+            if not base? return null
+
+            let args = node.u.spec.template_args
+            let failed = false
+            for let i = 0; i < args.size; i += 1 {
+                let resolved_arg = .resolve_type(args.at(i))
+                if not resolved_arg? {
+                    failed = true
+                    continue
+                }
+                args.data[i] = resolved_arg
+            }
+            if failed return null
+
+            match base.type {
+                Structure => {
+                    let struc = base.u.struc
+                    if not struc.is_templated {
+                        .error(Error::new(node.span, "Can only specialize a templated structure"))
+                        return null
+                    }
+
+                    let res = .resolve_templated_struct(struc, node)
+                    node.resolved_symbol = res
+                    return res
+                }
+                else => {
+                    .error(Error::new(node.span, "Can only specialize a templated structure"))
+                    return null
+                }
+            }
         }
         else => {
             .error(Error::new(node.span, `Don't know how to resolve node type {node.type}`))
@@ -160,6 +325,7 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
         return
     }
     let method_param = (method.params.at(0) as &Variable).type
+    if not method_param? return
 
     let member = callee.u.member
     let first_arg = member.lhs
@@ -1069,11 +1235,15 @@ def TypeChecker::check_statement(&this, node: &AST) {
     }
 }
 
-def TypeChecker::check_function(&this, ns: &Namespace, func: &Function) {
-    // todo: check params, return type
-    let new_scope = Scope::new(ns.scope)
+def TypeChecker::check_function(&this, scope: &Scope, func: &Function) {
+    if func.is_method and func.parent_type.base == Structure {
+        let struc = func.parent_type.u.struc
+        if struc.is_templated then return
+    }
 
+    let new_scope = Scope::new(scope)
     let params = func.params
+
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
 
@@ -1141,7 +1311,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 
     for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
-        .check_function(ns, func)
+        .check_function(ns.scope, func)
     }
 
     for let i = 0; i < ns.constants.size; i += 1 {
@@ -1309,7 +1479,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     if func.is_method {
         let parent_span = func.parent_type.span
-        let parent_type = .resolve_type(func.parent_type)
+        let parent_type = .resolve_type(func.parent_type, allow_incomplete: true)
         if not parent_type? {
             .o.error(Error::new(parent_span, "Could not find this type"))
             return
@@ -1367,8 +1537,12 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     }
 }
 
-def TypeChecker::check_struct(&this, struc: &Structure) {
+def TypeChecker::resolve_struct(&this, struc: &Structure) {
     let fields = struc.fields
+
+    // We cannot resolve templated structs.
+    if struc.is_templated return
+
     for let i = 0; i < fields.size; i += 1 {
         let field = fields.at(i) as &Variable
         let res = .resolve_type(field.type)
@@ -1381,6 +1555,11 @@ def TypeChecker::check_struct(&this, struc: &Structure) {
 }
 
 def TypeChecker::check_function_declaration(&this, func: &Function) {
+    if func.is_method and func.parent_type.base == Structure {
+        let struc = func.parent_type.u.struc
+        if struc.is_templated then return
+    }
+
     func.return_type = .resolve_type(func.return_type)
     if not func.return_type? {
         func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
@@ -1401,6 +1580,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
 def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
+    .o.push_namespace(ns)
 
     for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
@@ -1409,7 +1589,7 @@ def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
 
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
-        .check_struct(struc)
+        .resolve_struct(struc)
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
@@ -1417,6 +1597,7 @@ def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
     }
 
     .o.pop_scope()
+    .o.pop_namespace()
 }
 
 def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
