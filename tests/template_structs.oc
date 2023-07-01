@@ -1,0 +1,28 @@
+/// out: "hello world"
+
+struct Foo<T> {
+    x: T
+}
+
+def bar(x: Foo<str>, y: str) {
+    println(`{x.x} {y}`)
+}
+
+struct Bar<A, B> {
+    x: A,
+    y: Foo<B>
+}
+
+def main() {
+    let a: Foo<f32>
+    a.x = 1.0
+
+    let b: Foo<i32>
+    b.x = 2
+
+    let c: Foo<str>
+    c.x = "hello"
+    bar(c, "world")
+
+    let g: Bar<i32, str>
+}

@@ -1,0 +1,9 @@
+/// fail: Return type &Bar does not match function return type &Foo
+
+struct Foo {}
+struct Bar {}
+
+def a(): &Foo {
+    let x: &Bar
+    return x
+}
