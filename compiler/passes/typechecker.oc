@@ -14,6 +14,7 @@ import @ast::nodes::*
 
 struct TypeChecker {
     o: &GenericPass
+    unchecked_functions: &OldVector
 }
 
 // Some convenience accessors from the GenericPass
@@ -88,16 +89,18 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
     let old_methods = old_type.methods
     let cur_methods = cur_type.methods
 
+    let parent_ns = old.sym.ns
+
     for let iter = old_methods.iter(); iter.cur?; iter.next() {
         let name = iter.key()
         let method = iter.value() as &Function
 
-        let new_method = .o.program.get_function_deep_copy(method, .o.ns())
+        let new_method = .o.program.get_function_deep_copy(method, parent_ns)
         new_method.parent_type = cur_type
         cur_methods.insert(name, new_method)
 
         new_method.sym.update_parent(cur_type.sym)
-        .o.ns().functions.push(new_method)
+        parent_ns.functions.push(new_method)
 
         if not method.is_static {
             let this_param = new_method.params.at(0) as &Variable
@@ -108,8 +111,15 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
             }
         }
 
+        new_method.scope = .scope()
         .check_function_declaration(new_method)
-        .check_function(.scope(), new_method)
+    }
+
+    // NOTE: We don't want to check these functions right now, since we could still be in the process
+    // of setting up the namespaces / imports / etc. We'll check them later at the end of the program.
+    for let iter = cur_methods.iter(); iter.cur?; iter.next() {
+        let new_method = iter.value() as &Function
+        .unchecked_functions.push(new_method)
     }
 }
 
@@ -122,9 +132,10 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
 
     // OK, so we need to make a new instance of this template (aka a specialization)
     let resolved_struc = Structure::new()
+    let parent_ns = struc.sym.ns
 
     // This is the scope that we'll use to resolve the template parameters
-    let scope = Scope::new(.scope())
+    let scope = Scope::new(parent_ns.scope)
     .o.push_scope(scope)
 
     // Some sanity checks
@@ -150,6 +161,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
 
         let sym = Symbol::new(
             TypeDef,
+            ns: null,
             param.sym.name, // name
             param.sym.name, // display
             param.sym.name, // out_name
@@ -164,7 +176,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
     // Update the display/output name of the specialization
     // FIXME: Maybe a better name-mangling scheme? This is not very debuggable.
     let new_out_name = `{struc.sym.out_name}__{struc.template_instances.size}`
-    let sym = Symbol::new_with_parent(Structure, .o.ns().sym, new_out_name, struc.sym.span)
+    let sym = Symbol::new_with_parent(Structure, parent_ns, parent_ns.sym, new_out_name, struc.sym.span)
     sym.display = new_display_name.str()
 
     sym.u.struc = resolved_struc
@@ -1220,6 +1232,8 @@ def TypeChecker::check_statement(&this, node: &AST) {
             let init = node.u.var_decl.init
             if init? {
                 let res = .check_expression(init, hint: var.type)
+                if not res? return
+
                 if res? and var.type? and not res.eq(var.type) {
                     .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {res.str()}`))
                 } else if not var.type? {
@@ -1235,7 +1249,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
     }
 }
 
-def TypeChecker::check_function(&this, scope: &Scope, func: &Function) {
+def TypeChecker::check_function(&this, func: &Function) {
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.is_templated then return
@@ -1243,7 +1257,7 @@ def TypeChecker::check_function(&this, scope: &Scope, func: &Function) {
     if func.checked then return
     func.checked = true
 
-    let new_scope = Scope::new(scope)
+    let new_scope = Scope::new(func.scope)
     let params = func.params
 
     for let i = 0; i < params.size; i += 1 {
@@ -1313,7 +1327,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 
     for let i = 0; i < ns.functions.size; i += 1 {
         let func = ns.functions.at(i) as &Function
-        .check_function(ns.scope, func)
+        .check_function(func)
     }
 
     for let i = 0; i < ns.constants.size; i += 1 {
@@ -1425,7 +1439,6 @@ def TypeChecker::handle_import_path_base(&this, parts: &OldVector, base: &Symbol
         base = new_base
     }
 
-    // println(`imported symbol {base.display} with type {base.type} into namespace {.o.ns().sym.display}`)
     .scope().insert(alias, base)
 }
 
@@ -1537,6 +1550,8 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
         let item = func.sym
         .o.insert_into_scope_checked(item)
     }
+
+    func.scope = .scope()
 }
 
 def TypeChecker::resolve_struct(&this, struc: &Structure) {
@@ -1653,10 +1668,17 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
 def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
+        unchecked_functions: OldVector::new()
     )
     pass.pre_check_constants(program.global)
     pass.pre_check_namespace(program.global)
     pass.handle_namespace_imports(program.global)
     pass.check_function_declarations(program.global)
+
     pass.check_namespace(program.global)
+
+    while pass.unchecked_functions.size > 0 {
+        let func = pass.unchecked_functions.pop() as &Function
+        pass.check_function(func)
+    }
 }

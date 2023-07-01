@@ -30,7 +30,14 @@ def Program::new(): &Program {
     let prog = calloc(1, sizeof(Program)) as &Program
     prog.global = Namespace::new(null, "")
     prog.ordered_structs = OldVector::new()
-    prog.global.sym = Symbol::new(Namespace, "", "", "", Span::default())
+    prog.global.sym = Symbol::new(
+        Namespace,
+        ns: prog.global,
+        name: "",
+        display: "",
+        out_name: "",
+        Span::default()
+    )
     prog.global.sym.u.ns = prog.global
     prog.error_level = 1
     prog.errors = OldVector::new()
@@ -139,12 +146,6 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.imports = OldVector::new()
     ns.path = path
     ns.is_a_file = false
-
-    // if parent? then {
-    //     println(`Created namespace: {ns.path} with parent {ns.parent.path}`)
-    // } else {
-    //     println(`Created namespace: {ns.path} with no parent`)
-    // }
     return ns
 }
 
