@@ -35,10 +35,10 @@ def ReorderStructs::free(&this) {
 // Collects all structs we have in the namespace into the vector
 def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
     for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i) as &Structure
+        let struc = ns.structs.at(i)
         if struc.is_templated {
             for let j = 0; j < struc.template_instances.size; j += 1 {
-                let instance = struc.template_instances.at(j) as &TemplateInstance
+                let instance = struc.template_instances.at(j)
                 let sym = instance.resolved
                 assert sym.type == Structure
                 .all_structs.push(sym.u.struc)
@@ -58,7 +58,7 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
     .done.insert(struc.sym.out_name, struc)
 
     for let i = 0; i < struc.fields.size; i += 1 {
-        let field = struc.fields.at(i) as &Variable
+        let field = struc.fields.at(i)
         if field.type? and field.type.base == Structure {
             let other = field.type.u.struc
             .dfs(other)
@@ -71,7 +71,7 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
 // the result inside `program.ordered_structs`
 def ReorderStructs::reorder_structs(&this) {
     for let i = 0; i < .all_structs.size; i += 1 {
-        let struc = .all_structs.at(i) as &Structure
+        let struc = .all_structs.at(i)
         .dfs(struc)
     }
 }

@@ -179,13 +179,13 @@ def Parser::parse_scoped_identifier(&this): &AST {
                 // the best way to do this, but here's a couple heuristics:
 
                 // 1. Make sure that we don't have a space between the identifier and the `<`
-                let prev_token = .tokens.at(.curr as u32 - 1) as &Token
+                let prev_token = .tokens.at(.curr as u32 - 1)
                 if not .token().span.starts_right_after(prev_token.span) {
                     return node
                 }
 
                 // 2. Make sure the token after that isn't a `.`
-                let next_next_token = .tokens.at(.curr as u32 + 2) as &Token
+                let next_next_token = .tokens.at(.curr as u32 + 2)
                 if next_next_token.type == TokenType::Dot {
                     return node
                 }
@@ -733,9 +733,9 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
 
     let root = null as &AST
     for let i = 0; i < operators.size; i += 1 {
-        let tok = operators.at(i) as &Token
-        let lhs = operands.at(i) as &AST
-        let rhs = operands.at(i+1) as &AST
+        let tok = operators.at(i)
+        let lhs = operands.at(i)
+        let rhs = operands.at(i+1)
         let op = AST::new_binop(ASTType::from_token(tok.type), lhs, rhs)
         if root? {
             root = AST::new_binop(ASTType::And, root, op)
@@ -1189,7 +1189,7 @@ def Parser::parse_import(&this): &AST {
     }
 
     // FIXME: This is a hack to make sure `std::` is always looked up in the root namespace.
-    let first_part = parts.at(0) as &ImportPart
+    let first_part = parts.at(0)
     if first_part.type == Single and first_part.u.single.name.eq("std") {
         type = ImportType::FromRootNamespace
     }
@@ -1359,7 +1359,7 @@ def Parser::parse_compiler_option(&this) {
 
 def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base: &Namespace): bool {
     for let i = 0; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
-        let part = parts.at(i) as &ImportPart
+        let part = parts.at(i)
 
         match part.type {
             Wildcard => {
@@ -1433,7 +1433,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
             let cur = .ns
             for let i = 0; i < path.parent_count; i += 1 {
                 if not cur.parent? {
-                    let first_part = path.parts.at(0) as &ImportPart
+                    let first_part = path.parts.at(0)
                     .error(Error::new(first_part.span, "Cannot import from parent of root namespace"))
                     .program.exit_with_errors()
                 }

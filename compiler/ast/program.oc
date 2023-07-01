@@ -155,7 +155,7 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     if item? then return item.sym
 
     for let i = 0; i < .constants.size; i += 1 {
-        let node = .constants.at(i) as &AST
+        let node = .constants.at(i)
         let var = node.u.var_decl.var
         if var.sym.name.eq(name) {
             return var.sym
@@ -163,21 +163,21 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     }
 
     for let i = 0; i < .functions.size; i += 1 {
-        let func = .functions.at(i) as &Function
+        let func = .functions.at(i)
         if func.sym.name.eq(name) {
             return func.sym
         }
     }
 
     for let i = 0; i < .structs.size; i += 1 {
-        let struc = .structs.at(i) as &Structure
+        let struc = .structs.at(i)
         if struc.sym.name.eq(name) {
             return struc.sym
         }
     }
 
     for let i = 0; i < .enums.size; i += 1 {
-        let enum_ = .enums.at(i) as &Enum
+        let enum_ = .enums.at(i)
         if enum_.sym.name.eq(name) {
             return enum_.sym
         }
