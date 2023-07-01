@@ -1,4 +1,4 @@
-import std::vector::OldVector
+import std::vector::Vector
 import @errors::Error
 import std::span::{Span, Location}
 import @tokens::{Token, TokenType}
@@ -16,9 +16,9 @@ struct Lexer {
     i: u32
     loc: Location
     seen_newline: bool
-    tokens: &OldVector
+    tokens: &Vector<&Token>
 
-    errors: &OldVector
+    errors: &Vector<&Error>
 }
 
 def Lexer::make(source: str, filename: str): Lexer {
@@ -28,8 +28,8 @@ def Lexer::make(source: str, filename: str): Lexer {
         i: 0,
         loc: Location(filename, 1, 1, 0),
         seen_newline: false,
-        tokens: OldVector::new(),
-        errors: OldVector::new()
+        tokens: Vector<&Token>::new(),
+        errors: Vector<&Error>::new()
     )
 }
 
@@ -195,7 +195,7 @@ def Lexer::lex_numeric_literal(&this) {
     .push(token)
 }
 
-def Lexer::lex(&this): &OldVector {
+def Lexer::lex(&this): &Vector<&Token> {
     while .i < .source_len {
         let c = .cur()
         match c {

@@ -1,4 +1,4 @@
-import std::vector::OldVector
+import std::vector::Vector
 import std::span::Span
 import std::buffer::Buffer
 import std::map::OldMap
@@ -14,7 +14,7 @@ import @ast::nodes::*
 
 struct TypeChecker {
     o: &GenericPass
-    unchecked_functions: &OldVector
+    unchecked_functions: &Vector<&Function>
 }
 
 // Some convenience accessors from the GenericPass
@@ -387,7 +387,7 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
     return struc.type
 }
 
-def TypeChecker::check_call_args(&this, node: &AST, params: &OldVector) {
+def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>) {
     let args = node.u.call.args
     if params.size < args.size {
         .error(Error::new(node.span, `Too many arguments, expected {params.size} but got {args.size}`))
@@ -915,7 +915,7 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
 
     let call = AST::new(ASTType::Call, node.span)
     call.u.call.callee = member
-    call.u.call.args = OldVector::new()
+    call.u.call.args = Vector<&Argument>::new()
 
     *node_ptr = call
 
@@ -1408,9 +1408,9 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
     return typ
 }
 
-def TypeChecker::handle_import_path_base(&this, parts: &OldVector, base: &Symbol, alias: str, start_idx: i32) {
+def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
     for let i = start_idx as u32; i < parts.size; i += 1 {
-        let part = parts.at(i) as &ImportPart
+        let part = parts.at(i)
 
         match part.type {
             Wildcard => {
@@ -1420,7 +1420,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &OldVector, base: &Symbol
             Multiple => {
                 let paths = part.u.paths
                 for let j = 0; j < paths.size; j += 1 {
-                    let path = paths.at(j) as &OldVector
+                    let path = paths.at(j)
                     .handle_import_path_base(path, base, null, 0)
                 }
                 return
@@ -1668,7 +1668,7 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
 def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
-        unchecked_functions: OldVector::new()
+        unchecked_functions: Vector<&Function>::new()
     )
     pass.pre_check_constants(program.global)
     pass.pre_check_namespace(program.global)

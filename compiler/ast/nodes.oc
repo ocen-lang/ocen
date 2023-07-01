@@ -1,4 +1,4 @@
-import std::vector::OldVector
+import std::vector::Vector
 import std::map::OldMap
 import std::span::Span
 import std::libc::calloc
@@ -122,11 +122,11 @@ struct VarDeclaration {
 }
 
 struct TemplateInstance {
-    params: &OldVector // OldVector<&Type>
+    params: &Vector<&Type>
     resolved: &Symbol
 }
 
-def TemplateInstance::new(params: &OldVector, resolved: &Symbol): &TemplateInstance {
+def TemplateInstance::new(params: &Vector<&Type>, resolved: &Symbol): &TemplateInstance {
     let instance = calloc(1, sizeof(TemplateInstance)) as &TemplateInstance
     instance.params = params
     instance.resolved = resolved
@@ -135,18 +135,18 @@ def TemplateInstance::new(params: &OldVector, resolved: &Symbol): &TemplateInsta
 
 struct Structure {
     sym: &Symbol
-    fields: &OldVector     // OldVector<&Variable>
+    fields: &Vector<&Variable>
     type: &Type
     is_union: bool
 
     is_templated: bool
-    template_params: &OldVector // OldVector<&Variable>
-    template_instances: &OldVector // OldVector<&TemplateInstance>
+    template_params: &Vector<&Variable>
+    template_instances: &Vector<&TemplateInstance>
 }
 
 def Structure::new(): &Structure {
     let struc = calloc(1, sizeof(Structure)) as &Structure
-    struc.fields = OldVector::new()
+    struc.fields = Vector<&Variable>::new()
     return struc
 }
 
@@ -160,10 +160,10 @@ def Structure::get_field(&this, name: str): &Variable {
     return null
 }
 
-def Structure::find_template_instance(&this, template_args: &OldVector): &Symbol {
+def Structure::find_template_instance(&this, template_args: &Vector<&Type>): &Symbol {
     let a = template_args
     for let i = 0; i < .template_instances.size; i += 1 {
-        let instance = .template_instances.at(i) as &TemplateInstance
+        let instance = .template_instances.at(i)
         let b = instance.params
 
         if a.size != b.size continue
@@ -186,13 +186,13 @@ def Structure::find_template_instance(&this, template_args: &OldVector): &Symbol
 
 struct Enum {
     sym: &Symbol
-    fields: &OldVector     // OldVector<&Variable>
+    fields: &Vector<&Variable>
     type: &Type
 }
 
 def Enum::new(): &Enum {
     let enum_ = calloc(1, sizeof(Enum)) as &Enum
-    enum_.fields = OldVector::new()
+    enum_.fields = Vector<&Variable>::new()
     return enum_
 }
 
@@ -208,7 +208,7 @@ def Enum::get_field(&this, name: str): &Variable {
 
 struct Function {
     sym: &Symbol
-    params: &OldVector     // OldVector<&Variable>
+    params: &Vector<&Variable>
     return_type: &Type
     body: &AST
     exits: bool
@@ -225,13 +225,13 @@ struct Function {
 
 def Function::new(): &Function {
     let func = calloc(1, sizeof(Function)) as &Function
-    func.params = OldVector::new()
+    func.params = Vector<&Variable>::new()
     return func
 }
 
 
 struct Block {
-    statements: &OldVector     // OldVector<&AST>
+    statements: &Vector<&AST>
     scope: &Scope
 }
 
@@ -258,7 +258,7 @@ def Argument::new(label: str, label_span: Span, expr: &AST): &Argument {
 
 struct FuncCall {
     callee: &AST
-    args: &OldVector    // OldVector<&Argument>
+    args: &Vector<&Argument>
     func: &Function
 
     is_constructor: bool
@@ -280,7 +280,7 @@ struct ImportPartSingle {
 
 union ImportPartUnion {
     single: ImportPartSingle
-    paths: &OldVector    // &OldVector<OldVector<&ImportPart>>
+    paths: &Vector<&Vector<&ImportPart> >  // FIXME: This is a mess
 }
 
 struct ImportPart {
@@ -303,7 +303,7 @@ enum ImportType {
 }
 
 struct Import {
-    parts: &OldVector    // &OldVector<ImportPart>
+    parts: &Vector<&ImportPart>
 
     type: ImportType
     // For FromParentNamespace imports, we might have something like `import ..foo`, in which
@@ -358,9 +358,9 @@ struct Cast {
 }
 
 struct FormatString {
-    parts: &OldVector    // OldVector<str>
-    specs: &OldVector    // OldVector<str>
-    exprs: &OldVector    // OldVector<&AST>
+    parts: &Vector<str>
+    specs: &Vector<str>
+    exprs: &Vector<&AST>
 }
 
 
@@ -378,14 +378,14 @@ def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
 
 struct Match {
     expr: &AST
-    cases: &OldVector  // OldVector<&MatchCase>
+    cases: &Vector<&MatchCase>
     defolt: &AST
     defolt_span: Span
 }
 
 struct Specialization {
     base: &AST
-    template_args: &OldVector    // OldVector<&Type>
+    template_args: &Vector<&Type>
 }
 
 union ASTUnion {
