@@ -30,29 +30,31 @@ struct Symbol {
     display: str     // Fully qualified display name, including namespaces
     out_name: str    // Name used in the output C code
     span: Span          // Span of the declaration
+    ns: &Namespace   // Namespace it was defined in
 
     type: SymbolType
     u: SymbolUnion
     is_extern: bool
 }
 
-def Symbol::new(type: SymbolType, name: str, display: str, out_name: str, span: Span): &Symbol {
+def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, out_name: str, span: Span): &Symbol {
     let item = calloc(1, sizeof(Symbol)) as &Symbol
     item.name = name
     item.display = display
     item.out_name = out_name
     item.span = span
     item.type = type
+    item.ns = ns
     return item
 }
 
 def Symbol::join_display(a: str, b: str): str => if a.len() == 0 then b else `{a}::{b}`
 def Symbol::join_out_name(a: str, b: str): str => if a.len() == 0 then b else `{a}_{b}`
 
-def Symbol::new_with_parent(type: SymbolType, parent: &Symbol, name: str, span: Span): &Symbol {
+def Symbol::new_with_parent(type: SymbolType, ns: &Namespace, parent: &Symbol, name: str, span: Span): &Symbol {
     let display = Symbol::join_display(parent.display, name)
     let out_name = Symbol::join_out_name(parent.out_name, name)
-    return Symbol::new(type, name, display, out_name, span)
+    return Symbol::new(type, ns, name, display, out_name, span)
 }
 
 def Symbol::update_parent(&this, parent: &Symbol) {
@@ -65,6 +67,7 @@ def Symbol::update_parent(&this, parent: &Symbol) {
 def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol {
     let item = Symbol::new(
         SymbolType::Variable,
+        ns: null,
         name: name,
         display: name,
         out_name: name,

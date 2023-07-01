@@ -973,7 +973,7 @@ def Parser::parse_function(&this): &Function {
 
     let ident = if .token_is(TokenType::Identifier) {
         yield .parse_scoped_identifier()
- 
+
     } else {
         .error(Error::new(.token().span, "Unexpected token"))
         yield null
@@ -996,7 +996,7 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    func.sym = Symbol::new_with_parent(Function, .ns.sym, name, name_span)
+    func.sym = Symbol::new_with_parent(Function, .ns, .ns.sym, name, name_span)
     func.sym.u.func = func
 
     .consume(TokenType::OpenParen)
@@ -1211,7 +1211,7 @@ def Parser::parse_struct(&this): &Structure {
     let name = .consume(TokenType::Identifier)
     let struc = Structure::new()
     struc.is_union = is_union
-    struc.sym = Symbol::new_with_parent(Structure, .ns.sym, name.text, name.span)
+    struc.sym = Symbol::new_with_parent(Structure, .ns, .ns.sym, name.text, name.span)
     struc.sym.u.struc = struc
 
     if .token_is(TokenType::LessThan) {
@@ -1249,7 +1249,7 @@ def Parser::parse_enum(&this): &Enum {
     let name = .consume(TokenType::Identifier)
 
     let enum_def = Enum::new()
-    enum_def.sym = Symbol::new_with_parent(Enum, .ns.sym, name.text, start_span)
+    enum_def.sym = Symbol::new_with_parent(Enum, .ns, .ns.sym, name.text, start_span)
     enum_def.sym.u.enum_ = enum_def
 
     .parse_extern_into_symbol(enum_def.sym)
@@ -1258,7 +1258,7 @@ def Parser::parse_enum(&this): &Enum {
     while not .token_is(TokenType::CloseCurly) {
         let name = .consume(TokenType::Identifier)
         let var = Variable::new(null)
-        var.sym = Symbol::new_with_parent(Variable, enum_def.sym, name.text, name.span)
+        var.sym = Symbol::new_with_parent(Variable, .ns, enum_def.sym, name.text, name.span)
         var.sym.u.var = var
 
         if .consume_if(TokenType::Equals) {
@@ -1294,7 +1294,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
 
                 let old_ns = .ns
                 let new_ns = Namespace::new(.ns, .ns.path)
-                new_ns.sym = Symbol::new_with_parent(Namespace, old_ns.sym, name.text, name.span)
+                new_ns.sym = Symbol::new_with_parent(Namespace, old_ns, old_ns.sym, name.text, name.span)
                 new_ns.sym.u.ns = new_ns
 
                 new_ns.always_add_to_scope = true
@@ -1391,7 +1391,13 @@ def Parser::load_import_path_from_base(&this, parts: &OldVector, base: &Namespac
             }
 
             next = Namespace::new(parent: base, path: part_path)
-            next.sym = Symbol::new_with_parent(Namespace, base.sym, part_name, part.span)
+            next.sym = Symbol::new_with_parent(
+                Namespace,
+                ns: base,
+                parent: base.sym,
+                part_name,
+                part.span
+            )
             next.sym.u.ns = next
 
             base.namespaces.insert(part_name, next)
@@ -1461,7 +1467,13 @@ def Parser::parse_toplevel(filename: str, program: &Program) {
     base.remove_last_n(3)
 
     let std_ns = Namespace::new(parent: program.global, path: "./std")
-    std_ns.sym = Symbol::new_with_parent(Namespace, program.global.sym, "std", Span::default())
+    std_ns.sym = Symbol::new_with_parent(
+        Namespace,
+        ns: program.global,
+        parent: program.global.sym,
+        name: "std",
+        Span::default()
+    )
     std_ns.sym.u.ns = std_ns
 
     program.global.namespaces.insert("std", std_ns)
@@ -1472,7 +1484,7 @@ def Parser::parse_toplevel(filename: str, program: &Program) {
     parser.load_file("./std/prelude.oc")
 
     let ns = Namespace::new(parent: program.global, path: filename)
-    ns.sym = Symbol::new(Namespace, "", "", "", Span::default())
+    ns.sym = Symbol::new(Namespace, ns: null, "", "", "", Span::default())
     ns.sym.u.ns = ns
 
     program.global.namespaces.insert(base, ns)
