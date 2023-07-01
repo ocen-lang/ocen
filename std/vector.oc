@@ -69,3 +69,68 @@ def OldVector::free(&this) {
     free(.data)
     free(this)
 }
+
+struct Vector<T> {
+    data: &T
+    size: u32
+    capacity: u32
+}
+
+def Vector::new(capacity: u32 = 16): &Vector<T> {
+    let list = calloc(1, sizeof(Vector<T>)) as &Vector<T>
+    list.capacity = capacity
+    list.data = calloc(capacity, sizeof(T)) as &T
+    list.size = 0
+    return list
+}
+
+def Vector::resize(&this, new_capacity: u32) {
+    .capacity = new_capacity
+    .data = realloc(.data , .capacity * sizeof(T)) as &T
+}
+
+def Vector::push(&this, value: T) {
+    if .size == .capacity {
+        .resize(.capacity * 2)
+    }
+    .data[.size] = value
+    .size += 1
+}
+
+def Vector::push_front(&this, value: T) {
+    if .size == .capacity {
+        .resize(.capacity * 2)
+    }
+    for let i = .size; i > 0; i -= 1 {
+        .data[i] = .data[i - 1]
+    }
+    .data[0] = value
+    .size += 1
+}
+
+def Vector::pop(&this): T {
+    assert .size > 0, "Empty vector in Vector::pop"
+    .size -= 1
+    return .data[.size]
+}
+
+def Vector::back(&this): T {
+    assert .size > 0, "Empty vector in Vector::back"
+    return .data[.size - 1]
+}
+
+def Vector::at(&this, i: u32): T {
+    assert i < .size, "Out of bounds in Vector::at"
+    return .data[i]
+}
+
+def Vector::empty(&this): bool {
+    return .size == 0
+}
+
+def Vector::is_empty(&this): bool => .size == 0
+
+def Vector::free(&this) {
+    free(.data)
+    free(this)
+}

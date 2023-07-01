@@ -1,18 +1,18 @@
 /// out: "3"
 
 
-import std::vector::OldVector
+import std::vector::Vector
 
 
-def foo(v: &OldVector) {
-    v.push(null)
+def foo(v: &Vector<i32>) {
+    v.push(1)
 }
 
 def main() {
-    let my_vector = OldVector::new()
-    foo(my_vector)
-    foo(my_vector)
-    foo(my_vector)
+    let my_List = Vector<i32>::new()
+    foo(my_List)
+    foo(my_List)
+    foo(my_List)
 
-    println(`{my_vector.size}`)
+    println(`{my_List.size}`)
 }

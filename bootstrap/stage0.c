@@ -560,6 +560,7 @@ struct passes_code_generator_CodeGenerator {
 
 struct passes_typechecker_TypeChecker {
   passes_generic_pass_GenericPass *o;
+  std_vector_OldVector *unchecked_functions;
 };
 
 struct passes_namespace_dump_NamespaceDump {
@@ -606,6 +607,7 @@ struct ast_scopes_Symbol {
   char *display;
   char *out_name;
   std_span_Span span;
+  ast_program_Namespace *ns;
   ast_scopes_SymbolType type;
   ast_scopes_SymbolUnion u;
   bool is_extern;
@@ -687,6 +689,7 @@ struct ast_nodes_Function {
   ast_nodes_AST *body;
   bool exits;
   std_span_Span span;
+  ast_scopes_Scope *scope;
   types_Type *type;
   bool checked;
   bool is_method;
@@ -1018,7 +1021,7 @@ void passes_typechecker_TypeChecker_check_expression_statement(passes_typechecke
 void passes_typechecker_TypeChecker_check_while(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_check_for(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
-void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecker *this, ast_scopes_Scope *scope, ast_nodes_Function *func);
+void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecker *this, ast_nodes_Function *func);
 void passes_typechecker_TypeChecker_handle_namespace_imports(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 void passes_typechecker_TypeChecker_check_global_variable(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
@@ -1092,10 +1095,10 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program);
 u32 utils_edit_distance(char *str1, char *str2);
 char *utils_find_word_suggestion(char *s, std_vector_OldVector *options);
 bool utils_directory_exists(char *path);
-ast_scopes_Symbol *ast_scopes_Symbol_new(ast_scopes_SymbolType type, char *name, char *display, char *out_name, std_span_Span span);
+ast_scopes_Symbol *ast_scopes_Symbol_new(ast_scopes_SymbolType type, ast_program_Namespace *ns, char *name, char *display, char *out_name, std_span_Span span);
 char *ast_scopes_Symbol_join_display(char *a, char *b);
 char *ast_scopes_Symbol_join_out_name(char *a, char *b);
-ast_scopes_Symbol *ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType type, ast_scopes_Symbol *parent, char *name, std_span_Span span);
+ast_scopes_Symbol *ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType type, ast_program_Namespace *ns, ast_scopes_Symbol *parent, char *name, std_span_Span span);
 void ast_scopes_Symbol_update_parent(ast_scopes_Symbol *this, ast_scopes_Symbol *parent);
 ast_scopes_Symbol *ast_scopes_Symbol_from_local_variable(char *name, ast_nodes_Variable *var, std_span_Span span);
 ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent);
@@ -1271,7 +1274,7 @@ void passes_register_types_RegisterTypes_register_enum(passes_register_types_Reg
 void passes_register_types_RegisterTypes_add_dbg_method_for_enum(passes_register_types_RegisterTypes *this, ast_nodes_Enum *enum_) {
   std_span_Span span = enum_->sym->span;
   ast_nodes_Function *func = ast_nodes_Function_new();
-  func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, enum_->sym, "dbg", span);
+  func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, enum_->sym->ns, enum_->sym, "dbg", span);
   func->sym->u.func=func;
   func->return_type=passes_generic_pass_GenericPass_get_type_by_name(this->o, "str", span);
   func->is_method=true;
@@ -1308,7 +1311,7 @@ void passes_register_types_RegisterTypes_register_namespace(passes_register_type
 
 void passes_register_types_RegisterTypes_register_base_type(passes_register_types_RegisterTypes *this, types_BaseType base) {
   char *name = types_BaseType_str(base);
-  ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, name, name, name, std_span_Span_default());
+  ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, NULL, name, name, name, std_span_Span_default());
   types_Type *typ = types_Type_new_resolved(base, std_span_Span_default());
   typ->sym=sym;
   sym->u.type_def=typ;
@@ -1316,7 +1319,7 @@ void passes_register_types_RegisterTypes_register_base_type(passes_register_type
 }
 
 void passes_register_types_RegisterTypes_register_alias(passes_register_types_RegisterTypes *this, char *name, types_Type *orig) {
-  ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, name, name, name, std_span_Span_default());
+  ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, NULL, name, name, name, std_span_Span_default());
   types_Type *alias = types_Type_new_resolved(types_BaseType_Alias, std_span_Span_default());
   alias->name=name;
   alias->u.ptr=orig;
@@ -2819,14 +2822,15 @@ void passes_typechecker_TypeChecker_resolve_templated_struct_methods(passes_type
   types_Type *cur_type = cur->type;
   std_map_OldMap *old_methods = old_type->methods;
   std_map_OldMap *cur_methods = cur_type->methods;
+  ast_program_Namespace *parent_ns = old->sym->ns;
   for (std_map_OldMapIterator iter = std_map_OldMap_iter(old_methods); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
     char *name = std_map_OldMapIterator_key(&iter);
     ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMapIterator_value(&iter));
-    ast_nodes_Function *new_method = ast_program_Program_get_function_deep_copy(this->o->program, method, passes_generic_pass_GenericPass_ns(this->o));
+    ast_nodes_Function *new_method = ast_program_Program_get_function_deep_copy(this->o->program, method, parent_ns);
     new_method->parent_type=cur_type;
     std_map_OldMap_insert(cur_methods, name, new_method);
     ast_scopes_Symbol_update_parent(new_method->sym, cur_type->sym);
-    std_vector_OldVector_push(passes_generic_pass_GenericPass_ns(this->o)->functions, new_method);
+    std_vector_OldVector_push(parent_ns->functions, new_method);
     if (!method->is_static) {
       ast_nodes_Variable *this_param = ((ast_nodes_Variable *)std_vector_OldVector_at(new_method->params, ((u32)0)));
       if (this_param->type->base==types_BaseType_Pointer) {
@@ -2835,8 +2839,12 @@ void passes_typechecker_TypeChecker_resolve_templated_struct_methods(passes_type
         this_param->type=cur_type;
       } 
     } 
+    new_method->scope=passes_typechecker_TypeChecker_scope(this);
     passes_typechecker_TypeChecker_check_function_declaration(this, new_method);
-    passes_typechecker_TypeChecker_check_function(this, passes_typechecker_TypeChecker_scope(this), new_method);
+  }
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(cur_methods); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_nodes_Function *new_method = ((ast_nodes_Function *)std_map_OldMapIterator_value(&iter));
+    std_vector_OldVector_push(this->unchecked_functions, new_method);
   }
 }
 
@@ -2848,7 +2856,8 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_templated_struct(passe
     
   }
   ast_nodes_Structure *resolved_struc = ast_nodes_Structure_new();
-  ast_scopes_Scope *scope = ast_scopes_Scope_new(passes_typechecker_TypeChecker_scope(this));
+  ast_program_Namespace *parent_ns = struc->sym->ns;
+  ast_scopes_Scope *scope = ast_scopes_Scope_new(parent_ns->scope);
   passes_generic_pass_GenericPass_push_scope(this->o, scope);
   std_vector_OldVector *template_params = struc->template_params;
   std_vector_OldVector *template_args = node->u.spec.template_args;
@@ -2866,13 +2875,13 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_templated_struct(passe
     std_buffer_Buffer_puts(&new_display_name, ", ");
     
     std_buffer_Buffer_puts(&new_display_name, types_Type_str(arg));
-    ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, param->sym->name, param->sym->name, param->sym->name, param->sym->span);
+    ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, NULL, param->sym->name, param->sym->name, param->sym->name, param->sym->span);
     sym->u.type_def=arg;
     passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, sym);
   }
   std_buffer_Buffer_puts(&new_display_name, ">");
   char *new_out_name = format_string("%s__%u", struc->sym->out_name, struc->template_instances->size);
-  ast_scopes_Symbol *sym = ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Structure, passes_generic_pass_GenericPass_ns(this->o)->sym, new_out_name, struc->sym->span);
+  ast_scopes_Symbol *sym = ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Structure, parent_ns, parent_ns->sym, new_out_name, struc->sym->span);
   sym->display=std_buffer_Buffer_str(&new_display_name);
   sym->u.struc=resolved_struc;
   resolved_struc->sym=sym;
@@ -3886,6 +3895,9 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
       ast_nodes_AST *init = node->u.var_decl.init;
       if (((bool)init)) {
         types_Type *res = passes_typechecker_TypeChecker_check_expression(this, init, var->type);
+        if (!((bool)res)) 
+        return ;
+        
         if (((((bool)res) && ((bool)var->type)) && !types_Type_eq(res, var->type))) {
           passes_typechecker_TypeChecker_error(this, errors_Error_new(init->span, format_string("Variable %s has type %s but initializer has type %s", var->sym->name, types_Type_str(var->type), types_Type_str(res))));
         }  else         if (!((bool)var->type)) {
@@ -3903,7 +3915,7 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
   }
 }
 
-void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecker *this, ast_scopes_Scope *scope, ast_nodes_Function *func) {
+void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecker *this, ast_nodes_Function *func) {
   if ((func->is_method && func->parent_type->base==types_BaseType_Structure)) {
     ast_nodes_Structure *struc = func->parent_type->u.struc;
     if (struc->is_templated) 
@@ -3914,7 +3926,7 @@ void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecke
   return ;
   
   func->checked=true;
-  ast_scopes_Scope *new_scope = ast_scopes_Scope_new(scope);
+  ast_scopes_Scope *new_scope = ast_scopes_Scope_new(func->scope);
   std_vector_OldVector *params = func->params;
   for (u32 i = ((u32)0); (i < params->size); i+=((u32)1)) {
     ast_nodes_Variable *param = ((ast_nodes_Variable *)std_vector_OldVector_at(params, i));
@@ -3974,7 +3986,7 @@ void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeCheck
   passes_generic_pass_GenericPass_push_namespace(this->o, ns);
   for (u32 i = ((u32)0); (i < ns->functions->size); i+=((u32)1)) {
     ast_nodes_Function *func = ((ast_nodes_Function *)std_vector_OldVector_at(ns->functions, i));
-    passes_typechecker_TypeChecker_check_function(this, ns->scope, func);
+    passes_typechecker_TypeChecker_check_function(this, func);
   }
   for (u32 i = ((u32)0); (i < ns->constants->size); i+=((u32)1)) {
     ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_OldVector_at(ns->constants, i));
@@ -4176,6 +4188,7 @@ void passes_typechecker_TypeChecker_pre_check_function(passes_typechecker_TypeCh
     ast_scopes_Symbol *item = func->sym;
     passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, item);
   } 
+  func->scope=passes_typechecker_TypeChecker_scope(this);
 }
 
 void passes_typechecker_TypeChecker_resolve_struct(passes_typechecker_TypeChecker *this, ast_nodes_Structure *struc) {
@@ -4276,12 +4289,16 @@ void passes_typechecker_TypeChecker_pre_check_namespace(passes_typechecker_TypeC
 }
 
 void passes_typechecker_TypeChecker_run(ast_program_Program *program) {
-  passes_typechecker_TypeChecker pass = (passes_typechecker_TypeChecker){.o=passes_generic_pass_GenericPass_new(program)};
+  passes_typechecker_TypeChecker pass = (passes_typechecker_TypeChecker){.o=passes_generic_pass_GenericPass_new(program), .unchecked_functions=std_vector_OldVector_new(((u32)16))};
   passes_typechecker_TypeChecker_pre_check_constants(&pass, program->global);
   passes_typechecker_TypeChecker_pre_check_namespace(&pass, program->global);
   passes_typechecker_TypeChecker_handle_namespace_imports(&pass, program->global);
   passes_typechecker_TypeChecker_check_function_declarations(&pass, program->global);
   passes_typechecker_TypeChecker_check_namespace(&pass, program->global);
+  while ((pass.unchecked_functions->size > ((u32)0))) {
+    ast_nodes_Function *func = ((ast_nodes_Function *)std_vector_OldVector_pop(pass.unchecked_functions));
+    passes_typechecker_TypeChecker_check_function(&pass, func);
+  }
 }
 
 void passes_namespace_dump_NamespaceDump_print_indent(passes_namespace_dump_NamespaceDump *this) {
@@ -5330,7 +5347,7 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
       } break;
     }
 ;__yield_0; });
-  func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, this->ns->sym, name, name_span);
+  func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, this->ns, this->ns->sym, name, name_span);
   func->sym->u.func=func;
   parser_Parser_consume(this, tokens_TokenType_OpenParen);
   while (!parser_Parser_token_is(this, tokens_TokenType_CloseParen)) {
@@ -5389,10 +5406,11 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   this->curr_func=func;
   if (parser_Parser_token_is(this, tokens_TokenType_FatArrow)) {
     tokens_Token *arrow = parser_Parser_consume(this, tokens_TokenType_FatArrow);
-    ast_nodes_AST *body = ast_nodes_AST_new(ast_nodes_ASTType_Block, arrow->span);
+    ast_nodes_AST *expr = parser_Parser_parse_expression(this, tokens_TokenType_Newline);
+    ast_nodes_AST *ret = ast_nodes_AST_new(ast_nodes_ASTType_Return, expr->span);
+    ret->u.unary=expr;
+    ast_nodes_AST *body = ast_nodes_AST_new(ast_nodes_ASTType_Block, ret->span);
     std_vector_OldVector *statements = std_vector_OldVector_new(((u32)16));
-    ast_nodes_AST *ret = ast_nodes_AST_new(ast_nodes_ASTType_Return, arrow->span);
-    ret->u.unary=parser_Parser_parse_expression(this, tokens_TokenType_Newline);
     std_vector_OldVector_push(statements, ret);
     body->u.block.statements=statements;
     func->body=body;
@@ -5531,7 +5549,7 @@ ast_nodes_Structure *parser_Parser_parse_struct(parser_Parser *this) {
   tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
   ast_nodes_Structure *struc = ast_nodes_Structure_new();
   struc->is_union=is_union;
-  struc->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Structure, this->ns->sym, name->text, name->span);
+  struc->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Structure, this->ns, this->ns->sym, name->text, name->span);
   struc->sym->u.struc=struc;
   if (parser_Parser_token_is(this, tokens_TokenType_LessThan)) {
     struc->is_templated=true;
@@ -5561,14 +5579,14 @@ ast_nodes_Enum *parser_Parser_parse_enum(parser_Parser *this) {
   std_span_Span start_span = parser_Parser_consume(this, tokens_TokenType_Enum)->span;
   tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
   ast_nodes_Enum *enum_def = ast_nodes_Enum_new();
-  enum_def->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Enum, this->ns->sym, name->text, start_span);
+  enum_def->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Enum, this->ns, this->ns->sym, name->text, start_span);
   enum_def->sym->u.enum_=enum_def;
   parser_Parser_parse_extern_into_symbol(this, enum_def->sym);
   parser_Parser_consume(this, tokens_TokenType_OpenCurly);
   while (!parser_Parser_token_is(this, tokens_TokenType_CloseCurly)) {
     tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
     ast_nodes_Variable *var = ast_nodes_Variable_new(NULL);
-    var->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Variable, enum_def->sym, name->text, name->span);
+    var->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Variable, this->ns, enum_def->sym, name->text, name->span);
     var->sym->u.var=var;
     if (parser_Parser_consume_if(this, tokens_TokenType_Equals)) {
       parser_Parser_parse_extern_into_symbol(this, var->sym);
@@ -5602,7 +5620,7 @@ void parser_Parser_parse_namespace_until(parser_Parser *this, tokens_TokenType e
         tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
         ast_program_Namespace *old_ns = this->ns;
         ast_program_Namespace *new_ns = ast_program_Namespace_new(this->ns, this->ns->path);
-        new_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, old_ns->sym, name->text, name->span);
+        new_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, old_ns, old_ns->sym, name->text, name->span);
         new_ns->sym->u.ns=new_ns;
         new_ns->always_add_to_scope=true;
         std_map_OldMap_insert(old_ns->namespaces, name->text, new_ns);
@@ -5705,7 +5723,7 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ol
         ast_program_Program_exit_with_errors(this->program);
       } 
       next=ast_program_Namespace_new(base, part_path);
-      next->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, base->sym, part_name, part->span);
+      next->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, base, base->sym, part_name, part->span);
       next->sym->u.ns=next;
       std_map_OldMap_insert(base->namespaces, part_name, next);
       if (file_exists) {
@@ -5766,7 +5784,7 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   free(t2);
   str_remove_last_n(base, ((u32)3));
   ast_program_Namespace *std_ns = ast_program_Namespace_new(program->global, "./std");
-  std_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, program->global->sym, "std", std_span_Span_default());
+  std_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, program->global, program->global->sym, "std", std_span_Span_default());
   std_ns->sym->u.ns=std_ns;
   std_map_OldMap_insert(program->global->namespaces, "std", std_ns);
   std_ns->always_add_to_scope=true;
@@ -5774,7 +5792,7 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   parser_Parser parser = parser_Parser_make(program, std_ns);
   parser_Parser_load_file(&parser, "./std/prelude.oc");
   ast_program_Namespace *ns = ast_program_Namespace_new(program->global, filename);
-  ns->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, "", "", "", std_span_Span_default());
+  ns->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, NULL, "", "", "", std_span_Span_default());
   ns->sym->u.ns=ns;
   std_map_OldMap_insert(program->global->namespaces, base, ns);
   program->global->path=dir;
@@ -5841,13 +5859,14 @@ bool utils_directory_exists(char *path) {
   return true;
 }
 
-ast_scopes_Symbol *ast_scopes_Symbol_new(ast_scopes_SymbolType type, char *name, char *display, char *out_name, std_span_Span span) {
+ast_scopes_Symbol *ast_scopes_Symbol_new(ast_scopes_SymbolType type, ast_program_Namespace *ns, char *name, char *display, char *out_name, std_span_Span span) {
   ast_scopes_Symbol *item = ((ast_scopes_Symbol *)calloc(((u32)1), ((u32)sizeof(ast_scopes_Symbol))));
   item->name=name;
   item->display=display;
   item->out_name=out_name;
   item->span=span;
   item->type=type;
+  item->ns=ns;
   return item;
 }
 
@@ -5859,10 +5878,10 @@ char *ast_scopes_Symbol_join_out_name(char *a, char *b) {
   return (str_len(a)==((u32)0) ? b : format_string("%s_%s", a, b));
 }
 
-ast_scopes_Symbol *ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType type, ast_scopes_Symbol *parent, char *name, std_span_Span span) {
+ast_scopes_Symbol *ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType type, ast_program_Namespace *ns, ast_scopes_Symbol *parent, char *name, std_span_Span span) {
   char *display = ast_scopes_Symbol_join_display(parent->display, name);
   char *out_name = ast_scopes_Symbol_join_out_name(parent->out_name, name);
-  return ast_scopes_Symbol_new(type, name, display, out_name, span);
+  return ast_scopes_Symbol_new(type, ns, name, display, out_name, span);
 }
 
 void ast_scopes_Symbol_update_parent(ast_scopes_Symbol *this, ast_scopes_Symbol *parent) {
@@ -5873,7 +5892,7 @@ void ast_scopes_Symbol_update_parent(ast_scopes_Symbol *this, ast_scopes_Symbol 
 }
 
 ast_scopes_Symbol *ast_scopes_Symbol_from_local_variable(char *name, ast_nodes_Variable *var, std_span_Span span) {
-  ast_scopes_Symbol *item = ast_scopes_Symbol_new(ast_scopes_SymbolType_Variable, name, name, name, span);
+  ast_scopes_Symbol *item = ast_scopes_Symbol_new(ast_scopes_SymbolType_Variable, NULL, name, name, name, span);
   item->u.var=var;
   return item;
 }
@@ -5914,7 +5933,7 @@ ast_program_Program *ast_program_Program_new(void) {
   ast_program_Program *prog = ((ast_program_Program *)calloc(((u32)1), ((u32)sizeof(ast_program_Program))));
   prog->global=ast_program_Namespace_new(NULL, "");
   prog->ordered_structs=std_vector_OldVector_new(((u32)16));
-  prog->global->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, "", "", "", std_span_Span_default());
+  prog->global->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, prog->global, "", "", "", std_span_Span_default());
   prog->global->sym->u.ns=prog->global;
   prog->error_level=((u32)1);
   prog->errors=std_vector_OldVector_new(((u32)16));
