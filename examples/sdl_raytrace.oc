@@ -90,7 +90,7 @@ def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, hit_obj: &&Sphere): 
     let hit = false
 
     for let i = 0; i < objs.size; i += 1 {
-        let obj = objs.at(i) as &Sphere
+        let obj = objs.at(i)
 
         let tmp_t: f32
         let tmp_n: Vec

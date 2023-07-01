@@ -22,32 +22,32 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
 
     .indent += 1
     for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i) as &Function
+        let func = ns.functions.at(i)
         .print_indent()
         println(`(func) {func.sym.display}`)
     }
 
     for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i) as &Structure
+        let struc = ns.structs.at(i)
         .print_indent()
         println(`(struct) {struc.sym.display}`)
     }
 
     for let i = 0; i < ns.enums.size; i += 1 {
-        let enum_ = ns.enums.at(i) as &Enum
+        let enum_ = ns.enums.at(i)
         .print_indent()
         println(`(enum) {enum_.sym.display}`)
     }
  
     for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i) as &AST
+        let node = ns.variables.at(i)
         let var = node.u.var_decl.var
         .print_indent()
         println(`(var) {var.sym.display}`)
     }
 
     for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i) as &AST
+        let node = ns.constants.at(i)
         let var = node.u.var_decl.var
         .print_indent()
         println(`(const) {var.sym.display}`)
