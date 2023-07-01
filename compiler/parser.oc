@@ -3,7 +3,7 @@ import @ast::program::{ Namespace, Program }
 import @lexer::Lexer
 import @types::{ Type, BaseType, FunctionType, ArrayType }
 import std::span::Span
-import std::map::Map
+import std::map::OldMap
 import std::vector::OldVector
 import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType }

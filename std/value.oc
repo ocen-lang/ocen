@@ -1,6 +1,6 @@
 // A dynamically typed value, useful for JSON + other stuff
 import std::vector::OldVector
-import std::map::Map
+import std::map::OldMap
 import std::json
 import std::buffer::Buffer
 import std::span::Span
@@ -29,7 +29,7 @@ union ValueUnion {
     as_num: i64
     as_str: Buffer
     as_list: &OldVector // &OldVector<Value>
-    as_dict: &Map    // &Map<str, Value>
+    as_dict: &OldMap    // &OldMap<str, Value>
 }
 
 struct Value {
@@ -42,7 +42,7 @@ def Value::new(type: ValueType): &Value {
     let val = calloc(1, sizeof(Value)) as &Value
     val.type = type
     match type {
-        Dictionary => val.u.as_dict = Map::new()
+        Dictionary => val.u.as_dict = OldMap::new()
         List => val.u.as_list = OldVector::new()
         else => {}
     }
@@ -75,7 +75,7 @@ def Value::new_array(vec: &OldVector): &Value {
     return val
 }
 
-def Value::new_dictect(map: &Map): &Value {
+def Value::new_dictect(map: &OldMap): &Value {
     let val = Value::new(Dictionary)
     free(val.u.as_dict)
     val.u.as_dict = map
@@ -136,7 +136,7 @@ def Value::as_arr(&this): &OldVector {
     return .u.as_list
 }
 
-def Value::as_dict(&this): &Map {
+def Value::as_dict(&this): &OldMap {
     .ensure(Dictionary)
     return .u.as_dict
 }
@@ -162,7 +162,7 @@ def Value::free(&this) {
                 free(iter.cur.key)
                 Value::free(iter.cur.value)
             }
-            Map::free(.u.as_dict)
+            OldMap::free(.u.as_dict)
         }
         else => {}
     }

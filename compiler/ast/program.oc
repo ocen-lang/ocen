@@ -1,6 +1,6 @@
 import std::vector::OldVector
 import std::span::Span
-import std::map::Map
+import std::map::OldMap
 import std::libc::{ calloc, exit }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
@@ -23,7 +23,7 @@ struct Program {
     c_flags: &OldVector // OldVector<str>
 
     gen_debug_info: bool
-    sources: &Map  // Map<str, str>
+    sources: &OldMap  // OldMap<str, str>
 }
 
 def Program::new(): &Program {
@@ -36,7 +36,7 @@ def Program::new(): &Program {
     prog.errors = OldVector::new()
     prog.c_includes = OldVector::new()
     prog.c_flags = OldVector::new()
-    prog.sources = Map::new()
+    prog.sources = OldMap::new()
     return prog
 }
 
@@ -103,7 +103,7 @@ struct Namespace {
     constants: &OldVector    // OldVector<&VarDeclaration>
     variables: &OldVector    // OldVector<&VarDeclaration>
     imports: &OldVector      // OldVector<&AST>
-    namespaces: &Map      // Map<str, &Namespace>
+    namespaces: &OldMap      // OldMap<str, &Namespace>
 
     sym: &Symbol
     scope: &Scope
@@ -135,7 +135,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.enums = OldVector::new()
     ns.constants = OldVector::new()
     ns.variables = OldVector::new()
-    ns.namespaces = Map::new()
+    ns.namespaces = OldMap::new()
     ns.imports = OldVector::new()
     ns.path = path
     ns.is_a_file = false
