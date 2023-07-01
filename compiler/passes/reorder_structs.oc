@@ -1,6 +1,6 @@
 import @passes::generic_pass::GenericPass
 import std::vector::OldVector
-import std::map::Map
+import std::map::OldMap
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable, TemplateInstance }
 import std::libc::{ calloc, free }
@@ -12,7 +12,7 @@ import std::libc::{ calloc, free }
 struct ReorderStructs {
     o: &GenericPass
     all_structs: &OldVector
-    done: &Map
+    done: &OldMap
 }
 
 def ReorderStructs::new(program: &Program): &ReorderStructs {
@@ -20,7 +20,7 @@ def ReorderStructs::new(program: &Program): &ReorderStructs {
     *pass = ReorderStructs(
         o: GenericPass::new(program),
         all_structs: OldVector::new(),
-        done: Map::new()
+        done: OldMap::new()
     )
     return pass
 }

@@ -1,6 +1,6 @@
 import std::vector::OldVector
 import std::span::Span
-import std::map::Map
+import std::map::OldMap
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error

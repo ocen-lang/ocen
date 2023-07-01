@@ -3,21 +3,21 @@
 import std::vector::OldVector
 import std::libc::{calloc, realloc, free}
 
-struct MapNode {
+struct OldMapNode {
     key: str
     value: untyped_ptr
-    next: &MapNode
+    next: &OldMapNode
 }
 
-def MapNode::new(key: str, value: untyped_ptr, next: &MapNode): &MapNode {
-    let node = calloc(1, sizeof(MapNode)) as &MapNode
+def OldMapNode::new(key: str, value: untyped_ptr, next: &OldMapNode): &OldMapNode {
+    let node = calloc(1, sizeof(OldMapNode)) as &OldMapNode
     node.key = key
     node.value = value
     node.next = next
     return node
 }
 
-def MapNode::free_list(node: &MapNode) {
+def OldMapNode::free_list(node: &OldMapNode) {
     let cur = node
     while cur? {
         let next = cur.next
@@ -26,21 +26,21 @@ def MapNode::free_list(node: &MapNode) {
     }
 }
 
-struct Map {
-    buckets: &&MapNode
+struct OldMap {
+    buckets: &&OldMapNode
     num_items: u32
     num_buckets: u32
     num_collisions: u32
 }
 
-def Map::new(): &Map {
-    let map = calloc(1, sizeof(Map)) as &Map
+def OldMap::new(): &OldMap {
+    let map = calloc(1, sizeof(OldMap)) as &OldMap
     map.num_buckets = 4
-    map.buckets = calloc(map.num_buckets, sizeof(&MapNode)) as &&MapNode
+    map.buckets = calloc(map.num_buckets, sizeof(&OldMapNode)) as &&OldMapNode
     return map
 }
 
-def Map::hash(&this, s: str): u32 {
+def OldMap::hash(&this, s: str): u32 {
     let hash = 5381
     let len = s.len()
     for let i = 0; i < len; i += 1 {
@@ -53,7 +53,7 @@ def Map::hash(&this, s: str): u32 {
     return hash
 }
 
-def Map::get_node(&this, key: str): &MapNode {
+def OldMap::get_node(&this, key: str): &OldMapNode {
     let hash = .hash(key)
     let node = .buckets[hash]
     while node? {
@@ -65,7 +65,7 @@ def Map::get_node(&this, key: str): &MapNode {
     return null
 }
 
-def Map::get(&this, key: str): untyped_ptr {
+def OldMap::get(&this, key: str): untyped_ptr {
     let node = .get_node(key)
     if node? {
         return node.value
@@ -73,17 +73,17 @@ def Map::get(&this, key: str): untyped_ptr {
     return null
 }
 
-def Map::exists(&this, key: str): bool {
+def OldMap::exists(&this, key: str): bool {
     return .get_node(key)?
 }
 
-def Map::insert(&this, key: str, value: untyped_ptr) {
+def OldMap::insert(&this, key: str, value: untyped_ptr) {
     let node = .get_node(key)
     if node? {
         node.value = value
     } else {
         let hash = .hash(key)
-        let new_node = MapNode::new(key, value, .buckets[hash])
+        let new_node = OldMapNode::new(key, value, .buckets[hash])
         if .buckets[hash]? {
             .num_collisions += 1
         }
@@ -95,18 +95,18 @@ def Map::insert(&this, key: str, value: untyped_ptr) {
     }
 }
 
-def Map::resize(&this) {
+def OldMap::resize(&this) {
     let old_buckets = .buckets
     let old_num_buckets = .num_buckets
     let old_num_items = .num_items
     .num_collisions = 0
     .num_buckets *= 2
-    .buckets = calloc(.num_buckets, sizeof(&MapNode)) as &&MapNode
+    .buckets = calloc(.num_buckets, sizeof(&OldMapNode)) as &&OldMapNode
     for let i = 0; i < old_num_buckets; i += 1 {
         let node = old_buckets[i]
         while node? {
             let new_hash = .hash(node.key)
-            let new_node = MapNode::new(node.key, node.value, .buckets[new_hash])
+            let new_node = OldMapNode::new(node.key, node.value, .buckets[new_hash])
             if .buckets[new_hash]? {
                 .num_collisions += 1
             }
@@ -115,12 +115,12 @@ def Map::resize(&this) {
         }
     }
     for let i = 0; i < old_num_buckets; i += 1 {
-        MapNode::free_list(old_buckets[i])
+        OldMapNode::free_list(old_buckets[i])
     }
     free(old_buckets)
 }
 
-def Map::print_keys(&this) {
+def OldMap::print_keys(&this) {
     for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
         while node? {
@@ -130,7 +130,7 @@ def Map::print_keys(&this) {
     }
 }
 
-def Map::push_keys(&this, vec: &OldVector) {
+def OldMap::push_keys(&this, vec: &OldVector) {
     for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
         while node? {
@@ -140,38 +140,38 @@ def Map::push_keys(&this, vec: &OldVector) {
     }
 }
 
-def Map::free(&this) {
+def OldMap::free(&this) {
     for let i = 0; i < .num_buckets; i += 1 {
-        MapNode::free_list(.buckets[i])
+        OldMapNode::free_list(.buckets[i])
     }
     free(.buckets)
 }
 
-def Map::iter(&this): MapIterator {
-    return MapIterator::make(this)
+def OldMap::iter(&this): OldMapIterator {
+    return OldMapIterator::make(this)
 }
 
-struct MapIterator {
+struct OldMapIterator {
     idx: i32
-    cur: &MapNode
-    map: &Map
+    cur: &OldMapNode
+    map: &OldMap
 }
 
-def MapIterator::key(&this): str {
+def OldMapIterator::key(&this): str {
     return .cur.key
 }
 
-def MapIterator::value(&this): untyped_ptr {
+def OldMapIterator::value(&this): untyped_ptr {
     return .cur.value
 }
 
-def MapIterator::make(map: &Map): MapIterator {
-    let it = MapIterator(idx: -1, cur: null, map)
+def OldMapIterator::make(map: &OldMap): OldMapIterator {
+    let it = OldMapIterator(idx: -1, cur: null, map)
     it.next()
     return it
 }
 
-def MapIterator::next(&this) {
+def OldMapIterator::next(&this) {
     while .idx < .map.num_buckets as i32 {
         while .cur? {
             .cur = .cur.next

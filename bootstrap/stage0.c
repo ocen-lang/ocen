@@ -522,9 +522,9 @@ typedef struct ast_nodes_Specialization ast_nodes_Specialization;
 typedef union ast_nodes_ASTUnion ast_nodes_ASTUnion;
 typedef struct ast_nodes_AST ast_nodes_AST;
 typedef struct lexer_Lexer lexer_Lexer;
-typedef struct std_map_MapNode std_map_MapNode;
-typedef struct std_map_Map std_map_Map;
-typedef struct std_map_MapIterator std_map_MapIterator;
+typedef struct std_map_OldMapNode std_map_OldMapNode;
+typedef struct std_map_OldMap std_map_OldMap;
+typedef struct std_map_OldMapIterator std_map_OldMapIterator;
 typedef struct std_vector_OldVector std_vector_OldVector;
 typedef struct tokens_Token tokens_Token;
 typedef struct types_FunctionType types_FunctionType;
@@ -569,7 +569,7 @@ struct passes_namespace_dump_NamespaceDump {
 struct passes_reorder_structs_ReorderStructs {
   passes_generic_pass_GenericPass *o;
   std_vector_OldVector *all_structs;
-  std_map_Map *done;
+  std_map_OldMap *done;
 };
 
 struct parser_Parser {
@@ -612,7 +612,7 @@ struct ast_scopes_Symbol {
 };
 
 struct ast_scopes_Scope {
-  std_map_Map *items;
+  std_map_OldMap *items;
   std_vector_OldVector *defers;
   u32 loop_count;
   bool can_yield;
@@ -628,7 +628,7 @@ struct ast_program_Program {
   std_vector_OldVector *c_includes;
   std_vector_OldVector *c_flags;
   bool gen_debug_info;
-  std_map_Map *sources;
+  std_map_OldMap *sources;
 };
 
 struct ast_program_Namespace {
@@ -639,7 +639,7 @@ struct ast_program_Namespace {
   std_vector_OldVector *constants;
   std_vector_OldVector *variables;
   std_vector_OldVector *imports;
-  std_map_Map *namespaces;
+  std_map_OldMap *namespaces;
   ast_scopes_Symbol *sym;
   ast_scopes_Scope *scope;
   char *path;
@@ -856,23 +856,23 @@ struct lexer_Lexer {
   std_vector_OldVector *errors;
 };
 
-struct std_map_MapNode {
+struct std_map_OldMapNode {
   char *key;
   void *value;
-  std_map_MapNode *next;
+  std_map_OldMapNode *next;
 };
 
-struct std_map_Map {
-  std_map_MapNode **buckets;
+struct std_map_OldMap {
+  std_map_OldMapNode **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
-struct std_map_MapIterator {
+struct std_map_OldMapIterator {
   i32 idx;
-  std_map_MapNode *cur;
-  std_map_Map *map;
+  std_map_OldMapNode *cur;
+  std_map_OldMap *map;
 };
 
 struct std_vector_OldVector {
@@ -914,7 +914,7 @@ struct types_Type {
   types_BaseType base;
   std_span_Span span;
   types_TypeUnion u;
-  std_map_Map *methods;
+  std_map_OldMap *methods;
   ast_scopes_Symbol *sym;
 };
 
@@ -1168,23 +1168,23 @@ std_span_Span std_span_Span_default(void);
 std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other);
 bool std_span_Span_contains_loc(std_span_Span this, std_span_Location loc);
 bool std_span_Span_starts_right_after(std_span_Span this, std_span_Span other);
-std_map_MapNode *std_map_MapNode_new(char *key, void *value, std_map_MapNode *next);
-void std_map_MapNode_free_list(std_map_MapNode *node);
-std_map_Map *std_map_Map_new(void);
-u32 std_map_Map_hash(std_map_Map *this, char *s);
-std_map_MapNode *std_map_Map_get_node(std_map_Map *this, char *key);
-void *std_map_Map_get(std_map_Map *this, char *key);
-bool std_map_Map_exists(std_map_Map *this, char *key);
-void std_map_Map_insert(std_map_Map *this, char *key, void *value);
-void std_map_Map_resize(std_map_Map *this);
-void std_map_Map_print_keys(std_map_Map *this);
-void std_map_Map_push_keys(std_map_Map *this, std_vector_OldVector *vec);
-void std_map_Map_free(std_map_Map *this);
-std_map_MapIterator std_map_Map_iter(std_map_Map *this);
-char *std_map_MapIterator_key(std_map_MapIterator *this);
-void *std_map_MapIterator_value(std_map_MapIterator *this);
-std_map_MapIterator std_map_MapIterator_make(std_map_Map *map);
-void std_map_MapIterator_next(std_map_MapIterator *this);
+std_map_OldMapNode *std_map_OldMapNode_new(char *key, void *value, std_map_OldMapNode *next);
+void std_map_OldMapNode_free_list(std_map_OldMapNode *node);
+std_map_OldMap *std_map_OldMap_new(void);
+u32 std_map_OldMap_hash(std_map_OldMap *this, char *s);
+std_map_OldMapNode *std_map_OldMap_get_node(std_map_OldMap *this, char *key);
+void *std_map_OldMap_get(std_map_OldMap *this, char *key);
+bool std_map_OldMap_exists(std_map_OldMap *this, char *key);
+void std_map_OldMap_insert(std_map_OldMap *this, char *key, void *value);
+void std_map_OldMap_resize(std_map_OldMap *this);
+void std_map_OldMap_print_keys(std_map_OldMap *this);
+void std_map_OldMap_push_keys(std_map_OldMap *this, std_vector_OldVector *vec);
+void std_map_OldMap_free(std_map_OldMap *this);
+std_map_OldMapIterator std_map_OldMap_iter(std_map_OldMap *this);
+char *std_map_OldMapIterator_key(std_map_OldMapIterator *this);
+void *std_map_OldMapIterator_value(std_map_OldMapIterator *this);
+std_map_OldMapIterator std_map_OldMapIterator_make(std_map_OldMap *map);
+void std_map_OldMapIterator_next(std_map_OldMapIterator *this);
 std_vector_OldVector *std_vector_OldVector_new(u32 capacity);
 void std_vector_OldVector_resize(std_vector_OldVector *this, u32 new_capacity);
 void std_vector_OldVector_push(std_vector_OldVector *this, void *val);
@@ -1281,7 +1281,7 @@ void passes_register_types_RegisterTypes_add_dbg_method_for_enum(passes_register
   types_Type *typ = types_Type_new_resolved(types_BaseType_Function, span);
   typ->u.func=types_FunctionType_from_func(func);
   func->type=typ;
-  std_map_Map_insert(enum_->type->methods, "dbg", func);
+  std_map_OldMap_insert(enum_->type->methods, "dbg", func);
 }
 
 void passes_register_types_RegisterTypes_register_namespace(passes_register_types_RegisterTypes *this, ast_program_Namespace *ns) {
@@ -1295,9 +1295,9 @@ void passes_register_types_RegisterTypes_register_namespace(passes_register_type
     passes_register_types_RegisterTypes_register_enum(this, ns, enum_);
     passes_register_types_RegisterTypes_add_dbg_method_for_enum(this, enum_);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
-    char *name = std_map_MapIterator_key(&iter);
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
+    char *name = std_map_OldMapIterator_key(&iter);
     if (child->always_add_to_scope) {
       passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, child->sym);
     } 
@@ -1312,7 +1312,7 @@ void passes_register_types_RegisterTypes_register_base_type(passes_register_type
   types_Type *typ = types_Type_new_resolved(base, std_span_Span_default());
   typ->sym=sym;
   sym->u.type_def=typ;
-  std_map_Map_insert(this->o->program->global->scope->items, name, sym);
+  std_map_OldMap_insert(this->o->program->global->scope->items, name, sym);
 }
 
 void passes_register_types_RegisterTypes_register_alias(passes_register_types_RegisterTypes *this, char *name, types_Type *orig) {
@@ -1322,7 +1322,7 @@ void passes_register_types_RegisterTypes_register_alias(passes_register_types_Re
   alias->u.ptr=orig;
   alias->sym=sym;
   sym->u.type_def=alias;
-  std_map_Map_insert(this->o->program->global->scope->items, name, sym);
+  std_map_OldMap_insert(this->o->program->global->scope->items, name, sym);
 }
 
 void passes_register_types_RegisterTypes_register_builtin_types(passes_register_types_RegisterTypes *this) {
@@ -1441,7 +1441,7 @@ ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_gener
       } break;
       case ast_scopes_SymbolType_Structure: {
         ast_nodes_Structure *struc = sym->u.struc;
-        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_Map_get(struc->type->methods, name));
+        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMap_get(struc->type->methods, name));
         if ((error && !((bool)method))) {
           passes_generic_pass_GenericPass_error(this, errors_Error_new(sym->span, format_string("Could not find method %s in structure %s", name, sym->display)));
         } 
@@ -1452,7 +1452,7 @@ ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_gener
       } break;
       case ast_scopes_SymbolType_TypeDef: {
         types_Type *type_def = sym->u.type_def;
-        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_Map_get(type_def->methods, name));
+        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMap_get(type_def->methods, name));
         if ((error && !((bool)method))) {
           passes_generic_pass_GenericPass_error(this, errors_Error_new(sym->span, format_string("Could not find method %s in type %s", name, sym->display)));
         } 
@@ -1467,7 +1467,7 @@ ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_gener
         if (((bool)field)) 
         return field->sym;
         
-        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_Map_get(enum_->type->methods, name));
+        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMap_get(enum_->type->methods, name));
         if (((bool)method)) 
         return method->sym;
         
@@ -1517,16 +1517,16 @@ void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_
       passes_generic_pass_GenericPass_import_all_from_namespace(this, sym->u.ns);
     } break;
     case ast_scopes_SymbolType_TypeDef: {
-      std_map_Map *methods = sym->u.type_def->methods;
-      for (std_map_MapIterator iter = std_map_Map_iter(methods); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_MapIterator_value(&iter));
+      std_map_OldMap *methods = sym->u.type_def->methods;
+      for (std_map_OldMapIterator iter = std_map_OldMap_iter(methods); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMapIterator_value(&iter));
         passes_generic_pass_GenericPass_insert_into_scope_checked(this, method->sym);
       }
     } break;
     case ast_scopes_SymbolType_Structure: {
-      std_map_Map *methods = sym->u.struc->type->methods;
-      for (std_map_MapIterator iter = std_map_Map_iter(methods); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_MapIterator_value(&iter));
+      std_map_OldMap *methods = sym->u.struc->type->methods;
+      for (std_map_OldMapIterator iter = std_map_OldMap_iter(methods); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+        ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMapIterator_value(&iter));
         passes_generic_pass_GenericPass_insert_into_scope_checked(this, method->sym);
       }
     } break;
@@ -1811,9 +1811,9 @@ void passes_code_generator_CodeGenerator_gen_constants(passes_code_generator_Cod
     ast_nodes_AST *const_ = ((ast_nodes_AST *)std_vector_OldVector_at(ns->constants, i));
     passes_code_generator_CodeGenerator_gen_constant(this, const_);
   }
-  std_map_Map *children = ns->namespaces;
-  for (std_map_MapIterator iter = std_map_Map_iter(children); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+  std_map_OldMap *children = ns->namespaces;
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(children); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
     passes_code_generator_CodeGenerator_gen_constants(this, child);
   }
 }
@@ -1827,9 +1827,9 @@ void passes_code_generator_CodeGenerator_gen_global_variables(passes_code_genera
       std_buffer_Buffer_puts(&this->out, ";\n");
     } 
   }
-  std_map_Map *children = ns->namespaces;
-  for (std_map_MapIterator iter = std_map_Map_iter(children); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+  std_map_OldMap *children = ns->namespaces;
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(children); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
     passes_code_generator_CodeGenerator_gen_global_variables(this, child);
   }
 }
@@ -2515,9 +2515,9 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
     passes_code_generator_CodeGenerator_gen_function(this, func);
     
   }
-  std_map_Map *children = ns->namespaces;
-  for (std_map_MapIterator iter = std_map_Map_iter(children); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+  std_map_OldMap *children = ns->namespaces;
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(children); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
     passes_code_generator_CodeGenerator_gen_functions(this, child);
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
@@ -2542,9 +2542,9 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
     
     std_buffer_Buffer_puts(&this->out, ";\n");
   }
-  std_map_Map *children = ns->namespaces;
-  for (std_map_MapIterator iter = std_map_Map_iter(children); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+  std_map_OldMap *children = ns->namespaces;
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(children); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
     passes_code_generator_CodeGenerator_gen_function_decls(this, child);
   }
 }
@@ -2554,15 +2554,15 @@ void passes_code_generator_CodeGenerator_gen_enum_types(passes_code_generator_Co
     ast_nodes_Enum *enum_ = ((ast_nodes_Enum *)std_vector_OldVector_at(ns->enums, i));
     passes_code_generator_CodeGenerator_gen_enum(this, enum_);
   }
-  std_map_Map *children = ns->namespaces;
-  for (std_map_MapIterator iter = std_map_Map_iter(children); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+  std_map_OldMap *children = ns->namespaces;
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(children); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *child = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
     passes_code_generator_CodeGenerator_gen_enum_types(this, child);
   }
 }
 
 void passes_code_generator_CodeGenerator_gen_enum_dbg_method(passes_code_generator_CodeGenerator *this, ast_nodes_Enum *enum_) {
-  ast_nodes_Function *dbg = ((ast_nodes_Function *)std_map_Map_get(enum_->type->methods, "dbg"));
+  ast_nodes_Function *dbg = ((ast_nodes_Function *)std_map_OldMap_get(enum_->type->methods, "dbg"));
   passes_code_generator_CodeGenerator_gen_function_decl(this, dbg);
   std_buffer_Buffer_puts(&this->out, " {\n");
   this->indent+=((u32)1);
@@ -2817,14 +2817,14 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
 void passes_typechecker_TypeChecker_resolve_templated_struct_methods(passes_typechecker_TypeChecker *this, ast_nodes_Structure *old, ast_nodes_Structure *cur) {
   types_Type *old_type = old->type;
   types_Type *cur_type = cur->type;
-  std_map_Map *old_methods = old_type->methods;
-  std_map_Map *cur_methods = cur_type->methods;
-  for (std_map_MapIterator iter = std_map_Map_iter(old_methods); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    char *name = std_map_MapIterator_key(&iter);
-    ast_nodes_Function *method = ((ast_nodes_Function *)std_map_MapIterator_value(&iter));
+  std_map_OldMap *old_methods = old_type->methods;
+  std_map_OldMap *cur_methods = cur_type->methods;
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(old_methods); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    char *name = std_map_OldMapIterator_key(&iter);
+    ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMapIterator_value(&iter));
     ast_nodes_Function *new_method = ast_program_Program_get_function_deep_copy(this->o->program, method, passes_generic_pass_GenericPass_ns(this->o));
     new_method->parent_type=cur_type;
-    std_map_Map_insert(cur_methods, name, new_method);
+    std_map_OldMap_insert(cur_methods, name, new_method);
     ast_scopes_Symbol_update_parent(new_method->sym, cur_type->sym);
     std_vector_OldVector_push(passes_generic_pass_GenericPass_ns(this->o)->functions, new_method);
     if (!method->is_static) {
@@ -3311,7 +3311,7 @@ types_Type *passes_typechecker_TypeChecker_check_member(passes_typechecker_TypeC
     } 
   } 
   if (types_Type_can_have_methods(lhs)) {
-    ast_nodes_Function *method = ((ast_nodes_Function *)std_map_Map_get(lhs->methods, node->u.member.rhs_name));
+    ast_nodes_Function *method = ((ast_nodes_Function *)std_map_OldMap_get(lhs->methods, node->u.member.rhs_name));
     if (((bool)method)) {
       if (!is_being_called) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Cannot access method without calling it"));
@@ -3614,7 +3614,7 @@ types_Type *passes_typechecker_TypeChecker_call_dbg_on_enum_value(passes_typeche
 }
 
 void passes_typechecker_TypeChecker_check_match_for_enum(passes_typechecker_TypeChecker *this, ast_nodes_Enum *enum_, ast_nodes_AST *node, bool is_expr, types_Type *hint) {
-  std_map_Map *mapping = std_map_Map_new();
+  std_map_OldMap *mapping = std_map_OldMap_new();
   std_vector_OldVector *cases = node->u.match_stmt.cases;
   node->returns=(cases->size > ((u32)0));
   for (u32 i = ((u32)0); (i < cases->size); i+=((u32)1)) {
@@ -3633,11 +3633,11 @@ void passes_typechecker_TypeChecker_check_match_for_enum(passes_typechecker_Type
       continue;
     } 
     name=cond->resolved_symbol->name;
-    ast_nodes_MatchCase *prev = ((ast_nodes_MatchCase *)std_map_Map_get(mapping, name));
+    ast_nodes_MatchCase *prev = ((ast_nodes_MatchCase *)std_map_OldMap_get(mapping, name));
     if (((bool)prev)) {
       passes_typechecker_TypeChecker_error(this, errors_Error_new_hint(cond->span, "Duplicate condition name in match", prev->cond->span, "This condition was previously used here"));
     } 
-    std_map_Map_insert(mapping, name, _case);
+    std_map_OldMap_insert(mapping, name, _case);
     if (((bool)_case->body)) {
       passes_typechecker_TypeChecker_check_expression_statement(this, node, _case->body, is_expr, hint);
     } 
@@ -3658,7 +3658,7 @@ void passes_typechecker_TypeChecker_check_match_for_enum(passes_typechecker_Type
     passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Expression-match must yield a value"));
   } 
   /* defers */
-  std_map_Map_free(mapping);
+  std_map_OldMap_free(mapping);
 }
 
 void passes_typechecker_TypeChecker_check_match(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, bool is_expr, types_Type *hint) {
@@ -3925,7 +3925,7 @@ void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecke
         passes_typechecker_TypeChecker_error(this, errors_Error_new(default_expr->span, format_string("Default argument has type %s but expected %s", types_Type_str(default_type), types_Type_str(param->type))));
       } 
     } 
-    std_map_Map_insert(new_scope->items, param->sym->name, param->sym);
+    std_map_OldMap_insert(new_scope->items, param->sym->name, param->sym);
   }
   new_scope->cur_func=func;
   if (func->sym->is_extern) 
@@ -3947,8 +3947,8 @@ void passes_typechecker_TypeChecker_handle_namespace_imports(passes_typechecker_
     ast_nodes_AST *import_ = ((ast_nodes_AST *)std_vector_OldVector_at(imports, i));
     passes_typechecker_TypeChecker_handle_import_statement(this, import_);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    passes_typechecker_TypeChecker_handle_namespace_imports(this, std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    passes_typechecker_TypeChecker_handle_namespace_imports(this, std_map_OldMapIterator_value(&iter));
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
   passes_generic_pass_GenericPass_pop_namespace(this->o);
@@ -3990,8 +3990,8 @@ void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeCheck
     ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_OldVector_at(ns->variables, i));
     passes_typechecker_TypeChecker_check_global_variable(this, node);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    passes_typechecker_TypeChecker_check_namespace(this, std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    passes_typechecker_TypeChecker_check_namespace(this, std_map_OldMapIterator_value(&iter));
   }
   passes_generic_pass_GenericPass_pop_namespace(this->o);
   passes_generic_pass_GenericPass_pop_scope(this->o);
@@ -4164,13 +4164,13 @@ void passes_typechecker_TypeChecker_pre_check_function(passes_typechecker_TypeCh
       default: {
       } break;
     }
-    ast_nodes_Function *res = ((ast_nodes_Function *)std_map_Map_get(parent_type->methods, func->sym->name));
+    ast_nodes_Function *res = ((ast_nodes_Function *)std_map_OldMap_get(parent_type->methods, func->sym->name));
     if (((bool)res)) {
       passes_generic_pass_GenericPass_error(this->o, errors_Error_new_hint(func->sym->span, "Method with this name already exists", res->sym->span, "Previous definition here"));
       return ;
     } 
     ast_scopes_Symbol_update_parent(func->sym, parent_type->sym);
-    std_map_Map_insert(parent_type->methods, func->sym->name, func);
+    std_map_OldMap_insert(parent_type->methods, func->sym->name, func);
     func->parent_type=parent_type;
   }  else {
     ast_scopes_Symbol *item = func->sym;
@@ -4226,8 +4226,8 @@ void passes_typechecker_TypeChecker_check_function_declarations(passes_typecheck
     ast_nodes_Structure *struc = ((ast_nodes_Structure *)std_vector_OldVector_at(ns->structs, i));
     passes_typechecker_TypeChecker_resolve_struct(this, struc);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    passes_typechecker_TypeChecker_check_function_declarations(this, std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    passes_typechecker_TypeChecker_check_function_declarations(this, std_map_OldMapIterator_value(&iter));
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
   passes_generic_pass_GenericPass_pop_namespace(this->o);
@@ -4253,8 +4253,8 @@ void passes_typechecker_TypeChecker_pre_check_constants(passes_typechecker_TypeC
     ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_OldVector_at(ns->constants, i));
     passes_typechecker_TypeChecker_pre_check_globals(this, node, true);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    passes_typechecker_TypeChecker_pre_check_constants(this, std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    passes_typechecker_TypeChecker_pre_check_constants(this, std_map_OldMapIterator_value(&iter));
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
 }
@@ -4269,8 +4269,8 @@ void passes_typechecker_TypeChecker_pre_check_namespace(passes_typechecker_TypeC
     ast_nodes_AST *node = ((ast_nodes_AST *)std_vector_OldVector_at(ns->variables, i));
     passes_typechecker_TypeChecker_pre_check_globals(this, node, false);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    passes_typechecker_TypeChecker_pre_check_namespace(this, std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    passes_typechecker_TypeChecker_pre_check_namespace(this, std_map_OldMapIterator_value(&iter));
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
 }
@@ -4325,8 +4325,8 @@ void passes_namespace_dump_NamespaceDump_print_namespace(passes_namespace_dump_N
     passes_namespace_dump_NamespaceDump_print_indent(this);
     printf("(const) %s\n", var->sym->display);
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    ast_program_Namespace *next = ((ast_program_Namespace *)std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    ast_program_Namespace *next = ((ast_program_Namespace *)std_map_OldMapIterator_value(&iter));
     passes_namespace_dump_NamespaceDump_print_namespace(this, next);
   }
   this->indent-=((u32)1);
@@ -4341,13 +4341,13 @@ void passes_namespace_dump_NamespaceDump_run(ast_program_Program *program) {
 
 passes_reorder_structs_ReorderStructs *passes_reorder_structs_ReorderStructs_new(ast_program_Program *program) {
   passes_reorder_structs_ReorderStructs *pass = ((passes_reorder_structs_ReorderStructs *)calloc(((u32)1), ((u32)sizeof(passes_reorder_structs_ReorderStructs))));
-  *pass=(passes_reorder_structs_ReorderStructs){.o=passes_generic_pass_GenericPass_new(program), .all_structs=std_vector_OldVector_new(((u32)16)), .done=std_map_Map_new()};
+  *pass=(passes_reorder_structs_ReorderStructs){.o=passes_generic_pass_GenericPass_new(program), .all_structs=std_vector_OldVector_new(((u32)16)), .done=std_map_OldMap_new()};
   return pass;
 }
 
 void passes_reorder_structs_ReorderStructs_free(passes_reorder_structs_ReorderStructs *this) {
   std_vector_OldVector_free(this->all_structs);
-  std_map_Map_free(this->done);
+  std_map_OldMap_free(this->done);
   free(this->o);
   free(this);
 }
@@ -4366,16 +4366,16 @@ void passes_reorder_structs_ReorderStructs_collect_all_structs(passes_reorder_st
       std_vector_OldVector_push(this->all_structs, struc);
     } 
   }
-  for (std_map_MapIterator iter = std_map_Map_iter(ns->namespaces); ((bool)iter.cur); std_map_MapIterator_next(&iter)) {
-    passes_reorder_structs_ReorderStructs_collect_all_structs(this, std_map_MapIterator_value(&iter));
+  for (std_map_OldMapIterator iter = std_map_OldMap_iter(ns->namespaces); ((bool)iter.cur); std_map_OldMapIterator_next(&iter)) {
+    passes_reorder_structs_ReorderStructs_collect_all_structs(this, std_map_OldMapIterator_value(&iter));
   }
 }
 
 void passes_reorder_structs_ReorderStructs_dfs(passes_reorder_structs_ReorderStructs *this, ast_nodes_Structure *struc) {
-  if (((bool)std_map_Map_get(this->done, struc->sym->out_name))) 
+  if (((bool)std_map_OldMap_get(this->done, struc->sym->out_name))) 
   return ;
   
-  std_map_Map_insert(this->done, struc->sym->out_name, struc);
+  std_map_OldMap_insert(this->done, struc->sym->out_name, struc);
   for (u32 i = ((u32)0); (i < struc->fields->size); i+=((u32)1)) {
     ast_nodes_Variable *field = ((ast_nodes_Variable *)std_vector_OldVector_at(struc->fields, i));
     if ((((bool)field->type) && field->type->base==types_BaseType_Structure)) {
@@ -5605,7 +5605,7 @@ void parser_Parser_parse_namespace_until(parser_Parser *this, tokens_TokenType e
         new_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, old_ns->sym, name->text, name->span);
         new_ns->sym->u.ns=new_ns;
         new_ns->always_add_to_scope=true;
-        std_map_Map_insert(old_ns->namespaces, name->text, new_ns);
+        std_map_OldMap_insert(old_ns->namespaces, name->text, new_ns);
         this->ns=new_ns;
         parser_Parser_consume(this, tokens_TokenType_OpenCurly);
         parser_Parser_parse_namespace_until(this, tokens_TokenType_CloseCurly);
@@ -5707,7 +5707,7 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ol
       next=ast_program_Namespace_new(base, part_path);
       next->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, base->sym, part_name, part->span);
       next->sym->u.ns=next;
-      std_map_Map_insert(base->namespaces, part_name, next);
+      std_map_OldMap_insert(base->namespaces, part_name, next);
       if (file_exists) {
         parser_Parser parser = parser_Parser_make(this->program, next);
         parser_Parser_load_file(&parser, strdup(path));
@@ -5749,7 +5749,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
 void parser_Parser_load_file(parser_Parser *this, char *filename) {
   FILE *file = FILE_open(filename, "r");
   char *contents = FILE_slurp(file);
-  std_map_Map_insert(this->program->sources, filename, contents);
+  std_map_OldMap_insert(this->program->sources, filename, contents);
   lexer_Lexer lexer = lexer_Lexer_make(contents, filename);
   this->tokens=lexer_Lexer_lex(&lexer);
   this->curr=0;
@@ -5768,7 +5768,7 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   ast_program_Namespace *std_ns = ast_program_Namespace_new(program->global, "./std");
   std_ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, program->global->sym, "std", std_span_Span_default());
   std_ns->sym->u.ns=std_ns;
-  std_map_Map_insert(program->global->namespaces, "std", std_ns);
+  std_map_OldMap_insert(program->global->namespaces, "std", std_ns);
   std_ns->always_add_to_scope=true;
   std_ns->is_top_level=true;
   parser_Parser parser = parser_Parser_make(program, std_ns);
@@ -5776,7 +5776,7 @@ void parser_Parser_parse_toplevel(char *filename, ast_program_Program *program) 
   ast_program_Namespace *ns = ast_program_Namespace_new(program->global, filename);
   ns->sym=ast_scopes_Symbol_new(ast_scopes_SymbolType_Namespace, "", "", "", std_span_Span_default());
   ns->sym->u.ns=ns;
-  std_map_Map_insert(program->global->namespaces, base, ns);
+  std_map_OldMap_insert(program->global->namespaces, base, ns);
   program->global->path=dir;
   parser.ns=ns;
   parser_Parser_load_file(&parser, filename);
@@ -5880,7 +5880,7 @@ ast_scopes_Symbol *ast_scopes_Symbol_from_local_variable(char *name, ast_nodes_V
 
 ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent) {
   ast_scopes_Scope *scope = ((ast_scopes_Scope *)calloc(((u32)1), ((u32)sizeof(ast_scopes_Scope))));
-  scope->items=std_map_Map_new();
+  scope->items=std_map_OldMap_new();
   scope->defers=std_vector_OldVector_new(((u32)16));
   if (((bool)parent)) {
     scope->loop_count=parent->loop_count;
@@ -5892,7 +5892,7 @@ ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent) {
 }
 
 ast_scopes_Symbol *ast_scopes_Scope_lookup_recursive(ast_scopes_Scope *this, char *name) {
-  ast_scopes_Symbol *item = ((ast_scopes_Symbol *)std_map_Map_get(this->items, name));
+  ast_scopes_Symbol *item = ((ast_scopes_Symbol *)std_map_OldMap_get(this->items, name));
   if (((bool)item)) 
   return item;
   
@@ -5903,11 +5903,11 @@ ast_scopes_Symbol *ast_scopes_Scope_lookup_recursive(ast_scopes_Scope *this, cha
 }
 
 ast_scopes_Symbol *ast_scopes_Scope_lookup_local(ast_scopes_Scope *this, char *name) {
-  return ((ast_scopes_Symbol *)std_map_Map_get(this->items, name));
+  return ((ast_scopes_Symbol *)std_map_OldMap_get(this->items, name));
 }
 
 void ast_scopes_Scope_insert(ast_scopes_Scope *this, char *name, ast_scopes_Symbol *symbol) {
-  std_map_Map_insert(this->items, name, symbol);
+  std_map_OldMap_insert(this->items, name, symbol);
 }
 
 ast_program_Program *ast_program_Program_new(void) {
@@ -5920,7 +5920,7 @@ ast_program_Program *ast_program_Program_new(void) {
   prog->errors=std_vector_OldVector_new(((u32)16));
   prog->c_includes=std_vector_OldVector_new(((u32)16));
   prog->c_flags=std_vector_OldVector_new(((u32)16));
-  prog->sources=std_map_Map_new();
+  prog->sources=std_map_OldMap_new();
   return prog;
 }
 
@@ -5932,7 +5932,7 @@ void ast_program_Program_exit_with_errors(ast_program_Program *this) {
 char *ast_program_Program_get_source_text(ast_program_Program *this, std_span_Span span) {
   std_span_Location start = span.start;
   std_span_Location end = span.end;
-  char *contents = ((char *)std_map_Map_get(this->sources, start.filename));
+  char *contents = ((char *)std_map_OldMap_get(this->sources, start.filename));
   if (contents==NULL) 
   return "<unknown source>";
   
@@ -5974,7 +5974,7 @@ ast_program_Namespace *ast_program_Namespace_new(ast_program_Namespace *parent, 
   ns->enums=std_vector_OldVector_new(((u32)16));
   ns->constants=std_vector_OldVector_new(((u32)16));
   ns->variables=std_vector_OldVector_new(((u32)16));
-  ns->namespaces=std_map_Map_new();
+  ns->namespaces=std_map_OldMap_new();
   ns->imports=std_vector_OldVector_new(((u32)16));
   ns->path=path;
   ns->is_a_file=false;
@@ -5982,7 +5982,7 @@ ast_program_Namespace *ast_program_Namespace_new(ast_program_Namespace *parent, 
 }
 
 ast_scopes_Symbol *ast_program_Namespace_find_importable_symbol(ast_program_Namespace *this, char *name) {
-  ast_program_Namespace *item = ((ast_program_Namespace *)std_map_Map_get(this->namespaces, name));
+  ast_program_Namespace *item = ((ast_program_Namespace *)std_map_OldMap_get(this->namespaces, name));
   if (((bool)item)) 
   return item->sym;
   
@@ -6791,31 +6791,31 @@ bool std_span_Span_starts_right_after(std_span_Span this, std_span_Span other) {
   return this.start.index==other.end.index;
 }
 
-std_map_MapNode *std_map_MapNode_new(char *key, void *value, std_map_MapNode *next) {
-  std_map_MapNode *node = ((std_map_MapNode *)calloc(((u32)1), ((u32)sizeof(std_map_MapNode))));
+std_map_OldMapNode *std_map_OldMapNode_new(char *key, void *value, std_map_OldMapNode *next) {
+  std_map_OldMapNode *node = ((std_map_OldMapNode *)calloc(((u32)1), ((u32)sizeof(std_map_OldMapNode))));
   node->key=key;
   node->value=value;
   node->next=next;
   return node;
 }
 
-void std_map_MapNode_free_list(std_map_MapNode *node) {
-  std_map_MapNode *cur = node;
+void std_map_OldMapNode_free_list(std_map_OldMapNode *node) {
+  std_map_OldMapNode *cur = node;
   while (((bool)cur)) {
-    std_map_MapNode *next = cur->next;
+    std_map_OldMapNode *next = cur->next;
     free(cur);
     cur=next;
   }
 }
 
-std_map_Map *std_map_Map_new(void) {
-  std_map_Map *map = ((std_map_Map *)calloc(((u32)1), ((u32)sizeof(std_map_Map))));
+std_map_OldMap *std_map_OldMap_new(void) {
+  std_map_OldMap *map = ((std_map_OldMap *)calloc(((u32)1), ((u32)sizeof(std_map_OldMap))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_MapNode **)calloc(map->num_buckets, ((u32)sizeof(std_map_MapNode *))));
+  map->buckets=((std_map_OldMapNode **)calloc(map->num_buckets, ((u32)sizeof(std_map_OldMapNode *))));
   return map;
 }
 
-u32 std_map_Map_hash(std_map_Map *this, char *s) {
+u32 std_map_OldMap_hash(std_map_OldMap *this, char *s) {
   u32 hash = ((u32)5381);
   u32 len = str_len(s);
   for (u32 i = ((u32)0); (i < len); i+=((u32)1)) {
@@ -6828,9 +6828,9 @@ u32 std_map_Map_hash(std_map_Map *this, char *s) {
   return hash;
 }
 
-std_map_MapNode *std_map_Map_get_node(std_map_Map *this, char *key) {
-  u32 hash = std_map_Map_hash(this, key);
-  std_map_MapNode *node = this->buckets[hash];
+std_map_OldMapNode *std_map_OldMap_get_node(std_map_OldMap *this, char *key) {
+  u32 hash = std_map_OldMap_hash(this, key);
+  std_map_OldMapNode *node = this->buckets[hash];
   while (((bool)node)) {
     if (str_eq(node->key, key)) {
       return node;
@@ -6840,48 +6840,48 @@ std_map_MapNode *std_map_Map_get_node(std_map_Map *this, char *key) {
   return NULL;
 }
 
-void *std_map_Map_get(std_map_Map *this, char *key) {
-  std_map_MapNode *node = std_map_Map_get_node(this, key);
+void *std_map_OldMap_get(std_map_OldMap *this, char *key) {
+  std_map_OldMapNode *node = std_map_OldMap_get_node(this, key);
   if (((bool)node)) {
     return node->value;
   } 
   return NULL;
 }
 
-bool std_map_Map_exists(std_map_Map *this, char *key) {
-  return ((bool)std_map_Map_get_node(this, key));
+bool std_map_OldMap_exists(std_map_OldMap *this, char *key) {
+  return ((bool)std_map_OldMap_get_node(this, key));
 }
 
-void std_map_Map_insert(std_map_Map *this, char *key, void *value) {
-  std_map_MapNode *node = std_map_Map_get_node(this, key);
+void std_map_OldMap_insert(std_map_OldMap *this, char *key, void *value) {
+  std_map_OldMapNode *node = std_map_OldMap_get_node(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
-    u32 hash = std_map_Map_hash(this, key);
-    std_map_MapNode *new_node = std_map_MapNode_new(key, value, this->buckets[hash]);
+    u32 hash = std_map_OldMap_hash(this, key);
+    std_map_OldMapNode *new_node = std_map_OldMapNode_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
     this->buckets[hash]=new_node;
     this->num_items+=((u32)1);
     if ((this->num_items > this->num_buckets)) {
-      std_map_Map_resize(this);
+      std_map_OldMap_resize(this);
     } 
   } 
 }
 
-void std_map_Map_resize(std_map_Map *this) {
-  std_map_MapNode **old_buckets = this->buckets;
+void std_map_OldMap_resize(std_map_OldMap *this) {
+  std_map_OldMapNode **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_MapNode **)calloc(this->num_buckets, ((u32)sizeof(std_map_MapNode *))));
+  this->buckets=((std_map_OldMapNode **)calloc(this->num_buckets, ((u32)sizeof(std_map_OldMapNode *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_MapNode *node = old_buckets[i];
+    std_map_OldMapNode *node = old_buckets[i];
     while (((bool)node)) {
-      u32 new_hash = std_map_Map_hash(this, node->key);
-      std_map_MapNode *new_node = std_map_MapNode_new(node->key, node->value, this->buckets[new_hash]);
+      u32 new_hash = std_map_OldMap_hash(this, node->key);
+      std_map_OldMapNode *new_node = std_map_OldMapNode_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -6890,14 +6890,14 @@ void std_map_Map_resize(std_map_Map *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_MapNode_free_list(old_buckets[i]);
+    std_map_OldMapNode_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
 
-void std_map_Map_print_keys(std_map_Map *this) {
+void std_map_OldMap_print_keys(std_map_OldMap *this) {
   for (u32 i = ((u32)0); (i < this->num_buckets); i+=((u32)1)) {
-    std_map_MapNode *node = this->buckets[i];
+    std_map_OldMapNode *node = this->buckets[i];
     while (((bool)node)) {
       printf("- '%s'\n""\n", node->key);
       node=node->next;
@@ -6905,9 +6905,9 @@ void std_map_Map_print_keys(std_map_Map *this) {
   }
 }
 
-void std_map_Map_push_keys(std_map_Map *this, std_vector_OldVector *vec) {
+void std_map_OldMap_push_keys(std_map_OldMap *this, std_vector_OldVector *vec) {
   for (u32 i = ((u32)0); (i < this->num_buckets); i+=((u32)1)) {
-    std_map_MapNode *node = this->buckets[i];
+    std_map_OldMapNode *node = this->buckets[i];
     while (((bool)node)) {
       std_vector_OldVector_push(vec, node->key);
       node=node->next;
@@ -6915,32 +6915,32 @@ void std_map_Map_push_keys(std_map_Map *this, std_vector_OldVector *vec) {
   }
 }
 
-void std_map_Map_free(std_map_Map *this) {
+void std_map_OldMap_free(std_map_OldMap *this) {
   for (u32 i = ((u32)0); (i < this->num_buckets); i+=((u32)1)) {
-    std_map_MapNode_free_list(this->buckets[i]);
+    std_map_OldMapNode_free_list(this->buckets[i]);
   }
   free(this->buckets);
 }
 
-std_map_MapIterator std_map_Map_iter(std_map_Map *this) {
-  return std_map_MapIterator_make(this);
+std_map_OldMapIterator std_map_OldMap_iter(std_map_OldMap *this) {
+  return std_map_OldMapIterator_make(this);
 }
 
-char *std_map_MapIterator_key(std_map_MapIterator *this) {
+char *std_map_OldMapIterator_key(std_map_OldMapIterator *this) {
   return this->cur->key;
 }
 
-void *std_map_MapIterator_value(std_map_MapIterator *this) {
+void *std_map_OldMapIterator_value(std_map_OldMapIterator *this) {
   return this->cur->value;
 }
 
-std_map_MapIterator std_map_MapIterator_make(std_map_Map *map) {
-  std_map_MapIterator it = (std_map_MapIterator){.idx=-1, .cur=NULL, .map=map};
-  std_map_MapIterator_next(&it);
+std_map_OldMapIterator std_map_OldMapIterator_make(std_map_OldMap *map) {
+  std_map_OldMapIterator it = (std_map_OldMapIterator){.idx=-1, .cur=NULL, .map=map};
+  std_map_OldMapIterator_next(&it);
   return it;
 }
 
-void std_map_MapIterator_next(std_map_MapIterator *this) {
+void std_map_OldMapIterator_next(std_map_OldMapIterator *this) {
   while ((this->idx < ((i32)this->map->num_buckets))) {
     while (((bool)this->cur)) {
       this->cur=this->cur->next;
@@ -6949,7 +6949,7 @@ void std_map_MapIterator_next(std_map_MapIterator *this) {
       
     }
     this->idx+=1;
-    this->cur=({ std_map_MapNode *__yield_0;
+    this->cur=({ std_map_OldMapNode *__yield_0;
       if ((this->idx < ((i32)this->map->num_buckets))) {
         __yield_0 = this->map->buckets[this->idx];
       }  else {
@@ -7386,7 +7386,7 @@ types_Type *types_Type_new_resolved(types_BaseType base, std_span_Span span) {
   type->base=base;
   type->span=span;
   type->name=types_BaseType_str(base);
-  type->methods=std_map_Map_new();
+  type->methods=std_map_OldMap_new();
   return type;
 }
 
