@@ -1,7 +1,7 @@
 import std::vector::OldVector
 import std::span::Span
 import std::buffer::Buffer
-import std::map::Map
+import std::map::OldMap
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
@@ -912,7 +912,7 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
 
 
 def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: bool, hint: &Type = null) {
-    let mapping = Map::new()
+    let mapping = OldMap::new()
     defer mapping.free()
 
     let cases = node.u.match_stmt.cases
