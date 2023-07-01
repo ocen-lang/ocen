@@ -175,7 +175,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
 
     // Update the display/output name of the specialization
     // FIXME: Maybe a better name-mangling scheme? This is not very debuggable.
-    let new_out_name = `{struc.sym.out_name}__{struc.template_instances.size}`
+    let new_out_name = `{struc.sym.name}__{struc.template_instances.size}`
     let sym = Symbol::new_with_parent(Structure, parent_ns, parent_ns.sym, new_out_name, struc.sym.span)
     sym.display = new_display_name.str()
 

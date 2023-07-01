@@ -448,11 +448,7 @@ def AST::is_identifier(&this): bool => match .type {
     else => false
 }
 
-def AST::symbol(&this): &Symbol => match .type {
-    Identifier => .resolved_symbol
-    NSLookup => .resolved_symbol
-    else => null
-}
+def AST::symbol(&this): &Symbol => .resolved_symbol
 
 def AST::is_lvalue(&this): bool => match .type {
     // FIXME: What about `a::b::c?`

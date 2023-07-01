@@ -386,7 +386,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
 
             let sym = callee.symbol()
-            if sym? and sym.type == Structure {
+            if sym? and sym.type == Structure and node.u.call.is_constructor {
                 .gen_constructor(node, sym.u.struc)
                 return
             }
