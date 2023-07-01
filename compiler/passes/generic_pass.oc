@@ -1,6 +1,5 @@
 import std::vector::Vector
 import std::span::Span
-import std::map::OldMap
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
@@ -111,7 +110,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): 
     }
     SymbolType::Structure => {
         let struc = sym.u.struc
-        let method = struc.type.methods.get(name) as &Function
+        let method = struc.type.methods.get(name, null)
         if error and not method? {
             .error(Error::new(sym.span, `Could not find method {name} in structure {sym.display}`))
         }
@@ -120,7 +119,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): 
     }
     SymbolType::TypeDef => {
         let type_def = sym.u.type_def
-        let method = type_def.methods.get(name) as &Function
+        let method = type_def.methods.get(name, null)
         if error and not method? {
             .error(Error::new(sym.span, `Could not find method {name} in type {sym.display}`))
         }
@@ -132,7 +131,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): 
         let field = enum_.get_field(name) as &Variable
         if field? then return field.sym
 
-        let method = enum_.type.methods.get(name) as &Function
+        let method = enum_.type.methods.get(name, null)
         if method? then return method.sym
 
         if error {

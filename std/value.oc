@@ -1,6 +1,6 @@
 // A dynamically typed value, useful for JSON + other stuff
 import std::vector::Vector
-import std::map::OldMap
+import std::map::Map
 import std::json
 import std::buffer::Buffer
 import std::span::Span
@@ -22,7 +22,7 @@ union ValueUnion {
     as_num: i64
     as_str: Buffer
     as_list: &Vector<&Value>
-    as_dict: &OldMap    // &OldMap<str, Value>
+    as_dict: &Map<str, &Value>
 }
 
 struct Value {
@@ -35,7 +35,7 @@ def Value::new(type: ValueType): &Value {
     let val = calloc(1, sizeof(Value)) as &Value
     val.type = type
     match type {
-        Dictionary => val.u.as_dict = OldMap::new()
+        Dictionary => val.u.as_dict = Map<str, &Value>::new()
         List => val.u.as_list = Vector<&Value>::new()
         else => {}
     }
@@ -68,7 +68,7 @@ def Value::new_list(vec: &Vector<&Value>): &Value {
     return val
 }
 
-def Value::new_dict(map: &OldMap): &Value {
+def Value::new_dict(map: &Map<str, &Value>): &Value {
     let val = Value::new(Dictionary)
     free(val.u.as_dict)
     val.u.as_dict = map
@@ -99,9 +99,9 @@ def Value::push(&this, value: &Value) {
     .u.as_list.push(value)
 }
 
-def Value::get(&this, key: str): &Value {
+def Value::get(&this, key: str, defolt: &Value = null): &Value {
     .ensure(Dictionary)
-    return .u.as_dict.get(key)
+    return .u.as_dict.get(key, defolt)
 }
 
 def Value::insert(&this, key: str, value: &Value) {
@@ -129,7 +129,7 @@ def Value::as_list(&this): &Vector<&Value> {
     return .u.as_list
 }
 
-def Value::as_dict(&this): &OldMap {
+def Value::as_dict(&this): &Map<str, &Value> {
     .ensure(Dictionary)
     return .u.as_dict
 }
@@ -152,10 +152,10 @@ def Value::free(&this) {
         Dictionary => {
             let map = .u.as_dict
             for let iter = map.iter(); iter.cur?; iter.next() {
-                free(iter.cur.key)
-                Value::free(iter.cur.value)
+                free(iter.key())
+                iter.value().free()
             }
-            OldMap::free(.u.as_dict)
+            .u.as_dict.free()
         }
         else => {}
     }

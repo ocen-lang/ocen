@@ -2,7 +2,7 @@ import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
 import @ast::scopes::Symbol
 import @ast::program::Namespace
 import std::vector::Vector
-import std::map::OldMap
+import std::map::Map
 import std::span::Span
 import std::libc::calloc
 import @tokens::{ Token, TokenType }
@@ -99,7 +99,7 @@ struct Type {
     base: BaseType
     span: Span
     u: TypeUnion
-    methods: &OldMap // OldMap<str, &Function>
+    methods: &Map<str, &Function>
     sym: &Symbol
 }
 
@@ -108,7 +108,7 @@ def Type::new_resolved(base: BaseType, span: Span): &Type {
     type.base = base
     type.span = span
     type.name = base.str()
-    type.methods = OldMap::new()
+    type.methods = Map<str, &Function>::new()
     return type
 }
 

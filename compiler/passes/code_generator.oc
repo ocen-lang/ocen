@@ -957,7 +957,7 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
 
 def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
     // Output debug info for enum
-    let dbg = enum_.type.methods.get("dbg") as &Function
+    let dbg = enum_.type.methods.at("dbg")
     .gen_function_decl(dbg)
     .out.puts(" {\n")
     .indent += 1
