@@ -1,15 +1,15 @@
 import std::buffer::Buffer
-import std::vector::Vector
+import std::vector::OldVector
 import std::value::{ Value, ValueType }
 import std::span::{ Span, Location }
 import std::libc::calloc
 
 struct Parser {
-    tokens: &Vector
+    tokens: &OldVector
     curr: u32
 }
 
-def Parser::make(tokens: &Vector): Parser {
+def Parser::make(tokens: &OldVector): Parser {
     let parser: Parser
     parser.tokens = tokens
     parser.curr = 0
@@ -189,7 +189,7 @@ struct Lexer {
     source_len: u32
     i: u32
     loc: Location
-    tokens: &Vector
+    tokens: &OldVector
 }
 
 def Lexer::make(source: str, filename: str): Lexer {
@@ -198,7 +198,7 @@ def Lexer::make(source: str, filename: str): Lexer {
         source_len: source.len(),
         i: 0,
         loc: Location(filename, 1, 1, 0),
-        tokens: Vector::new()
+        tokens: OldVector::new()
     )
 }
 
@@ -287,7 +287,7 @@ def Lexer::lex_numeric_literal(&this) {
     .push(token)
 }
 
-def Lexer::lex(&this): &Vector {
+def Lexer::lex(&this): &OldVector {
     while .i < .source_len {
         let c = .cur()
         match c {
