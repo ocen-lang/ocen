@@ -3,7 +3,7 @@ import @ast::program::Namespace
 import @types::Type
 import std::span::Span
 import std::map::Map
-import std::vector::Vector
+import std::vector::OldVector
 import std::libc::calloc
 
 enum SymbolType {
@@ -76,7 +76,7 @@ def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol 
 
 struct Scope {
     items: &Map // &Map<str, &Symbol>
-    defers: &Vector // &Vector<&AST>
+    defers: &OldVector // &OldVector<&AST>
 
     loop_count: u32
     can_yield: bool
@@ -88,7 +88,7 @@ struct Scope {
 def Scope::new(parent: &Scope): &Scope {
     let scope = calloc(1, sizeof(Scope)) as &Scope
     scope.items = Map::new()
-    scope.defers = Vector::new()
+    scope.defers = OldVector::new()
     if parent? {
         scope.loop_count = parent.loop_count
         scope.can_yield = parent.can_yield

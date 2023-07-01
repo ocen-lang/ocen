@@ -1,7 +1,7 @@
 import std::libc::{ realloc, calloc, memcpy, free, exit }
 
 // Maybe abstract away the resizing with a `Buffer` type, 
-// and share this with `Vector`
+// and share this with `OldVector`
 struct Buffer {
     data: &u8
     size: u32
