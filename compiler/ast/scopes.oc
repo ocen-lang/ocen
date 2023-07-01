@@ -1,9 +1,9 @@
-import @ast::nodes::{ Structure, Enum, Variable, Function }
+import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
 import @ast::program::Namespace
 import @types::Type
 import std::span::Span
 import std::map::OldMap
-import std::vector::OldVector
+import std::vector::Vector
 import std::libc::calloc
 
 enum SymbolType {
@@ -79,7 +79,7 @@ def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol 
 
 struct Scope {
     items: &OldMap // &OldMap<str, &Symbol>
-    defers: &OldVector // &OldVector<&AST>
+    defers: &Vector<&AST>
 
     loop_count: u32
     can_yield: bool
@@ -91,7 +91,7 @@ struct Scope {
 def Scope::new(parent: &Scope): &Scope {
     let scope = calloc(1, sizeof(Scope)) as &Scope
     scope.items = OldMap::new()
-    scope.defers = OldVector::new()
+    scope.defers = Vector<&AST>::new()
     if parent? {
         scope.loop_count = parent.loop_count
         scope.can_yield = parent.can_yield

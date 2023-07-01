@@ -1,6 +1,6 @@
 // A simple hash-map that maps strs to arbitrary objects.
 
-import std::vector::OldVector
+import std::vector::Vector
 import std::libc::{calloc, realloc, free}
 
 struct OldMapNode {
@@ -130,7 +130,7 @@ def OldMap::print_keys(&this) {
     }
 }
 
-def OldMap::push_keys(&this, vec: &OldVector) {
+def OldMap::push_keys(&this, vec: &Vector<str>) {
     for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
         while node? {

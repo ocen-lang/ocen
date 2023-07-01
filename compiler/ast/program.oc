@@ -1,9 +1,10 @@
-import std::vector::OldVector
+import std::vector::Vector
 import std::span::Span
 import std::map::OldMap
 import std::libc::{ calloc, exit }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
+import @errors::Error
 import @types::Type
 import @parser::Parser
 import @lexer::Lexer
@@ -14,13 +15,13 @@ struct Program {
 
     // This vector stores the order in which the structs should be generated
     // to avoid dependency issues
-    ordered_structs: &OldVector // OldVector<&Structure>
+    ordered_structs: &Vector<&Structure>
 
-    errors: &OldVector // OldVector<&Error>
+    errors: &Vector<&Error>
     error_level: u32
 
-    c_includes: &OldVector // OldVector<str>
-    c_flags: &OldVector // OldVector<str>
+    c_includes: &Vector<str>
+    c_flags: &Vector<str>
 
     gen_debug_info: bool
     sources: &OldMap  // OldMap<str, str>
@@ -29,7 +30,7 @@ struct Program {
 def Program::new(): &Program {
     let prog = calloc(1, sizeof(Program)) as &Program
     prog.global = Namespace::new(null, "")
-    prog.ordered_structs = OldVector::new()
+    prog.ordered_structs = Vector<&Structure>::new()
     prog.global.sym = Symbol::new(
         Namespace,
         ns: prog.global,
@@ -40,9 +41,9 @@ def Program::new(): &Program {
     )
     prog.global.sym.u.ns = prog.global
     prog.error_level = 1
-    prog.errors = OldVector::new()
-    prog.c_includes = OldVector::new()
-    prog.c_flags = OldVector::new()
+    prog.errors = Vector<&Error>::new()
+    prog.c_includes = Vector<str>::new()
+    prog.c_flags = Vector<str>::new()
     prog.sources = OldMap::new()
     return prog
 }
@@ -104,12 +105,12 @@ def Program::get_type_deep_copy(&this, old: &Type, ns: &Namespace): &Type {
 struct Namespace {
     parent: &Namespace
 
-    functions: &OldVector    // OldVector<&Function>
-    structs: &OldVector      // OldVector<&Structure>
-    enums: &OldVector        // OldVector<&Enum>
-    constants: &OldVector    // OldVector<&VarDeclaration>
-    variables: &OldVector    // OldVector<&VarDeclaration>
-    imports: &OldVector      // OldVector<&AST>
+    functions: &Vector<&Function>
+    structs: &Vector<&Structure>
+    enums: &Vector<&Enum>
+    constants: &Vector<&AST>
+    variables: &Vector<&AST>
+    imports: &Vector<&AST>
     namespaces: &OldMap      // OldMap<str, &Namespace>
 
     sym: &Symbol
@@ -137,13 +138,13 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.parent = parent
     let parent_scope = if parent? then parent.scope else null
     ns.scope = Scope::new(parent_scope)
-    ns.functions = OldVector::new()
-    ns.structs = OldVector::new()
-    ns.enums = OldVector::new()
-    ns.constants = OldVector::new()
-    ns.variables = OldVector::new()
+    ns.functions = Vector<&Function>::new()
+    ns.structs = Vector<&Structure>::new()
+    ns.enums = Vector<&Enum>::new()
+    ns.constants = Vector<&AST>::new()
+    ns.variables = Vector<&AST>::new()
     ns.namespaces = OldMap::new()
-    ns.imports = OldVector::new()
+    ns.imports = Vector<&AST>::new()
     ns.path = path
     ns.is_a_file = false
     return ns
