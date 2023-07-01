@@ -41,7 +41,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
     let span = enum_.sym.span
 
     let func = Function::new()
-    func.sym = Symbol::new_with_parent(Function, enum_.sym, "dbg", span)
+    func.sym = Symbol::new_with_parent(Function, enum_.sym.ns, enum_.sym, "dbg", span)
     func.sym.u.func = func
     func.return_type = .o.get_type_by_name("str", span)
     func.is_method = true
@@ -83,7 +83,7 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
 
 def RegisterTypes::register_base_type(&this, base: BaseType) {
     let name = base.str()
-    let sym = Symbol::new(TypeDef, name, name, name, Span::default())
+    let sym = Symbol::new(TypeDef, ns: null, name, name, name, Span::default())
     let typ = Type::new_resolved(base, Span::default())
     typ.sym = sym
     sym.u.type_def = typ
@@ -93,7 +93,7 @@ def RegisterTypes::register_base_type(&this, base: BaseType) {
 }
 
 def RegisterTypes::register_alias(&this, name: str, orig: &Type) {
-    let sym = Symbol::new(TypeDef, name, name, name, Span::default())
+    let sym = Symbol::new(TypeDef, ns: null, name, name, name, Span::default())
 
     let alias = Type::new_resolved(BaseType::Alias, Span::default())
     alias.name = name

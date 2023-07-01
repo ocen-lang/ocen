@@ -213,6 +213,7 @@ struct Function {
     body: &AST
     exits: bool
     span: Span
+    scope: &Scope
 
     type: &Type
     checked: bool
