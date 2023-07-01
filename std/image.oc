@@ -42,6 +42,8 @@ def Image::save(&this, filename: str) {
     }
 
     let header = `P6 {.width} {.height} 255\n`
+    defer free(header)
+
     file.write(header , header.len())
     file.write(u8buf , 3 * .width * .height)
 }

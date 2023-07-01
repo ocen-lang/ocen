@@ -860,7 +860,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             acc = .helper_gen_type(top, cur.u.arr.elem_type, acc, is_func_def: false)
         }
 
-        Unresolved => .error(Error::new(cur.span, "Unresolved type found"))
+        Unresolved => .error(Error::new(cur.span, "Unresolved type found in CodeGenerator::helper_gen_type"))
         Error => .error(Error::new(cur.span, "Error found in type"))
         else => .error(Error::new(cur.span, `Unhandled type found: {cur.str()}`))
     }
@@ -868,7 +868,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
 }
 
 def CodeGenerator::get_type_name_string(&this, type: &Type, name: str, is_func_def: bool): str {
-    if not type? { std::panic("Internal error: null type in codegen") }
+    assert type != null
     let final = .helper_gen_type(type, type, name.copy(), is_func_def)
     final.strip_trailing_whitespace()
     return final
@@ -884,6 +884,11 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
+    if func.is_method and func.parent_type.base == Structure {
+        let struc = func.parent_type.u.struc
+        if struc.is_templated then return
+    }
+
     .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
     .out.puts(" ")
@@ -919,6 +924,12 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     for let i = 0; i < functions.size; i += 1 {
         let func = functions.at(i) as &Function
         if func.sym.is_extern continue
+
+        if func.is_method and func.parent_type.base == Structure {
+            let struc = func.parent_type.u.struc
+            if struc.is_templated then continue
+        }
+
         .gen_function_decl(func)
         if func.exits then .out.puts(" __attribute__((noreturn))")
         .out.puts(";\n")

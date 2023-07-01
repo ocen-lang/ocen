@@ -39,3 +39,8 @@ def Span::contains_loc(this, loc: Location): bool {
     if not .start.filename.eq(loc.filename) return false
     return .start.is_before(loc) and loc.is_before(.end)
 }
+
+def Span::starts_right_after(this, other: Span): bool {
+    if not .start.filename.eq(other.start.filename) return false
+    return .start.index == other.end.index
+}
