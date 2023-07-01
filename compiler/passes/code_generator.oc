@@ -459,7 +459,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             {
                 .out.puts("\"")
                 .out.putsf(expr.span.start.str())
-                let expr_str = .o.program.get_source_text(expr.span) 
+                let expr_str = .o.program.get_source_text(expr.span)
                 .out.putsf(f": Assertion failed: `{expr_str}`")
                 .out.puts("\"")
             }
