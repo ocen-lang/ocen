@@ -9,7 +9,7 @@ import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType }
 import @errors::Error
 import std::libc::{ calloc, free }
-import @utils::{directory_exists}
+import @utils::directory_exists
 
 @compiler c_include "libgen.h"
 def dirname(path: str): str extern
@@ -95,21 +95,10 @@ def Parser::consume_end_of_statement(&this) {
 // NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
 // the `name` field. The typechecker is responsible for resolving this, even for the built-in types.
 def Parser::parse_type(&this): &Type => match .token().type {
-    Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 | UntypedPtr => {
-        let token = .token()
-        .curr += 1
-
-        let ident = AST::new(ASTType::Identifier, token.span)
-        ident.u.ident.name = token.text
-
-        let typ = Type::new_unresolved(ident.u.ident.name, ident.span)
-        typ.u.unresolved = ident
-        yield typ
-    }
-
     Identifier => {
         let ident = .parse_scoped_identifier()
-        let typ = Type::new_unresolved("<unresolved>", ident.span)
+        let name = if ident.type == ASTType::Identifier then ident.u.ident.name else "<unresolved>"
+        let typ = Type::new_unresolved(name, ident.span)
         typ.u.unresolved = ident
         yield typ
     }
@@ -404,7 +393,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     if is_const {
         var.sym.type = SymbolType::Constant
     }
-    
+
     .parse_extern_into_symbol(var.sym)
 
     node.u.var_decl.var = var
@@ -811,7 +800,7 @@ def Parser::parse_statement(&this): &AST {
         TokenType::Assert => {
             let start = .consume(TokenType::Assert)
             let expr = .parse_expression(end_type: TokenType::Newline)
-            
+
             let msg = null as &AST
             let end_span = expr.span
 
@@ -918,31 +907,8 @@ def Parser::parse_function(&this): &Function {
     //        to parse something like i32::foo(). However, `i32` etc are keywords, so we explicitly
     //        check those here and create the `NSLookup` object.
     } else {
-        yield match .token().type {
-            Bool | Char | I8 | I16 | I32 | I64 |
-            U8 | U16 | U32 | U64 | F32 | F64 => {
-                let tok = .consume(.token().type)
-
-                let lhs = AST::new(ASTType::Identifier, tok.span)
-                lhs.u.ident.name = tok.text
-
-                if not .consume_if(TokenType::ColonColon) {
-                    .error(Error::new(.token().span, "Expected `::` after type name"))
-                    return null
-                }
-
-                let name = .consume(TokenType::Identifier)
-                let lookup = AST::new(ASTType::NSLookup, tok.span.join(name.span))
-                lookup.u.lookup.lhs = lhs
-                lookup.u.lookup.rhs_name = name.text
-                lookup.u.lookup.rhs_span = name.span
-                yield lookup
-            }
-            else => {
-                .error(Error::new(.token().span, "Unexpected token"))
-                yield null
-            }
-        }
+        .error(Error::new(.token().span, "Unexpected token"))
+        yield null
     }
     if not ident? return null
     let name_span = ident.span

@@ -1,4 +1,4 @@
-/// fail: Unexpected token
+/// fail: Cannot use a type name as an expression
 
 def main() {
     let x: i32 = bool
