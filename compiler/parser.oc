@@ -893,6 +893,27 @@ def Parser::parse_block(&this): &AST {
     return node
 }
 
+def Parser::parse_template_params(&this, out_span: &Span = null): &Vector {
+    let start = .consume(TokenType::LessThan).span
+    let params = Vector::new()
+    while not .token_is(TokenType::GreaterThan) {
+        let type = .consume(TokenType::Identifier)
+        let var = Variable::new(Type::new_unresolved(type.text, type.span))
+        var.sym = Symbol::from_local_variable(type.text, var, type.span)
+
+        params.push(var)
+
+        if not .token_is(TokenType::GreaterThan) {
+            .consume(TokenType::Comma)
+        }
+    }
+    let end = .consume(TokenType::GreaterThan).span
+    if out_span? {
+        *out_span = start.join(end)
+    }
+    return params
+}
+
 def Parser::parse_function(&this): &Function {
     .consume(TokenType::Def)
 
@@ -1147,6 +1168,12 @@ def Parser::parse_struct(&this): &Structure {
     struc.sym.u.struc = struc
 
     .parse_extern_into_symbol(struc.sym)
+
+    if .token_is(TokenType::LessThan) {
+        struc.is_templated = true
+        struc.template_params = .parse_template_params()
+        struc.template_instances = Vector::new()
+    }
 
     // Extern structs don't need to have a body.
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
