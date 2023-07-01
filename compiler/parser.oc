@@ -1060,14 +1060,17 @@ def Parser::parse_function(&this): &Function {
 
     if .token_is(TokenType::FatArrow) {
         let arrow = .consume(TokenType::FatArrow)
-        let body = AST::new(ASTType::Block, arrow.span)
+
+        let expr = .parse_expression(end_type: TokenType::Newline)
+        let ret = AST::new(ASTType::Return, expr.span)
+        ret.u.unary = expr
+
+        let body = AST::new(ASTType::Block, ret.span)
+
         let statements = OldVector::new()
-
-        let ret = AST::new(ASTType::Return, arrow.span)
-        ret.u.unary = .parse_expression(end_type: TokenType::Newline)
-
         statements.push(ret)
         body.u.block.statements = statements
+
         func.body = body
 
     } else {
