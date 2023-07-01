@@ -181,6 +181,8 @@ def Type::eq(&this, other: &Type): bool {
             }
             return .u.ptr.eq(other.u.ptr)
         }
+        Structure => return .u.struc == other.u.struc
+        Enum => return .u.enum_ == other.u.enum_
         else => return true
     }
 }
@@ -206,6 +208,6 @@ def Type::str(&this): str => match .base {
     Function => "<function>"
     Structure => .u.struc.sym.display
     Enum => .u.enum_.sym.display
-    Alias => `{.name}({.u.ptr.str()})`
+    Alias => `{.name}`
     else => .base.str()
 }
