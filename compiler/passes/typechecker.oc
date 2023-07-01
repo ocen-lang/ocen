@@ -885,6 +885,9 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type = null) 
 
     } else if is_expr {
         .error(Error::new(node.span, "If expressions must have an else branch"))
+
+    } else {
+        node.returns = false
     }
 }
 
@@ -1045,6 +1048,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
 
             if var.type? {
                 var.type = .resolve_type(var.type)
+                if not var.type? return
             }
 
             let init = node.u.var_decl.init
