@@ -186,3 +186,193 @@ def OldMapIterator::next(&this) {
         if .cur? return
     }
 }
+
+struct Node<K, V> {
+    key: K
+    value: V
+    next: &Node<K, V>
+}
+
+def Node::new(key: K, value: V, next: &Node<K, V> = null): &Node<K, V> {
+    let node = calloc(1, sizeof(Node<K, V>)) as &Node<K, V>
+    node.key = key
+    node.value = value
+    node.next = next
+    return node
+}
+
+def Node::free_list(&this) {
+    let cur = this
+    while cur? {
+        let next = cur.next
+        free(cur)
+        cur = next
+    }
+}
+
+struct Map<K, V> {
+    buckets: &&Node<K, V>
+    num_items: u32
+    num_buckets: u32
+    num_collisions: u32
+}
+
+def Map::new(): &Map<K, V> {
+    let map = calloc(1, sizeof(Map<K, V>)) as &Map<K, V>
+    map.num_buckets = 4
+    map.buckets = calloc(map.num_buckets, sizeof(&Node<K, V>)) as &&Node<K, V>
+    return map
+}
+
+def Map::hash(&this, key: K): u32 {
+    let hash = key.hash()
+    hash = hash % .num_buckets
+    if hash < 0 {
+        hash += .num_buckets
+    }
+    return hash
+}
+
+def Map::get_node(&this, key: K): &Node<K, V> {
+    let hash = .hash(key)
+    let node = .buckets[hash]
+    while node? {
+        if node.key.eq(key) {
+            return node
+        }
+        node = node.next
+    }
+    return null
+}
+
+def Map::get(&this, key: K): V {
+    let node = .get_node(key)
+    assert node?, "Key not found"
+    return node.value
+}
+
+def Map::exists(&this, key: K): bool {
+    return .get_node(key)?
+}
+
+def Map::insert(&this, key: K, value: V) {
+    let node = .get_node(key)
+    if node? {
+        node.value = value
+    } else {
+        let hash = .hash(key)
+        let new_node = Node<K, V>::new(key, value, .buckets[hash])
+        if .buckets[hash]? {
+            .num_collisions += 1
+        }
+        .buckets[hash] = new_node
+        .num_items += 1
+        if .num_items > .num_buckets {
+            .resize()
+        }
+    }
+}
+
+def Map::resize(&this) {
+    let old_buckets = .buckets
+    let old_num_buckets = .num_buckets
+    let old_num_items = .num_items
+    .num_collisions = 0
+    .num_buckets *= 2
+    .buckets = calloc(.num_buckets, sizeof(&Node<K, V>)) as &&Node<K, V>
+    for let i = 0; i < old_num_buckets; i += 1 {
+        let node = old_buckets[i]
+        while node? {
+            let new_hash = .hash(node.key)
+            let new_node = Node<K, V>::new(node.key, node.value, .buckets[new_hash])
+            if .buckets[new_hash]? {
+                .num_collisions += 1
+            }
+            .buckets[new_hash] = new_node
+            node = node.next
+        }
+    }
+    for let i = 0; i < old_num_buckets; i += 1 {
+        old_buckets[i].free_list()
+    }
+    free(old_buckets)
+}
+
+def Map::print_keys(&this) {
+    for let i = 0; i < .num_buckets; i += 1 {
+        let node = .buckets[i]
+        while node? {
+            println(f"- '{node.key}'")
+            node = node.next
+        }
+    }
+}
+
+def Map::push_keys(&this, vec: &Vector<K>) {
+    for let i = 0; i < .num_buckets; i += 1 {
+        let node = .buckets[i]
+        while node? {
+            vec.push(node.key)
+            node = node.next
+        }
+    }
+}
+
+def Map::free(&this) {
+    for let i = 0; i < .num_buckets; i += 1 {
+        .buckets[i].free_list()
+    }
+    free(.buckets)
+}
+
+def Map::iter(&this): Iterator<K, V> {
+    return Iterator<K, V>::make(this)
+}
+
+struct Iterator<K, V> {
+    idx: i32
+    cur: &Node<K, V>
+    map: &Map<K, V>
+}
+
+def Iterator::key(&this): K {
+    return .cur.key
+}
+
+def Iterator::value(&this): V {
+    return .cur.value
+}
+
+def Iterator::make(map: &Map<K, V>): Iterator<K, V> {
+    let it: Iterator<K, V>
+    it.idx = -1
+    it.cur = null
+    it.map = map
+    it.next()
+    return it
+}
+
+def Iterator::next(&this) {
+    while .idx < .map.num_buckets as i32 {
+        while .cur? {
+            .cur = .cur.next
+            if .cur? return
+        }
+        .idx += 1
+        .cur = if .idx < .map.num_buckets as i32 {
+            yield .map.buckets[.idx]
+        } else {
+            yield null
+        }
+        if .cur? return
+    }
+}
+
+def str::hash(this): u32 {
+    let hash = 5381
+    let len = .len()
+    for let i = 0; i < len; i += 1 {
+        hash = hash * 33 ^ this[i] as u32
+    }
+    return hash
+}
