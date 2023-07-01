@@ -1,0 +1,5 @@
+///fail: Function does not always return
+
+def foo(): i32 {
+    if false then return 1
+}

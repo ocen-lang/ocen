@@ -1,0 +1,39 @@
+/// out: "3 2"
+
+import std::libc::{ calloc, realloc }
+
+struct List<T> {
+    data: &T
+    size: u32
+    capacity: u32
+}
+
+def List::new(capacity: u32 = 16): &List<T> {
+    let list = calloc(1, sizeof(List<T>)) as &List<T>
+    list.capacity = capacity
+    list.data = calloc(capacity, sizeof(T)) as &T
+    list.size = 0
+    return list
+}
+
+def List::push(&this, value: T) {
+    if .size == .capacity {
+        .capacity *= 2
+        .data = realloc(.data, .capacity * sizeof(T)) as &T
+    }
+    .data[.size] = value
+    .size += 1
+}
+
+def main() {
+    let foo = List<i32>::new()
+    foo.push(1)
+    foo.push(2)
+    foo.push(3)
+
+    let bar = List<str>::new()
+    bar.push("hello")
+    bar.push("world")
+
+    println(f"{foo.size} {bar.size}")
+}
