@@ -32,7 +32,7 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
 
     // FIXME: Make sure enum values are unique
     for let i = 0; i < enum_.fields.size; i += 1 {
-        let field = enum_.fields.at(i) as &Variable
+        let field = enum_.fields.at(i)
         field.type = typ
     }
 }
@@ -61,11 +61,11 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i) as &Structure
+        let struc = ns.structs.at(i)
         .register_struct(ns, struc)
     }
     for let i = 0; i < ns.enums.size; i += 1 {
-        let enum_ = ns.enums.at(i) as &Enum
+        let enum_ = ns.enums.at(i)
         .register_enum(ns, enum_)
         .add_dbg_method_for_enum(enum_)
     }

@@ -144,7 +144,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
             sb.puts("[")
             let lst = val.u.as_list
             for let i = 0; i < lst.size; i += 1 {
-                let value = lst.at(i) as &Value
+                let value = lst.at(i)
                 if i > 0 {
                     sb.puts(", ")
                 }

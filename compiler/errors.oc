@@ -156,7 +156,7 @@ def display_error_messages(errors: &Vector<&Error>, detail_level: u32) {
     let num_errors = errors.size.min(max_num_errors)
     let first = true
     for let i = 0; i < num_errors; i += 1 {
-        let err = errors.at(errors.size - i - 1) as &Error
+        let err = errors.at(errors.size - i - 1)
 
         match detail_level {
             0 => println("%s: %s", err.span1.start.str(), err.msg1)

@@ -32,7 +32,7 @@ def TypeChecker::resolve_type(&this, old: &Type, allow_incomplete: bool = false)
         Function => {
             let func = old.u.func
             for let i = 0; i < func.params.size; i += 1 {
-                let var = func.params.at(i) as &Variable
+                let var = func.params.at(i)
                 var.type = .resolve_type(var.type)
                 if not var.type? return null
             }
@@ -103,7 +103,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
         parent_ns.functions.push(new_method)
 
         if not method.is_static {
-            let this_param = new_method.params.at(0) as &Variable
+            let this_param = new_method.params.at(0)
             if this_param.type.base == Pointer {
                 this_param.type.u.ptr = cur_type
             } else {
@@ -153,8 +153,8 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
 
     // Add the template arguments to the scope with corresponding names
     for let i = 0; i < template_params.size; i += 1 {
-        let param = template_params.at(i) as &Variable
-        let arg = template_args.at(i) as &Type
+        let param = template_params.at(i)
+        let arg = template_args.at(i)
 
         if i > 0 then new_display_name.puts(", ")
         new_display_name.puts(arg.str())
@@ -185,7 +185,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
     // Note: We _need_ to deep-copy the fields here, otherwise we'll end up with a bunch of
     // pointers to the same types across different specializations, which is not what we want.
     for let i = 0; i < struc.fields.size; i += 1 {
-        let field = struc.fields.at(i) as &Variable
+        let field = struc.fields.at(i)
 
         let new_type = .o.program.get_type_deep_copy(field.type, .o.ns())
         let new_field = Variable::new(new_type)
@@ -300,7 +300,7 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type = nul
     let stmts = block.statements
     let yield_span = Span::default()
     for let i = 0; i < stmts.size; i += 1 {
-        let stmt = stmts.at(i) as &AST
+        let stmt = stmts.at(i)
         .check_statement(stmt)
         if stmt.returns then node.returns = true
 
@@ -336,7 +336,7 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
         .error(Error::new(callee.span, "Instance method should have `this` argument, internal error"))
         return
     }
-    let method_param = (method.params.at(0) as &Variable).type
+    let method_param = (method.params.at(0)).type
     if not method_param? return
 
     let member = callee.u.member
@@ -357,7 +357,7 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
             node.span, "Function requires at least one argument"
         ))
     }
-    let first = args.at(0) as &Argument
+    let first = args.at(0)
     let first_type = .check_expression(first.expr)
     if first_type? and not first_type.is_str() {
         .o.error(Error::new(
@@ -366,7 +366,7 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
     }
 
     for let i = 1; i < args.size; i += 1 {
-        let arg = args.at(i) as &Argument
+        let arg = args.at(i)
         .check_expression(arg.expr)
         .call_dbg_on_enum_value(&arg.expr)
     }
@@ -394,10 +394,10 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>) 
     }
 
     for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i) as &Variable
+        let param = params.at(i)
         // Normal case
         if i < args.size {
-            let arg = args.at(i) as &Argument
+            let arg = args.at(i)
 
             if arg.label? and not arg.label.eq(param.sym.name) {
                 .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.sym.name}'`))
@@ -606,7 +606,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
     }
 
     for let i = 0; i < exprs.size; i += 1 {
-        let expr = exprs.at(i) as &AST
+        let expr = exprs.at(i)
         let typ = .check_expression(expr)
         if not typ? continue
 
@@ -931,7 +931,7 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
     node.returns = (cases.size > 0)
 
     for let i = 0; i < cases.size; i += 1 {
-        let _case = cases.at(i) as &MatchCase
+        let _case = cases.at(i)
         let cond = _case.cond
         let name: str
 
@@ -1011,7 +1011,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     node.returns = (cases.size > 0)
 
     for let i = 0; i < cases.size; i += 1 {
-        let _case = cases.at(i) as &MatchCase
+        let _case = cases.at(i)
         let cond_type = .check_expression(_case.cond, hint: expr_type)
         if not cond_type? then continue
         if not cond_type.eq(expr_type) {
@@ -1261,7 +1261,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     let params = func.params
 
     for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i) as &Variable
+        let param = params.at(i)
 
         let default_expr = param.default_value
         if default_expr? {
@@ -1296,7 +1296,7 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
 
     let imports = ns.imports
     for let i = 0; i < imports.size; i += 1 {
-        let import_ = imports.at(i) as &AST
+        let import_ = imports.at(i)
         .handle_import_statement(import_)
     }
 
@@ -1326,12 +1326,12 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_namespace(ns)
 
     for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i) as &Function
+        let func = ns.functions.at(i)
         .check_function(func)
     }
 
     for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i) as &AST
+        let node = ns.constants.at(i)
         let init = node.u.var_decl.init
         if init? {
             .check_const_expression(init)
@@ -1341,7 +1341,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     }
 
     for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i) as &AST
+        let node = ns.variables.at(i)
         .check_global_variable(node)
     }
 
@@ -1450,7 +1450,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     //       some namespace (global / parent), or it can be in the current scope. To handle these
     //       cases, we just manually import the first part from these different locations, and then
     //       loop over the rest of the parts.
-    let part = path.parts.at(0) as &ImportPart
+    let part = path.parts.at(0)
     if part.type != Single {
         .error(Error::new(part.span, "Invalid import, first part must be a single identifier"))
         return
@@ -1561,7 +1561,7 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
     if struc.is_templated return
 
     for let i = 0; i < fields.size; i += 1 {
-        let field = fields.at(i) as &Variable
+        let field = fields.at(i)
         let res = .resolve_type(field.type)
         if not res? {
             .o.error(Error::new(field.sym.span, "Couldn't resolve type"))
@@ -1584,7 +1584,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
     let params = func.params
     for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i) as &Variable
+        let param = params.at(i)
         param.type = .resolve_type(param.type)
     }
 
@@ -1600,12 +1600,12 @@ def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
     .o.push_namespace(ns)
 
     for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i) as &Function
+        let func = ns.functions.at(i)
         .check_function_declaration(func)
     }
 
     for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i) as &Structure
+        let struc = ns.structs.at(i)
         .resolve_struct(struc)
     }
 
@@ -1633,7 +1633,7 @@ def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
     for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i) as &AST
+        let node = ns.constants.at(i)
         .pre_check_globals(node, is_const: true)
     }
 
@@ -1648,12 +1648,12 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
     for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i) as &Function
+        let func = ns.functions.at(i)
         .pre_check_function(ns, func)
     }
 
     for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i) as &AST
+        let node = ns.variables.at(i)
         .pre_check_globals(node, is_const: false)
     }
 
