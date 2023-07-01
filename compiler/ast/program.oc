@@ -1,6 +1,6 @@
 import std::vector::Vector
 import std::span::Span
-import std::map::OldMap
+import std::map::Map
 import std::libc::{ calloc, exit }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
@@ -24,7 +24,7 @@ struct Program {
     c_flags: &Vector<str>
 
     gen_debug_info: bool
-    sources: &OldMap  // OldMap<str, str>
+    sources: &Map<str, str>
 }
 
 def Program::new(): &Program {
@@ -44,7 +44,7 @@ def Program::new(): &Program {
     prog.errors = Vector<&Error>::new()
     prog.c_includes = Vector<str>::new()
     prog.c_flags = Vector<str>::new()
-    prog.sources = OldMap::new()
+    prog.sources = Map<str, str>::new()
     return prog
 }
 
@@ -57,8 +57,8 @@ def Program::get_source_text(&this, span: Span): str {
     let start = span.start
     let end = span.end
 
-    let contents = .sources.get(start.filename) as str
-    if contents == null return "<unknown source>"
+    let contents = .sources.get(start.filename, null) as str
+    if not contents? return null
 
     let len = end.index - start.index
     return contents.substring(start.index, len)
@@ -70,6 +70,8 @@ def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Fun
     // and re-parse it. This is obviously not ideal.
 
     let func_text = .get_source_text(old.span)
+    if not func_text? return null
+
     let lexer = Lexer::make(func_text, null)
     lexer.loc = old.span.start
 
@@ -89,6 +91,8 @@ def Program::get_type_deep_copy(&this, old: &Type, ns: &Namespace): &Type {
     // and re-parse it. This is obviously not ideal.
 
     let text = .get_source_text(old.span)
+    if not text? return null
+
     let lexer = Lexer::make(text, null)
     lexer.loc = old.span.start
 
@@ -111,7 +115,7 @@ struct Namespace {
     constants: &Vector<&AST>
     variables: &Vector<&AST>
     imports: &Vector<&AST>
-    namespaces: &OldMap      // OldMap<str, &Namespace>
+    namespaces: &Map<str, &Namespace>
 
     sym: &Symbol
     scope: &Scope
@@ -143,7 +147,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.enums = Vector<&Enum>::new()
     ns.constants = Vector<&AST>::new()
     ns.variables = Vector<&AST>::new()
-    ns.namespaces = OldMap::new()
+    ns.namespaces = Map<str, &Namespace>::new()
     ns.imports = Vector<&AST>::new()
     ns.path = path
     ns.is_a_file = false
@@ -151,7 +155,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
 }
 
 def Namespace::find_importable_symbol(&this, name: str): &Symbol {
-    let item = .namespaces.get(name) as &Namespace
+    let item = .namespaces.get(name, null)
     if item? then return item.sym
 
     for let i = 0; i < .constants.size; i += 1 {

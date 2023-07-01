@@ -1,191 +1,11 @@
-// A simple hash-map that maps strs to arbitrary objects.
+// A simple hash-map
+//
+// Preconditions:
+//  - K must implement the `hash` method:    K::hash(this): u32
+//  - K must implement the `eq` method:      K::eq(this, other: K): bool
 
 import std::vector::Vector
 import std::libc::{calloc, realloc, free}
-
-struct OldMapNode {
-    key: str
-    value: untyped_ptr
-    next: &OldMapNode
-}
-
-def OldMapNode::new(key: str, value: untyped_ptr, next: &OldMapNode): &OldMapNode {
-    let node = calloc(1, sizeof(OldMapNode)) as &OldMapNode
-    node.key = key
-    node.value = value
-    node.next = next
-    return node
-}
-
-def OldMapNode::free_list(node: &OldMapNode) {
-    let cur = node
-    while cur? {
-        let next = cur.next
-        free(cur)
-        cur = next
-    }
-}
-
-struct OldMap {
-    buckets: &&OldMapNode
-    num_items: u32
-    num_buckets: u32
-    num_collisions: u32
-}
-
-def OldMap::new(): &OldMap {
-    let map = calloc(1, sizeof(OldMap)) as &OldMap
-    map.num_buckets = 4
-    map.buckets = calloc(map.num_buckets, sizeof(&OldMapNode)) as &&OldMapNode
-    return map
-}
-
-def OldMap::hash(&this, s: str): u32 {
-    let hash = 5381
-    let len = s.len()
-    for let i = 0; i < len; i += 1 {
-        hash = hash * 33 ^ s[i] as u32
-    }
-    hash = hash % .num_buckets
-    if hash < 0 {
-        hash += .num_buckets
-    }
-    return hash
-}
-
-def OldMap::get_node(&this, key: str): &OldMapNode {
-    let hash = .hash(key)
-    let node = .buckets[hash]
-    while node? {
-        if node.key.eq(key) {
-            return node
-        }
-        node = node.next
-    }
-    return null
-}
-
-def OldMap::get(&this, key: str): untyped_ptr {
-    let node = .get_node(key)
-    if node? {
-        return node.value
-    }
-    return null
-}
-
-def OldMap::exists(&this, key: str): bool {
-    return .get_node(key)?
-}
-
-def OldMap::insert(&this, key: str, value: untyped_ptr) {
-    let node = .get_node(key)
-    if node? {
-        node.value = value
-    } else {
-        let hash = .hash(key)
-        let new_node = OldMapNode::new(key, value, .buckets[hash])
-        if .buckets[hash]? {
-            .num_collisions += 1
-        }
-        .buckets[hash] = new_node
-        .num_items += 1
-        if .num_items > .num_buckets {
-            .resize()
-        }
-    }
-}
-
-def OldMap::resize(&this) {
-    let old_buckets = .buckets
-    let old_num_buckets = .num_buckets
-    let old_num_items = .num_items
-    .num_collisions = 0
-    .num_buckets *= 2
-    .buckets = calloc(.num_buckets, sizeof(&OldMapNode)) as &&OldMapNode
-    for let i = 0; i < old_num_buckets; i += 1 {
-        let node = old_buckets[i]
-        while node? {
-            let new_hash = .hash(node.key)
-            let new_node = OldMapNode::new(node.key, node.value, .buckets[new_hash])
-            if .buckets[new_hash]? {
-                .num_collisions += 1
-            }
-            .buckets[new_hash] = new_node
-            node = node.next
-        }
-    }
-    for let i = 0; i < old_num_buckets; i += 1 {
-        OldMapNode::free_list(old_buckets[i])
-    }
-    free(old_buckets)
-}
-
-def OldMap::print_keys(&this) {
-    for let i = 0; i < .num_buckets; i += 1 {
-        let node = .buckets[i]
-        while node? {
-            println("- '%s'\n", node.key)
-            node = node.next
-        }
-    }
-}
-
-def OldMap::push_keys(&this, vec: &Vector<str>) {
-    for let i = 0; i < .num_buckets; i += 1 {
-        let node = .buckets[i]
-        while node? {
-            vec.push(node.key)
-            node = node.next
-        }
-    }
-}
-
-def OldMap::free(&this) {
-    for let i = 0; i < .num_buckets; i += 1 {
-        OldMapNode::free_list(.buckets[i])
-    }
-    free(.buckets)
-}
-
-def OldMap::iter(&this): OldMapIterator {
-    return OldMapIterator::make(this)
-}
-
-struct OldMapIterator {
-    idx: i32
-    cur: &OldMapNode
-    map: &OldMap
-}
-
-def OldMapIterator::key(&this): str {
-    return .cur.key
-}
-
-def OldMapIterator::value(&this): untyped_ptr {
-    return .cur.value
-}
-
-def OldMapIterator::make(map: &OldMap): OldMapIterator {
-    let it = OldMapIterator(idx: -1, cur: null, map)
-    it.next()
-    return it
-}
-
-def OldMapIterator::next(&this) {
-    while .idx < .map.num_buckets as i32 {
-        while .cur? {
-            .cur = .cur.next
-            if .cur? return
-        }
-        .idx += 1
-        .cur = if .idx < .map.num_buckets as i32 {
-            yield .map.buckets[.idx]
-        } else {
-            yield null
-        }
-        if .cur? return
-    }
-}
 
 struct Node<K, V> {
     key: K
@@ -245,9 +65,15 @@ def Map::get_node(&this, key: K): &Node<K, V> {
     return null
 }
 
-def Map::get(&this, key: K): V {
+def Map::at(&this, key: K): V {
     let node = .get_node(key)
     assert node?, "Key not found"
+    return node.value
+}
+
+def Map::get(&this, key: K, defolt: V): V {
+    let node = .get_node(key)
+    if not node? then return defolt
     return node.value
 }
 
@@ -344,10 +170,7 @@ def Iterator::value(&this): V {
 }
 
 def Iterator::make(map: &Map<K, V>): Iterator<K, V> {
-    let it: Iterator<K, V>
-    it.idx = -1
-    it.cur = null
-    it.map = map
+    let it = Iterator<K, V>(idx: -1, cur: null, map)
     it.next()
     return it
 }
@@ -367,6 +190,8 @@ def Iterator::next(&this) {
         if .cur? return
     }
 }
+
+// ------------------------------------------------------------------
 
 def str::hash(this): u32 {
     let hash = 5381
