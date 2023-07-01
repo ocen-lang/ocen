@@ -1387,7 +1387,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
         let param = params.at(i) as &Variable
         param.type = .resolve_type(param.type)
     }
-    
+
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
     let typ = Type::new_resolved(Function, func.sym.span)
@@ -1402,7 +1402,7 @@ def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
         let func = ns.functions.at(i) as &Function
         .check_function_declaration(func)
     }
-    
+
     for let i = 0; i < ns.structs.size; i += 1 {
         let struc = ns.structs.at(i) as &Structure
         .check_struct(struc)
@@ -1423,7 +1423,7 @@ def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
         return
     }
     var.type = .resolve_type(var.type)
-    if not var.type? then return 
+    if not var.type? then return
     .o.insert_into_scope_checked(var.sym)
 }
 
