@@ -82,10 +82,8 @@ def ASTType::from_token(type: TokenType): ASTType => match type {
     Equals => ASTType::Assignment
     GreaterThan => ASTType::GreaterThan
     GreaterThanEquals => ASTType::GreaterThanEquals
-    GreaterThanGreaterThan => ASTType::RightShift
     LessThan => ASTType::LessThan
     LessThanEquals => ASTType::LessThanEquals
-    LessThanLessThan => ASTType::LeftShift
     Line => ASTType::BitwiseOr
     Minus => ASTType::Minus
     MinusEquals => ASTType::MinusEquals
@@ -280,7 +278,7 @@ struct ImportPartSingle {
 
 union ImportPartUnion {
     single: ImportPartSingle
-    paths: &Vector<&Vector<&ImportPart> >  // FIXME: This is a mess
+    paths: &Vector<&Vector<&ImportPart>>
 }
 
 struct ImportPart {

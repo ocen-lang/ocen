@@ -249,12 +249,10 @@ typedef enum tokens_TokenType {
   tokens_TokenType_FloatLiteral,
   tokens_TokenType_FormatStringLiteral,
   tokens_TokenType_GreaterThan,
-  tokens_TokenType_GreaterThanGreaterThan,
   tokens_TokenType_GreaterThanEquals,
   tokens_TokenType_Identifier,
   tokens_TokenType_IntLiteral,
   tokens_TokenType_LessThan,
-  tokens_TokenType_LessThanLessThan,
   tokens_TokenType_LessThanEquals,
   tokens_TokenType_Line,
   tokens_TokenType_Minus,
@@ -331,12 +329,10 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_FloatLiteral: return "FloatLiteral";
     case tokens_TokenType_FormatStringLiteral: return "FormatStringLiteral";
     case tokens_TokenType_GreaterThan: return "GreaterThan";
-    case tokens_TokenType_GreaterThanGreaterThan: return "GreaterThanGreaterThan";
     case tokens_TokenType_GreaterThanEquals: return "GreaterThanEquals";
     case tokens_TokenType_Identifier: return "Identifier";
     case tokens_TokenType_IntLiteral: return "IntLiteral";
     case tokens_TokenType_LessThan: return "LessThan";
-    case tokens_TokenType_LessThanLessThan: return "LessThanLessThan";
     case tokens_TokenType_LessThanEquals: return "LessThanEquals";
     case tokens_TokenType_Line: return "Line";
     case tokens_TokenType_Minus: return "Minus";
@@ -591,7 +587,7 @@ struct passes_reorder_structs_ReorderStructs {
 
 struct parser_Parser {
   std_vector_std_vector_Vector__7 *tokens;
-  i32 curr;
+  u32 curr;
   ast_nodes_Function *curr_func;
   ast_program_Program *program;
   ast_program_Namespace *ns;
@@ -4691,7 +4687,7 @@ void passes_reorder_structs_ReorderStructs_run(ast_program_Program *program) {
 }
 
 parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Namespace *ns) {
-  return (parser_Parser){.tokens=NULL, .curr=0, .curr_func=NULL, .program=program, .ns=ns};
+  return (parser_Parser){.tokens=NULL, .curr=((u32)0), .curr_func=NULL, .program=program, .ns=ns};
 }
 
 errors_Error *parser_Parser_error_msg(parser_Parser *this, char *msg) {
@@ -4723,7 +4719,7 @@ bool parser_Parser_token_is(parser_Parser *this, tokens_TokenType type) {
 bool parser_Parser_consume_if(parser_Parser *this, tokens_TokenType type) {
   if (parser_Parser_token_is(this, type)) {
     if ((type != tokens_TokenType_Newline)) {
-      this->curr+=1;
+      this->curr+=((u32)1);
     } 
     return true;
   } 
@@ -4732,7 +4728,7 @@ bool parser_Parser_consume_if(parser_Parser *this, tokens_TokenType type) {
 
 void parser_Parser_consume_newline_or(parser_Parser *this, tokens_TokenType type) {
   if (parser_Parser_token_is(this, type)) {
-    this->curr+=1;
+    this->curr+=((u32)1);
   }  else   if (!parser_Parser_token(this)->seen_newline) {
     parser_Parser_error_msg(this, format_string("Expected %s or newline", tokens_TokenType_str(type)));
     ast_program_Program_exit_with_errors(this->program);
@@ -4952,7 +4948,7 @@ ast_nodes_AST *parser_Parser_parse_format_string(parser_Parser *this) {
     std_vector_std_vector_Vector__9_free(lexer.errors);
     parser_Parser sub_parser = parser_Parser_make(this->program, this->ns);
     sub_parser.tokens=tokens;
-    sub_parser.curr=0;
+    sub_parser.curr=((u32)0);
     sub_parser.curr_func=this->curr_func;
     ast_nodes_AST *expr = parser_Parser_parse_expression(&sub_parser, tokens_TokenType_CloseCurly);
     if (!parser_Parser_token_is(&sub_parser, tokens_TokenType_EOF)) {
@@ -5142,7 +5138,7 @@ ast_nodes_AST *parser_Parser_parse_atom(parser_Parser *this, tokens_TokenType en
     default: {
       parser_Parser_unhandled_type(this, "parse_expression");
       node=ast_nodes_AST_new(ast_nodes_ASTType_Error, parser_Parser_token(this)->span);
-      this->curr+=1;
+      this->curr+=((u32)1);
     } break;
   }
   return node;
@@ -5266,7 +5262,7 @@ ast_nodes_AST *parser_Parser_parse_term(parser_Parser *this, tokens_TokenType en
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_cast(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5280,7 +5276,7 @@ ast_nodes_AST *parser_Parser_parse_additive(parser_Parser *this, tokens_TokenTyp
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_term(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5289,12 +5285,22 @@ ast_nodes_AST *parser_Parser_parse_additive(parser_Parser *this, tokens_TokenTyp
 
 ast_nodes_AST *parser_Parser_parse_shift(parser_Parser *this, tokens_TokenType end_type) {
   ast_nodes_AST *lhs = parser_Parser_parse_additive(this, end_type);
-  while ((parser_Parser_token_is(this, tokens_TokenType_LessThanLessThan) || parser_Parser_token_is(this, tokens_TokenType_GreaterThanGreaterThan))) {
+  while ((parser_Parser_token_is(this, tokens_TokenType_LessThan) || parser_Parser_token_is(this, tokens_TokenType_GreaterThan))) {
+    tokens_Token *next_token = std_vector_std_vector_Vector__7_at(this->tokens, (this->curr + ((u32)1)));
+    if ((parser_Parser_token(this)->type != next_token->type)) 
+    break;
+    
     if (parser_Parser_token_is(this, end_type)) 
     break;
     
-    ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    ast_nodes_ASTType op = ({ ast_nodes_ASTType __yield_0;
+      if (next_token->type==tokens_TokenType_LessThan) {
+        __yield_0 = ast_nodes_ASTType_LeftShift;
+      }  else {
+        __yield_0 = ast_nodes_ASTType_RightShift;
+      } 
+;__yield_0; });
+    this->curr+=((u32)2);
     ast_nodes_AST *rhs = parser_Parser_parse_additive(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5308,7 +5314,7 @@ ast_nodes_AST *parser_Parser_parse_bw_and(parser_Parser *this, tokens_TokenType 
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_shift(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5322,7 +5328,7 @@ ast_nodes_AST *parser_Parser_parse_bw_xor(parser_Parser *this, tokens_TokenType 
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_bw_and(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5336,7 +5342,7 @@ ast_nodes_AST *parser_Parser_parse_bw_or(parser_Parser *this, tokens_TokenType e
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_bw_xor(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5352,7 +5358,7 @@ ast_nodes_AST *parser_Parser_parse_relational(parser_Parser *this, tokens_TokenT
     break;
     
     std_vector_std_vector_Vector__7_push(operators, parser_Parser_token(this));
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *term = parser_Parser_parse_bw_or(this, end_type);
     std_vector_std_vector_Vector__8_push(operands, term);
   }
@@ -5383,7 +5389,7 @@ ast_nodes_AST *parser_Parser_parse_logical_and(parser_Parser *this, tokens_Token
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_relational(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5397,7 +5403,7 @@ ast_nodes_AST *parser_Parser_parse_logical_or(parser_Parser *this, tokens_TokenT
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_logical_and(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5411,7 +5417,7 @@ ast_nodes_AST *parser_Parser_parse_expression(parser_Parser *this, tokens_TokenT
     break;
     
     ast_nodes_ASTType op = ast_nodes_ASTType_from_token(parser_Parser_token(this)->type);
-    this->curr+=1;
+    this->curr+=((u32)1);
     ast_nodes_AST *rhs = parser_Parser_parse_expression(this, end_type);
     lhs=ast_nodes_AST_new_binop(op, lhs, rhs);
   }
@@ -5712,7 +5718,7 @@ std_vector_std_vector_Vector__4 *parser_Parser_parse_import_path(parser_Parser *
     bool done = false;
     if (tokens_Token_is_word(*parser_Parser_token(this))) {
       tokens_Token *word = parser_Parser_token(this);
-      this->curr+=1;
+      this->curr+=((u32)1);
       ast_nodes_ImportPart *part = ast_nodes_ImportPart_new(ast_nodes_ImportPartType_Single, word->span);
       part->u.single.name=word->text;
       part->u.single.alias=word->text;
@@ -5929,7 +5935,7 @@ void parser_Parser_parse_namespace_until(parser_Parser *this, tokens_TokenType e
       } break;
       default: {
         parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, format_string("Unexpected token '%s' in Parser", parser_Parser_token(this)->text)));
-        this->curr+=1;
+        this->curr+=((u32)1);
       } break;
     }
   }
@@ -6039,7 +6045,7 @@ void parser_Parser_load_file(parser_Parser *this, char *filename) {
   std_map_OldMap_insert(this->program->sources, filename, contents);
   lexer_Lexer lexer = lexer_Lexer_make(contents, filename);
   this->tokens=lexer_Lexer_lex(&lexer);
-  this->curr=0;
+  this->curr=((u32)0);
   this->ns->is_a_file=true;
   parser_Parser_parse_namespace_until(this, tokens_TokenType_EOF);
 }
@@ -6235,7 +6241,7 @@ ast_nodes_Function *ast_program_Program_get_function_deep_copy(ast_program_Progr
   std_vector_std_vector_Vector__7 *tokens = lexer_Lexer_lex(&lexer);
   parser_Parser parser = parser_Parser_make(this, ns);
   parser.tokens=tokens;
-  parser.curr=0;
+  parser.curr=((u32)0);
   ast_nodes_Function *func = parser_Parser_parse_function(&parser);
   return func;
 }
@@ -6247,7 +6253,7 @@ types_Type *ast_program_Program_get_type_deep_copy(ast_program_Program *this, ty
   std_vector_std_vector_Vector__7 *tokens = lexer_Lexer_lex(&lexer);
   parser_Parser parser = parser_Parser_make(this, ns);
   parser.tokens=tokens;
-  parser.curr=0;
+  parser.curr=((u32)0);
   types_Type *type = parser_Parser_parse_type(&parser);
   return type;
 }
@@ -6326,17 +6332,11 @@ ast_nodes_ASTType ast_nodes_ASTType_from_token(tokens_TokenType type) {
       case tokens_TokenType_GreaterThanEquals: {
         __yield_0 = ast_nodes_ASTType_GreaterThanEquals;
       } break;
-      case tokens_TokenType_GreaterThanGreaterThan: {
-        __yield_0 = ast_nodes_ASTType_RightShift;
-      } break;
       case tokens_TokenType_LessThan: {
         __yield_0 = ast_nodes_ASTType_LessThan;
       } break;
       case tokens_TokenType_LessThanEquals: {
         __yield_0 = ast_nodes_ASTType_LessThanEquals;
-      } break;
-      case tokens_TokenType_LessThanLessThan: {
-        __yield_0 = ast_nodes_ASTType_LeftShift;
       } break;
       case tokens_TokenType_Line: {
         __yield_0 = ast_nodes_ASTType_BitwiseOr;
@@ -6852,9 +6852,6 @@ std_vector_std_vector_Vector__7 *lexer_Lexer_lex(lexer_Lexer *this) {
           case '=': {
             lexer_Lexer_push_type(this, tokens_TokenType_LessThanEquals, ((u32)2));
           } break;
-          case '<': {
-            lexer_Lexer_push_type(this, tokens_TokenType_LessThanLessThan, ((u32)2));
-          } break;
           default: {
             lexer_Lexer_push_type(this, tokens_TokenType_LessThan, ((u32)1));
           } break;
@@ -6864,9 +6861,6 @@ std_vector_std_vector_Vector__7 *lexer_Lexer_lex(lexer_Lexer *this) {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
             lexer_Lexer_push_type(this, tokens_TokenType_GreaterThanEquals, ((u32)2));
-          } break;
-          case '>': {
-            lexer_Lexer_push_type(this, tokens_TokenType_GreaterThanGreaterThan, ((u32)2));
           } break;
           default: {
             lexer_Lexer_push_type(this, tokens_TokenType_GreaterThan, ((u32)1));
