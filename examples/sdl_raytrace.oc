@@ -1,6 +1,6 @@
 import std::sdl as SDL
 import std::vec::Vec
-import std::vector::Vector
+import std::vector::OldVector
 import std::image::Image
 
 // Make raytracer go brrr
@@ -86,7 +86,7 @@ def background_color(ray: &Ray): Vec {
     return res.multf(t).add(col2)
 }
 
-def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
+def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
     let hit = false
 
     for let i = 0; i < objs.size; i += 1 {
@@ -107,7 +107,7 @@ def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, hit_obj: &&Sphere): boo
     return hit
 }
 
-def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
+def raytrace(ray: &Ray, objs: &OldVector, depth: i32): Vec {
     if depth < 0
         return Vec(0.0, 0.0, 0.0)
 
@@ -147,7 +147,7 @@ struct Camera {
 def Camera::make(origin: Vec, direction: Vec): Camera {
     let samples = 0
     let img: &Image
-    let objs: &Vector
+    let objs: &OldVector
 
     let cam: Camera
     let aspect_ratio = WIDTH as f32 / HEIGHT as f32
@@ -276,7 +276,7 @@ def main() {
         HEIGHT
     )
 
-    objs = Vector::new()
+    objs = OldVector::new()
     objs.push(Sphere::new(Material::Diffuse, Vec(0.0,    0.0, 1.0),   0.5, Vec(1.0, 0.6, 0.3), 0.0))
     objs.push(Sphere::new(Material::Mirror,  Vec(1.0,    0.0, 1.0),   0.5, Vec(0.8, 0.8, 0.8), 0.7))
     objs.push(Sphere::new(Material::Mirror,  Vec(-1.0,   0.0, 1.0),   0.5, Vec(0.8, 0.6, 0.2), 0.0))

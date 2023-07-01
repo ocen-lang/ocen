@@ -4,7 +4,7 @@ import @lexer::Lexer
 import @types::{ Type, BaseType, FunctionType, ArrayType }
 import std::span::Span
 import std::map::Map
-import std::vector::Vector
+import std::vector::OldVector
 import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType }
 import @errors::Error
@@ -16,7 +16,7 @@ def dirname(path: str): str extern
 def basename(path: str): str extern
 
 struct Parser {
-    tokens: &Vector  // &Vector<Token>
+    tokens: &OldVector  // &OldVector<Token>
     curr: i32
 
     curr_func: &Function
@@ -115,7 +115,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         let start_span = .token().span
         .consume(TokenType::Fn)
         .consume(TokenType::OpenParen)
-        let params = Vector::new()
+        let params = OldVector::new()
         while not .token_is(TokenType::CloseParen) {
             let param_type = .parse_type()
 
@@ -198,7 +198,7 @@ def Parser::parse_scoped_identifier(&this): &AST {
 
                 // Okay... so we're kinda-sorta sure that this is a specialization, let's parse it.
                 let start = .consume(TokenType::LessThan)
-                let args = Vector::new()
+                let args = OldVector::new()
 
                 while not .token_is(TokenType::GreaterThan) {
                     args.push(.parse_type())
@@ -229,11 +229,11 @@ def Parser::parse_format_string(&this): &AST {
     let fstr = .consume(TokenType::FormatStringLiteral)
     let fstr_len = fstr.text.len()
 
-    let expr_parts = Vector::new()    // Vector<str>
-    let expr_start = Vector::new()    // Vector<i32>
+    let expr_parts = OldVector::new()    // OldVector<str>
+    let expr_start = OldVector::new()    // OldVector<i32>
 
-    let format_parts = Vector::new()  // Vector<str>
-    let specifiers = Vector::new()    // Vector<str>
+    let format_parts = OldVector::new()  // OldVector<str>
+    let specifiers = OldVector::new()    // OldVector<str>
 
     let specifier_loc = 0
     let specifier_found = false
@@ -309,7 +309,7 @@ def Parser::parse_format_string(&this): &AST {
     node.u.fmt_str.parts = format_parts
 
     let fstr_start = fstr.span.start
-    let expr_nodes = Vector::new()
+    let expr_nodes = OldVector::new()
     for let i = 0; i < expr_parts.size; i += 1 {
         let part = expr_parts.at(i) as str
         let start = ((expr_start.at(i) as str) - fstr.text) as u32
@@ -349,7 +349,7 @@ def Parser::parse_match(&this): &AST {
     let node = AST::new(ASTType::Match, op.span.join(expr.span))
     node.u.match_stmt.expr = expr
 
-    let cases = Vector::new()
+    let cases = OldVector::new()
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
         if .token_is(TokenType::Else) {
@@ -393,7 +393,7 @@ def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
 
 def Parser::parse_call(&this, callee: &AST): &AST {
     .consume(TokenType::OpenParen)
-    let args = Vector::new()
+    let args = OldVector::new()
     while not .token_is(TokenType::CloseParen) {
         let label = null as str
         let label_span = Span::default()
@@ -710,8 +710,8 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
 }
 
 def Parser::parse_relational(&this, end_type: TokenType): &AST {
-    let operands = Vector::new()
-    let operators = Vector::new()
+    let operands = OldVector::new()
+    let operators = OldVector::new()
 
     operands.push(.parse_bw_or(end_type))
     while .token_is(TokenType::LessThan) or
@@ -930,7 +930,7 @@ def Parser::parse_statement(&this): &AST {
 def Parser::parse_block(&this): &AST {
     let start = .consume(TokenType::OpenCurly)
 
-    let statements = Vector::new()
+    let statements = OldVector::new()
     while not .token_is(TokenType::CloseCurly) {
         let statement = .parse_statement()
         statements.push(statement)
@@ -943,9 +943,9 @@ def Parser::parse_block(&this): &AST {
     return node
 }
 
-def Parser::parse_template_params(&this, out_span: &Span = null): &Vector {
+def Parser::parse_template_params(&this, out_span: &Span = null): &OldVector {
     let start = .consume(TokenType::LessThan).span
-    let params = Vector::new()
+    let params = OldVector::new()
     while not .token_is(TokenType::GreaterThan) {
         let type = .consume(TokenType::Identifier)
         let var = Variable::new(Type::new_unresolved(type.text, type.span))
@@ -973,10 +973,7 @@ def Parser::parse_function(&this): &Function {
 
     let ident = if .token_is(TokenType::Identifier) {
         yield .parse_scoped_identifier()
-
-    // FIXME: This is pretty hacky. To attach methods to primitive types, we need to be able
-    //        to parse something like i32::foo(). However, `i32` etc are keywords, so we explicitly
-    //        check those here and create the `NSLookup` object.
+ 
     } else {
         .error(Error::new(.token().span, "Unexpected token"))
         yield null
@@ -1064,7 +1061,7 @@ def Parser::parse_function(&this): &Function {
     if .token_is(TokenType::FatArrow) {
         let arrow = .consume(TokenType::FatArrow)
         let body = AST::new(ASTType::Block, arrow.span)
-        let statements = Vector::new()
+        let statements = OldVector::new()
 
         let ret = AST::new(ASTType::Return, arrow.span)
         ret.u.unary = .parse_expression(end_type: TokenType::Newline)
@@ -1095,8 +1092,8 @@ def Parser::parse_extern_into_symbol(&this, sym: &Symbol) {
     }
 }
 
-def Parser::parse_import_path(&this): &Vector { // &Vector<&ImportPart>
-    let parts = Vector::new()
+def Parser::parse_import_path(&this): &OldVector { // &OldVector<&ImportPart>
+    let parts = OldVector::new()
 
     while true {
         let done = false
@@ -1128,7 +1125,7 @@ def Parser::parse_import_path(&this): &Vector { // &Vector<&ImportPart>
         } else if .token_is(TokenType::OpenCurly) {
             let open = .consume(TokenType::OpenCurly)
 
-            let sub_paths = Vector::new()
+            let sub_paths = OldVector::new()
             while not .token_is(TokenType::CloseCurly) {
                 let sub_path = .parse_import_path()
                 if not sub_path? return null
@@ -1220,7 +1217,7 @@ def Parser::parse_struct(&this): &Structure {
     if .token_is(TokenType::LessThan) {
         struc.is_templated = true
         struc.template_params = .parse_template_params()
-        struc.template_instances = Vector::new()
+        struc.template_instances = OldVector::new()
     }
 
     .parse_extern_into_symbol(struc.sym)
@@ -1355,7 +1352,7 @@ def Parser::parse_compiler_option(&this) {
     }
 }
 
-def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace): bool {
+def Parser::load_import_path_from_base(&this, parts: &OldVector, base: &Namespace): bool {
     for let i = 0; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
         let part = parts.at(i) as &ImportPart
 
@@ -1368,7 +1365,7 @@ def Parser::load_import_path_from_base(&this, parts: &Vector, base: &Namespace):
                 let paths = part.u.paths
                 let success = true
                 for let i = 0; i < paths.size; i += 1 {
-                    let path = paths.at(i) as &Vector
+                    let path = paths.at(i) as &OldVector
                     success = .load_import_path_from_base(path, base) and success
                 }
                 return success

@@ -1,5 +1,5 @@
 // A dynamically typed value, useful for JSON + other stuff
-import std::vector::Vector
+import std::vector::OldVector
 import std::map::Map
 import std::json
 import std::buffer::Buffer
@@ -28,7 +28,7 @@ union ValueUnion {
     as_bool: bool
     as_num: i64
     as_str: Buffer
-    as_list: &Vector // &Vector<Value>
+    as_list: &OldVector // &OldVector<Value>
     as_dict: &Map    // &Map<str, Value>
 }
 
@@ -43,7 +43,7 @@ def Value::new(type: ValueType): &Value {
     val.type = type
     match type {
         Dictionary => val.u.as_dict = Map::new()
-        List => val.u.as_list = Vector::new()
+        List => val.u.as_list = OldVector::new()
         else => {}
     }
     val.span = Span::default()
@@ -68,7 +68,7 @@ def Value::new_number(num: i64): &Value {
     return val
 }
 
-def Value::new_array(vec: &Vector): &Value {
+def Value::new_array(vec: &OldVector): &Value {
     let val = Value::new(List)
     free(val.u.as_list)
     val.u.as_list = vec
@@ -131,7 +131,7 @@ def Value::as_str(&this): Buffer {
     return .u.as_str
 }
 
-def Value::as_arr(&this): &Vector {
+def Value::as_arr(&this): &OldVector {
     .ensure(List)
     return .u.as_list
 }
@@ -154,7 +154,7 @@ def Value::free(&this) {
             for let i = 0; i < vec.size; i += 1 {
                 Value::free(vec.at(i))
             }
-            Vector::free(.u.as_list)
+            OldVector::free(.u.as_list)
         }
         Dictionary => {
             let map = .u.as_dict

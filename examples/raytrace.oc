@@ -2,7 +2,7 @@
 @compiler c_flag "-O3"
 
 import std::vec::Vec
-import std::vector::Vector
+import std::vector::OldVector
 import std::image::Image
 import std::math::{ rand01, sqrt }
 import std::libc::malloc
@@ -77,7 +77,7 @@ def background_color(ray: &Ray): Vec {
     return res.multf(t).add(col2)
 }
 
-def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
+def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
     let idx = -1
 
     for let i = 0; i < objs.size; i += 1 {
@@ -99,7 +99,7 @@ def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
     return idx
 }
 
-def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
+def raytrace(ray: &Ray, objs: &OldVector, depth: i32): Vec {
     if depth < 0
         return Vec(0.0, 0.0, 0.0)
 
@@ -118,7 +118,7 @@ def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
 }
 
 def main() {
-    let objs = Vector::new()
+    let objs = OldVector::new()
     objs.push(Sphere::new(0.0,    0.0, -1.0,   0.5, 1.0, 0.6, 0.3))
     objs.push(Sphere::new(0.0, -100.5, -1.0, 100.0, 0.5, 0.5, 0.5))
 

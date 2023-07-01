@@ -1,15 +1,15 @@
 /// out: "3"
 
 
-import std::vector::Vector
+import std::vector::OldVector
 
 
-def foo(v: &Vector) {
+def foo(v: &OldVector) {
     v.push(null)
 }
 
 def main() {
-    let my_vector = Vector::new()
+    let my_vector = OldVector::new()
     foo(my_vector)
     foo(my_vector)
     foo(my_vector)

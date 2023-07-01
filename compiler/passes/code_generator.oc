@@ -1,5 +1,5 @@
 import std::buffer::Buffer
-import std::vector::Vector
+import std::vector::OldVector
 import std::libc::free
 import std::span::Span
 import @types::{ Type, BaseType }
@@ -13,7 +13,7 @@ struct CodeGenerator {
     o: &GenericPass
     out: Buffer
     indent: u32
-    yield_vars: &Vector  // &Vector<str>
+    yield_vars: &OldVector  // &OldVector<str>
 }
 
 def CodeGenerator::gen_indent(&this) {
@@ -1128,7 +1128,7 @@ def CodeGenerator::make(program: &Program): CodeGenerator {
         o: GenericPass::new(program),
         out: Buffer::make(),
         indent: 0,
-        yield_vars: Vector::new(),
+        yield_vars: OldVector::new(),
     )
 }
 

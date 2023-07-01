@@ -1,4 +1,4 @@
-import std::vector::Vector
+import std::vector::OldVector
 import std::span::Span
 import std::map::Map
 import @ast::scopes::{ Scope, Symbol, SymbolType }
@@ -21,16 +21,16 @@ import std::libc::calloc
 // can use the methods on it like `.o.push_scope(scope)` etc. inside the pass methods.
 
 struct GenericPass {
-    scope_stack: &Vector
-    namespace_stack: &Vector
+    scope_stack: &OldVector
+    namespace_stack: &OldVector
     program: &Program
     error_type: &Type
 }
 
 def GenericPass::new(program: &Program): &GenericPass {
     let pass = calloc(1, sizeof(GenericPass)) as &GenericPass
-    pass.scope_stack = Vector::new()
-    pass.namespace_stack = Vector::new()
+    pass.scope_stack = OldVector::new()
+    pass.namespace_stack = OldVector::new()
     pass.program = program
     return pass
 }
