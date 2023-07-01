@@ -17,7 +17,7 @@ def basename(path: str): str extern
 
 struct Parser {
     tokens: &Vector<&Token>
-    curr: i32
+    curr: u32
 
     curr_func: &Function
     program: &Program
@@ -656,11 +656,19 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
 
 def Parser::parse_shift(&this, end_type: TokenType): &AST {
     let lhs = .parse_additive(end_type)
-    while .token_is(TokenType::LessThanLessThan) or
-            .token_is(TokenType::GreaterThanGreaterThan) {
+    while .token_is(TokenType::LessThan) or
+            .token_is(TokenType::GreaterThan) {
+        let next_token = .tokens.at(.curr + 1)
+        if .token().type != next_token.type then break
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+
+        let op = if next_token.type == TokenType::LessThan {
+            yield ASTType::LeftShift
+        } else {
+            yield ASTType::RightShift
+        }
+
+        .curr += 2
         let rhs = .parse_additive(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
@@ -1122,7 +1130,7 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
         } else if .token_is(TokenType::OpenCurly) {
             let open = .consume(TokenType::OpenCurly)
 
-            let sub_paths = Vector<&Vector<&ImportPart> >::new()
+            let sub_paths = Vector<&Vector<&ImportPart>>::new()
             while not .token_is(TokenType::CloseCurly) {
                 let sub_path = .parse_import_path()
                 if not sub_path? return null

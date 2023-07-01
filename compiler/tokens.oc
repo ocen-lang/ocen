@@ -52,12 +52,10 @@ enum TokenType {
     FloatLiteral
     FormatStringLiteral
     GreaterThan
-    GreaterThanGreaterThan
     GreaterThanEquals
     Identifier
     IntLiteral
     LessThan
-    LessThanLessThan
     LessThanEquals
     Line
     Minus
