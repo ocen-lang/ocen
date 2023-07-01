@@ -29,7 +29,7 @@ def main(argc: i32, argv: &str) {
     let silent = false
     let lib_path = null as str
     let debug = false
-    let error_level = 1
+    let error_level = 2
 
     for let i = 1; i < argc as u32; i += 1 {
         match argv[i] {

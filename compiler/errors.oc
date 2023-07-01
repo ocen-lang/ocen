@@ -54,7 +54,11 @@ def display_message_span(type: MessageType, span: Span, msg: str) {
     let color = MessageType::to_color(type)
     let reset = "\x1b[0m"
 
+    display_message(type, span, msg)
+
     let filename = span.start.filename;
+    if not std::File::exists(filename) return
+
     let file = std::File::open(filename, "r")
     defer file.close()
 
@@ -65,7 +69,6 @@ def display_message_span(type: MessageType, span: Span, msg: str) {
     let min_line = (span.start.line - around_offset).max(1)
     let max_line = span.end.line + around_offset
 
-    display_message(type, span, msg)
     let lines = contents
     let cur = strsep(&lines, "\n")
     let line_no = 1
