@@ -1,4 +1,4 @@
-
+/// compile
 
 struct Foo<A, B> {
     a: A,
