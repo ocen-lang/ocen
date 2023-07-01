@@ -1,0 +1,10 @@
+
+
+struct Foo<A, B> {
+    a: A,
+    b: B,
+}
+
+def main() {
+    let foo = Foo<i32, i32>(7, 5)
+}

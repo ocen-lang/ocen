@@ -441,7 +441,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
 
     let res = match callee.type {
         Member => .check_member(callee, is_being_called: true)
-        Identifier | NSLookup => {
+        Identifier | NSLookup | Specialization => {
             let sym = .resolve_scoped_identifier(callee, error: true)
             if not sym? return null
             callee.resolved_symbol = sym
@@ -820,7 +820,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 }
             }
         }
-        ASTType::Identifier | ASTType::NSLookup => {
+        ASTType::Identifier | ASTType::NSLookup | ASTType::Specialization => {
             let item = .resolve_scoped_identifier(node, error: true, hint)
             if not item? return null
 

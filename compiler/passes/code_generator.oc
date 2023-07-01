@@ -365,7 +365,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
             .out.puts(node.u.member.rhs_name)
         }
-        Identifier | NSLookup => {
+        Identifier | NSLookup | Specialization => {
             let sym = node.resolved_symbol
             if not sym? {
                 .error(Error::new(node.span, "Symbol not found in CodeGenerator::gen_expression"))
