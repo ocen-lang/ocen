@@ -120,11 +120,27 @@ struct VarDeclaration {
     init: &AST
 }
 
+struct TemplateInstance {
+    params: &Vector // Vector<&Type>
+    resolved: &Structure
+}
+
+def TemplateInstance::new(params: &Vector, resolved: &Structure): &TemplateInstance {
+    let instance = calloc(1, sizeof(TemplateInstance)) as &TemplateInstance
+    instance.params = params
+    instance.resolved = resolved
+    return instance
+}
+
 struct Structure {
     sym: &Symbol
     fields: &Vector     // Vector<&Variable>
     type: &Type
     is_union: bool
+
+    is_templated: bool
+    template_params: &Vector // Vector<&Variable>
+    template_instances: &Vector // Vector<&TemplateInstance>
 }
 
 def Structure::new(): &Structure {
@@ -140,6 +156,30 @@ def Structure::get_field(&this, name: str): &Variable {
             return field
         }
     }
+    return null
+}
+
+def Structure::find_template_instance(&this, templ: &Type): &Structure {
+    let a = templ.u.templ.template_args
+    for let i = 0; i < .template_instances.size; i += 1 {
+        let instance = .template_instances.at(i) as &TemplateInstance
+        let b = instance.params
+
+        if a.size != b.size continue
+
+        let all_ok = true
+        for let j = 0; j < a.size; j += 1 {
+            let a_type = a.at(j) as &Type
+            let b_type = b.at(j) as &Type
+            if not a_type.eq(b_type) {
+                all_ok = false
+                break
+            }
+        }
+
+        if all_ok return instance.resolved
+    }
+
     return null
 }
 
