@@ -11,7 +11,7 @@ def run_all_passes(program: &Program): str {
     RegisterTypes::run(program)
     TypeChecker::run(program)
 
-    if not program.errors.empty() then program.exit_with_errors()
+    if not program.errors.is_empty() then program.exit_with_errors()
 
     ReorderStructs::run(program)
     return CodeGenerator::run(program)

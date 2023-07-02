@@ -1,0 +1,10 @@
+def str::hash(this): u32 {
+    let hash = 5381
+    let len = .len()
+    for let i = 0; i < len; i += 1 {
+        hash = hash * 33 ^ this[i] as u32
+    }
+    return hash
+}
+
+def i32::hash(this): u32 => this as u32

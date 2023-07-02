@@ -1,0 +1,14 @@
+/// compile
+
+
+struct Foo<T> {
+    x: T<i32>
+}
+
+struct Bar<T> {
+    x: T
+}
+
+def main() {
+    let foo: Foo<Bar>
+}

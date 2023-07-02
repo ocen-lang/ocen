@@ -1006,7 +1006,7 @@ def Parser::parse_function(&this): &Function {
         let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
         let type = null as &Type
-        if func.params.empty() and is_method {
+        if func.params.is_empty() and is_method {
             if var_name.text.eq("this") {
                 type = parent_type
                 if found_amp {

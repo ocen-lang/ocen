@@ -220,7 +220,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             if not lhs? return null
 
             let name = node.u.lookup.rhs_name
-            let res = .o.lookup_in_symbol(lhs, name, error)
+            let res = .o.lookup_in_symbol(lhs, name, node.span, error)
             node.resolved_symbol = res
             return res
         }
@@ -1439,7 +1439,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
             break
         }
 
-        let new_base = .o.lookup_in_symbol(base, name, error: false)
+        let new_base = .o.lookup_in_symbol(base, name, part.u.single.alias_span, error: false)
         if not new_base? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
             return
