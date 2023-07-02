@@ -1,0 +1,27 @@
+/// exit: 0
+
+
+import std::set::Set
+
+
+def main() {
+    let set = Set<i32>::new()
+    set.add(1)
+    set.add(2)
+    set.add(3)
+
+    assert set.contains(1)
+    assert set.contains(2)
+
+    set.remove(1)
+    assert not set.contains(1)
+
+    let set_2 = Set<i32>::new()
+    set_2.add(3)
+    set_2.add(4)
+    set_2.add(5)
+
+    set.subtract(set_2)
+    assert set.contains(2)
+    assert set.size() == 1
+}

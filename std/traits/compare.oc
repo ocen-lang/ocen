@@ -1,0 +1,11 @@
+def i8::compare(this, b: i8): i8 => (this > b) as i8 - (this < b) as i8
+def i16::compare(this, b: i16): i8 => (this > b) as i8 - (this < b) as i8
+def i32::compare(this, b: i32): i8 => (this > b) as i8 - (this < b) as i8
+def i64::compare(this, b: i64): i8 => (this > b) as i8 - (this < b) as i8
+def u8::compare(this, b: u8): i8 => (this > b) as i8 - (this < b) as i8
+def u16::compare(this, b: u16): i8 => (this > b) as i8 - (this < b) as i8
+def u32::compare(this, b: u32): i8 => (this > b) as i8 - (this < b) as i8
+def u64::compare(this, b: u64): i8 => (this > b) as i8 - (this < b) as i8
+def f32::compare(this, b: f32): i8 => (this > b) as i8 - (this < b) as i8
+def f64::compare(this, b: f64): i8 => (this > b) as i8 - (this < b) as i8
+def str::compare(this, b: str): i8 extern("strcmp")

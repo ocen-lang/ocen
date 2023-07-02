@@ -99,20 +99,29 @@ def GenericPass::get_type_by_name(&this, name: str, span: Span): &Type {
     }
 }
 
-def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): &Symbol => match sym.type {
+def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, error: bool): &Symbol => match sym.type {
     SymbolType::Namespace => {
         let ns = sym.u.ns
         let res = ns.find_importable_symbol(name)
         if error and not res? {
-            .error(Error::new(sym.span, `Could not find symbol {name} in namespace {sym.display}`))
+            .error(Error::new_hint(
+                span, `Could not find symbol {name} in namespace {sym.display}`,
+                sym.span, `Namespace was defined here`
+            ))
         }
         yield res
     }
     SymbolType::Structure => {
         let struc = sym.u.struc
+        if struc.is_templated {
+            .error(Error::new_hint(
+                span, `Need to specify template specialization for {sym.display}`,
+                sym.span, `Template was defined here`
+            ))
+        }
         let method = struc.type.methods.get(name, null)
         if error and not method? {
-            .error(Error::new(sym.span, `Could not find method {name} in structure {sym.display}`))
+            .error(Error::new(span, `Could not find method {name} in structure {sym.display}`))
         }
         if not method? return null
         yield method.sym
@@ -121,7 +130,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): 
         let type_def = sym.u.type_def
         let method = type_def.methods.get(name, null)
         if error and not method? {
-            .error(Error::new(sym.span, `Could not find method {name} in type {sym.display}`))
+            .error(Error::new(span, `Could not find method {name} in type {sym.display}`))
         }
         if not method? return null
         yield method.sym
@@ -135,12 +144,18 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, error: bool): 
         if method? then return method.sym
 
         if error {
-            .error(Error::new(sym.span, `Could not find value/method {name} in enum {sym.display}`))
+            .error(Error::new_hint(
+                span, `Could not find value/method {name} in enum {sym.display}`,
+                sym.span, `Enum was defined here`
+            ))
         }
         return null
     }
     else => {
-        .error(Error::new(sym.span, `Can't lookup a name inside a {sym.type}`))
+        .error(Error::new_hint(
+            span, `Can't lookup a name inside a {sym.type}`,
+            sym.span, `{sym.type} was defined here`
+        ))
         return null
     }
 }

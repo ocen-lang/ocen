@@ -1,0 +1,119 @@
+import std::vector::Vector
+import std::traits::compare
+import std::libc::{ calloc, free }
+
+
+enum Mode {
+    Min
+    Max
+}
+
+struct Heap<T> {
+    vec: &Vector<T>
+    min_heap: bool
+}
+
+def Heap::new(mode: Mode): &Heap<T> {
+    let heap = calloc(1, sizeof(Heap<T>)) as &Heap<T>
+    heap.min_heap = mode == Mode::Min
+    heap.vec = Vector<T>::new()
+    return heap
+}
+
+def Heap::push(&this, value: T) {
+    .vec.push(value)
+    .sift_up(.size() - 1)
+}
+
+def Heap::pop(&this): T {
+    assert .size() > 0
+    .swap(0, .size() - 1)
+    let value = .vec.pop()
+    .sift_down()
+    return value
+}
+
+def Heap::free(&this) {
+    .vec.free()
+    free(this)
+}
+
+def Heap::is_empty(&this): bool => .vec.is_empty()
+def Heap::size(&this): u32 => .vec.size
+
+def Heap::clear(&this) {
+    .vec.clear()
+}
+
+def Heap::peek(&this): T {
+    assert .size() > 0
+    return .vec.at(0)
+}
+
+def Heap::sort(&this) {
+    let data = Vector<T>::new()
+    while not .is_empty() {
+        data.push(.pop())
+    }
+    .vec.free()
+    .vec = data
+}
+
+def Heap::from_vec(mode: Mode, data: &Vector<T>): &Heap<T> {
+    let heap = Heap<T>::new(mode)
+    heap.vec = data
+
+    let i = heap.size() - 1
+    while i > 0 {
+        heap.sift_down(i)
+        i -= 1
+    }
+
+    if heap.size() > 0 {
+        heap.sift_down(0)
+    }
+
+    return heap
+}
+
+def Heap::sift_up(&this, i: u32) {
+    while i > 0 {
+        let parent = (i + 1) / 2 - 1
+        if .should_swap(i, parent) {
+            .swap(i, parent)
+            i = parent
+        } else {
+            break
+        }
+    }
+}
+
+def Heap::sift_down(&this, i: u32 = 0) {
+    let left = i * 2 + 1
+    let right = i * 2 + 2
+    let largest = i
+
+    if left < .size() and .should_swap(left, largest) {
+        largest = left
+    }
+
+    if right < .size() and .should_swap(right, largest) {
+        largest = right
+    }
+
+    if largest != i {
+        .swap(i, largest)
+        .sift_down(largest)
+    }
+}
+
+def Heap::should_swap(&this, a: u32, b: u32): bool {
+    let eval = .vec.at(a).compare(.vec.at(b))
+    return if .min_heap then eval < 0 else eval > 0
+}
+
+def Heap::swap(&this, a: u32, b: u32) {
+    let tmp = .vec.at(a)
+    .vec.data[a] = .vec.at(b)
+    .vec.data[b] = tmp
+}

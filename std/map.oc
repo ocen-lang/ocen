@@ -5,7 +5,8 @@
 //  - K must implement the `eq` method:      K::eq(this, other: K): bool
 
 import std::vector::Vector
-import std::libc::{calloc, realloc, free}
+import std::libc::{ calloc, realloc, free }
+import std::traits::{ hash, eq }
 
 struct Node<K, V> {
     key: K
@@ -77,7 +78,7 @@ def Map::get(&this, key: K, defolt: V): V {
     return node.value
 }
 
-def Map::exists(&this, key: K): bool {
+def Map::contains(&this, key: K): bool {
     return .get_node(key)?
 }
 
@@ -96,6 +97,30 @@ def Map::insert(&this, key: K, value: V) {
         if .num_items > .num_buckets {
             .resize()
         }
+    }
+}
+
+def Map::extend(&this, other: &Map<K, V>) {
+    for let iter = other.iter(); iter.cur?; iter.next() {
+        .insert(iter.key(), iter.value())
+    }
+}
+
+def Map::remove(&this, key: K) {
+    let node = .get_node(key)
+    if node? {
+        let hash = .hash(key)
+        if .buckets[hash] == node {
+            .buckets[hash] = node.next
+        } else {
+            let prev = .buckets[hash]
+            while prev.next != node {
+                prev = prev.next
+            }
+            prev.next = node.next
+        }
+        free(node)
+        .num_items -= 1
     }
 }
 
@@ -189,15 +214,4 @@ def Iterator::next(&this) {
         }
         if .cur? return
     }
-}
-
-// ------------------------------------------------------------------
-
-def str::hash(this): u32 {
-    let hash = 5381
-    let len = .len()
-    for let i = 0; i < len; i += 1 {
-        hash = hash * 33 ^ this[i] as u32
-    }
-    return hash
 }

@@ -47,6 +47,12 @@ def Vector::pop(&this): T {
     return .data[.size]
 }
 
+def Vector::extend(&this, other: &Vector<T>) {
+    for let i = 0; i < other.size; i += 1 {
+        .push(other.data[i])
+    }
+}
+
 def Vector::back(&this): T {
     assert .size > 0, "Empty vector in Vector::back"
     return .data[.size - 1]
@@ -57,8 +63,8 @@ def Vector::at(&this, i: u32): T {
     return .data[i]
 }
 
-def Vector::empty(&this): bool {
-    return .size == 0
+def Vector::clear(&this) {
+    .size = 0
 }
 
 def Vector::is_empty(&this): bool => .size == 0

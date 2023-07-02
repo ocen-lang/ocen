@@ -1,0 +1,40 @@
+/// out: "a b c d e f g"
+
+
+
+import std::heap::Heap
+import std::vector::Vector
+
+
+def foo(heap: &Heap<str>) {
+    for let i = 0; i < heap.size(); i += 1 {
+        print(f"{heap.vec.at(i)} ")
+    }
+    println("\n")
+}
+
+
+def main() {
+    let vec = Vector<str>::new()
+    vec.push("c")
+    vec.push("a")
+    vec.push("f")
+    vec.push("b")
+    vec.push("d")
+    vec.push("g")
+    vec.push("e")
+
+    let heap = Heap<str>::from_vec(Min, vec)
+    heap.sort()
+
+    foo(heap)
+
+    // heap.push(5)
+    // heap.push(3)
+    // heap.push(2)
+    // heap.push(1)
+
+    // println(f"heap size: {heap.size}")
+    // heap.sort()
+    // println(f"peek: {heap.peek()}")
+}
