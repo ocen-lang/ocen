@@ -202,7 +202,7 @@ def CodeGenerator::gen_constants(&this, ns: &Namespace) {
 
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
-        let child = iter.value() as &Namespace
+        let child = iter.value()
         .gen_constants(child)
     }
 }
@@ -219,7 +219,7 @@ def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
 
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
-        let child = iter.value() as &Namespace
+        let child = iter.value()
         .gen_global_variables(child)
     }
 }
@@ -913,7 +913,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
 
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
-        let child = iter.value() as &Namespace
+        let child = iter.value()
         .gen_functions(child)
     }
     .o.pop_scope()
@@ -937,7 +937,7 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
-        let child = iter.value() as &Namespace
+        let child = iter.value()
         .gen_function_decls(child)
     }
 }
@@ -950,7 +950,7 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
 
     let children = ns.namespaces
     for let iter = children.iter(); iter.cur?; iter.next() {
-        let child = iter.value() as &Namespace
+        let child = iter.value()
         .gen_enum_types(child)
     }
 }
@@ -1048,61 +1048,19 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
 }
 
 def CodeGenerator::generate(&this): str {
-    // FIXME: Put all of this in a prelude file
-    .out.puts("#include <stdio.h>\n")
-    .out.puts("#include <stdlib.h>\n")
-    .out.puts("#include <stdint.h>\n")
-    .out.puts("#include <stdbool.h>\n")
-    .out.puts("#include <stdarg.h>\n")
-    .out.puts("#include <string.h>\n")
-    .out.puts("\n")
-
-    .out.puts("typedef int8_t i8;\n")
-    .out.puts("typedef int16_t i16;\n")
-    .out.puts("typedef int32_t i32;\n")
-    .out.puts("typedef int64_t i64;\n")
-
-    .out.puts("typedef uint8_t u8;\n")
-    .out.puts("typedef uint16_t u16;\n")
-    .out.puts("typedef uint32_t u32;\n")
-    .out.puts("typedef uint64_t u64;\n")
-
-    .out.puts("typedef float f32;\n")
-    .out.puts("typedef double f64;\n")
-    .out.puts("\n")
-
-    .out.puts("char* format_string(const char* format, ...) {\n")
-    .out.puts("  va_list args;\n")
-    .out.puts("  va_start(args, format);\n")
-    .out.puts("  int size = vsnprintf(NULL, 0, format, args);\n")
-    .out.puts("  va_end(args);\n")
-    .out.puts("  va_start(args, format);\n")
-    .out.puts("  char* s = calloc(1, size + 1);\n")
-    .out.puts("  vsprintf(s, format, args);\n")
-    .out.puts("  s[size] = '\\0';\n")
-    .out.puts("  va_end(args);\n")
-    .out.puts("  return s;\n")
-    .out.puts("}\n")
-    .out.puts("\n")
-
-    .out.puts("void ae_assert(int cond, char *dbg_msg, char *msg) {\n")
-    .out.puts("  if (!cond) {\n")
-    .out.puts("    printf(\"--------------------------------------------------------------------------------\\n\");\n")
-    .out.puts("    printf(\"%s\\n\", dbg_msg);\n")
-    .out.puts("    if (msg) {\n")
-    .out.puts("      printf(\"  Message: %s\\n\", msg);\n")
-    .out.puts("    }\n")
-    .out.puts("    printf(\"--------------------------------------------------------------------------------\\n\");\n")
-    .out.puts("    exit(1);\n")
-    .out.puts("  }\n")
-    .out.puts("}\n")
-    .out.puts("\n")
-
     for let i = 0; i < .o.program.c_includes.size; i += 1 {
         let include = .o.program.c_includes.at(i) as str
         .out.putsf(`#include "{include}"\n`)
     }
     .out.puts("\n")
+
+    for let iter = .o.program.c_embeds.iter(); iter.cur?; iter.next() {
+        let name = iter.key()
+        let embed = iter.value()
+        .out.putsf(`/* Embed: {name} */\n`)
+        .out.putsf(embed)
+        .out.puts("\n\n")
+    }
 
     .out.puts("/* Enums */\n")
     .gen_enum_types(.o.program.global)

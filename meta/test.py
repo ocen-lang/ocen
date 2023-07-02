@@ -110,11 +110,18 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
         if process.returncode != expected.value:
             return False, "Expected exit code {expected.value}, but got {process.returncode}", path
 
-    if expected.type in [Result.EXIT_WITH_OUTPUT, Result.RUNTIME_FAIL]:
+    if expected.type == Result.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
             return False, f'Incorrect output produced\n  expected: {repr(expected_out)}\n  got: {repr(output)}', path
+
+    if expected.type == Result.RUNTIME_FAIL:
+        output = process.stdout.decode('utf-8').strip()
+        output_err = process.stderr.decode('utf-8').strip()
+        expected_out = expected.value
+        if expected_out not in output:
+            return False, f'Expected runtime error not found\n  expected: {repr(expected_out)}\n  got: {repr(output)}', path
 
     return True, "(Success)", path
 

@@ -36,10 +36,7 @@ def Buffer::resize_if_necessary(&this, new_size: u32) {
     if new_size >= .capacity {
         let new_capacity = max(.capacity as i32 * 2, new_size as i32)
         .data = realloc(.data, new_capacity as u32) as &u8
-        if .data == null {
-            println("Out of memory!")
-            exit(1)
-        }
+        assert .data?, "Out of memory!"
     }
 }
 

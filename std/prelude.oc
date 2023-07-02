@@ -1,5 +1,7 @@
 import .libc
 
+@compiler c_embed "./prelude.h"
+
 struct File extern("FILE")
 
 def File::open(path: str, mode: str = "r"): &File {
