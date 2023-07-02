@@ -255,7 +255,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             let args = node.u.spec.template_args
             let failed = false
             for let i = 0; i < args.size; i += 1 {
-                let resolved_arg = .resolve_type(args.at(i))
+                let resolved_arg = .resolve_type(args.at(i), allow_incomplete: true)
                 if not resolved_arg? {
                     failed = true
                     continue
@@ -264,11 +264,15 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             }
             if failed return null
 
+            while base.type == TypeDef {
+                base = base.u.type_def.sym
+            }
+
             match base.type {
                 Structure => {
                     let struc = base.u.struc
                     if not struc.is_templated {
-                        .error(Error::new(node.span, "Can only specialize a templated structure"))
+                        .error(Error::new(node.span, `Can only specialize a templated structure, got {base.display}`))
                         return null
                     }
 
@@ -277,7 +281,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                     return res
                 }
                 else => {
-                    .error(Error::new(node.span, "Can only specialize a templated structure"))
+                    .error(Error::new(node.span, `Can only specialize a structure, got {base.display}`))
                     return null
                 }
             }
