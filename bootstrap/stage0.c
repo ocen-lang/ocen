@@ -1256,7 +1256,7 @@ void passes_typechecker_TypeChecker_handle_import_statement(passes_typechecker_T
 void passes_typechecker_TypeChecker_pre_check_function(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns, ast_nodes_Function *func);
 void passes_typechecker_TypeChecker_resolve_struct(passes_typechecker_TypeChecker *this, ast_nodes_Structure *struc);
 void passes_typechecker_TypeChecker_check_function_declaration(passes_typechecker_TypeChecker *this, ast_nodes_Function *func);
-void passes_typechecker_TypeChecker_check_function_declarations(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
+void passes_typechecker_TypeChecker_check_post_import(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 void passes_typechecker_TypeChecker_pre_check_globals(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, bool is_const);
 void passes_typechecker_TypeChecker_pre_check_constants(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 void passes_typechecker_TypeChecker_pre_check_namespace(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
@@ -1327,6 +1327,7 @@ char *ast_scopes_Symbol_join_out_name(char *a, char *b);
 ast_scopes_Symbol *ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType type, ast_program_Namespace *ns, ast_scopes_Symbol *parent, char *name, std_span_Span span);
 void ast_scopes_Symbol_update_parent(ast_scopes_Symbol *this, ast_scopes_Symbol *parent);
 ast_scopes_Symbol *ast_scopes_Symbol_from_local_variable(char *name, ast_nodes_Variable *var, std_span_Span span);
+ast_scopes_Symbol *ast_scopes_Symbol_remove_alias(ast_scopes_Symbol *this);
 ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent);
 ast_scopes_Symbol *ast_scopes_Scope_lookup_recursive(ast_scopes_Scope *this, char *name);
 ast_scopes_Symbol *ast_scopes_Scope_lookup_local(ast_scopes_Scope *this, char *name);
@@ -3388,7 +3389,7 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_scoped_identifier(pass
       std_vector_Vector__11 *args = node->u.spec.template_args;
       bool failed = false;
       for (u32 i = ((u32)0); (i < args->size); i+=((u32)1)) {
-        types_Type *resolved_arg = passes_typechecker_TypeChecker_resolve_type(this, std_vector_Vector__11_at(args, i), false);
+        types_Type *resolved_arg = passes_typechecker_TypeChecker_resolve_type(this, std_vector_Vector__11_at(args, i), true);
         if (!((bool)resolved_arg)) {
           failed=true;
           continue;
@@ -3398,11 +3399,12 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_scoped_identifier(pass
       if (failed) 
       return NULL;
       
+      base=ast_scopes_Symbol_remove_alias(base);
       switch (base->type) {
         case ast_scopes_SymbolType_Structure: {
           ast_nodes_Structure *struc = base->u.struc;
           if (!struc->is_templated) {
-            passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Can only specialize a templated structure"));
+            passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only specialize a templated structure, got %s", base->display)));
             return NULL;
           } 
           ast_scopes_Symbol *res = passes_typechecker_TypeChecker_resolve_templated_struct(this, struc, node);
@@ -3410,7 +3412,7 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_scoped_identifier(pass
           return res;
         } break;
         default: {
-          passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Can only specialize a templated structure"));
+          passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only specialize a structure, got %s", base->display)));
           return NULL;
         } break;
       }
@@ -4536,7 +4538,7 @@ void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_T
         std_vector_Vector__14 *paths = part->u.paths;
         for (u32 j = ((u32)0); (j < paths->size); j+=((u32)1)) {
           std_vector_Vector__4 *path = std_vector_Vector__14_at(paths, j);
-          passes_typechecker_TypeChecker_handle_import_path_base(this, path, base, NULL, 0);
+          passes_typechecker_TypeChecker_handle_import_path_base(this, path, base, alias, 0);
         }
         return ;
       } break;
@@ -4544,13 +4546,26 @@ void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_T
       } break;
     }
     char *name = part->u.single.name;
-    alias=part->u.single.alias;
+    if (str_eq(name, "this")) {
+      if (((i + ((u32)1)) != parts->size)) {
+        passes_typechecker_TypeChecker_error(this, errors_Error_new(part->span, "`this` can only be used as the last part of an import path"));
+        return ;
+      } 
+      if (((bool)part->u.single.alias)) 
+      alias=part->u.single.alias;
+      
+      break;
+    } 
     ast_scopes_Symbol *new_base = passes_generic_pass_GenericPass_lookup_in_symbol(this->o, base, name, false);
     if (!((bool)new_base)) {
       passes_typechecker_TypeChecker_error(this, errors_Error_new(part->span, format_string("Invalid import, namespace %s does not exist", name)));
       return ;
     } 
     base=new_base;
+    alias=part->u.single.alias;
+    if (!((bool)alias)) 
+    alias=name;
+    
   }
   ast_scopes_Scope_insert(passes_typechecker_TypeChecker_scope(this), alias, base);
 }
@@ -4564,6 +4579,9 @@ void passes_typechecker_TypeChecker_handle_import_statement(passes_typechecker_T
   } 
   char *name = part->u.single.name;
   char *alias = part->u.single.alias;
+  if (!((bool)alias)) 
+  alias=name;
+  
   ast_scopes_Symbol *base = ({ ast_scopes_Symbol *__yield_0;
     switch (path.type) {
       case ast_nodes_ImportType_FromRootNamespace: {
@@ -4674,7 +4692,7 @@ void passes_typechecker_TypeChecker_check_function_declaration(passes_typechecke
   func->type=typ;
 }
 
-void passes_typechecker_TypeChecker_check_function_declarations(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns) {
+void passes_typechecker_TypeChecker_check_post_import(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns) {
   passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
   passes_generic_pass_GenericPass_push_namespace(this->o, ns);
   for (u32 i = ((u32)0); (i < ns->functions->size); i+=((u32)1)) {
@@ -4685,8 +4703,12 @@ void passes_typechecker_TypeChecker_check_function_declarations(passes_typecheck
     ast_nodes_Structure *struc = std_vector_Vector__6_at(ns->structs, i);
     passes_typechecker_TypeChecker_resolve_struct(this, struc);
   }
+  for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
+    ast_nodes_AST *node = std_vector_Vector__8_at(ns->variables, i);
+    passes_typechecker_TypeChecker_pre_check_globals(this, node, false);
+  }
   for (std_map_Iterator__3 iter = std_map_Map__3_iter(ns->namespaces); ((bool)iter.cur); std_map_Iterator__3_next(&iter)) {
-    passes_typechecker_TypeChecker_check_function_declarations(this, std_map_Iterator__3_value(&iter));
+    passes_typechecker_TypeChecker_check_post_import(this, std_map_Iterator__3_value(&iter));
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
   passes_generic_pass_GenericPass_pop_namespace(this->o);
@@ -4724,10 +4746,6 @@ void passes_typechecker_TypeChecker_pre_check_namespace(passes_typechecker_TypeC
     ast_nodes_Function *func = std_vector_Vector__5_at(ns->functions, i);
     passes_typechecker_TypeChecker_pre_check_function(this, ns, func);
   }
-  for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
-    ast_nodes_AST *node = std_vector_Vector__8_at(ns->variables, i);
-    passes_typechecker_TypeChecker_pre_check_globals(this, node, false);
-  }
   for (std_map_Iterator__3 iter = std_map_Map__3_iter(ns->namespaces); ((bool)iter.cur); std_map_Iterator__3_next(&iter)) {
     passes_typechecker_TypeChecker_pre_check_namespace(this, std_map_Iterator__3_value(&iter));
   }
@@ -4739,7 +4757,7 @@ void passes_typechecker_TypeChecker_run(ast_program_Program *program) {
   passes_typechecker_TypeChecker_pre_check_constants(&pass, program->global);
   passes_typechecker_TypeChecker_pre_check_namespace(&pass, program->global);
   passes_typechecker_TypeChecker_handle_namespace_imports(&pass, program->global);
-  passes_typechecker_TypeChecker_check_function_declarations(&pass, program->global);
+  passes_typechecker_TypeChecker_check_post_import(&pass, program->global);
   passes_typechecker_TypeChecker_check_namespace(&pass, program->global);
   while ((pass.unchecked_functions->size > ((u32)0))) {
     ast_nodes_Function *func = ((ast_nodes_Function *)std_vector_Vector__5_pop(pass.unchecked_functions));
@@ -5898,8 +5916,6 @@ std_vector_Vector__4 *parser_Parser_parse_import_path(parser_Parser *this) {
       this->curr+=((u32)1);
       ast_nodes_ImportPart *part = ast_nodes_ImportPart_new(ast_nodes_ImportPartType_Single, word->span);
       part->u.single.name=word->text;
-      part->u.single.alias=word->text;
-      part->u.single.alias_span=word->span;
       if (parser_Parser_consume_if(this, tokens_TokenType_As)) {
         tokens_Token *alias = parser_Parser_consume(this, tokens_TokenType_Identifier);
         part->u.single.alias=alias->text;
@@ -6390,6 +6406,22 @@ ast_scopes_Symbol *ast_scopes_Symbol_from_local_variable(char *name, ast_nodes_V
   ast_scopes_Symbol *item = ast_scopes_Symbol_new(ast_scopes_SymbolType_Variable, NULL, name, name, name, span);
   item->u.var=var;
   return item;
+}
+
+ast_scopes_Symbol *ast_scopes_Symbol_remove_alias(ast_scopes_Symbol *this) {
+  return ({ ast_scopes_Symbol *__yield_0;
+    switch (this->type) {
+      case ast_scopes_SymbolType_TypeDef: {
+        if ((this->u.type_def->sym != this)) {
+          return ast_scopes_Symbol_remove_alias(this->u.type_def->sym);
+        } 
+        return this;
+      } break;
+      default: {
+        __yield_0 = this;
+      } break;
+    }
+;__yield_0; });
 }
 
 ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent) {
@@ -10198,7 +10230,7 @@ void errors_display_error_messages(std_vector_Vector__9 *errors, u32 detail_leve
   u32 num_errors = u32_min(errors->size, max_num_errors);
   bool first = true;
   for (u32 i = ((u32)0); (i < num_errors); i+=((u32)1)) {
-    errors_Error *err = std_vector_Vector__9_at(errors, ((errors->size - i) - ((u32)1)));
+    errors_Error *err = std_vector_Vector__9_at(errors, ((num_errors - i) - ((u32)1)));
     switch (detail_level) {
       case ((u32)0): {
         printf("%s: %s""\n", std_span_Location_str(&err->span1.start), err->msg1);
