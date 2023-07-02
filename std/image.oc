@@ -47,3 +47,8 @@ def Image::save(&this, filename: str) {
     file.write(header , header.len())
     file.write(u8buf , 3 * .width * .height)
 }
+
+
+def Image::clear(&this) {
+    std::libc::memset(.data, 0, .width * .height * sizeof(Vec))
+}

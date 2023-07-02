@@ -1,19 +1,17 @@
-import std::sdl as SDL
+import std::sdl::{this, ttf::{this, Font}}
 import std::vec::Vec
-import std::vector::OldVector
+import std::vector::Vector
 import std::image::Image
+import std::math::{ rand01, sqrt }
+import std::libc::{ calloc, free }
 
 // Make raytracer go brrr
 @compiler c_flag "-O3"
 
-let TOL = 0.00001;
+let TOL: f32 = 0.00001;
 
 def random_vec(): Vec {
     return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
-}
-
-def Vec::reflect(this, normal: Vec): Vec {
-    return .sub(normal.multf(2.0 * .dot(normal)));
 }
 
 def random_vec_unit(): Vec {
@@ -49,7 +47,7 @@ struct Sphere {
 }
 
 def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &Sphere {
-    let s = malloc(sizeof(Sphere)) as &Sphere
+    let s = calloc(1, sizeof(Sphere)) as &Sphere
     *s = Sphere(mat, pos, color, radius, fuzz)
     return s
 }
@@ -86,7 +84,7 @@ def background_color(ray: &Ray): Vec {
     return res.multf(t).add(col2)
 }
 
-def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
+def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
     let hit = false
 
     for let i = 0; i < objs.size; i += 1 {
@@ -107,7 +105,7 @@ def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, hit_obj: &&Sphere): 
     return hit
 }
 
-def raytrace(ray: &Ray, objs: &OldVector, depth: i32): Vec {
+def raytrace(ray: &Ray, objs: &Vector<&Sphere>, depth: i32): Vec {
     if depth < 0
         return Vec(0.0, 0.0, 0.0)
 
@@ -128,8 +126,8 @@ def raytrace(ray: &Ray, objs: &OldVector, depth: i32): Vec {
     return rec_col.mult(obj.color)
 }
 
-const WIDTH: i32 = 800
-const HEIGHT: i32 = 600
+const WIDTH: u32 = 800
+const HEIGHT: u32 = 600
 
 struct Camera {
     origin: Vec
@@ -144,10 +142,11 @@ struct Camera {
     w: Vec
 }
 
+let img: &Image
+let objs: &Vector<&Sphere>
+let samples: u32 = 0
+
 def Camera::make(origin: Vec, direction: Vec): Camera {
-    let samples = 0
-    let img: &Image
-    let objs: &OldVector
 
     let cam: Camera
     let aspect_ratio = WIDTH as f32 / HEIGHT as f32
@@ -175,7 +174,7 @@ def Camera::make(origin: Vec, direction: Vec): Camera {
     return cam
 }
 
-def Camera::ray(&this, x: i32, y: i32): Ray {
+def Camera::ray(&this, x: u32, y: u32): Ray {
     let u = (rand01() + x as f32) / (WIDTH-1) as f32
     let v = 1.0 - (rand01() + y as f32) / (HEIGHT-1) as f32
     let ray: Ray
@@ -190,7 +189,7 @@ def Camera::ray(&this, x: i32, y: i32): Ray {
 
 let camera: Camera
 
-def draw(screen: &u8, pitch: i32) {
+def draw(screen: &u8, pitch: u32) {
     samples += 1
     for let x = 0; x < WIDTH; x += 1 {
         for let y = 0; y < HEIGHT; y += 1 {
@@ -215,68 +214,40 @@ def draw(screen: &u8, pitch: i32) {
     }
 }
 
-def Image::clear(&this) {
-    set_memory(.data, 0, .width * .height * sizeof(Vec))
-}
+let window: &sdl::Window
+let renderer: &sdl::Renderer
 
-def Vec::rotateX(&this, angle: f32): Vec {
-    let c = cos(angle)
-    let s = sin(angle)
-    let y = .y * c - .z * s
-    let z = .y * s + .z * c
-    return Vec(.x, y, z)
-}
-
-def Vec::rotateY(&this, angle: f32): Vec {
-    let c = cos(angle)
-    let s = sin(angle)
-    let z = .z * c - .x * s
-    let x = .z * s + .x * c
-    return Vec(x, .y, z)
-}
-
-def Vec::rotateZ(&this, angle: f32): Vec {
-    let c = cos(angle)
-    let s = sin(angle)
-    let x = .x * c - .y * s
-    let y = .x * s + .y * c
-    return Vec(x, y, .z)
-}
-
-let window: &Window
-let renderer: &Renderer
-
-def draw_text(font: &TTFFont, text: str, x: i32, y: i32) {
-    let col = SDLColor(0, 0, 0, 255)
+def draw_text(font: &ttf::Font, text: str, x: i32, y: i32) {
+    let col = sdl::Color(0, 0, 0, 255)
     let msg_surf = font.render_solid(text, col)
     let msg = renderer.create_texture_from_surface(msg_surf)
-    let w = 0
-    let h = 0
+    let w: i32
+    let h: i32
     msg.query(null, null, &w, &h)
-    let rect = SDLRect(x, y, w, h)
+    let rect = sdl::Rect(x, y, w, h)
     renderer.copy(msg, null, &rect)
     msg_surf.destroy()
     msg.destroy()
 }
 
 def main() {
-    SDL::init(SDL::INIT_EVERYTHING)
-    SDL::create_window_renderer(WIDTH, HEIGHT, 0, &window, &renderer)
-    TTF::init()
-    let font = SDL::TTF::Font::load("lib/docen/assets/font.ttf", 24)
+    sdl::init(sdl::INIT_EVERYTHING)
+    sdl::create_window_renderer(WIDTH as i32, HEIGHT as i32, 0, &window, &renderer)
+    ttf::init()
+    let font = ttf::Font::load("std/decor/assets/font.ttf", 24)
 
     renderer.set_draw_color(0, 0, 0, 255)
     renderer.clear()
     renderer.present()
 
     let buffer = renderer.create_texture(
-        SDL_PIXELFORMAT_ABGR8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        WIDTH,
-        HEIGHT
+        sdl::PIXELFORMAT_ABGR8888,
+        sdl::TEXTUREACCESS_STREAMING,
+        WIDTH as i32,
+        HEIGHT as i32
     )
 
-    objs = OldVector::new()
+    objs = Vector<&Sphere>::new()
     objs.push(Sphere::new(Material::Diffuse, Vec(0.0,    0.0, 1.0),   0.5, Vec(1.0, 0.6, 0.3), 0.0))
     objs.push(Sphere::new(Material::Mirror,  Vec(1.0,    0.0, 1.0),   0.5, Vec(0.8, 0.8, 0.8), 0.7))
     objs.push(Sphere::new(Material::Mirror,  Vec(-1.0,   0.0, 1.0),   0.5, Vec(0.8, 0.6, 0.2), 0.0))
@@ -289,17 +260,17 @@ def main() {
 
     img = Image::new(WIDTH, HEIGHT);
 
-    let e: SDLEvent
+    let e: sdl::Event
 
     let quit = false
     while not quit {
         let modified = false
-        while SDL::poll_event(&e) {
+        while sdl::poll_event(&e) {
             match e.type {
                 Quit => quit = true
                 KeyDown => {
                     let cur_modified = true
-                    match e.key.keysym.sym {
+                    match e.key.keysym.scancode {
                         Q | Escape => quit = true
                         W => origin = origin.add(camera.w.multf(-0.1))
                         S => origin = origin.add(camera.w.multf(0.1))
@@ -332,10 +303,10 @@ def main() {
         }
 
         let pixels: &u8
-        let pitch = 0
+        let pitch = 0i32
         buffer.lock(null, (&pixels) as &untyped_ptr, &pitch)
 
-        draw(pixels, pitch)
+        draw(pixels, pitch as u32)
 
         buffer.unlock()
         renderer.copy(buffer, null, null)
@@ -346,12 +317,12 @@ def main() {
 
         renderer.present()
 
-        // SDL::delay(1000 / 60)
+        // sdl::delay(1000 / 60)
     }
 
     renderer.destroy()
     window.destroy()
-    SDL::quit()
+    sdl::quit()
 
     return 0
 }
