@@ -163,7 +163,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
                 sb.puts("\"")
                 sb.puts(iter.key())
                 sb.puts("\": ")
-                let value = iter.value() as &Value
+                let value = iter.value()
                 serialize_into(value, sb)
             }
             sb.puts("}")

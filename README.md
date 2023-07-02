@@ -13,8 +13,16 @@ $ ./meta/bootstrap.sh       # Generates ./bootstrap/ocen if successful
 
 ### Compiling other programs
 
-For now, the compiler _needs_ to be run from the root of the repository, since it needs to be able 
-to find the `std` directory containing the standard library.
+If you wish to use `ocen` from elsewhere, you can set the `OCEN_ROOT` environment variable to point
+to the root directory of this project. This lets the compiler find the standard library and other
+files it needs to compile your program.
+
+```shell
+$ export OCEN_ROOT=/path/to/ocen
+$ export PATH=$OCEN_ROOT/bootstrap:$PATH # Add the compiler to your PATH
+```
+
+You can then use the compiler as follows:
 
 ```shell
 $ ocen file.oc                # generates ./out and ./out.c

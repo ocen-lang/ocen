@@ -182,14 +182,14 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
         SymbolType::TypeDef => {
             let methods = sym.u.type_def.methods
             for let iter = methods.iter(); iter.cur?; iter.next() {
-                let method = iter.value() as &Function
+                let method = iter.value()
                 .insert_into_scope_checked(method.sym)
             }
         }
         SymbolType::Structure => {
             let methods = sym.u.struc.type.methods
             for let iter = methods.iter(); iter.cur?; iter.next() {
-                let method = iter.value() as &Function
+                let method = iter.value()
                 .insert_into_scope_checked(method.sym)
             }
         }

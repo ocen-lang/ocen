@@ -93,7 +93,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
     for let iter = old_methods.iter(); iter.cur?; iter.next() {
         let name = iter.key()
-        let method = iter.value() as &Function
+        let method = iter.value()
 
         let new_method = .o.program.get_function_deep_copy(method, parent_ns)
         new_method.parent_type = cur_type
@@ -118,7 +118,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
     // NOTE: We don't want to check these functions right now, since we could still be in the process
     // of setting up the namespaces / imports / etc. We'll check them later at the end of the program.
     for let iter = cur_methods.iter(); iter.cur?; iter.next() {
-        let new_method = iter.value() as &Function
+        let new_method = iter.value()
         .unchecked_functions.push(new_method)
     }
 }
