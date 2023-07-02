@@ -1,6 +1,6 @@
 // A type that represents a vector in 3D space
 
-import std::math::sqrt
+import std::math::{ sqrt, sin, cos }
 
 struct Vec {
     x: f32
@@ -38,3 +38,31 @@ def Vec::cross(this, other: Vec): Vec {
 def Vec::length(this): f32 => sqrt(.x * .x + .y * .y + .z * .z)
 def Vec::length_sq(this): f32 => .x * .x + .y * .y + .z * .z
 def Vec::normalized(this): Vec => .divf(.length())
+
+def Vec::reflect(this, normal: Vec): Vec {
+    return .sub(normal.multf(2.0 * .dot(normal)));
+}
+
+def Vec::rotateX(&this, angle: f32): Vec {
+    let c = cos(angle)
+    let s = sin(angle)
+    let y = .y * c - .z * s
+    let z = .y * s + .z * c
+    return Vec(.x, y, z)
+}
+
+def Vec::rotateY(&this, angle: f32): Vec {
+    let c = cos(angle)
+    let s = sin(angle)
+    let z = .z * c - .x * s
+    let x = .z * s + .x * c
+    return Vec(x, .y, z)
+}
+
+def Vec::rotateZ(&this, angle: f32): Vec {
+    let c = cos(angle)
+    let s = sin(angle)
+    let x = .x * c - .y * s
+    let y = .x * s + .y * c
+    return Vec(x, y, .z)
+}
