@@ -22,6 +22,7 @@ struct Program {
 
     c_includes: &Vector<str>
     c_flags: &Vector<str>
+    c_embeds: &Map<str, str> // Filename -> C code
 
     gen_debug_info: bool
     sources: &Map<str, str>
@@ -44,6 +45,7 @@ def Program::new(): &Program {
     prog.errors = Vector<&Error>::new()
     prog.c_includes = Vector<str>::new()
     prog.c_flags = Vector<str>::new()
+    prog.c_embeds = Map<str, str>::new()
     prog.sources = Map<str, str>::new()
     return prog
 }

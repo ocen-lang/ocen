@@ -1353,6 +1353,26 @@ def Parser::parse_compiler_option(&this) {
             let flag = .consume(TokenType::StringLiteral)
             .program.c_flags.push(flag.text)
         }
+        "c_embed" => {
+            let path = .consume(TokenType::StringLiteral)
+
+            let cur_dir = if .ns.is_top_level {
+                yield .ns.path
+            } else {
+                yield .ns.parent.path
+            }
+
+            let full_path = f"{cur_dir}/{path.text}"
+            if not std::File::exists(full_path) {
+                .error(Error::new(path.span, f"File '{full_path}' does not exist"))
+                return
+            }
+
+            let file = std::File::open(full_path)
+            defer file.close()
+            let contents = file.slurp()
+            .program.c_embeds.insert(full_path, contents)
+        }
         else => .error(Error::new(name.span, "Unknown compiler option"))
     }
 }
@@ -1459,6 +1479,14 @@ def Parser::load_file(&this, filename: str) {
     .parse_namespace_until(TokenType::EOF)
 }
 
+def couldnt_find_stdlib() {
+    println("--------------------------------------------------------------------------------")
+    println("    Could not find standard library. Set OCEN_ROOT environment variable.")
+    println("      Alternatively, compile from the root of `ocen` repository.")
+    println("--------------------------------------------------------------------------------")
+    std::exit(1)
+}
+
 def Parser::parse_toplevel(filename: str, program: &Program) {
     let t1 = filename.copy()
     let dir = dirname(t1).copy()
@@ -1471,7 +1499,22 @@ def Parser::parse_toplevel(filename: str, program: &Program) {
     // FIXME: hack
     base.remove_last_n(3)
 
-    let std_ns = Namespace::new(parent: program.global, path: "./std")
+    let ocen_root = "./"
+
+    let std_path = f"{ocen_root}/std"
+    let prelude_path = f"{std_path}/prelude.oc"
+    if not std::File::exists(prelude_path) {
+        ocen_root = std::libc::getenv("OCEN_ROOT")
+        if not ocen_root? couldnt_find_stdlib()
+        free(std_path)
+        free(prelude_path)
+
+        std_path = f"{ocen_root}/std"
+        prelude_path = f"{std_path}/prelude.oc"
+        if not std::File::exists(prelude_path) couldnt_find_stdlib()
+    }
+
+    let std_ns = Namespace::new(parent: program.global, path: std_path)
     std_ns.sym = Symbol::new_with_parent(
         Namespace,
         ns: program.global,
@@ -1486,7 +1529,7 @@ def Parser::parse_toplevel(filename: str, program: &Program) {
     std_ns.is_top_level = true
 
     let parser = Parser::make(program, std_ns)
-    parser.load_file("./std/prelude.oc")
+    parser.load_file(prelude_path)
 
     let ns = Namespace::new(parent: program.global, path: filename)
     ns.sym = Symbol::new(Namespace, ns: null, "", "", "", Span::default())

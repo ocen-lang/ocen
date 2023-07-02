@@ -54,7 +54,7 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
     }
 
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
-        let next = iter.value() as &Namespace
+        let next = iter.value()
         .print_namespace(next)
     }
     .indent -= 1
