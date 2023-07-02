@@ -263,10 +263,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 args.data[i] = resolved_arg
             }
             if failed return null
-
-            while base.type == TypeDef {
-                base = base.u.type_def.sym
-            }
+            base = base.remove_alias()
 
             match base.type {
                 Structure => {

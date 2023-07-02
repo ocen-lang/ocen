@@ -77,6 +77,16 @@ def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol 
     return item
 }
 
+def Symbol::remove_alias(&this): &Symbol => match .type {
+    SymbolType::TypeDef => {
+        if .u.type_def.sym != this {
+            return .u.type_def.sym.remove_alias()
+        }
+        return this
+    }
+    else => this
+}
+
 struct Scope {
     items: &Map<str, &Symbol>
     defers: &Vector<&AST>
