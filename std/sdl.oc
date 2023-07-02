@@ -1,8 +1,11 @@
+// Do not include this file directly, use lib/daecor/all.ae
+
 @compiler c_include "SDL2/SDL.h"
 @compiler c_include "SDL2/SDL_image.h"
-@compiler c_include "SDL2/SDL_mixer.h"
+@compiler c_include "SDL2/SDL2_gfxPrimitives.h"
 @compiler c_include "SDL2/SDL_ttf.h"
-@compiler c_flag "-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer"
+@compiler c_include "SDL2/SDL_mixer.h"
+@compiler c_flag "-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lSDL2_mixer"
 
 struct Window extern("SDL_Window")
 struct Renderer extern("SDL_Renderer")
@@ -27,45 +30,53 @@ struct Color extern("SDL_Color") {
     a: i32
 }
 
-enum Key extern("SDL_Keycode") {
-    A = extern("SDLK_a")
-    B = extern("SDLK_b")
-    C = extern("SDLK_c")
-    D = extern("SDLK_d")
-    E = extern("SDLK_e")
-    F = extern("SDLK_f")
-    G = extern("SDLK_g")
-    H = extern("SDLK_h")
-    I = extern("SDLK_i")
-    J = extern("SDLK_j")
-    K = extern("SDLK_k")
-    L = extern("SDLK_l")
-    M = extern("SDLK_m")
-    N = extern("SDLK_n")
-    O = extern("SDLK_o")
-    P = extern("SDLK_p")
-    Q = extern("SDLK_q")
-    R = extern("SDLK_r")
-    S = extern("SDLK_s")
-    T = extern("SDLK_t")
-    U = extern("SDLK_u")
-    V = extern("SDLK_v")
-    W = extern("SDLK_w")
-    X = extern("SDLK_x")
-    Y = extern("SDLK_y")
-    Z = extern("SDLK_z")
+enum Key extern("SDL_Scancode") {
+    A = extern("SDL_SCANCODE_A")
+    B = extern("SDL_SCANCODE_B")
+    C = extern("SDL_SCANCODE_C")
+    D = extern("SDL_SCANCODE_D")
+    E = extern("SDL_SCANCODE_E")
+    F = extern("SDL_SCANCODE_F")
+    G = extern("SDL_SCANCODE_G")
+    H = extern("SDL_SCANCODE_H")
+    I = extern("SDL_SCANCODE_I")
+    J = extern("SDL_SCANCODE_J")
+    K = extern("SDL_SCANCODE_K")
+    L = extern("SDL_SCANCODE_L")
+    M = extern("SDL_SCANCODE_M")
+    N = extern("SDL_SCANCODE_N")
+    O = extern("SDL_SCANCODE_O")
+    P = extern("SDL_SCANCODE_P")
+    Q = extern("SDL_SCANCODE_Q")
+    R = extern("SDL_SCANCODE_R")
+    S = extern("SDL_SCANCODE_S")
+    T = extern("SDL_SCANCODE_T")
+    U = extern("SDL_SCANCODE_U")
+    V = extern("SDL_SCANCODE_V")
+    W = extern("SDL_SCANCODE_W")
+    X = extern("SDL_SCANCODE_X")
+    Y = extern("SDL_SCANCODE_Y")
+    Z = extern("SDL_SCANCODE_Z")
 
-    Up = extern("SDLK_UP")
-    Down = extern("SDLK_DOWN")
-    Left = extern("SDLK_LEFT")
-    Right = extern("SDLK_RIGHT")
-    Space = extern("SDLK_SPACE")
-    Escape = extern("SDLK_ESCAPE")
+    Up = extern("SDL_SCANCODE_UP")
+    Down = extern("SDL_SCANCODE_DOWN")
+    Left = extern("SDL_SCANCODE_LEFT")
+    Right = extern("SDL_SCANCODE_RIGHT")
+    Space = extern("SDL_SCANCODE_SPACE")
+    Escape = extern("SDL_SCANCODE_ESCAPE")
+}
+
+enum MouseButton extern("u8") {
+    Left = extern("SDL_BUTTON_LEFT")
+    Middle = extern("SDL_BUTTON_MIDDLE")
+    Right = extern("SDL_BUTTON_RIGHT")
+    Forward = extern("SDL_BUTTON_X1")
+    Backward = extern("SDL_BUTTON_X2")
 }
 
 struct Keysym extern("SDL_Keysym") {
-    scancode: i32
-    sym: Key
+    scancode: Key
+    sym: i32
     mod: i32
 }
 
@@ -73,6 +84,11 @@ enum EventType extern("SDL_EventType") {
     Quit = extern("SDL_QUIT")
     KeyDown = extern("SDL_KEYDOWN")
     KeyUp = extern("SDL_KEYUP")
+    MouseDown = extern("SDL_MOUSEBUTTONDOWN")
+    MouseUp = extern("SDL_MOUSEBUTTONUP")
+    Wheel = extern("SDL_MOUSEWHEEL")
+    Window = extern("SDL_WINDOWEVENT")
+    User = extern("SDL_USEREVENT")
 }
 
 struct KeyboardEvent extern("SDL_KeyboardEvent") {
@@ -80,24 +96,58 @@ struct KeyboardEvent extern("SDL_KeyboardEvent") {
     keysym: Keysym
 }
 
+struct MouseWheelEvent extern("SDL_MouseWheelEvent") {
+    type: i32
+    x: i32
+    y: i32
+}
+
+struct MouseButtonEvent extern("SDL_MouseButtonEvent") {
+    type: i32
+    button: MouseButton
+    state: i32
+    x: i32
+    y: i32
+}
+
 struct Event extern("SDL_Event") {
     type: EventType
     key: KeyboardEvent
+    wheel: MouseWheelEvent
+    button: MouseButtonEvent
+}
+
+struct Scancode extern("SDL_Scancode")
+enum BlendMode extern("SDL_BlendMode") {
+    None = extern("SDL_BLENDMODE_NONE")
+    Blend = extern("SDL_BLENDMODE_BLEND")
+    Add = extern("SDL_BLENDMODE_ADD")
+    Mod = extern("SDL_BLENDMODE_MOD")
 }
 
 const INIT_EVERYTHING: i32 extern("SDL_INIT_EVERYTHING")
 const PIXELFORMAT_ABGR8888: i32 extern("SDL_PIXELFORMAT_ABGR8888")
 const TEXTUREACCESS_STREAMING: i32 extern("SDL_TEXTUREACCESS_STREAMING")
-const MIX_MAXVOLUME: i32 extern("SDL_MIX_MAX_VOLUME")
+const WINDOW_RESIZABLE: i32 extern("SDL_WINDOW_RESIZABLE")
 
-def init(flags: i32) extern("SDL_Init")
+const WINDOWPOS_CENTERED: i32 extern("SDL_WINDOWPOS_CENTERED")
+const WINDOW_RESIZABL: i32 extern("SDL_WINDOW_RESIZABL")
+const RENDERER_ACCELERATED: i32 extern("SDL_RENDERER_ACCELERATED")
+const NUM_SCANCODES: i32 extern("SDL_NUM_SCANCODES")
+
+
+def init(flags: i32): i32 extern("SDL_Init")
 def quit() extern("SDL_Quit")
-def create_window_renderer(width: i32,
-    height: i32, flags: i32, window: &&Window,
-    renderer: &&Renderer) extern("SDL_CreateWindowAndRenderer")
+def get_error(): str extern("SDL_GetError")
+def create_window_renderer(width: i32, height: i32, flags: i32, window: &&Window, renderer: &&Renderer) extern("SDL_CreateWindowAndRenderer")
 def delay(ms: i32) extern("SDL_Delay")
 def get_mouse_state(x: &i32, y: &i32): i32 extern("SDL_GetMouseState")
+def get_relative_mouse_state(x: &i32, y: &i32): i32 extern("SDL_GetRelativeMouseState")
 def show_cursor(toggle: bool) extern("SDL_ShowCursor")
+def create_window(title: str, x: i32, y: i32, w: i32, h: i32, flags: i32): &Window extern("SDL_CreateWindow")
+
+def Window::create_renderer(&this, index: i32, flags: i32): &Renderer extern("SDL_CreateRenderer")
+def Window::set_title(&this, title: str) extern("SDL_SetWindowTitle")
 
 def Renderer::clear(&this) extern("SDL_RenderClear")
 def Renderer::present(&this) extern("SDL_RenderPresent")
@@ -108,8 +158,33 @@ def Renderer::destroy(&this) extern("SDL_DestroyRenderer")
 def Renderer::load_image(&this, path: str): &Texture extern("IMG_LoadTexture")
 def Renderer::create_texture_from_surface(&this, surface: &Surface): &Texture extern("SDL_CreateTextureFromSurface")
 def Renderer::create_texture(&this, format: i32, access: i32, w: i32, h: i32): &Texture extern("SDL_CreateTexture")
+def Renderer::set_blend_mode(&this, blend: BlendMode) extern("SDL_SetRenderDrawBlendMode")
+def Renderer::draw_point(&this, x: i32, y: i32) extern("SDL_RenderDrawPoint")
+def Renderer::draw_line(&this, x1: i32, y1: i32, x2: i32, y2: i32) extern("SDL_RenderDrawLine")
+def Renderer::draw_rect(&this, rect: &Rect) extern("SDL_RenderDrawRect")
+def Renderer::fill_rect(&this, rect: &Rect) extern("SDL_RenderFillRect")
+
+// SDL Gfx
+def Renderer::draw_tri_color(&this, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, coloru32: u32) extern("trigonColor")
+def Renderer::fill_tri_color(&this, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, coloru32: u32) extern("filledTrigonColor")
+def Renderer::draw_poly_color(&this, vx: &i16, vy: &i16, n: i32, coloru32: u32) extern("polygonColor")
+def Renderer::fill_poly_color(&this, vx: &i16, vy: &i16, n: i32, coloru32: u32) extern("filledPolygonColor")
+def Renderer::draw_bezier(&this, vx: &i16, vy: &i16, n: i32, s: i32, coloru32: u32) extern("bezierColor")
+
+enum WindowMode extern("int") {
+    Windowed = extern("0") // This is a hack to hardcode in '0'
+    Fullscreen = extern("SDL_WINDOW_FULLSCREEN")
+    Borderless = extern("SDL_WINDOW_FULLSCREEN_DESKTOP")
+}
 
 def Window::destroy(&this) extern("SDL_DestroyWindow")
+def Window::set_mode(&this, mode: WindowMode) extern("SDL_SetWindowFullscreen")
+def Window::set_resizable(&this, resizable: bool) extern("SDL_SetWindowResizable")
+def Window::get_flags(&this): i32 extern("SDL_GetWindowFlags")
+def Window::set_size(&this, w: i32, h: i32) extern("SDL_SetWindowSize")
+def Window::get_size(&this, w: &i32, h: &i32) extern("SDL_GetWindowSize")
+def Window::maximize(&this) extern("SDL_MaximizeWindow")
+def Window::restore(&this) extern("SDL_RestoreWindow")
 
 // FIXME: what's a and b?
 def Texture::query(&this, a: untyped_ptr, b: untyped_ptr, w: &i32, h: &i32) extern("SDL_QueryTexture")
@@ -117,42 +192,62 @@ def Texture::lock(&this, rect: &Rect, pixels: &untyped_ptr, pitch: &i32) extern(
 def Texture::unlock(&this) extern("SDL_UnlockTexture")
 
 def poll_event(event: &Event): bool extern("SDL_PollEvent")
+def wait_event_timeout(event: &Event, timeout: i32): bool extern("SDL_WaitEventTimeout")
 
-// SDL2_TTF
+const CURSOR_TYPE_COUNT: i32 extern("SDL_NUM_SYSTEM_CURSORS")
+enum CursorType extern("SDL_SystemCursor") {
+    Arrow = extern("SDL_SYSTEM_CURSOR_ARROW")
+    IBeam = extern("SDL_SYSTEM_CURSOR_IBEAM")
+    Wait = extern("SDL_SYSTEM_CURSOR_WAIT")
+    Crosshair = extern("SDL_SYSTEM_CURSOR_CROSSHAIR")
+    WaitArrow = extern("SDL_SYSTEM_CURSOR_WAITARROW")
+    SizeNWSE = extern("SDL_SYSTEM_CURSOR_SIZENWSE")
+    SizeNESW = extern("SDL_SYSTEM_CURSOR_SIZENESW")
+    SizeWE = extern("SDL_SYSTEM_CURSOR_SIZEWE")
+    SizeNS = extern("SDL_SYSTEM_CURSOR_SIZENS")
+    SizeAll = extern("SDL_SYSTEM_CURSOR_SIZEALL")
+    No = extern("SDL_SYSTEM_CURSOR_NO")
+    Hand = extern("SDL_SYSTEM_CURSOR_HAND")
+}
 
-namespace TTF {
+struct Cursor extern("SDL_Cursor")
+
+def Cursor::destroy(&this) extern("SDL_FreeCursor")
+
+def create_system_cursor(cursor: CursorType): &Cursor extern("SDL_CreateSystemCursor")
+def set_cursor(cursor: &Cursor) extern("SDL_SetCursor")
+
+namespace ttf {
     struct Font extern("TTF_Font")
 
     def Font::load(path: str, size: i32): &Font extern("TTF_OpenFont")
     def Font::render_solid(&this, text: str, color: Color): &Surface extern("TTF_RenderText_Solid")
+    def Font::get_text_size(&this, text: str, w: &i32, h: &i32) extern("TTF_SizeText")
+    def Font::close(&this) extern("TTF_CloseFont")
 
     def init(): i32 extern("TTF_Init")
+    def quit(): i32 extern("TTF_Quit")
     def get_error(): str extern("TTF_GetError")
 }
 
-// Sound BS
-
-namespace Mix {
+namespace mixer {
     const DEFAULT_FORMAT: u16 extern("MIX_DEFAULT_FORMAT")
-
     def open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32 extern("Mix_OpenAudio")
 
-    struct Chunk extern("Mix_Chunk")
-    struct Music extern("Mix_Music")
+    struct Sound extern("Mix_Chunk")
 
-    def load_music(path: str): &Music extern("Mix_LoadMUS")
-    def load_wav(path: str): &Chunk extern("Mix_LoadWAV")
-    def play_music(music: &Music, loops: i32): i32 extern("Mix_PlayMusic")
-    def play_channel(channel: i32, chunk: &Chunk, loops: i32): i32 extern("Mix_PlayChannel")
+    def load_wav(path: str): &Sound extern("Mix_LoadWAV")
+    def play_channel(channel: i32, chunk: &Sound, loops: i32): i32 extern("Mix_PlayChannel")
     def allocate_channels(num: i32): i32 extern("Mix_AllocateChannels")
 
     def pause(channel: i32) extern("Mix_Pause")
     def resume(channel: i32) extern("Mix_Resume")
 
-    def free_chunk(chunk: &Chunk) extern("Mix_FreeChunk")
-    def free_music(music: &Music) extern("Mix_FreeMusic")
+    def free_chunk(chunk: &Sound) extern("Mix_FreeChunk")
     def quit() extern("Mix_Quit")
 
     def get_error(): str extern("Mix_GetError")
     def volume(channel: i32, volume: i32) extern("Mix_Volume")
 }
+
+
