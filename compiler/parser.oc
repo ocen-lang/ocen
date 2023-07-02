@@ -1108,8 +1108,6 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 
             let part = ImportPart::new(Single, word.span)
             part.u.single.name = word.text
-            part.u.single.alias = word.text
-            part.u.single.alias_span = word.span
 
             if .consume_if(TokenType::As) {
                 let alias = .consume(TokenType::Identifier)

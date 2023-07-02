@@ -1422,7 +1422,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
                 let paths = part.u.paths
                 for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j)
-                    .handle_import_path_base(path, base, null, 0)
+                    .handle_import_path_base(path, base, alias, 0)
                 }
                 return
             }
@@ -1430,14 +1430,24 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
         }
 
         let name = part.u.single.name
-        alias = part.u.single.alias
-        let new_base = .o.lookup_in_symbol(base, name, error: false)
+        if name.eq("this") then {
+            if i + 1 != parts.size {
+                .error(Error::new(part.span, "`this` can only be used as the last part of an import path"))
+                return
+            }
+            if part.u.single.alias? then alias = part.u.single.alias
+            break
+        }
 
+        let new_base = .o.lookup_in_symbol(base, name, error: false)
         if not new_base? {
             .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
             return
         }
+
         base = new_base
+        alias = part.u.single.alias
+        if not alias? then alias = name
     }
 
     .scope().insert(alias, base)
@@ -1459,6 +1469,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
 
     let name = part.u.single.name
     let alias = part.u.single.alias
+    if not alias? then alias = name
 
     let base = match path.type {
         FromRootNamespace => {
@@ -1596,7 +1607,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     func.type = typ
 }
 
-def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
+def TypeChecker::check_post_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
@@ -1610,8 +1621,13 @@ def TypeChecker::check_function_declarations(&this, ns: &Namespace) {
         .resolve_struct(struc)
     }
 
+    for let i = 0; i < ns.variables.size; i += 1 {
+        let node = ns.variables.at(i)
+        .pre_check_globals(node, is_const: false)
+    }
+
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
-        .check_function_declarations(iter.value())
+        .check_post_import(iter.value())
     }
 
     .o.pop_scope()
@@ -1627,6 +1643,7 @@ def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
     }
     var.type = .resolve_type(var.type)
     if not var.type? then return
+
     .o.insert_into_scope_checked(var.sym)
 }
 
@@ -1653,11 +1670,6 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
         .pre_check_function(ns, func)
     }
 
-    for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i)
-        .pre_check_globals(node, is_const: false)
-    }
-
     for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
         .pre_check_namespace(iter.value())
     }
@@ -1674,7 +1686,7 @@ def TypeChecker::run(program: &Program) {
     pass.pre_check_constants(program.global)
     pass.pre_check_namespace(program.global)
     pass.handle_namespace_imports(program.global)
-    pass.check_function_declarations(program.global)
+    pass.check_post_import(program.global)
 
     pass.check_namespace(program.global)
 
