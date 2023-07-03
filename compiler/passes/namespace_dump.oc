@@ -21,48 +21,43 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
     }
 
     .indent += 1
-    for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i)
+    for func : ns.functions.iter() {
         .print_indent()
         println(`(func) {func.sym.display}`)
     }
 
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i)
+    for struc : ns.structs.iter() {
         .print_indent()
         println(`(struct) {struc.sym.display}`)
     }
 
-    for let i = 0; i < ns.enums.size; i += 1 {
-        let enum_ = ns.enums.at(i)
+    for enum_ : ns.enums.iter() {
         .print_indent()
         println(`(enum) {enum_.sym.display}`)
     }
- 
-    for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i)
+
+    for node : ns.variables.iter() {
         let var = node.u.var_decl.var
         .print_indent()
         println(`(var) {var.sym.display}`)
     }
 
-    for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i)
+    for node : ns.constants.iter() {
         let var = node.u.var_decl.var
         .print_indent()
         println(`(const) {var.sym.display}`)
     }
 
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        let next = iter.value()
-        .print_namespace(next)
-    }
     .indent -= 1
 }
 
 def NamespaceDump::run(program: &Program) {
     let pass = NamespaceDump(indent: 0)
     println("---------------------- Namespace Dump ----------------------")
-    pass.print_namespace(program.global)
+
+    for ns : program.iter_namespaces() {
+        pass.print_namespace(ns)
+    }
+
     println("------------------------------------------------------------")
 }

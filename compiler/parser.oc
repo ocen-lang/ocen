@@ -319,8 +319,8 @@ def Parser::parse_format_string(&this): &AST {
         lexer.loc.col += start + 1
 
         let tokens = lexer.lex()
-        for let i = 0; i < lexer.errors.size; i += 1 {
-            .error(lexer.errors.at(i))
+        for error : lexer.errors.iter() {
+            .error(error)
         }
         lexer.errors.free()
 
@@ -827,7 +827,7 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     let iter_var_name = "__iter"
 
     let init = {
-        let node = AST::new(ASTType::VarDeclaration, name.span)
+        let node = AST::new(ASTType::VarDeclaration, expr.span)
         let var = Variable::new(null)
         var.sym = Symbol::from_local_variable(iter_var_name, var, name.span)
 
@@ -838,30 +838,30 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     }
 
     let cond = {
-        let iter_name = AST::new(ASTType::Identifier, start_span)
+        let iter_name = AST::new(ASTType::Identifier, expr.span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member, start_span)
+        let member = AST::new(ASTType::Member, expr.span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "has_next"
-        member.u.member.rhs_span = name.span
+        member.u.member.rhs_span = expr.span
 
-        let node = AST::new(ASTType::Call, start_span)
+        let node = AST::new(ASTType::Call, expr.span)
         node.u.call.callee = member
         node.u.call.args = Vector<&Argument>::new()
         yield node
     }
 
     let step = {
-        let iter_name = AST::new(ASTType::Identifier, start_span)
+        let iter_name = AST::new(ASTType::Identifier, expr.span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member, start_span)
+        let member = AST::new(ASTType::Member, expr.span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "next"
-        member.u.member.rhs_span = start_span
+        member.u.member.rhs_span = expr.span
 
-        let node = AST::new(ASTType::Call, start_span)
+        let node = AST::new(ASTType::Call, expr.span)
         node.u.call.callee = member
         node.u.call.args = Vector<&Argument>::new()
         yield node
@@ -872,19 +872,19 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let var = Variable::new(null)
         var.sym = Symbol::from_local_variable(name.text, var, name.span)
 
-        let iter_name = AST::new(ASTType::Identifier, start_span)
+        let iter_name = AST::new(ASTType::Identifier, name.span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member, start_span)
+        let member = AST::new(ASTType::Member, expr.span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "cur"
-        member.u.member.rhs_span = start_span
+        member.u.member.rhs_span = expr.span
 
-        let call = AST::new(ASTType::Call, start_span)
+        let call = AST::new(ASTType::Call, expr.span)
         call.u.call.callee = member
         call.u.call.args = Vector<&Argument>::new()
 
-        let node = AST::new(ASTType::VarDeclaration, start_span)
+        let node = AST::new(ASTType::VarDeclaration, expr.span)
         node.u.var_decl.var = var
         node.u.var_decl.init = call
 
@@ -1493,8 +1493,7 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
             Multiple => {
                 let paths = part.u.paths
                 let success = true
-                for let i = 0; i < paths.size; i += 1 {
-                    let path = paths.at(i)
+                for path : paths.iter() {
                     success = .load_import_path_from_base(path, base) and success
                 }
                 return success

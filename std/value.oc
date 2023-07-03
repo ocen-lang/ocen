@@ -143,17 +143,15 @@ def Value::free(&this) {
     match .type {
         String => .u.as_str.free()
         List => {
-            let vec = .u.as_list
-            for let i = 0; i < vec.size; i += 1 {
-                vec.at(i).free()
+            for val : .u.as_list.iter() {
+                val.free()
             }
             .u.as_list.free()
         }
         Dictionary => {
-            let map = .u.as_dict
-            for let iter = map.iter(); iter.has_next(); iter.next() {
-                free(iter.key())
-                iter.value().free()
+            for iter : .u.as_dict.iter() {
+                free(iter.key)
+                iter.value.free()
             }
             .u.as_dict.free()
         }

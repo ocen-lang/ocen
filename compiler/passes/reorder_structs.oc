@@ -34,11 +34,9 @@ def ReorderStructs::free(&this) {
 
 // Collects all structs we have in the namespace into the vector
 def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i)
+    for struc : ns.structs.iter() {
         if struc.is_templated {
-            for let j = 0; j < struc.template_instances.size; j += 1 {
-                let instance = struc.template_instances.at(j)
+            for instance : struc.template_instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Structure
                 .all_structs.push(sym.u.struc)
@@ -48,8 +46,8 @@ def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
             .all_structs.push(struc)
         }
     }
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        .collect_all_structs(iter.value())
+    for child : ns.namespaces.iter_values() {
+        .collect_all_structs(child)
     }
 }
 
@@ -57,8 +55,7 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
     if .done.get(struc.sym.out_name, null)? return
     .done.insert(struc.sym.out_name, struc)
 
-    for let i = 0; i < struc.fields.size; i += 1 {
-        let field = struc.fields.at(i)
+    for field : struc.fields.iter() {
         if field.type? and field.type.base == Structure {
             let other = field.type.u.struc
             .dfs(other)
@@ -70,8 +67,7 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
 // This function topologically sorts the structs based on depedencies, and stores
 // the result inside `program.ordered_structs`
 def ReorderStructs::reorder_structs(&this) {
-    for let i = 0; i < .all_structs.size; i += 1 {
-        let struc = .all_structs.at(i)
+    for struc : .all_structs.iter() {
         .dfs(struc)
     }
 }

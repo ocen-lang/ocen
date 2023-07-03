@@ -40,8 +40,7 @@ def find_word_suggestion(s: str, options: &Vector<str>): str {
     let closest = options.at(0) as str
     let closest_distance = edit_distance(s, closest)
 
-    for let i = 1; i < options.size; i += 1 {
-        let option = options.at(i) as str
+    for option : options.iter() {
         let distance = edit_distance(s, option)
         if distance < closest_distance {
             closest = option

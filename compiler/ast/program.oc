@@ -10,6 +10,83 @@ import @parser::Parser
 import @lexer::Lexer
 import @errors::{ display_error_messages }
 
+struct Namespace {
+    parent: &Namespace
+
+    functions: &Vector<&Function>
+    structs: &Vector<&Structure>
+    enums: &Vector<&Enum>
+    constants: &Vector<&AST>
+    variables: &Vector<&AST>
+    imports: &Vector<&AST>
+    namespaces: &Map<str, &Namespace>
+
+    sym: &Symbol
+    scope: &Scope
+    path: str
+
+    // Does this namespace correspond to an actual file with source code? Or is it just an
+    // intermediate namespace for a directory?
+    is_a_file: bool
+
+    // This is used for any namespaces that need to be added to the scope by default. For instance,
+    // the standard library, or user-defined namespaces with the `namespace` keyword.
+    always_add_to_scope: bool
+
+    // FIXME: This is hacky, but we want to include everything in `std/prelude.oc` in the
+    //        `std` namespace, as opposed to the `std::prelude` namespace. This is done by
+    //        treating `std/prelude.oc` as "top-level", which means all it's contents are put
+    //        in the same namespace as the containing folder. All other files that are imported
+    //        from the same folder will go into a new namespace as per usual.
+    is_top_level: bool
+}
+
+def Namespace::new(parent: &Namespace, path: str): &Namespace {
+    let ns = calloc(1, sizeof(Namespace)) as &Namespace
+    ns.parent = parent
+    let parent_scope = if parent? then parent.scope else null
+    ns.scope = Scope::new(parent_scope)
+    ns.functions = Vector<&Function>::new()
+    ns.structs = Vector<&Structure>::new()
+    ns.enums = Vector<&Enum>::new()
+    ns.constants = Vector<&AST>::new()
+    ns.variables = Vector<&AST>::new()
+    ns.namespaces = Map<str, &Namespace>::new()
+    ns.imports = Vector<&AST>::new()
+    ns.path = path
+    ns.is_a_file = false
+    return ns
+}
+
+def Namespace::find_importable_symbol(&this, name: str): &Symbol {
+    let item = .namespaces.get(name, null)
+    if item? then return item.sym
+
+    for node : .constants.iter() {
+        let var = node.u.var_decl.var
+        if var.sym.name.eq(name) return var.sym
+    }
+
+    for node : .variables.iter() {
+        let var = node.u.var_decl.var
+        if var.sym.name.eq(name) return var.sym
+    }
+
+
+    for func : .functions.iter() {
+        if func.sym.name.eq(name) return func.sym
+    }
+
+    for struc : .structs.iter() {
+        if struc.sym.name.eq(name) return struc.sym
+    }
+
+    for enum_ : .enums.iter() {
+        if enum_.sym.name.eq(name) return enum_.sym
+    }
+    return null
+}
+
 struct Program {
     global: &Namespace
 
@@ -108,85 +185,36 @@ def Program::get_type_deep_copy(&this, old: &Type, ns: &Namespace): &Type {
     return type
 }
 
-struct Namespace {
-    parent: &Namespace
 
-    functions: &Vector<&Function>
-    structs: &Vector<&Structure>
-    enums: &Vector<&Enum>
-    constants: &Vector<&AST>
-    variables: &Vector<&AST>
-    imports: &Vector<&AST>
-    namespaces: &Map<str, &Namespace>
-
-    sym: &Symbol
-    scope: &Scope
-    path: str
-
-    // Does this namespace correspond to an actual file with source code? Or is it just an
-    // intermediate namespace for a directory?
-    is_a_file: bool
-
-    // This is used for any namespaces that need to be added to the scope by default. For instance,
-    // the standard library, or user-defined namespaces with the `namespace` keyword.
-    always_add_to_scope: bool
-
-    // FIXME: This is hacky, but we want to include everything in `std/prelude.oc` in the
-    //        `std` namespace, as opposed to the `std::prelude` namespace. This is done by
-    //        treating `std/prelude.oc` as "top-level", which means all it's contents are put
-    //        in the same namespace as the containing folder. All other files that are imported
-    //        from the same folder will go into a new namespace as per usual.
-    is_top_level: bool
+def Program::iter_namespaces(&this): NSIterator {
+    let iter = NSIterator(
+        stack: Vector<&Namespace>::new(),
+        curr: null
+    )
+    iter.stack.push(.global)
+    iter.next()
+    return iter
 }
 
-def Namespace::new(parent: &Namespace, path: str): &Namespace {
-    let ns = calloc(1, sizeof(Namespace)) as &Namespace
-    ns.parent = parent
-    let parent_scope = if parent? then parent.scope else null
-    ns.scope = Scope::new(parent_scope)
-    ns.functions = Vector<&Function>::new()
-    ns.structs = Vector<&Structure>::new()
-    ns.enums = Vector<&Enum>::new()
-    ns.constants = Vector<&AST>::new()
-    ns.variables = Vector<&AST>::new()
-    ns.namespaces = Map<str, &Namespace>::new()
-    ns.imports = Vector<&AST>::new()
-    ns.path = path
-    ns.is_a_file = false
-    return ns
+struct NSIterator {
+    stack: &Vector<&Namespace>
+    curr: &Namespace
 }
 
-def Namespace::find_importable_symbol(&this, name: str): &Symbol {
-    let item = .namespaces.get(name, null)
-    if item? then return item.sym
+def NSIterator::has_next(&this): bool => .stack? and not .stack.is_empty()
 
-    for let i = 0; i < .constants.size; i += 1 {
-        let node = .constants.at(i)
-        let var = node.u.var_decl.var
-        if var.sym.name.eq(name) {
-            return var.sym
-        }
+def NSIterator::next(&this) {
+    assert not .stack.is_empty()
+    .curr = .stack.pop()
+    for ns : .curr.namespaces.iter_values() {
+        .stack.push(ns)
     }
-
-    for let i = 0; i < .functions.size; i += 1 {
-        let func = .functions.at(i)
-        if func.sym.name.eq(name) {
-            return func.sym
-        }
+    // Done iterating over this namespace, so free the stack
+    if .stack.is_empty() {
+        .curr = null
+        .stack.free()
+        .stack = null
     }
-
-    for let i = 0; i < .structs.size; i += 1 {
-        let struc = .structs.at(i)
-        if struc.sym.name.eq(name) {
-            return struc.sym
-        }
-    }
-
-    for let i = 0; i < .enums.size; i += 1 {
-        let enum_ = .enums.at(i)
-        if enum_.sym.name.eq(name) {
-            return enum_.sym
-        }
-    }
-    return null
 }
+
+def NSIterator::cur(&this): &Namespace => .curr

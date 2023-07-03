@@ -101,8 +101,8 @@ def Map::insert(&this, key: K, value: V) {
 }
 
 def Map::extend(&this, other: &Map<K, V>) {
-    for let iter = other.iter(); iter.has_next(); iter.next() {
-        .insert(iter.key(), iter.value())
+    for iter : other.iter() {
+        .insert(iter.key, iter.value)
     }
 }
 
