@@ -101,7 +101,7 @@ def Map::insert(&this, key: K, value: V) {
 }
 
 def Map::extend(&this, other: &Map<K, V>) {
-    for let iter = other.iter(); iter.cur?; iter.next() {
+    for let iter = other.iter(); iter.has_next(); iter.next() {
         .insert(iter.key(), iter.value())
     }
 }
@@ -180,38 +180,66 @@ def Map::iter(&this): Iterator<K, V> {
     return Iterator<K, V>::make(this)
 }
 
+def Map::iter_keys(&this): KeyIterator<K, V> => KeyIterator<K, V>(.iter())
+def Map::iter_values(&this): ValueIterator<K, V> => ValueIterator<K, V>(.iter())
+
 struct Iterator<K, V> {
     idx: i32
-    cur: &Node<K, V>
+    node: &Node<K, V>
     map: &Map<K, V>
 }
 
 def Iterator::key(&this): K {
-    return .cur.key
+    return .node.key
 }
 
 def Iterator::value(&this): V {
-    return .cur.value
+    return .node.value
 }
 
 def Iterator::make(map: &Map<K, V>): Iterator<K, V> {
-    let it = Iterator<K, V>(idx: -1, cur: null, map)
+    let it = Iterator<K, V>(idx: -1, node: null, map)
     it.next()
     return it
 }
 
+def Iterator::has_next(&this): bool {
+    return .node?
+}
+
+def Iterator::cur(&this): &Node<K, V> => .node
+
 def Iterator::next(&this) {
     while .idx < .map.num_buckets as i32 {
-        while .cur? {
-            .cur = .cur.next
-            if .cur? return
+        while .node? {
+            .node = .node.next
+            if .node? return
         }
         .idx += 1
-        .cur = if .idx < .map.num_buckets as i32 {
+        .node = if .idx < .map.num_buckets as i32 {
             yield .map.buckets[.idx]
         } else {
             yield null
         }
-        if .cur? return
+        if .node? return
     }
+}
+
+struct KeyIterator<K, V> {
+    map_iter: Iterator<K, V>
+}
+def KeyIterator::has_next(&this): bool => .map_iter.has_next()
+def KeyIterator::cur(&this): K => .map_iter.cur().key
+def KeyIterator::next(&this) {
+    .map_iter.next()
+}
+
+
+struct ValueIterator<K, V> {
+    map_iter: Iterator<K, V>
+}
+def ValueIterator::has_next(&this): bool => .map_iter.has_next()
+def ValueIterator::cur(&this): V => .map_iter.cur().value
+def ValueIterator::next(&this) {
+    .map_iter.next()
 }

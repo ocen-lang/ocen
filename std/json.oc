@@ -155,7 +155,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
         Dictionary => {
             sb.puts("{")
             let first = true
-            for let iter = val.u.as_dict.iter(); iter.cur?; iter.next() {
+            for let iter = val.u.as_dict.iter(); iter.has_next(); iter.next() {
                 if not first {
                     sb.puts(", ")
                 }

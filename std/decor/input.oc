@@ -1,0 +1,67 @@
+// Do not include this file directly, use lib/daecor/all.ae
+
+// Making this a struct so copying curr->prev is easier
+struct KeyStateSingle {
+    keys: [bool; SDL_NUM_SCANCODES] // Hopefully this is enough
+}
+
+struct KeyState {
+    curr: KeyStateSingle,
+    prev: KeyStateSingle
+}
+
+let keys: KeyState
+
+def KeyState::currs(&this, key: Key): bool => .curr.keys[key as i32]
+def KeyState::prevs(&this, key: Key): bool => .prev.keys[key as i32]
+
+def KeyState::state(&this, key: Key): bool => .currs(key)
+def KeyState::pressed(&this, key: Key): bool => .currs(key) and not .prevs(key)
+def KeyState::released(&this, key: Key): bool => not .currs(key) and .prevs(key)
+def KeyState::held(&this, key: Key): bool => .currs(key) and .prevs(key)
+def KeyState::changed(&this, key: Key): bool => .currs(key) != .prevs(key)
+
+enum MouseWheel {
+    Down
+    Right
+    Up
+    Left
+}
+
+struct MouseStateSingle {
+    vec: Vec2i
+    pos: Vec2i
+    buttons: [bool; 16]   // Hopefully enough for all mouse buttons
+    wheel_dirs: [bool; 8] // Hopefully enough for all mouse wheel buttons
+}
+
+def MouseStateSingle::state(&this, which: MouseButton): bool => .buttons[which as i32]
+def MouseStateSingle::wheel(&this, which: MouseWheel): bool => .wheel_dirs[which as i32]
+
+struct MouseState {
+    curr: MouseStateSingle
+    prev: MouseStateSingle
+}
+
+let mouse: MouseState
+
+def MouseState::state(&this, button: MouseButton): bool => .curr.state(button)
+def MouseState::pressed(&this, button: MouseButton): bool => .curr.state(button) and not .prev.state(button)
+def MouseState::held(&this, button: MouseButton): bool => .curr.state(button) and .prev.state(button)
+def MouseState::released(&this, button: MouseButton): bool => not .curr.state(button) and .prev.state(button)
+def MouseState::changed(&this, button: MouseButton): bool => .curr.state(button) != .prev.state(button)
+
+def MouseState::scrolled(&this, wheel: MouseWheel): bool => .curr.wheel(wheel)
+def MouseState::moving(&this): bool => not .curr.vec.is_zero() and not .prev.vec.is_zero()
+def MouseState::move_start(&this): bool => not .curr.vec.is_zero() and .prev.vec.is_zero()
+def MouseState::move_stop(&this): bool => .curr.vec.is_zero() and not .prev.vec.is_zero()
+
+def MouseState::movement(&this): Vec2i => .curr.pos.sub(.prev.pos)
+def MouseState::pos(&this): Vec2i => .curr.pos
+
+def input_init() {
+    set_memory(&keys, 0 as u8, sizeof(KeyState))
+    set_memory(&mouse, 0 as u8, sizeof(MouseState))
+    mouse.curr.pos = get_window_size().divi(2)
+    mouse.prev.pos = mouse.curr.pos
+}

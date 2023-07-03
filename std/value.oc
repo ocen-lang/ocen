@@ -151,7 +151,7 @@ def Value::free(&this) {
         }
         Dictionary => {
             let map = .u.as_dict
-            for let iter = map.iter(); iter.cur?; iter.next() {
+            for let iter = map.iter(); iter.has_next(); iter.next() {
                 free(iter.key())
                 iter.value().free()
             }

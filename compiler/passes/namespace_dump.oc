@@ -53,7 +53,7 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
         println(`(const) {var.sym.display}`)
     }
 
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         let next = iter.value()
         .print_namespace(next)
     }

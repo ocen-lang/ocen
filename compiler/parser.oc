@@ -34,6 +34,12 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
     )
 }
 
+def Parser::peek(&this, off: i32 = 1): &Token {
+    let idx = .curr as i32 + off
+    assert 0i32 <= idx < (.tokens.size as i32)
+    return .tokens.at(idx as u32)
+}
+
 def Parser::error_msg(&this, msg: str): &Error {
     let err = Error::new(.token().span, msg)
     .program.errors.push(err)
@@ -810,6 +816,124 @@ def Parser::parse_if(&this): &AST {
     return node
 }
 
+def Parser::parse_for_each(&this, start_span: Span): &AST {
+    // This function is responsible for parsing `for i : expr`
+    // and converting it into `for let i = expr; expr.has_next(); expr.next()`
+
+    let name = .consume(Identifier)
+    .consume(TokenType::Colon)
+
+    let expr = .parse_expression(end_type: TokenType::Newline)
+    let iter_var_name = "__iter"
+
+    let init = {
+        let node = AST::new(ASTType::VarDeclaration, name.span)
+        let var = Variable::new(null)
+        var.sym = Symbol::from_local_variable(iter_var_name, var, name.span)
+
+        node.u.var_decl.var = var
+        node.u.var_decl.init = expr
+
+        yield node
+    }
+
+    let cond = {
+        let iter_name = AST::new(ASTType::Identifier, start_span)
+        iter_name.u.ident.name = iter_var_name
+
+        let member = AST::new(ASTType::Member, start_span)
+        member.u.member.lhs = iter_name
+        member.u.member.rhs_name = "has_next"
+        member.u.member.rhs_span = name.span
+
+        let node = AST::new(ASTType::Call, start_span)
+        node.u.call.callee = member
+        node.u.call.args = Vector<&Argument>::new()
+        yield node
+    }
+
+    let step = {
+        let iter_name = AST::new(ASTType::Identifier, start_span)
+        iter_name.u.ident.name = iter_var_name
+
+        let member = AST::new(ASTType::Member, start_span)
+        member.u.member.lhs = iter_name
+        member.u.member.rhs_name = "next"
+        member.u.member.rhs_span = start_span
+
+        let node = AST::new(ASTType::Call, start_span)
+        node.u.call.callee = member
+        node.u.call.args = Vector<&Argument>::new()
+        yield node
+    }
+
+
+    let loop_var_decl = {
+        let var = Variable::new(null)
+        var.sym = Symbol::from_local_variable(name.text, var, name.span)
+
+        let iter_name = AST::new(ASTType::Identifier, start_span)
+        iter_name.u.ident.name = iter_var_name
+
+        let member = AST::new(ASTType::Member, start_span)
+        member.u.member.lhs = iter_name
+        member.u.member.rhs_name = "cur"
+        member.u.member.rhs_span = start_span
+
+        let call = AST::new(ASTType::Call, start_span)
+        call.u.call.callee = member
+        call.u.call.args = Vector<&Argument>::new()
+
+        let node = AST::new(ASTType::VarDeclaration, start_span)
+        node.u.var_decl.var = var
+        node.u.var_decl.init = call
+
+        yield node
+    }
+
+    let inner_body = .parse_block()
+
+    let statements = Vector<&AST>::new()
+    statements.push(loop_var_decl)
+    statements.push(inner_body)
+
+    let body = AST::new(ASTType::Block, inner_body.span)
+    body.u.block.statements = statements
+
+    let node = AST::new(ASTType::For, start_span.join(body.span))
+    node.u.loop.init = init
+    node.u.loop.cond = cond
+    node.u.loop.step = step
+    node.u.loop.body = body
+    return node
+}
+
+def Parser::parse_for(&this): &AST {
+    let tok = .consume(TokenType::For)
+
+    if .token_is(Identifier) and .peek(1).type == TokenType::Colon {
+        return .parse_for_each(start_span: tok.span)
+    }
+
+    let init = null as &AST
+    if .token_is(TokenType::Let) {
+        init = .parse_statement()
+    } else {
+        init = .parse_expression(end_type: TokenType::Semicolon)
+        .consume(TokenType::Semicolon)
+    }
+    let cond = .parse_expression(end_type: TokenType::Semicolon)
+    .consume(TokenType::Semicolon)
+    let step = .parse_expression(end_type: TokenType::OpenCurly)
+    let body = .parse_block()
+    let node = AST::new(ASTType::For, tok.span.join(body.span))
+    node.u.loop.init = init
+    node.u.loop.cond = cond
+    node.u.loop.step = step
+    node.u.loop.body = body
+    return node
+}
+
 def Parser::parse_statement(&this): &AST {
     let node = null as &AST
     let start_span = .token().span
@@ -876,25 +1000,7 @@ def Parser::parse_statement(&this): &AST {
             node = .parse_import()
             .consume_end_of_statement()
         }
-        TokenType::For => {
-            let tok = .consume(TokenType::For)
-            let init = null as &AST
-            if .token_is(TokenType::Let) {
-                init = .parse_statement()
-            } else {
-                init = .parse_expression(end_type: TokenType::Semicolon)
-                .consume(TokenType::Semicolon)
-            }
-            let cond = .parse_expression(end_type: TokenType::Semicolon)
-            .consume(TokenType::Semicolon)
-            let step = .parse_expression(end_type: TokenType::OpenCurly)
-            let body = .parse_block()
-            node = AST::new(ASTType::For, tok.span.join(body.span))
-            node.u.loop.init = init
-            node.u.loop.cond = cond
-            node.u.loop.step = step
-            node.u.loop.body = body
-        }
+        TokenType::For => node = .parse_for()
         TokenType::Let => {
             .consume(TokenType::Let)
             let name = .consume(TokenType::Identifier)

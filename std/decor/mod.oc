@@ -1,0 +1,19 @@
+use "lib/daecor/sdl.ae"
+use "lib/daecor/vec.ae"
+use "lib/daecor/colors.ae"
+use "lib/daecor/types.ae"
+use "lib/daecor/graphics.ae"
+use "lib/daecor/input.ae"
+use "lib/daecor/events.ae"
+use "lib/daecor/text.ae"
+use "lib/daecor/image.ae"
+use "lib/daecor/sound.ae"
+
+
+def init() {
+    gfx_init()
+    input_init()
+    text_init()
+    sound_init()
+}
+

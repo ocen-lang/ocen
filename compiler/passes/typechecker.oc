@@ -91,7 +91,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
     let parent_ns = old.sym.ns
 
-    for let iter = old_methods.iter(); iter.cur?; iter.next() {
+    for let iter = old_methods.iter(); iter.has_next(); iter.next() {
         let name = iter.key()
         let method = iter.value()
 
@@ -117,7 +117,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
     // NOTE: We don't want to check these functions right now, since we could still be in the process
     // of setting up the namespaces / imports / etc. We'll check them later at the end of the program.
-    for let iter = cur_methods.iter(); iter.cur?; iter.next() {
+    for let iter = cur_methods.iter(); iter.has_next(); iter.next() {
         let new_method = iter.value()
         .unchecked_functions.push(new_method)
     }
@@ -1301,7 +1301,7 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
         .handle_import_statement(import_)
     }
 
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         .handle_namespace_imports(iter.value())
     }
 
@@ -1346,7 +1346,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         .check_global_variable(node)
     }
 
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         .check_namespace(iter.value())
     }
     .o.pop_namespace()
@@ -1450,7 +1450,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
         if not alias? then alias = name
     }
 
-    .scope().insert(alias, base)
+    .o.insert_into_scope_checked(base, name: alias)
 }
 
 // Insert all the imported items defined in the Import AST statement into the current scope.
@@ -1626,7 +1626,7 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
         .pre_check_globals(node, is_const: false)
     }
 
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         .check_post_import(iter.value())
     }
 
@@ -1655,7 +1655,7 @@ def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
         .pre_check_globals(node, is_const: true)
     }
 
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         .pre_check_constants(iter.value())
     }
 
@@ -1670,7 +1670,7 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
         .pre_check_function(ns, func)
     }
 
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         .pre_check_namespace(iter.value())
     }
 

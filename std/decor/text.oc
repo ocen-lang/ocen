@@ -1,0 +1,87 @@
+// Do not include this file directly, use lib/daecor/all.ae
+
+let font_file_path = ""
+
+def draw_text(text: string, pos: Vec2i): Rect {
+    let rect = Rect(pos.x, pos.y, 0, 0)
+    let msg_surf = gfx.font.render_solid(text, gfx.font_color)
+    let msg = gfx.renderer.create_texture_from_surface(msg_surf)
+    msg.query(null, null, &rect.w, &rect.h)
+    gfx.renderer.copy(msg, null, &rect)
+    msg_surf.destroy()
+    msg.destroy()
+    return rect
+}
+
+def draw_text_centered(text: string, pos: Vec2i): Rect {
+    let rect = Rect(pos.x, pos.y, 0, 0)
+    let msg_surf = gfx.font.render_solid(text, gfx.font_color)
+    let msg = gfx.renderer.create_texture_from_surface(msg_surf)
+    msg.query(null, null, &rect.w, &rect.h)
+    rect.x -= rect.w / 2
+    rect.y -= rect.h / 2
+    gfx.renderer.copy(msg, null, &rect)
+    msg_surf.destroy()
+    msg.destroy()
+    return rect
+}
+
+def get_size_for_text(text: string): Vec2i {
+    let size: Vec2i
+    gfx.font.get_text_size(text, &size.x, &size.y)
+    return size
+}
+
+def set_font_size(size: i32) {
+    if size == gfx.font_size then return
+    if gfx.font? then gfx.font.close()
+
+    gfx.font_size = size
+    gfx.font = TTFFont::load(font_file_path, size)
+    if not gfx.font? {
+        panic(`Unable to open font or set font size! Error: {TTF::get_error()}`)
+    }
+}
+
+def get_font_size(): i32 => gfx.font_size
+
+def set_text_color(color: Color) {
+    gfx.font_color = color
+}
+
+def get_text_color(): Color => gfx.font_color
+
+def text_quit() {
+    if gfx.font? then gfx.font.close()
+    TTF::quit()
+}
+
+def text_init() {
+    if TTF::init() < 0 {
+        panic(`Could not initialize TTF: {TTF::get_error()}`)
+    }
+
+    font_file_path = get_environment_variable("DAECOR_FONT")
+    if not font_file_path? or not File::exists(font_file_path) {
+        font_file_path = "lib/daecor/assets/font.ttf"
+        if not File::exists(font_file_path) {
+            let aecor_root = get_environment_variable("AECOR_ROOT")
+            let found = if not aecor_root? {
+                yield false
+            } else {
+                font_file_path = `{aecor_root}/lib/daecor/assets/font.ttf`
+                yield File::exists(font_file_path)
+            }
+            if not found {
+                println("[-] Error: Could not find font file for Daecor")
+                println("   [-] Hint: Set the AECOR_ROOT environment variable, or")
+                println("   [-] Hint: Set the DAECOR_FONT environment variable to the path of your font file")
+                panic("Exiting...")
+            }
+        }
+    }
+
+    gfx.font_color = Color::White()
+    set_font_size(32)
+    register_exit_callback(text_quit)
+}

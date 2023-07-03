@@ -201,7 +201,7 @@ def CodeGenerator::gen_constants(&this, ns: &Namespace) {
     }
 
     let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
+    for let iter = children.iter(); iter.has_next(); iter.next() {
         let child = iter.value()
         .gen_constants(child)
     }
@@ -218,7 +218,7 @@ def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
     }
 
     let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
+    for let iter = children.iter(); iter.has_next(); iter.next() {
         let child = iter.value()
         .gen_global_variables(child)
     }
@@ -912,7 +912,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     }
 
     let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
+    for let iter = children.iter(); iter.has_next(); iter.next() {
         let child = iter.value()
         .gen_functions(child)
     }
@@ -936,7 +936,7 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     }
 
     let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
+    for let iter = children.iter(); iter.has_next(); iter.next() {
         let child = iter.value()
         .gen_function_decls(child)
     }
@@ -949,7 +949,7 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
     }
 
     let children = ns.namespaces
-    for let iter = children.iter(); iter.cur?; iter.next() {
+    for let iter = children.iter(); iter.has_next(); iter.next() {
         let child = iter.value()
         .gen_enum_types(child)
     }
@@ -1054,7 +1054,7 @@ def CodeGenerator::generate(&this): str {
     }
     .out.puts("\n")
 
-    for let iter = .o.program.c_embeds.iter(); iter.cur?; iter.next() {
+    for let iter = .o.program.c_embeds.iter(); iter.has_next(); iter.next() {
         let name = iter.key()
         let embed = iter.value()
         .out.putsf(`/* Embed: {name} */\n`)
