@@ -87,9 +87,7 @@ def background_color(ray: &Ray): Vec {
 def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
     let hit = false
 
-    for let i = 0; i < objs.size; i += 1 {
-        let obj = objs.at(i)
-
+    for obj : objs.iter() {
         let tmp_t: f32
         let tmp_n: Vec
 

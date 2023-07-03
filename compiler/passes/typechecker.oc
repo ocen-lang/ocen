@@ -31,8 +31,7 @@ def TypeChecker::resolve_type(&this, old: &Type, allow_incomplete: bool = false)
         }
         Function => {
             let func = old.u.func
-            for let i = 0; i < func.params.size; i += 1 {
-                let var = func.params.at(i)
+            for var : func.params.iter() {
                 var.type = .resolve_type(var.type)
                 if not var.type? return null
             }
@@ -91,9 +90,9 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
     let parent_ns = old.sym.ns
 
-    for let iter = old_methods.iter(); iter.has_next(); iter.next() {
-        let name = iter.key()
-        let method = iter.value()
+    for iter : old_methods.iter() {
+        let name = iter.key
+        let method = iter.value
 
         let new_method = .o.program.get_function_deep_copy(method, parent_ns)
         new_method.parent_type = cur_type
@@ -117,9 +116,8 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
     // NOTE: We don't want to check these functions right now, since we could still be in the process
     // of setting up the namespaces / imports / etc. We'll check them later at the end of the program.
-    for let iter = cur_methods.iter(); iter.has_next(); iter.next() {
-        let new_method = iter.value()
-        .unchecked_functions.push(new_method)
+    for method : cur_methods.iter_values() {
+        .unchecked_functions.push(method)
     }
 }
 
@@ -184,9 +182,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
 
     // Note: We _need_ to deep-copy the fields here, otherwise we'll end up with a bunch of
     // pointers to the same types across different specializations, which is not what we want.
-    for let i = 0; i < struc.fields.size; i += 1 {
-        let field = struc.fields.at(i)
-
+    for field : struc.fields.iter() {
         let new_type = .o.program.get_type_deep_copy(field.type, .o.ns())
         let new_field = Variable::new(new_type)
         new_field.sym = Symbol::from_local_variable(field.sym.name, new_field, field.sym.span)
@@ -300,8 +296,7 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type = nul
     .o.push_scope(block.scope)
     let stmts = block.statements
     let yield_span = Span::default()
-    for let i = 0; i < stmts.size; i += 1 {
-        let stmt = stmts.at(i)
+    for stmt : stmts.iter() {
         .check_statement(stmt)
         if stmt.returns then node.returns = true
 
@@ -366,8 +361,7 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
         ))
     }
 
-    for let i = 1; i < args.size; i += 1 {
-        let arg = args.at(i)
+    for arg : args.iter() {
         .check_expression(arg.expr)
         .call_dbg_on_enum_value(&arg.expr)
     }
@@ -931,8 +925,7 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
     let cases = node.u.match_stmt.cases
     node.returns = (cases.size > 0)
 
-    for let i = 0; i < cases.size; i += 1 {
-        let _case = cases.at(i)
+    for _case : cases.iter() {
         let cond = _case.cond
         let name: str
 
@@ -1011,8 +1004,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     let cases = node.u.match_stmt.cases
     node.returns = (cases.size > 0)
 
-    for let i = 0; i < cases.size; i += 1 {
-        let _case = cases.at(i)
+    for _case : cases.iter() {
         let cond_type = .check_expression(_case.cond, hint: expr_type)
         if not cond_type? then continue
         if not cond_type.eq(expr_type) {
@@ -1261,9 +1253,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     let new_scope = Scope::new(func.scope)
     let params = func.params
 
-    for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i)
-
+    for param : params.iter() {
         let default_expr = param.default_value
         if default_expr? {
             // NOTE: This `.check_expression()` call uses the scope _outside_ of the function.
@@ -1295,14 +1285,12 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
     .o.push_namespace(ns)
     .o.push_scope(ns.scope)
 
-    let imports = ns.imports
-    for let i = 0; i < imports.size; i += 1 {
-        let import_ = imports.at(i)
+    for import_ : ns.imports.iter() {
         .handle_import_statement(import_)
     }
 
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        .handle_namespace_imports(iter.value())
+    for child : ns.namespaces.iter_values() {
+        .handle_namespace_imports(child)
     }
 
     .o.pop_scope()
@@ -1326,13 +1314,11 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
-    for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i)
+    for func : ns.functions.iter() {
         .check_function(func)
     }
 
-    for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i)
+    for node : ns.constants.iter() {
         let init = node.u.var_decl.init
         if init? {
             .check_const_expression(init)
@@ -1341,13 +1327,12 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         }
     }
 
-    for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i)
+    for node : ns.variables.iter() {
         .check_global_variable(node)
     }
 
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        .check_namespace(iter.value())
+    for child : ns.namespaces.iter_values() {
+        .check_namespace(child)
     }
     .o.pop_namespace()
     .o.pop_scope()
@@ -1572,8 +1557,7 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
     // We cannot resolve templated structs.
     if struc.is_templated return
 
-    for let i = 0; i < fields.size; i += 1 {
-        let field = fields.at(i)
+    for field : fields.iter() {
         let res = .resolve_type(field.type)
         if not res? {
             .o.error(Error::new(field.sym.span, "Couldn't resolve type"))
@@ -1594,9 +1578,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
         func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
     }
 
-    let params = func.params
-    for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i)
+    for param : func.params.iter() {
         param.type = .resolve_type(param.type)
     }
 
@@ -1611,23 +1593,20 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
-    for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i)
+    for func : ns.functions.iter() {
         .check_function_declaration(func)
     }
 
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i)
+    for struc : ns.structs.iter() {
         .resolve_struct(struc)
     }
 
-    for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i)
+    for node : ns.variables.iter() {
         .pre_check_globals(node, is_const: false)
     }
 
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        .check_post_import(iter.value())
+    for child : ns.namespaces.iter_values() {
+        .check_post_import(child)
     }
 
     .o.pop_scope()
@@ -1650,13 +1629,12 @@ def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
 def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
-    for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i)
+    for node : ns.constants.iter() {
         .pre_check_globals(node, is_const: true)
     }
 
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        .pre_check_constants(iter.value())
+    for child : ns.namespaces.iter_values() {
+        .pre_check_constants(child)
     }
 
     .o.pop_scope()
@@ -1665,13 +1643,12 @@ def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
 def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
-    for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i)
+    for func : ns.functions.iter() {
         .pre_check_function(ns, func)
     }
 
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        .pre_check_namespace(iter.value())
+    for child : ns.namespaces.iter_values() {
+        .pre_check_namespace(child)
     }
 
     .o.pop_scope()

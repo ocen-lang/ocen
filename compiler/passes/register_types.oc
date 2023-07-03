@@ -31,8 +31,7 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     typ.sym = enum_.sym
 
     // FIXME: Make sure enum values are unique
-    for let i = 0; i < enum_.fields.size; i += 1 {
-        let field = enum_.fields.at(i)
+    for field : enum_.fields.iter() {
         field.type = typ
     }
 }
@@ -60,18 +59,14 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
 
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i)
+    for struc : ns.structs.iter() {
         .register_struct(ns, struc)
     }
-    for let i = 0; i < ns.enums.size; i += 1 {
-        let enum_ = ns.enums.at(i)
+    for enum_ : ns.enums.iter() {
         .register_enum(ns, enum_)
         .add_dbg_method_for_enum(enum_)
     }
-    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
-        let child = iter.value()
-        let name = iter.key()
+    for child : ns.namespaces.iter_values() {
         if child.always_add_to_scope {
             .o.insert_into_scope_checked(child.sym)
         }

@@ -138,7 +138,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
     }
     SymbolType::Enum => {
         let enum_ = sym.u.enum_
-        let field = enum_.get_field(name) as &Variable
+        let field = enum_.get_field(name)
         if field? then return field.sym
 
         let method = enum_.type.methods.get(name, null)
@@ -162,31 +162,26 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
 }
 
 def GenericPass::import_all_from_namespace(&this, ns: &Namespace) {
-    for let i = 0; i < ns.functions.size; i += 1 {
-        let func = ns.functions.at(i)
+    for func : ns.functions.iter() {
         if not func.is_method {
             .insert_into_scope_checked(func.sym)
         }
     }
 
-    for let i = 0; i < ns.structs.size; i += 1 {
-        let struc = ns.structs.at(i)
+    for struc : ns.structs.iter() {
         .insert_into_scope_checked(struc.sym)
     }
 
-    for let i = 0; i < ns.enums.size; i += 1 {
-        let enum_ = ns.enums.at(i)
+    for enum_ : ns.enums.iter() {
         .insert_into_scope_checked(enum_.sym)
     }
 
-    for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i)
+    for node : ns.variables.iter() {
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
 
-    for let i = 0; i < ns.constants.size; i += 1 {
-        let node = ns.constants.at(i)
+    for node : ns.constants.iter() {
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
@@ -196,23 +191,17 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
     match sym.type {
         SymbolType::Namespace => .import_all_from_namespace(sym.u.ns)
         SymbolType::TypeDef => {
-            let methods = sym.u.type_def.methods
-            for let iter = methods.iter(); iter.has_next(); iter.next() {
-                let method = iter.value()
+            for method : sym.u.type_def.methods.iter_values() {
                 .insert_into_scope_checked(method.sym)
             }
         }
         SymbolType::Structure => {
-            let methods = sym.u.struc.type.methods
-            for let iter = methods.iter(); iter.has_next(); iter.next() {
-                let method = iter.value()
+            for method : sym.u.struc.type.methods.iter_values() {
                 .insert_into_scope_checked(method.sym)
             }
         }
         SymbolType::Enum => {
-            let fields = sym.u.enum_.fields
-            for let i = 0; i < fields.size; i += 1 {
-                let field = fields.at(i)
+            for field : sym.u.enum_.fields.iter() {
                 .insert_into_scope_checked(field.sym)
             }
         }

@@ -120,17 +120,18 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
 
     .out.putc('"')
     for let i = 0; i < exprs.size; i += 1 {
-        let part = parts.at(i) as str
+        let part = parts.at(i)
+        let expr = exprs.at(i)
+
         .gen_format_string_part(part)
 
-        let spec = specs.at(i) as str
+        let spec = specs.at(i)
         if spec? {
             .out.puts("%")
             .out.puts(spec)
             continue
         }
 
-        let expr = exprs.at(i)
         let expr_type = expr.etype.unaliased()
         match expr_type.base {
             I8 | I16 | I32 => .out.puts("%d")
@@ -153,14 +154,13 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
         }
     }
     // Put the last part:
-    let part = parts.back() as str
+    let part = parts.back()
     .gen_format_string_part(part)
     if newline_after then .out.puts("\\n")
     .out.putc('"')
 
-    for let i = 0; i < exprs.size; i += 1 {
+    for expr : exprs.iter() {
         .out.puts(", ")
-        let expr = exprs.at(i)
         .gen_expression(expr)
     }
 }
@@ -616,8 +616,7 @@ def CodeGenerator::gen_match(&this, node: &AST) {
 
     let cases = stmt.cases
     .indent += 1
-    for let i = 0; i < cases.size; i += 1 {
-        let _case = cases.at(i)
+    for _case : cases.iter() {
         .gen_indent()
         .out.puts("case ")
         .gen_expression(_case.cond)
@@ -773,8 +772,7 @@ def CodeGenerator::gen_block(&this, node: &AST, with_braces: bool = true) {
 
     let statements = node.u.block.statements
     .indent += 1
-    for let i = 0; i < statements.size; i += 1 {
-        let statement = statements.at(i)
+    for statement : statements.iter() {
         .gen_statement(statement)
     }
 
@@ -900,8 +898,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     let functions = ns.functions;
     .o.push_scope(ns.scope)
 
-    for let i = 0; i < functions.size; i += 1 {
-        let func = functions.at(i)
+    for func : functions.iter() {
         if not func.sym.is_extern then .gen_function(func)
     }
 
@@ -912,9 +909,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
 }
 
 def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
-    let functions = ns.functions;
-    for let i = 0; i < functions.size; i += 1 {
-        let func = functions.at(i)
+    for func : ns.functions.iter() {
         if func.sym.is_extern continue
 
         if func.is_method and func.parent_type.base == Structure {
@@ -933,8 +928,7 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 }
 
 def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
-    for let i = 0; i < ns.enums.size; i += 1 {
-        let enum_ = ns.enums.at(i)
+    for enum_ : ns.enums.iter() {
         .gen_enum(enum_)
     }
 
@@ -953,8 +947,7 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
 
     .out.puts("switch (this) {\n")
     .indent += 1
-    for let i = 0; i < enum_.fields.size; i += 1 {
-        let field = enum_.fields.at(i)
+    for field : enum_.fields.iter() {
         .gen_indent()
         .out.puts("case ")
         .out.puts(field.sym.out_name)
@@ -977,9 +970,7 @@ def CodeGenerator::gen_enum(&this, enum_: &Enum) {
 
     if not enum_.sym.is_extern {
         .out.putsf(`typedef enum {enum_name} \{\n`)
-        let fields = enum_.fields
-        for let i = 0; i < fields.size; i += 1 {
-            let field = fields.at(i)
+        for field : enum_.fields.iter() {
             .out.puts("  ")
             .out.puts(field.sym.out_name)
             .out.puts(",\n")

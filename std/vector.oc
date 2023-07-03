@@ -48,8 +48,8 @@ def Vector::pop(&this): T {
 }
 
 def Vector::extend(&this, other: &Vector<T>) {
-    for let i = 0; i < other.size; i += 1 {
-        .push(other.data[i])
+    for val : other.iter() {
+        .push(val)
     }
 }
 
