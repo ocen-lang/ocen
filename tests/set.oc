@@ -1,8 +1,6 @@
 /// exit: 0
 
-
 import std::set::Set
-
 
 def main() {
     let set = Set<i32>::new()

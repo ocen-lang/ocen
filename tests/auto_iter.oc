@@ -1,0 +1,28 @@
+/// compile
+
+import std::map::Map
+import std::set::Set
+import std::vector::Vector
+
+def main() {
+    let map = Map<str, str>::new()
+    map.insert("key1", "value1")
+    map.insert("key2", "value2")
+    map.insert("key3", "value3")
+
+    let set = Set<str>::new()
+    set.add("key1")
+    set.add("key2")
+    set.add("key3")
+
+    let vec = Vector<str>::new()
+    vec.push("key1")
+    vec.push("key2")
+    vec.push("key3")
+
+    for it : map.iter() { println(`map: {it.key} -> {it.value}`) }
+    for it : map.iter_keys() { println(`map: (key) {it}`) }
+    for it : map.iter_values() { println(`map: (value) {it}`) }
+    for it : set.iter() { println(`set: {it}`) }
+    for it : vec.iter() { println(`vec: {it}`) }
+}

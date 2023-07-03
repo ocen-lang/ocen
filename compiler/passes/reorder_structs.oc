@@ -48,7 +48,7 @@ def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
             .all_structs.push(struc)
         }
     }
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         .collect_all_structs(iter.value())
     }
 }

@@ -1,4 +1,4 @@
-import std::map::{ Map, Node }
+import std::map::{ Map, Node, Iterator as MapIterator }
 import std::libc::{ calloc, free }
 
 struct Set<T> {
@@ -28,8 +28,8 @@ def Set::extend(&this, other: &Set<T>) {
 }
 
 def Set::subtract(&this, other: &Set<T>) {
-    for let iter = other.iter(); iter.cur?; iter.next() {
-        .remove(iter.value())
+    for let iter = other.iter(); iter.has_next(); iter.next() {
+        .remove(iter.cur())
     }
 }
 
@@ -42,36 +42,15 @@ def Set::free(&this) {
     free(this)
 }
 
-
-
 struct Iterator<T> {
-    idx: i32
-    cur: &Node<T, bool>
-    map: &Map<T, bool>
+    map_iter: MapIterator<T, bool>
 }
 
-def Iterator::value(&this): T => .cur.key
-
-def Iterator::make(set: &Set<T>): Iterator<T> {
-    let it = Iterator<T>(idx: -1, cur: null, set.map)
-    it.next()
-    return it
-}
-
+def Iterator::make(set: &Set<T>): Iterator<T> => Iterator<T>(MapIterator<T, bool>::make(set.map))
+def Iterator::has_next(&this): bool => .map_iter.has_next()
+def Iterator::cur(&this): T => .map_iter.cur().key
 def Iterator::next(&this) {
-    while .idx < .map.num_buckets as i32 {
-        while .cur? {
-            .cur = .cur.next
-            if .cur? return
-        }
-        .idx += 1
-        .cur = if .idx < .map.num_buckets as i32 {
-            yield .map.buckets[.idx]
-        } else {
-            yield null
-        }
-        if .cur? return
-    }
+    .map_iter.next()
 }
 
 // TODO: implement intersection as in-place operation

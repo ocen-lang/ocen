@@ -67,16 +67,17 @@ def GenericPass::error(&this, err: &Error): &Error {
     return err
 }
 
-def GenericPass::insert_into_scope_checked(&this, item: &Symbol) {
-    let prev = .scope().lookup_local(item.name)
+def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = null) {
+    if not name? name = item.name
+    let prev = .scope().lookup_local(name)
     if prev? {
         .error(Error::new_hint(
-            item.span, `Name {item.name} already exists in scope`,
-            prev.span, `Previous use of {item.name}`
+            item.span, `Name {name} already exists in scope`,
+            prev.span, `Previous use of {name}`
         ))
         return
     }
-    .scope().insert(item.name, item)
+    .scope().insert(name, item)
 }
 
 def GenericPass::get_base_type(&this, base: BaseType, span: Span): &Type {
@@ -196,14 +197,14 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
         SymbolType::Namespace => .import_all_from_namespace(sym.u.ns)
         SymbolType::TypeDef => {
             let methods = sym.u.type_def.methods
-            for let iter = methods.iter(); iter.cur?; iter.next() {
+            for let iter = methods.iter(); iter.has_next(); iter.next() {
                 let method = iter.value()
                 .insert_into_scope_checked(method.sym)
             }
         }
         SymbolType::Structure => {
             let methods = sym.u.struc.type.methods
-            for let iter = methods.iter(); iter.cur?; iter.next() {
+            for let iter = methods.iter(); iter.has_next(); iter.next() {
                 let method = iter.value()
                 .insert_into_scope_checked(method.sym)
             }

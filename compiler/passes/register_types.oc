@@ -69,7 +69,7 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
         .register_enum(ns, enum_)
         .add_dbg_method_for_enum(enum_)
     }
-    for let iter = ns.namespaces.iter(); iter.cur?; iter.next() {
+    for let iter = ns.namespaces.iter(); iter.has_next(); iter.next() {
         let child = iter.value()
         let name = iter.key()
         if child.always_add_to_scope {

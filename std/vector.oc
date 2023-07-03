@@ -69,7 +69,28 @@ def Vector::clear(&this) {
 
 def Vector::is_empty(&this): bool => .size == 0
 
+def Vector::iter(&this): Iterator<T> => Iterator<T>::make(this)
+
 def Vector::free(&this) {
     free(.data)
     free(this)
+}
+
+struct Iterator<T> {
+    vec: &Vector<T>
+    index: u32
+}
+
+def Iterator::make(vec: &Vector<T>): Iterator<T> => Iterator<T>(vec, 0)
+
+def Iterator::has_next(&this): bool => .index < .vec.size
+
+def Iterator::next(&this) {
+    assert .index < .vec.size, "Out of bounds in Iterator::next"
+    .index += 1
+}
+
+def Iterator::cur(&this): T {
+    assert .index < .vec.size, "Out of bounds in Iterator::current"
+    return .vec.data[.index]
 }

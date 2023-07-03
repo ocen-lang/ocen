@@ -1,0 +1,81 @@
+import std::libc::{ calloc, realloc, free, memcpy }
+
+struct Deque<T> {
+    data: &T
+    capacity: u32
+    head: u32
+    tail: u32
+    size: u32
+}
+
+def Deque::new(capacity: u32 = 16): Deque<T> {
+    let deq = calloc(1, sizeof(Deque<T>)) as &Deque<T>
+    deq.capacity = capacity
+    deq.data = calloc(capacity, sizeof(T)) as &T
+    deq.head = 0
+    deq.tail = 0
+    deq.size = 0
+    return deq
+}
+
+def Deque::resize(&this, new_capacity: u32) {
+    let new_data = calloc(new_capacity, sizeof(T)) as &T
+    if .head < .tail {
+        memcpy(new_data, .data + .head, (.tail - .head) * sizeof(T))
+    } else {
+        memcpy(new_data, .data + .head, (.capacity - .head) * sizeof(T))
+        memcpy(new_data + (.capacity - .head), .data, .tail * sizeof(T))
+    }
+    free(.data)
+    .data = new_data
+    .capacity = new_capacity
+    .head = 0
+    .tail = .size
+}
+
+def Deque::push_back(&this, value: T) {
+    if .size == .capacity then .resize(.capacity * 2)
+
+    .data[.tail] = value
+    .tail = (.tail + 1) % .capacity
+    .size += 1
+}
+
+def Deque::push_front(&this, value: T) {
+    if .size == .capacity then .resize(.capacity * 2)
+
+    .head = (.head - 1) % .capacity
+    .data[.head] = value
+    .size += 1
+}
+
+def Deque::pop_back(&this): T {
+    assert .size > 0, "Empty deque in Deque::pop_back()"
+
+    .tail = (.tail - 1) % .capacity
+    .size -= 1
+    return .data[.tail]
+}
+
+def Deque::pop_front(&this): T {
+    assert .size > 0, "Empty deque in Deque::pop_front()"
+
+    .size -= 1
+    let value = .data[.head]
+    .head = (.head + 1) % .capacity
+    return value
+}
+
+def Deque::front(&this): T {
+    assert .size > 0, "Empty deque in Deque::front()"
+
+    return .data[.head]
+}
+
+def Deque::back(&this): T {
+    assert .size > 0, "Empty deque in Deque::back()"
+
+    return .data[.tail - 1]
+}
+
+def Deque::is_empty(&this): bool => .size == 0
