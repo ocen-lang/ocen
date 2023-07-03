@@ -195,21 +195,17 @@ def CodeGenerator::gen_constant(&this, node: &AST) {
 }
 
 def CodeGenerator::gen_constants(&this, ns: &Namespace) {
-    for let i = 0; i < ns.constants.size; i += 1 {
-        let const_ = ns.constants.at(i)
+    for const_ : ns.constants.iter() {
         .gen_constant(const_)
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.has_next(); iter.next() {
-        let child = iter.value()
+    for child : ns.namespaces.iter_values() {
         .gen_constants(child)
     }
 }
 
 def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
-    for let i = 0; i < ns.variables.size; i += 1 {
-        let node = ns.variables.at(i)
+    for node : ns.variables.iter() {
         let var = node.u.var_decl.var
         if not var.sym.is_extern {
             .gen_var_declaration(node)
@@ -217,9 +213,7 @@ def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
         }
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.has_next(); iter.next() {
-        let child = iter.value()
+    for child : ns.namespaces.iter_values() {
         .gen_global_variables(child)
     }
 }
@@ -911,9 +905,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
         if not func.sym.is_extern then .gen_function(func)
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.has_next(); iter.next() {
-        let child = iter.value()
+    for child : ns.namespaces.iter_values() {
         .gen_functions(child)
     }
     .o.pop_scope()
@@ -935,9 +927,7 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
         .out.puts(";\n")
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.has_next(); iter.next() {
-        let child = iter.value()
+    for child : ns.namespaces.iter_values() {
         .gen_function_decls(child)
     }
 }
@@ -948,9 +938,7 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
         .gen_enum(enum_)
     }
 
-    let children = ns.namespaces
-    for let iter = children.iter(); iter.has_next(); iter.next() {
-        let child = iter.value()
+    for child : ns.namespaces.iter_values() {
         .gen_enum_types(child)
     }
 }
@@ -1008,9 +996,8 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
     } else {
         .out.putsf(`struct {struc_name} \{\n`)
     }
-    let fields = struc.fields
-    for let i = 0; i < fields.size; i += 1 {
-        let field = fields.at(i)
+
+    for field : struc.fields.iter() {
         .out.puts("  ")
         .gen_type_and_name(field.type, field.sym.out_name)
         .out.puts(";\n")
@@ -1024,8 +1011,7 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     if structs.size == 0 then return
 
     .out.puts("/* Struct typedefs */\n")
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i)
+    for struc : structs.iter() {
         if struc.sym.is_extern then continue
 
         let struc_name = struc.sym.out_name
@@ -1037,10 +1023,8 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     }
 
     .out.puts("\n/* Struct definitions */\n")
-    for let i = 0; i < structs.size; i += 1 {
-        let struc = structs.at(i)
+    for struc : structs.iter() {
         if struc.sym.is_extern then continue
-
         .gen_struct(struc)
     }
 
@@ -1048,17 +1032,14 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
 }
 
 def CodeGenerator::generate(&this): str {
-    for let i = 0; i < .o.program.c_includes.size; i += 1 {
-        let include = .o.program.c_includes.at(i) as str
+    for include : .o.program.c_includes.iter() {
         .out.putsf(`#include "{include}"\n`)
     }
     .out.puts("\n")
 
-    for let iter = .o.program.c_embeds.iter(); iter.has_next(); iter.next() {
-        let name = iter.key()
-        let embed = iter.value()
-        .out.putsf(`/* Embed: {name} */\n`)
-        .out.putsf(embed)
+    for it : .o.program.c_embeds.iter() {
+        .out.putsf(`/* Embed: {it.key} */\n`)
+        .out.puts(it.value)
         .out.puts("\n\n")
     }
 

@@ -2637,30 +2637,36 @@ void passes_code_generator_CodeGenerator_gen_constant(passes_code_generator_Code
 }
 
 void passes_code_generator_CodeGenerator_gen_constants(passes_code_generator_CodeGenerator *this, ast_program_Namespace *ns) {
-  for (u32 i = ((u32)0); (i < ns->constants->size); i+=((u32)1)) {
-    ast_nodes_AST *const_ = std_vector_Vector__8_at(ns->constants, i);
-    passes_code_generator_CodeGenerator_gen_constant(this, const_);
+  for (std_vector_Iterator__8 __iter = std_vector_Vector__8_iter(ns->constants); std_vector_Iterator__8_has_next(&__iter); std_vector_Iterator__8_next(&__iter)) {
+    ast_nodes_AST *const_ = std_vector_Iterator__8_cur(&__iter);
+    {
+      passes_code_generator_CodeGenerator_gen_constant(this, const_);
+    }
   }
-  std_map_Map__3 *children = ns->namespaces;
-  for (std_map_Iterator__3 iter = std_map_Map__3_iter(children); std_map_Iterator__3_has_next(&iter); std_map_Iterator__3_next(&iter)) {
-    ast_program_Namespace *child = std_map_Iterator__3_value(&iter);
-    passes_code_generator_CodeGenerator_gen_constants(this, child);
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_next(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+    ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
+    {
+      passes_code_generator_CodeGenerator_gen_constants(this, child);
+    }
   }
 }
 
 void passes_code_generator_CodeGenerator_gen_global_variables(passes_code_generator_CodeGenerator *this, ast_program_Namespace *ns) {
-  for (u32 i = ((u32)0); (i < ns->variables->size); i+=((u32)1)) {
-    ast_nodes_AST *node = std_vector_Vector__8_at(ns->variables, i);
-    ast_nodes_Variable *var = node->u.var_decl.var;
-    if (!var->sym->is_extern) {
-      passes_code_generator_CodeGenerator_gen_var_declaration(this, node);
-      std_buffer_Buffer_puts(&this->out, ";\n");
-    } 
+  for (std_vector_Iterator__8 __iter = std_vector_Vector__8_iter(ns->variables); std_vector_Iterator__8_has_next(&__iter); std_vector_Iterator__8_next(&__iter)) {
+    ast_nodes_AST *node = std_vector_Iterator__8_cur(&__iter);
+    {
+      ast_nodes_Variable *var = node->u.var_decl.var;
+      if (!var->sym->is_extern) {
+        passes_code_generator_CodeGenerator_gen_var_declaration(this, node);
+        std_buffer_Buffer_puts(&this->out, ";\n");
+      } 
+    }
   }
-  std_map_Map__3 *children = ns->namespaces;
-  for (std_map_Iterator__3 iter = std_map_Map__3_iter(children); std_map_Iterator__3_has_next(&iter); std_map_Iterator__3_next(&iter)) {
-    ast_program_Namespace *child = std_map_Iterator__3_value(&iter);
-    passes_code_generator_CodeGenerator_gen_global_variables(this, child);
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_next(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+    ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
+    {
+      passes_code_generator_CodeGenerator_gen_global_variables(this, child);
+    }
   }
 }
 
@@ -3303,7 +3309,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:871:12: Assertion failed: `type != null`", NULL);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:865:12: Assertion failed: `type != null`", NULL);
   char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
@@ -3346,10 +3352,11 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
     passes_code_generator_CodeGenerator_gen_function(this, func);
     
   }
-  std_map_Map__3 *children = ns->namespaces;
-  for (std_map_Iterator__3 iter = std_map_Map__3_iter(children); std_map_Iterator__3_has_next(&iter); std_map_Iterator__3_next(&iter)) {
-    ast_program_Namespace *child = std_map_Iterator__3_value(&iter);
-    passes_code_generator_CodeGenerator_gen_functions(this, child);
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_next(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+    ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
+    {
+      passes_code_generator_CodeGenerator_gen_functions(this, child);
+    }
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
 }
@@ -3373,10 +3380,11 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
     
     std_buffer_Buffer_puts(&this->out, ";\n");
   }
-  std_map_Map__3 *children = ns->namespaces;
-  for (std_map_Iterator__3 iter = std_map_Map__3_iter(children); std_map_Iterator__3_has_next(&iter); std_map_Iterator__3_next(&iter)) {
-    ast_program_Namespace *child = std_map_Iterator__3_value(&iter);
-    passes_code_generator_CodeGenerator_gen_function_decls(this, child);
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_next(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+    ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
+    {
+      passes_code_generator_CodeGenerator_gen_function_decls(this, child);
+    }
   }
 }
 
@@ -3385,10 +3393,11 @@ void passes_code_generator_CodeGenerator_gen_enum_types(passes_code_generator_Co
     ast_nodes_Enum *enum_ = std_vector_Vector__10_at(ns->enums, i);
     passes_code_generator_CodeGenerator_gen_enum(this, enum_);
   }
-  std_map_Map__3 *children = ns->namespaces;
-  for (std_map_Iterator__3 iter = std_map_Map__3_iter(children); std_map_Iterator__3_has_next(&iter); std_map_Iterator__3_next(&iter)) {
-    ast_program_Namespace *child = std_map_Iterator__3_value(&iter);
-    passes_code_generator_CodeGenerator_gen_enum_types(this, child);
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_next(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+    ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
+    {
+      passes_code_generator_CodeGenerator_gen_enum_types(this, child);
+    }
   }
 }
 
@@ -3439,12 +3448,13 @@ void passes_code_generator_CodeGenerator_gen_struct(passes_code_generator_CodeGe
   }  else {
     std_buffer_Buffer_putsf(&this->out, format_string("struct %s {\n", struc_name));
   } 
-  std_vector_Vector__3 *fields = struc->fields;
-  for (u32 i = ((u32)0); (i < fields->size); i+=((u32)1)) {
-    ast_nodes_Variable *field = std_vector_Vector__3_at(fields, i);
-    std_buffer_Buffer_puts(&this->out, "  ");
-    passes_code_generator_CodeGenerator_gen_type_and_name(this, field->type, field->sym->out_name);
-    std_buffer_Buffer_puts(&this->out, ";\n");
+  for (std_vector_Iterator__3 __iter = std_vector_Vector__3_iter(struc->fields); std_vector_Iterator__3_has_next(&__iter); std_vector_Iterator__3_next(&__iter)) {
+    ast_nodes_Variable *field = std_vector_Iterator__3_cur(&__iter);
+    {
+      std_buffer_Buffer_puts(&this->out, "  ");
+      passes_code_generator_CodeGenerator_gen_type_and_name(this, field->type, field->sym->out_name);
+      std_buffer_Buffer_puts(&this->out, ";\n");
+    }
   }
   std_buffer_Buffer_puts(&this->out, "};\n\n");
 }
@@ -3455,41 +3465,48 @@ void passes_code_generator_CodeGenerator_gen_structs_and_typedefs(passes_code_ge
   return ;
   
   std_buffer_Buffer_puts(&this->out, "/* Struct typedefs */\n");
-  for (u32 i = ((u32)0); (i < structs->size); i+=((u32)1)) {
-    ast_nodes_Structure *struc = std_vector_Vector__6_at(structs, i);
-    if (struc->sym->is_extern) 
-    continue;
-    
-    char *struc_name = struc->sym->out_name;
-    if (struc->is_union) {
-      std_buffer_Buffer_putsf(&this->out, format_string("typedef union %s %s;\n", struc_name, struc_name));
-    }  else {
-      std_buffer_Buffer_putsf(&this->out, format_string("typedef struct %s %s;\n", struc_name, struc_name));
-    } 
+  for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(structs); std_vector_Iterator__6_has_next(&__iter); std_vector_Iterator__6_next(&__iter)) {
+    ast_nodes_Structure *struc = std_vector_Iterator__6_cur(&__iter);
+    {
+      if (struc->sym->is_extern) 
+      continue;
+      
+      char *struc_name = struc->sym->out_name;
+      if (struc->is_union) {
+        std_buffer_Buffer_putsf(&this->out, format_string("typedef union %s %s;\n", struc_name, struc_name));
+      }  else {
+        std_buffer_Buffer_putsf(&this->out, format_string("typedef struct %s %s;\n", struc_name, struc_name));
+      } 
+    }
   }
   std_buffer_Buffer_puts(&this->out, "\n/* Struct definitions */\n");
-  for (u32 i = ((u32)0); (i < structs->size); i+=((u32)1)) {
-    ast_nodes_Structure *struc = std_vector_Vector__6_at(structs, i);
-    if (struc->sym->is_extern) 
-    continue;
-    
-    passes_code_generator_CodeGenerator_gen_struct(this, struc);
+  for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(structs); std_vector_Iterator__6_has_next(&__iter); std_vector_Iterator__6_next(&__iter)) {
+    ast_nodes_Structure *struc = std_vector_Iterator__6_cur(&__iter);
+    {
+      if (struc->sym->is_extern) 
+      continue;
+      
+      passes_code_generator_CodeGenerator_gen_struct(this, struc);
+    }
   }
   std_buffer_Buffer_puts(&this->out, "\n");
 }
 
 char *passes_code_generator_CodeGenerator_generate(passes_code_generator_CodeGenerator *this) {
-  for (u32 i = ((u32)0); (i < this->o->program->c_includes->size); i+=((u32)1)) {
-    char *include = ((char *)std_vector_Vector__2_at(this->o->program->c_includes, i));
-    std_buffer_Buffer_putsf(&this->out, format_string("#include \"%s\"\n", include));
+  for (std_vector_Iterator__2 __iter = std_vector_Vector__2_iter(this->o->program->c_includes); std_vector_Iterator__2_has_next(&__iter); std_vector_Iterator__2_next(&__iter)) {
+    char *include = std_vector_Iterator__2_cur(&__iter);
+    {
+      std_buffer_Buffer_putsf(&this->out, format_string("#include \"%s\"\n", include));
+    }
   }
   std_buffer_Buffer_puts(&this->out, "\n");
-  for (std_map_Iterator__2 iter = std_map_Map__2_iter(this->o->program->c_embeds); std_map_Iterator__2_has_next(&iter); std_map_Iterator__2_next(&iter)) {
-    char *name = std_map_Iterator__2_key(&iter);
-    char *embed = std_map_Iterator__2_value(&iter);
-    std_buffer_Buffer_putsf(&this->out, format_string("/* Embed: %s */\n", name));
-    std_buffer_Buffer_putsf(&this->out, embed);
-    std_buffer_Buffer_puts(&this->out, "\n\n");
+  for (std_map_Iterator__2 __iter = std_map_Map__2_iter(this->o->program->c_embeds); std_map_Iterator__2_has_next(&__iter); std_map_Iterator__2_next(&__iter)) {
+    std_map_Node__2 *it = std_map_Iterator__2_cur(&__iter);
+    {
+      std_buffer_Buffer_putsf(&this->out, format_string("/* Embed: %s */\n", it->key));
+      std_buffer_Buffer_puts(&this->out, it->value);
+      std_buffer_Buffer_puts(&this->out, "\n\n");
+    }
   }
   std_buffer_Buffer_puts(&this->out, "/* Enums */\n");
   passes_code_generator_CodeGenerator_gen_enum_types(this, this->o->program->global);
