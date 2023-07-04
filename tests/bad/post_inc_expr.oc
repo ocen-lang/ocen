@@ -1,0 +1,6 @@
+/// fail: Can't perform PreDecrement on a non-lvalue
+
+def main() {
+    let j = 9
+    let k = --(j + 1)
+}

@@ -40,6 +40,10 @@ enum ASTType {
     Index
     Defer
     Specialization
+    PreIncrement
+    PreDecrement
+    PostIncrement
+    PostDecrement
 
     // Unary operators
     Address

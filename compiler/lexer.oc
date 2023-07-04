@@ -237,10 +237,12 @@ def Lexer::lex(&this): &Vector<&Token> {
             }
             '+' => match .peek(1) {
                 '='  => .push_type(TokenType::PlusEquals, len: 2)
+                '+' => .push_type(TokenType::PlusPlus, len: 2)
                 else => .push_type(TokenType::Plus, len: 1)
             }
             '-' => match .peek(1) {
                 '='  => .push_type(TokenType::MinusEquals, len: 2)
+                '-' => .push_type(TokenType::MinusMinus, len: 2)
                 else => .push_type(TokenType::Minus, len: 1)
             }
             '<' => match .peek(1) {
