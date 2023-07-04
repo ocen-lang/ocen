@@ -888,6 +888,19 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return lhs
         }
 
+        PreIncrement | PostIncrement | PreDecrement | PostDecrement => {
+            let lhs = .check_expression(node.u.unary)
+            if not lhs? return null
+            if not lhs.is_integer() {
+                .error(Error::new(node.span, `Cannot increment or decrement non-integer type: {lhs.str()}`))
+                return null
+            }
+            if not node.u.unary.is_lvalue() {
+                .error(Error::new(node.span, `Can't perform {node.type} on a non-lvalue`))
+            }
+            return lhs
+        }
+
         else => {
             .error(Error::new(node.span, "Invalid expression in TypeChecker::check_expression"))
             return .o.error_type

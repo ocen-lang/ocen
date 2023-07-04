@@ -108,6 +108,10 @@ typedef enum ast_nodes_ASTType {
   ast_nodes_ASTType_Index,
   ast_nodes_ASTType_Defer,
   ast_nodes_ASTType_Specialization,
+  ast_nodes_ASTType_PreIncrement,
+  ast_nodes_ASTType_PreDecrement,
+  ast_nodes_ASTType_PostIncrement,
+  ast_nodes_ASTType_PostDecrement,
   ast_nodes_ASTType_Address,
   ast_nodes_ASTType_Dereference,
   ast_nodes_ASTType_Negate,
@@ -172,6 +176,10 @@ char *ast_nodes_ASTType_dbg(ast_nodes_ASTType this) {
     case ast_nodes_ASTType_Index: return "Index";
     case ast_nodes_ASTType_Defer: return "Defer";
     case ast_nodes_ASTType_Specialization: return "Specialization";
+    case ast_nodes_ASTType_PreIncrement: return "PreIncrement";
+    case ast_nodes_ASTType_PreDecrement: return "PreDecrement";
+    case ast_nodes_ASTType_PostIncrement: return "PostIncrement";
+    case ast_nodes_ASTType_PostDecrement: return "PostDecrement";
     case ast_nodes_ASTType_Address: return "Address";
     case ast_nodes_ASTType_Dereference: return "Dereference";
     case ast_nodes_ASTType_Negate: return "Negate";
@@ -263,6 +271,7 @@ typedef enum tokens_TokenType {
   tokens_TokenType_Line,
   tokens_TokenType_Minus,
   tokens_TokenType_MinusEquals,
+  tokens_TokenType_MinusMinus,
   tokens_TokenType_NotEquals,
   tokens_TokenType_Newline,
   tokens_TokenType_OpenCurly,
@@ -271,6 +280,7 @@ typedef enum tokens_TokenType {
   tokens_TokenType_Percent,
   tokens_TokenType_Plus,
   tokens_TokenType_PlusEquals,
+  tokens_TokenType_PlusPlus,
   tokens_TokenType_Question,
   tokens_TokenType_Semicolon,
   tokens_TokenType_Slash,
@@ -343,6 +353,7 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_Line: return "Line";
     case tokens_TokenType_Minus: return "Minus";
     case tokens_TokenType_MinusEquals: return "MinusEquals";
+    case tokens_TokenType_MinusMinus: return "MinusMinus";
     case tokens_TokenType_NotEquals: return "NotEquals";
     case tokens_TokenType_Newline: return "Newline";
     case tokens_TokenType_OpenCurly: return "OpenCurly";
@@ -351,6 +362,7 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_Percent: return "Percent";
     case tokens_TokenType_Plus: return "Plus";
     case tokens_TokenType_PlusEquals: return "PlusEquals";
+    case tokens_TokenType_PlusPlus: return "PlusPlus";
     case tokens_TokenType_Question: return "Question";
     case tokens_TokenType_Semicolon: return "Semicolon";
     case tokens_TokenType_Slash: return "Slash";
@@ -2513,6 +2525,18 @@ char *passes_code_generator_CodeGenerator_get_op(passes_code_generator_CodeGener
       case ast_nodes_ASTType_RightShift: {
         __yield_0 = ">>";
       } break;
+      case ast_nodes_ASTType_PreDecrement: {
+        __yield_0 = "--";
+      } break;
+      case ast_nodes_ASTType_PreIncrement: {
+        __yield_0 = "++";
+      } break;
+      case ast_nodes_ASTType_PostDecrement: {
+        __yield_0 = "--";
+      } break;
+      case ast_nodes_ASTType_PostIncrement: {
+        __yield_0 = "++";
+      } break;
       default: std_panic(format_string("Unknown op type in get_op: %s", ast_nodes_ASTType_dbg(type))); break;
     }
 ;__yield_0; });
@@ -2991,6 +3015,16 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
       std_buffer_Buffer_puts(&this->out, passes_code_generator_CodeGenerator_get_op(this, node->type));
       passes_code_generator_CodeGenerator_gen_expression(this, node->u.binary.rhs);
     } break;
+    case ast_nodes_ASTType_PreIncrement:
+    case ast_nodes_ASTType_PreDecrement: {
+      std_buffer_Buffer_puts(&this->out, passes_code_generator_CodeGenerator_get_op(this, node->type));
+      passes_code_generator_CodeGenerator_gen_expression(this, node->u.unary);
+    } break;
+    case ast_nodes_ASTType_PostIncrement:
+    case ast_nodes_ASTType_PostDecrement: {
+      passes_code_generator_CodeGenerator_gen_expression(this, node->u.unary);
+      std_buffer_Buffer_puts(&this->out, passes_code_generator_CodeGenerator_get_op(this, node->type));
+    } break;
     default: {
       passes_code_generator_CodeGenerator_error(this, errors_Error_new(node->span, format_string("Unhandled expression type in CodeGenerator: %s", ast_nodes_ASTType_dbg(node->type))));
     } break;
@@ -3345,7 +3379,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:863:12: Assertion failed: `type != null`", NULL);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:877:12: Assertion failed: `type != null`", NULL);
   char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
@@ -4462,6 +4496,20 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
       } 
       if (!types_Type_eq(lhs, rhs)) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Variable type does not match assignment type, Expected type '%s', got '%s'", types_Type_str(lhs), types_Type_str(rhs))));
+      } 
+      return lhs;
+    } break;
+    case ast_nodes_ASTType_PreIncrement:
+    case ast_nodes_ASTType_PostIncrement:
+    case ast_nodes_ASTType_PreDecrement:
+    case ast_nodes_ASTType_PostDecrement: {
+      types_Type *lhs = passes_typechecker_TypeChecker_check_expression(this, node->u.unary, NULL);
+      if (!((bool)lhs)) 
+      return NULL;
+      
+      if (!types_Type_is_integer(lhs)) {
+        passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Cannot increment or decrement non-integer type: %s", types_Type_str(lhs))));
+        return NULL;
       } 
       return lhs;
     } break;
@@ -5867,6 +5915,20 @@ ast_nodes_AST *parser_Parser_parse_postfix(parser_Parser *this, tokens_TokenType
         op->u.binary.rhs=index;
         node=op;
       } break;
+      case tokens_TokenType_MinusMinus:
+      case tokens_TokenType_PlusPlus: {
+        std_span_Span span = std_span_Span_join(node->span, parser_Parser_token(this)->span);
+        ast_nodes_ASTType op = ({ ast_nodes_ASTType __yield_0;
+          if (parser_Parser_token_is(this, tokens_TokenType_MinusMinus)) {
+            parser_Parser_consume(this, tokens_TokenType_MinusMinus);
+            __yield_0 = ast_nodes_ASTType_PostDecrement;
+          }  else {
+            parser_Parser_consume(this, tokens_TokenType_PlusPlus);
+            __yield_0 = ast_nodes_ASTType_PostIncrement;
+          } 
+;__yield_0; });
+        node=ast_nodes_AST_new_unop(op, span, node);
+      } break;
       default: {
         running=false;
       } break;
@@ -5883,6 +5945,21 @@ ast_nodes_AST *parser_Parser_parse_prefix(parser_Parser *this, tokens_TokenType 
       ast_nodes_AST *node = ast_nodes_AST_new(ast_nodes_ASTType_Address, std_span_Span_join(amp->span, expr->span));
       node->u.unary=expr;
       return node;
+    } break;
+    case tokens_TokenType_MinusMinus:
+    case tokens_TokenType_PlusPlus: {
+      std_span_Span start_span = parser_Parser_token(this)->span;
+      ast_nodes_ASTType op = ({ ast_nodes_ASTType __yield_0;
+        if (parser_Parser_token_is(this, tokens_TokenType_MinusMinus)) {
+          parser_Parser_consume(this, tokens_TokenType_MinusMinus);
+          __yield_0 = ast_nodes_ASTType_PreDecrement;
+        }  else {
+          parser_Parser_consume(this, tokens_TokenType_PlusPlus);
+          __yield_0 = ast_nodes_ASTType_PreIncrement;
+        } 
+;__yield_0; });
+      ast_nodes_AST *expr = parser_Parser_parse_prefix(this, end_type);
+      return ast_nodes_AST_new_unop(op, std_span_Span_join(start_span, expr->span), expr);
     } break;
     case tokens_TokenType_SizeOf: {
       tokens_Token *start = parser_Parser_consume(this, tokens_TokenType_SizeOf);
@@ -7706,6 +7783,9 @@ std_vector_Vector__7 *lexer_Lexer_lex(lexer_Lexer *this) {
           case '=': {
             lexer_Lexer_push_type(this, tokens_TokenType_PlusEquals, ((u32)2));
           } break;
+          case '+': {
+            lexer_Lexer_push_type(this, tokens_TokenType_PlusPlus, ((u32)2));
+          } break;
           default: {
             lexer_Lexer_push_type(this, tokens_TokenType_Plus, ((u32)1));
           } break;
@@ -7715,6 +7795,9 @@ std_vector_Vector__7 *lexer_Lexer_lex(lexer_Lexer *this) {
         switch (lexer_Lexer_peek(this, 1)) {
           case '=': {
             lexer_Lexer_push_type(this, tokens_TokenType_MinusEquals, ((u32)2));
+          } break;
+          case '-': {
+            lexer_Lexer_push_type(this, tokens_TokenType_MinusMinus, ((u32)2));
           } break;
           default: {
             lexer_Lexer_push_type(this, tokens_TokenType_Minus, ((u32)1));

@@ -63,6 +63,10 @@ def CodeGenerator::get_op(&this, type: ASTType): str => match type {
     MultiplyEquals => "*=",
     DivideEquals => "/=",
     RightShift => ">>",
+    PreDecrement => "--",
+    PreIncrement => "++",
+    PostDecrement => "--",
+    PostIncrement => "++",
     else => std::panic(`Unknown op type in get_op: {type}`)
 }
 
@@ -513,6 +517,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_expression(node.u.binary.lhs)
             .out.puts(.get_op(node.type))
             .gen_expression(node.u.binary.rhs)
+        }
+
+        PreIncrement | PreDecrement => {
+            .out.puts(.get_op(node.type))
+            .gen_expression(node.u.unary)
+        }
+
+        PostIncrement | PostDecrement => {
+            .gen_expression(node.u.unary)
+            .out.puts(.get_op(node.type))
         }
 
         else => .error(Error::new(node.span, `Unhandled expression type in CodeGenerator: {node.type}`))

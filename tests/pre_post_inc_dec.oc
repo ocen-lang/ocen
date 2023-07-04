@@ -1,0 +1,10 @@
+/// out: "9 10 10 9 10"
+
+def main() {
+    let i = 10
+    print("%d ", --i)
+    print("%d ", ++i)
+    print("%d ", i--)
+    print("%d ", i++)
+    print("%d", i)
+}
