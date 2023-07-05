@@ -1622,7 +1622,7 @@ def couldnt_find_stdlib() {
     std::exit(1)
 }
 
-def Parser::parse_toplevel(filename: str, program: &Program) {
+def Parser::parse_toplevel(program: &Program, filename: str) {
     let t1 = filename.copy()
     let dir = dirname(t1).copy()
     free(t1)

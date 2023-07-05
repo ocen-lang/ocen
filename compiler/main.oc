@@ -1,7 +1,7 @@
 import std::libc::{ exit, calloc, system }
 import .ast::program::Program
 import .parser::Parser
-import .passes::mod::run_all_passes
+import .passes::mod::{ run_typecheck_passes, run_codegen_passes }
 
 
 def usage(code: i32) {
@@ -21,16 +21,46 @@ def usage(code: i32) {
     exit(code)
 }
 
-def main(argc: i32, argv: &str) {
-    let exec_path = "./out"
-    let c_path = null as str
-    let filename = null as str
-    let compile_c = true
-    let silent = false
-    let lib_path = null as str
-    let debug = false
-    let error_level = 2
+let exec_path: str = "./out"
+let c_path: str = null
+let filename: str = null
+let compile_c: bool = true
+let silent: bool = false
+let debug: bool = false
+let error_level: u32 = 2
 
+def save_and_compile_code(program: &Program, code: str) {
+    if not c_path? {
+        c_path = `{exec_path}.c`
+    }
+
+    let out_file = std::File::open(c_path, "w")
+    out_file.puts(code)
+    out_file.close()
+
+    if not compile_c then return
+
+    let cmdbuf = calloc(1, 1024) as str
+    cmdbuf.concat(`gcc -o {exec_path} {c_path}`)
+    for flag : program.c_flags.iter() {
+        cmdbuf.concat(" ")
+        cmdbuf.concat(flag)
+    }
+    if debug {
+        cmdbuf.concat(" -ggdb3")
+    }
+
+    if not silent {
+        println("[+] %s", cmdbuf)
+    }
+    let exit_code = system(cmdbuf)
+    if exit_code != 0 {
+        println("[-] Compilation failed")
+        exit(1)
+    }
+}
+
+def main(argc: i32, argv: &str) {
     for let i = 1; i < argc as u32; i += 1 {
         match argv[i] {
             "-h" => usage(code: 0)
@@ -40,10 +70,6 @@ def main(argc: i32, argv: &str) {
             "-o" => {
                 i += 1
                 exec_path = argv[i]
-            }
-            "-l" => {
-                i += 1
-                lib_path = argv[i]
             }
             "-c" => {
                 i += 1
@@ -71,43 +97,15 @@ def main(argc: i32, argv: &str) {
         usage(code: 1)
     }
 
-    if not c_path? {
-        c_path = `{exec_path}.c`
-    }
-
     let program = Program::new()
     program.error_level = error_level
     program.gen_debug_info = debug
-    Parser::parse_toplevel(filename, program)
+    Parser::parse_toplevel(program, filename)
 
     if not program.errors.is_empty() then program.exit_with_errors()
 
-    let c_code = run_all_passes(program)
+    run_typecheck_passes(program)
 
-    if not program.errors.is_empty() then program.exit_with_errors()
-
-    let out_file = std::File::open(c_path, "w")
-    out_file.puts(c_code)
-    out_file.close()
-
-    if not compile_c then return 0
-
-    let cmdbuf = calloc(1, 1024) as str
-    cmdbuf.concat(`gcc -o {exec_path} {c_path}`)
-    for flag : program.c_flags.iter() {
-        cmdbuf.concat(" ")
-        cmdbuf.concat(flag)
-    }
-    if debug {
-        cmdbuf.concat(" -ggdb3")
-    }
-
-    if not silent {
-        println("[+] %s", cmdbuf)
-    }
-    let code = system(cmdbuf)
-    if code != 0 {
-        println("[-] Compilation failed")
-        exit(1)
-    }
+    let code = run_codegen_passes(program)
+    save_and_compile_code(program, code)
 }
