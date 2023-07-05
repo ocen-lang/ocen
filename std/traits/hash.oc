@@ -7,4 +7,5 @@ def str::hash(this): u32 {
     return hash
 }
 
-def i32::hash(this): u32 => this as u32
+def i32::hash(this): u32 => this as u32 * 7817 // Some random prime number
+def u32::hash(this): u32 => this as u32 * 7817 // Some random prime number

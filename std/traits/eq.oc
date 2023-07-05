@@ -1,1 +1,2 @@
 def i32::eq(this, other: i32): bool => this == other
+def u32::eq(this, other: u32): bool => this == other
