@@ -190,13 +190,14 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
         resolved_struc.fields.push(new_field)
     }
 
-    let instance = TemplateInstance::new(template_args, sym)
+    let instance = TemplateInstance::new(template_args, parent: struc.sym, resolved: sym)
     struc.template_instances.push(instance)
 
     let typ = Type::new_resolved(Structure, sym.span)
     typ.u.struc = resolved_struc
     resolved_struc.type = typ
     typ.sym = sym
+    typ.template_instance = instance
 
     // Resolve the types of the fields
     .resolve_struct(resolved_struc)

@@ -125,12 +125,14 @@ struct VarDeclaration {
 
 struct TemplateInstance {
     params: &Vector<&Type>
+    parent: &Symbol
     resolved: &Symbol
 }
 
-def TemplateInstance::new(params: &Vector<&Type>, resolved: &Symbol): &TemplateInstance {
+def TemplateInstance::new(params: &Vector<&Type>, parent: &Symbol, resolved: &Symbol): &TemplateInstance {
     let instance = calloc(1, sizeof(TemplateInstance)) as &TemplateInstance
     instance.params = params
+    instance.parent = parent
     instance.resolved = resolved
     return instance
 }
