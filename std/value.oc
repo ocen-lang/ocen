@@ -1,6 +1,6 @@
 // A dynamically typed value, useful for JSON + other stuff
 import std::vector::Vector
-import std::map::Map
+import std::compact_map::Map
 import std::json
 import std::buffer::Buffer
 import std::span::Span
@@ -43,9 +43,15 @@ def Value::new(type: ValueType): &Value {
     return val
 }
 
-def Value::new_str(str: Buffer): &Value {
+def Value::new_str_buf(buf: Buffer): &Value {
     let val = Value::new(String)
-    val.u.as_str = str
+    val.u.as_str = buf
+    return val
+}
+
+def Value::new_str(s: str): &Value {
+    let val = Value::new(String)
+    val.u.as_str = Buffer::from_str(s)
     return val
 }
 
