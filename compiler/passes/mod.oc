@@ -5,14 +5,19 @@ import @passes::typechecker::TypeChecker
 import @passes::reorder_structs::ReorderStructs
 import @passes::code_generator::CodeGenerator
 
-def run_all_passes(program: &Program): str {
+def run_typecheck_passes(program: &Program) {
     // NamespaceDump::run(program) // Debug pass
 
     RegisterTypes::run(program)
     TypeChecker::run(program)
 
     if not program.errors.is_empty() then program.exit_with_errors()
+}
 
+def run_codegen_passes(program: &Program): str {
     ReorderStructs::run(program)
-    return CodeGenerator::run(program)
+    let code = CodeGenerator::run(program)
+
+    if not program.errors.is_empty() then program.exit_with_errors()
+    return code
 }
