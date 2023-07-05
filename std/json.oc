@@ -177,12 +177,13 @@ def serialize(val: &Value): Buffer {
     return sb
 }
 
-
-
-
-
-
-
+def write_to_file(val: &Value, filename: str) {
+    let file = File::open(filename, "w")
+    let sb = serialize(val)
+    file.write(sb.data, sb.size)
+    sb.free()
+    file.close()
+}
 
 struct Lexer {
     source: str

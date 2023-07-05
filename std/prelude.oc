@@ -80,6 +80,11 @@ def str::remove_last_n(this, n: u32) {
     this[.len() - n] = '\0'
 }
 
+def str::replace_with(&this, other: str) {
+    libc::free(*this)
+    *this = other
+}
+
 def char::is_digit(this): bool => libc::isdigit(this)
 def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
