@@ -42,7 +42,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
     let func = Function::new()
     func.sym = Symbol::new_with_parent(Function, enum_.sym.ns, enum_.sym, "dbg", span)
     func.sym.u.func = func
-    func.return_type = .o.get_type_by_name("str", span)
+    func.return_type = .o.program.get_type_by_name("str", span)
     func.is_method = true
 
     let var = Variable::new(enum_.type)
@@ -107,7 +107,7 @@ def RegisterTypes::register_builtin_types(&this) {
 
     // untyped_ptr
     {
-        let base = .o.get_base_type(BaseType::Void, Span::default())
+        let base = .o.program.get_base_type(BaseType::Void, Span::default())
         let typ = Type::new_resolved(BaseType::Pointer, Span::default())
         typ.u.ptr = base
         .register_alias("untyped_ptr", typ)
@@ -115,7 +115,7 @@ def RegisterTypes::register_builtin_types(&this) {
 
     // str
     {
-        let base = .o.get_base_type(BaseType::Char, Span::default())
+        let base = .o.program.get_base_type(BaseType::Char, Span::default())
         let typ = Type::new_resolved(BaseType::Pointer, Span::default())
         typ.u.ptr = base
         .register_alias("str", typ)

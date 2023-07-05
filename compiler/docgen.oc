@@ -1,0 +1,298 @@
+
+import @ast::program::{ Program, Namespace }
+import @types::{ Type, BaseType }
+import @ast::nodes::*
+import @ast::scopes::Symbol
+import std::value::Value
+import std::json
+import std::buffer::Buffer
+import std::span::Span
+
+struct DocGenerator {}
+
+def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
+    let enum_doc = Value::new(Dictionary)
+    enum_doc.insert("id", Value::new_str(`{enum_.type:x}`))
+    enum_doc.insert("description", Value::new_str(`enum name: {enum_.sym.display}`))
+    if enum_.sym.is_extern {
+        enum_doc.insert("extern", Value::new_str(enum_.sym.out_name))
+    }
+
+    let fields_doc = Value::new(Dictionary)
+    for field : enum_.fields.iter() {
+        let field_doc = Value::new(Dictionary)
+        field_doc.insert("description", Value::new_str(`field name: {field.sym.display}`))
+        if field.sym.is_extern {
+            field_doc.insert("extern", Value::new_str(field.sym.out_name))
+        }
+        fields_doc.insert(field.sym.name, field_doc)
+    }
+    enum_doc.insert("fields", fields_doc)
+
+    let methods_doc = .gen_methods(enum_.type)
+    enum_doc.insert("methods", methods_doc)
+
+    return enum_doc
+}
+
+def DocGenerator::gen_typename_str(&this, type: &Type): str {
+    assert type?, "gen_typename_str called with null type"
+
+    match type.base {
+        Char | Bool | Void | I8 | I16 | I32 | I64 |
+        U8 | U16 | U32 | U64 | F32 | F64 | Alias | Enum => {
+            return `\{\{{type:x}\}\}`
+        }
+        Structure => {
+            let struc = type.u.struc
+            if struc.is_templated {
+                let buf = Buffer::make()
+                buf.putsf(`\{\{{type:x}\}\}`)
+                buf.puts("<")
+                let first = true
+                for var : struc.template_params.iter() {
+                    if not first then buf.puts(", ")
+                    first = false
+                    buf.puts(var.sym.name)
+                }
+                buf.puts(">")
+                return buf.str()
+
+            } else if not type.template_instance? {
+                return `\{\{{type:x}\}\}`
+            } else {
+                let instance = type.template_instance
+                let parent: &Symbol = instance.parent
+                assert parent.type == Structure, "Template instance parent is not a structure"
+
+                let parent_struc = parent.u.struc
+                let parent_name = .gen_typename_str(parent_struc.type)
+
+                let buf = Buffer::make()
+                buf.puts(parent_name)
+                buf.puts("<")
+                let first = true
+                for arg_type : instance.params.iter() {
+                    if not first then buf.puts(", ")
+                    first = false
+
+                    let param_name = .gen_typename_str(arg_type)
+                    buf.puts(param_name)
+                }
+                buf.puts(">")
+                return buf.str()
+            }
+        }
+        Pointer => {
+            let sub = .gen_typename_str(type.u.ptr)
+            sub.replace_with(`&{sub}`)
+            return sub
+        }
+        Array => {
+            let sub = .gen_typename_str(type.u.arr.elem_type)
+            sub.replace_with(`[{sub}]`)
+            return sub
+        }
+        Unresolved => {
+            let node = type.u.unresolved
+            match node.type {
+                Identifier => {
+                    return node.u.ident.name.copy()
+                }
+                else => {
+                    assert false, `Unhandled type in gen_typename_str: {node.type}`
+                    return "<unknown>"
+                }
+            }
+        }
+        else => {
+            assert false, `Unhandled type in gen_typename_str: {type.base}`
+            return "<unknown>"
+        }
+    }
+}
+
+def DocGenerator::gen_typename(&this, type: &Type): &Value {
+    assert type?, "gen_typename called with null type"
+    return Value::new_str(.gen_typename_str(type))
+}
+
+def DocGenerator::gen_methods(&this, type: &Type): &Value {
+    assert type.can_have_methods(), "gen_methods called with type that can't have methods"
+
+    let methods_doc = Value::new(Dictionary)
+    for it : type.methods.iter() {
+        let method = it.value
+        let method_doc = .gen_function(method)
+        methods_doc.insert(method.sym.name, method_doc)
+    }
+    return methods_doc
+}
+
+def DocGenerator::gen_function(&this, func: &Function): &Value {
+    let func_doc = Value::new(Dictionary)
+    func_doc.insert("name", Value::new_str(`{func.sym.name}`))
+    func_doc.insert("description", Value::new_str(`func name: {func.sym.display}`))
+    func_doc.insert("is_method", Value::new_bool(func.is_method))
+    if func.sym.is_extern {
+        func_doc.insert("extern", Value::new_str(func.sym.out_name))
+    }
+
+    let return_doc = Value::new(Dictionary)
+    return_doc.insert("description", Value::new_str(`return for {func.sym.display}`))
+    return_doc.insert("type", .gen_typename(func.return_type))
+
+    let params_doc = Value::new(List)
+    for param : func.params.iter() {
+        let param_doc = Value::new(Dictionary)
+        param_doc.insert("name", Value::new_str(`{param.sym.name}`))
+        param_doc.insert("description", Value::new_str(`param name: {param.sym.display}`))
+        param_doc.insert("type", .gen_typename(param.type))
+        params_doc.push(param_doc)
+    }
+
+    func_doc.insert("params", params_doc)
+    func_doc.insert("return", return_doc)
+    return func_doc
+}
+
+def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
+    let struc_doc = Value::new(Dictionary)
+    struc_doc.insert("id", Value::new_str(`{struc.type:x}`))
+    struc_doc.insert("description", Value::new_str(`struc name: {struc.sym.display}`))
+    struc_doc.insert("is_union", Value::new_bool(struc.is_union))
+    struc_doc.insert("is_templated", Value::new_bool(struc.is_templated))
+    if struc.sym.is_extern {
+        struc_doc.insert("extern", Value::new_str(struc.sym.out_name))
+    }
+
+    if struc.is_templated {
+        let params_doc = Value::new(List)
+        for var : struc.template_params.iter() {
+            let name = var.sym.name
+            params_doc.push(Value::new_str(name))
+        }
+        struc_doc.insert("template_params", params_doc)
+    }
+
+    let fields_doc = Value::new(Dictionary)
+    for field : struc.fields.iter() {
+        let field_doc = Value::new(Dictionary)
+        field_doc.insert("description", Value::new_str(`struc name: {field.sym.display}`))
+        field_doc.insert("type", .gen_typename(field.type))
+        if field.sym.is_extern {
+            field_doc.insert("extern", Value::new_str(field.sym.out_name))
+        }
+        fields_doc.insert(field.sym.name, field_doc)
+    }
+    struc_doc.insert("fields", fields_doc)
+
+    let methods_doc = .gen_methods(struc.type)
+    struc_doc.insert("methods", methods_doc)
+
+    return struc_doc
+}
+
+def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
+    let ns_doc = Value::new(Dictionary)
+    ns_doc.insert("description", Value::new_str(`ns name: {ns.sym.display}`))
+
+    let types_doc = Value::new(Dictionary)
+    for enum_ : ns.enums.iter() {
+        let enum_doc = .gen_enum(enum_)
+        types_doc.insert(enum_.sym.name, enum_doc)
+    }
+
+    for struc : ns.structs.iter() {
+        let struc_doc = .gen_struct(struc)
+        types_doc.insert(struc.sym.name, struc_doc)
+    }
+    ns_doc.insert("types", types_doc)
+
+    let vars_doc = Value::new(Dictionary)
+    for node : ns.variables.iter() {
+        let var = node.u.var_decl.var
+        let var_doc = Value::new(Dictionary)
+        var_doc.insert("description", Value::new_str(`var name: {var.sym.display}`))
+        var_doc.insert("type", .gen_typename(var.type))
+        if var.sym.is_extern {
+            var_doc.insert("extern", Value::new_str(var.sym.out_name))
+        }
+        vars_doc.insert(var.sym.name, var_doc)
+    }
+    ns_doc.insert("variables", vars_doc)
+
+    let consts_doc = Value::new(Dictionary)
+    for node : ns.constants.iter() {
+        let var = node.u.var_decl.var
+        let const_doc = Value::new(Dictionary)
+        const_doc.insert("description", Value::new_str(`const name: {var.sym.display}`))
+        const_doc.insert("type", .gen_typename(var.type))
+        if var.sym.is_extern {
+            const_doc.insert("extern", Value::new_str(var.sym.out_name))
+        }
+        consts_doc.insert(var.sym.name, const_doc)
+    }
+    ns_doc.insert("constants", consts_doc)
+
+    let funcs_doc = Value::new(Dictionary)
+    for func : ns.functions.iter() {
+        if func.is_method {
+            continue
+        }
+        let func_doc = .gen_function(func)
+        funcs_doc.insert(func.sym.name, func_doc)
+    }
+    ns_doc.insert("functions", funcs_doc)
+
+    let namespaces_doc = Value::new(Dictionary)
+    for it : ns.namespaces.iter() {
+        let ns_doc = .gen_ns(it.value)
+        namespaces_doc.insert(it.key, ns_doc)
+    }
+    ns_doc.insert("namespaces", namespaces_doc)
+
+    return ns_doc
+}
+
+def DocGenerator::gen_builtin(&this, type: &Type): &Value {
+    let type_doc = Value::new(Dictionary)
+    type_doc.insert("id", Value::new_str(`{type:x}`))
+    type_doc.insert("description", Value::new_str(`type name: {type.sym.display}`))
+
+    let methods_doc = .gen_methods(type)
+    type_doc.insert("methods", methods_doc)
+
+    return type_doc
+}
+
+def DocGenerator::gen_builtins(&this, program: &Program): &Value {
+    let builtins_doc = Value::new(Dictionary)
+    for let i = 0; i < BaseType::NUM_BASE_TYPES as u32; i += 1 {
+        let type = program.get_base_type(i as BaseType, Span::default())
+        let type_doc = .gen_builtin(type)
+        builtins_doc.insert(type.name, type_doc)
+    }
+
+    let str_type = program.get_type_by_name("str", Span::default())
+    let str_type_doc = .gen_builtin(str_type)
+    builtins_doc.insert("str", str_type_doc)
+
+    let untyped_ptr_type = program.get_type_by_name("untyped_ptr", Span::default())
+    let untyped_ptr_type_doc = .gen_builtin(untyped_ptr_type)
+    builtins_doc.insert("untyped_ptr", untyped_ptr_type_doc)
+
+    return builtins_doc
+}
+
+def generate_doc_json(program: &Program, json_path: str) {
+    let docs_generator = DocGenerator()
+    let docs = docs_generator.gen_ns(program.global)
+    let builtins = docs_generator.gen_builtins(program)
+
+    let container = Value::new(Dictionary)
+    container.insert("types", builtins)
+    container.insert("namespaces", docs)
+
+    json::write_to_file(container, json_path)
+}
