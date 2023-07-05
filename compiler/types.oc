@@ -1,4 +1,4 @@
-import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
+import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function, TemplateInstance }
 import @ast::scopes::Symbol
 import @ast::program::Namespace
 import std::vector::Vector
@@ -101,6 +101,7 @@ struct Type {
     u: TypeUnion
     methods: &Map<str, &Function>
     sym: &Symbol
+    template_instance: &TemplateInstance
 }
 
 def Type::new_resolved(base: BaseType, span: Span): &Type {
