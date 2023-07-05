@@ -31,6 +31,7 @@ enum BaseType {
     Unresolved
     Array
     Alias
+    UnresolvedTemplate
 
     Error
 }
@@ -85,6 +86,22 @@ def ArrayType::new(elem_type: &Type, size_expr: &AST): &ArrayType {
     return type
 }
 
+// We have this here for the cases where we can't resolve a template
+// (e.g. when we're parsing a template definition). This is not actually
+// used in the compiler for generating any code, but is helpful for outputting
+// documentation.
+struct UnresolvedTemplate {
+    base: &Type, // FIXME: Should this be a symbol?
+    args: &Vector<&Type>
+}
+
+def UnresolvedTemplate::new(base: &Type, args: &Vector<&Type>): &UnresolvedTemplate {
+    let spec = calloc(1, sizeof(UnresolvedTemplate)) as &UnresolvedTemplate
+    spec.base = base
+    spec.args = args
+    return spec
+}
+
 struct TypeUnion {
     ptr: &Type
     func: &FunctionType
@@ -92,6 +109,7 @@ struct TypeUnion {
     enum_: &Enum
     unresolved: &AST
     arr: &ArrayType
+    unresolved_spec: &UnresolvedTemplate
 }
 
 struct Type {
@@ -101,6 +119,9 @@ struct Type {
     u: TypeUnion
     methods: &Map<str, &Function>
     sym: &Symbol
+
+    // This is used for specializations, so that they can point to the original
+    // template instance and the template arguments.
     template_instance: &TemplateInstance
 }
 
