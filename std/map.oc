@@ -169,6 +169,8 @@ def Map::push_keys(&this, vec: &Vector<K>) {
     }
 }
 
+def Map::is_empty(&this): bool => .num_items == 0
+
 def Map::free(&this) {
     for let i = 0; i < .num_buckets; i += 1 {
         .buckets[i].free_list()

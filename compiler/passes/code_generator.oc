@@ -865,10 +865,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             .out = prev_buffer
             acc = .helper_gen_type(top, cur.u.arr.elem_type, acc, is_func_def: false)
         }
-
-        Unresolved => .error(Error::new(cur.span, "Unresolved type found in CodeGenerator::helper_gen_type"))
-        Error => .error(Error::new(cur.span, "Error found in type"))
-        else => .error(Error::new(cur.span, `Unhandled type found: {cur.str()}`))
+        else => .error(Error::new(cur.span, `Unhandled type found in CodeGenerator::helper_gen_type: {cur.base}: {cur.str()}`))
     }
     return acc
 }

@@ -4,6 +4,7 @@ import @types::{ Type, BaseType }
 import @ast::nodes::*
 import @ast::scopes::Symbol
 import std::value::Value
+import std::vector::Vector
 import std::json
 import std::buffer::Buffer
 import std::span::Span
@@ -35,6 +36,23 @@ def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
     return enum_doc
 }
 
+def DocGenerator::gen_templated_type(&this, base: &Type, args: &Vector<&Type>): str {
+    let base_name = .gen_typename_str(base)
+    let buf = Buffer::make()
+    buf.putsf(base_name)
+    buf.puts("<")
+    let first = true
+    for arg_type : args.iter() {
+        if not first then buf.puts(", ")
+        first = false
+
+        let param_name = .gen_typename_str(arg_type)
+        buf.putsf(param_name)
+    }
+    buf.puts(">")
+    return buf.str()
+}
+
 def DocGenerator::gen_typename_str(&this, type: &Type): str {
     assert type?, "gen_typename_str called with null type"
 
@@ -44,44 +62,22 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
             return `\{\{{type:x}\}\}`
         }
         Structure => {
-            let struc = type.u.struc
-            if struc.is_templated {
-                let buf = Buffer::make()
-                buf.putsf(`\{\{{type:x}\}\}`)
-                buf.puts("<")
-                let first = true
-                for var : struc.template_params.iter() {
-                    if not first then buf.puts(", ")
-                    first = false
-                    buf.puts(var.sym.name)
-                }
-                buf.puts(">")
-                return buf.str()
-
-            } else if not type.template_instance? {
+            if not type.template_instance? {
                 return `\{\{{type:x}\}\}`
+
             } else {
+                let struc = type.u.struc
                 let instance = type.template_instance
                 let parent: &Symbol = instance.parent
                 assert parent.type == Structure, "Template instance parent is not a structure"
 
                 let parent_struc = parent.u.struc
-                let parent_name = .gen_typename_str(parent_struc.type)
-
-                let buf = Buffer::make()
-                buf.puts(parent_name)
-                buf.puts("<")
-                let first = true
-                for arg_type : instance.params.iter() {
-                    if not first then buf.puts(", ")
-                    first = false
-
-                    let param_name = .gen_typename_str(arg_type)
-                    buf.puts(param_name)
-                }
-                buf.puts(">")
-                return buf.str()
+                return .gen_templated_type(parent_struc.type, instance.params)
             }
+        }
+        UnresolvedTemplate => {
+            let uspec = type.u.unresolved_spec
+            return .gen_templated_type(uspec.base, uspec.args)
         }
         Pointer => {
             let sub = .gen_typename_str(type.u.ptr)
@@ -92,6 +88,22 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
             let sub = .gen_typename_str(type.u.arr.elem_type)
             sub.replace_with(`[{sub}]`)
             return sub
+        }
+        Function => {
+            let buf = Buffer::make()
+            buf.puts("fn(")
+            let first = true
+            for param : type.u.func.params.iter() {
+                if not first then buf.puts(", ")
+                first = false
+
+                let param_name = .gen_typename_str(param.type)
+                buf.putsf(param_name)
+            }
+            buf.puts("): ")
+            let return_name = .gen_typename_str(type.u.func.return_type)
+            buf.putsf(return_name)
+            return buf.str()
         }
         Unresolved => {
             let node = type.u.unresolved
@@ -160,11 +172,12 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
     let struc_doc = Value::new(Dictionary)
     struc_doc.insert("id", Value::new_str(`{struc.type:x}`))
     struc_doc.insert("description", Value::new_str(`struc name: {struc.sym.display}`))
-    struc_doc.insert("is_union", Value::new_bool(struc.is_union))
-    struc_doc.insert("is_templated", Value::new_bool(struc.is_templated))
-    if struc.sym.is_extern {
-        struc_doc.insert("extern", Value::new_str(struc.sym.out_name))
+    if struc.is_union {
+        struc_doc.insert("type", Value::new_str("union"))
+    } else {
+        struc_doc.insert("type", Value::new_str("struct"))
     }
+    struc_doc.insert("is_templated", Value::new_bool(struc.is_templated))
 
     if struc.is_templated {
         let params_doc = Value::new(List)
@@ -173,6 +186,9 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
             params_doc.push(Value::new_str(name))
         }
         struc_doc.insert("template_params", params_doc)
+    }
+    if struc.sym.is_extern {
+        struc_doc.insert("extern", Value::new_str(struc.sym.out_name))
     }
 
     let fields_doc = Value::new(Dictionary)
@@ -197,60 +213,74 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     let ns_doc = Value::new(Dictionary)
     ns_doc.insert("description", Value::new_str(`ns name: {ns.sym.display}`))
 
-    let types_doc = Value::new(Dictionary)
-    for enum_ : ns.enums.iter() {
-        let enum_doc = .gen_enum(enum_)
-        types_doc.insert(enum_.sym.name, enum_doc)
-    }
-
-    for struc : ns.structs.iter() {
-        let struc_doc = .gen_struct(struc)
-        types_doc.insert(struc.sym.name, struc_doc)
-    }
-    ns_doc.insert("types", types_doc)
-
-    let vars_doc = Value::new(Dictionary)
-    for node : ns.variables.iter() {
-        let var = node.u.var_decl.var
-        let var_doc = Value::new(Dictionary)
-        var_doc.insert("description", Value::new_str(`var name: {var.sym.display}`))
-        var_doc.insert("type", .gen_typename(var.type))
-        if var.sym.is_extern {
-            var_doc.insert("extern", Value::new_str(var.sym.out_name))
+    if not ns.enums.is_empty() {
+        let enum_doc = Value::new(Dictionary)
+        for enum_ : ns.enums.iter() {
+            let enum_doc = .gen_enum(enum_)
+            enum_doc.insert(enum_.sym.name, enum_doc)
         }
-        vars_doc.insert(var.sym.name, var_doc)
+        ns_doc.insert("enums", enum_doc)
     }
-    ns_doc.insert("variables", vars_doc)
 
-    let consts_doc = Value::new(Dictionary)
-    for node : ns.constants.iter() {
-        let var = node.u.var_decl.var
-        let const_doc = Value::new(Dictionary)
-        const_doc.insert("description", Value::new_str(`const name: {var.sym.display}`))
-        const_doc.insert("type", .gen_typename(var.type))
-        if var.sym.is_extern {
-            const_doc.insert("extern", Value::new_str(var.sym.out_name))
+    if not ns.structs.is_empty() {
+        let structs_doc = Value::new(Dictionary)
+        for struc : ns.structs.iter() {
+            let struct_doc = .gen_struct(struc)
+            structs_doc.insert(struc.sym.name, struct_doc)
         }
-        consts_doc.insert(var.sym.name, const_doc)
+        ns_doc.insert("structs", structs_doc)
     }
-    ns_doc.insert("constants", consts_doc)
 
-    let funcs_doc = Value::new(Dictionary)
-    for func : ns.functions.iter() {
-        if func.is_method {
-            continue
+    if not ns.variables.is_empty() {
+        let vars_doc = Value::new(Dictionary)
+        for node : ns.variables.iter() {
+            let var = node.u.var_decl.var
+            let var_doc = Value::new(Dictionary)
+            var_doc.insert("description", Value::new_str(`var name: {var.sym.display}`))
+            var_doc.insert("type", .gen_typename(var.type))
+            if var.sym.is_extern {
+                var_doc.insert("extern", Value::new_str(var.sym.out_name))
+            }
+            vars_doc.insert(var.sym.name, var_doc)
         }
-        let func_doc = .gen_function(func)
-        funcs_doc.insert(func.sym.name, func_doc)
+        ns_doc.insert("variables", vars_doc)
     }
-    ns_doc.insert("functions", funcs_doc)
 
-    let namespaces_doc = Value::new(Dictionary)
-    for it : ns.namespaces.iter() {
-        let ns_doc = .gen_ns(it.value)
-        namespaces_doc.insert(it.key, ns_doc)
+    if not ns.constants.is_empty() {
+        let consts_doc = Value::new(Dictionary)
+        for node : ns.constants.iter() {
+            let var = node.u.var_decl.var
+            let const_doc = Value::new(Dictionary)
+            const_doc.insert("description", Value::new_str(`const name: {var.sym.display}`))
+            const_doc.insert("type", .gen_typename(var.type))
+            if var.sym.is_extern {
+                const_doc.insert("extern", Value::new_str(var.sym.out_name))
+            }
+            consts_doc.insert(var.sym.name, const_doc)
+        }
+        ns_doc.insert("constants", consts_doc)
     }
-    ns_doc.insert("namespaces", namespaces_doc)
+
+    if not ns.functions.is_empty() {
+        let funcs_doc = Value::new(Dictionary)
+        for func : ns.functions.iter() {
+            if func.is_method {
+                continue
+            }
+            let func_doc = .gen_function(func)
+            funcs_doc.insert(func.sym.name, func_doc)
+        }
+        ns_doc.insert("functions", funcs_doc)
+    }
+
+    if not ns.namespaces.is_empty() {
+        let namespaces_doc = Value::new(Dictionary)
+        for it : ns.namespaces.iter() {
+            let ns_doc = .gen_ns(it.value)
+            namespaces_doc.insert(it.key, ns_doc)
+        }
+        ns_doc.insert("namespaces", namespaces_doc)
+    }
 
     return ns_doc
 }
@@ -291,7 +321,7 @@ def generate_doc_json(program: &Program, json_path: str) {
     let builtins = docs_generator.gen_builtins(program)
 
     let container = Value::new(Dictionary)
-    container.insert("types", builtins)
+    container.insert("builtins", builtins)
     container.insert("namespaces", docs)
 
     json::write_to_file(container, json_path)

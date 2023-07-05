@@ -6,7 +6,7 @@ import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
 import @passes::generic_pass::GenericPass
-import @types::{ Type, BaseType, FunctionType }
+import @types::{ Type, BaseType, FunctionType, UnresolvedTemplate }
 import @ast::nodes::*
 
 // This pass actually goes through the AST and checks the types of all the nodes.
@@ -54,7 +54,8 @@ def TypeChecker::resolve_type(
             if not func.return_type? return null
         }
         Unresolved => {
-            let res = .resolve_scoped_identifier(old.u.unresolved, p_e, hint: null, p_r)
+            let node = old.u.unresolved
+            let res = .resolve_scoped_identifier(node, p_e, hint: null, p_r)
 
             if res? {
                 match res.type {
@@ -69,6 +70,12 @@ def TypeChecker::resolve_type(
                             return resolved
                         }
                         resolved = res.u.struc.type
+                        if node.type == Specialization and struc.is_templated {
+                            assert not resolve_templates, "Should have been errored in resolve_scoped_identifier"
+                            let type = Type::new_resolved(UnresolvedTemplate, node.span)
+                            type.u.unresolved_spec = UnresolvedTemplate::new(resolved, node.u.spec.template_args)
+                            resolved = type
+                        }
                     }
                     SymbolType::Enum => resolved = res.u.enum_.type
                     else => {
