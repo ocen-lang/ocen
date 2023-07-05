@@ -5,7 +5,7 @@ import std::libc::{ calloc, exit }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
 import @errors::Error
-import @types::Type
+import @types::{ Type, BaseType }
 import @parser::Parser
 import @lexer::Lexer
 import @errors::{ display_error_messages }
@@ -143,6 +143,11 @@ def Program::get_source_text(&this, span: Span): str {
     return contents.substring(start.index, len)
 }
 
+def Program::error(&this, err: &Error): &Error {
+    .errors.push(err)
+    return err
+}
+
 def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Function {
     // FIXME: This is a hack to get around the fact that we can't deep-copy
     // functions yet. We're just going to get the source code of the function
@@ -164,9 +169,9 @@ def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Fun
     return func
 }
 
-def Program::get_type_deep_copy(&this, old: &Type, ns: &Namespace): &Type {
+def Program::get_struct_deep_copy(&this, old: &Structure, ns: &Namespace): &Structure {
     // FIXME: This is a hack to get around the fact that we can't deep-copy
-    // types yet. We're just going to get the source code of the type
+    // structs yet. We're just going to get the source code of the struct
     // and re-parse it. This is obviously not ideal.
 
     let text = .get_source_text(old.span)
@@ -181,10 +186,29 @@ def Program::get_type_deep_copy(&this, old: &Type, ns: &Namespace): &Type {
     parser.tokens = tokens
     parser.curr = 0
 
-    let type = parser.parse_type()
-    return type
+    let struc = parser.parse_struct()
+    return struc
 }
 
+def Program::get_base_type(&this, base: BaseType, span: Span): &Type {
+    let sym = .global.scope.lookup_local(base.str())
+    if sym? and sym.type == TypeDef {
+        return sym.u.type_def
+    } else {
+        .error(Error::new(span, `Internal compiler error, couldn't find base type {base}`))
+        return null
+    }
+}
+
+def Program::get_type_by_name(&this, name: str, span: Span): &Type {
+    let sym = .global.scope.lookup_local(name)
+    if sym? and sym.type == TypeDef {
+        return sym.u.type_def
+    } else {
+        .error(Error::new(span, `Internal compiler error, couldn't find type {name}`))
+        return null
+    }
+}
 
 def Program::iter_namespaces(&this): NSIterator {
     let iter = NSIterator(

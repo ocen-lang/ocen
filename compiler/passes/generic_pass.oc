@@ -80,26 +80,6 @@ def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = nul
     .scope().insert(name, item)
 }
 
-def GenericPass::get_base_type(&this, base: BaseType, span: Span): &Type {
-    let sym = .program.global.scope.lookup_local(base.str())
-    if sym? and sym.type == SymbolType::TypeDef {
-        return sym.u.type_def
-    } else {
-        .error(Error::new(span, `Internal compiler error, couldn't find base type {base}`))
-        return .error_type
-    }
-}
-
-def GenericPass::get_type_by_name(&this, name: str, span: Span): &Type {
-    let sym = .program.global.scope.lookup_local(name)
-    if sym? and sym.type == SymbolType::TypeDef {
-        return sym.u.type_def
-    } else {
-        .error(Error::new(span, `Internal compiler error, couldn't find type {name}`))
-        return .error_type
-    }
-}
-
 def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, error: bool): &Symbol => match sym.type {
     SymbolType::Namespace => {
         let ns = sym.u.ns

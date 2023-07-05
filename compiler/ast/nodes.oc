@@ -142,6 +142,7 @@ struct Structure {
     fields: &Vector<&Variable>
     type: &Type
     is_union: bool
+    span: Span
 
     is_templated: bool
     template_params: &Vector<&Variable>

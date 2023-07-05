@@ -1341,6 +1341,7 @@ def Parser::parse_import(&this): &AST {
 }
 
 def Parser::parse_struct(&this): &Structure {
+    let start_span = .token().span
     let is_union = if .token_is(TokenType::Union) {
         .consume(TokenType::Union)
         yield true
@@ -1379,7 +1380,8 @@ def Parser::parse_struct(&this): &Structure {
                 .consume_newline_or(TokenType::Comma)
             }
         }
-        .consume(TokenType::CloseCurly)
+        let end = .consume(TokenType::CloseCurly)
+        struc.span = start_span.join(end.span)
     }
 
     return struc

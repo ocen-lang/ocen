@@ -21,50 +21,73 @@ struct TypeChecker {
 def TypeChecker::error(&this, err: &Error): &Error => .o.error(err)
 def TypeChecker::scope(&this): &Scope => .o.scope()
 
-def TypeChecker::resolve_type(&this, old: &Type, allow_incomplete: bool = false): &Type {
+def TypeChecker::get_base_type(&this, base: BaseType, span: Span): &Type => .o.program.get_base_type(base, span)
+def TypeChecker::get_type_by_name(&this, name: str, span: Span): &Type => .o.program.get_type_by_name(name, span)
+
+def TypeChecker::resolve_type(
+    &this,
+    old: &Type,
+    allow_incomplete: bool = false, // Allow checking types like `Foo<i32, T>` without T being resolved
+    error: bool = true,             // Whether to error if the type cannot be resolved
+    resolve_templates: bool = true  // Don't try to resolve the templates, just resolve the base and params
+): &Type {
+
+    // Shorter names for parameters to make recursive calls easier to read
+    let p_a = allow_incomplete
+    let p_e = error
+    let p_r = resolve_templates
+
     let resolved = old
     match old.base {
         Pointer | Alias => {
-            let ptr = .resolve_type(old.u.ptr)
+            let ptr = .resolve_type(old.u.ptr, p_a, p_e, p_r)
             if not ptr? return null
             resolved.u.ptr = ptr
         }
         Function => {
             let func = old.u.func
             for var : func.params.iter() {
-                var.type = .resolve_type(var.type)
+                var.type = .resolve_type(var.type, p_a, p_e, p_r)
                 if not var.type? return null
             }
-            func.return_type = .resolve_type(func.return_type)
+            func.return_type = .resolve_type(func.return_type, p_a, p_e, p_r)
             if not func.return_type? return null
         }
         Unresolved => {
-            let res = .resolve_scoped_identifier(old.u.unresolved, error: false)
+            let res = .resolve_scoped_identifier(old.u.unresolved, p_e, hint: null, p_r)
+
             if res? {
                 match res.type {
                     SymbolType::TypeDef => resolved = res.u.type_def
                     SymbolType::Structure => {
                         let struc = res.u.struc
                         if struc.is_templated and not allow_incomplete {
-                            .error(Error::new(old.span, `Cannot use templated struct {struc.sym.name} as a type`))
-                            return null
+                            if error {
+                                .error(Error::new(old.span, `Cannot use templated struct {struc.sym.name} as a type`))
+                                return null
+                            }
+                            return resolved
                         }
                         resolved = res.u.struc.type
                     }
                     SymbolType::Enum => resolved = res.u.enum_.type
                     else => {
-                        .error(Error::new(res.span, `Cannot use {res.display} as a type`))
-                        resolved = null
+                        if error {
+                            .error(Error::new(res.span, `Cannot use {res.display} as a type`))
+                            resolved = null
+                        }
                     }
                 }
             } else {
-                .error(Error::new(old.u.unresolved.span, "Could not find type with this name"))
-                resolved = null
+                if error {
+                    .error(Error::new(old.u.unresolved.span, "Could not find type with this name"))
+                    resolved = null
+                }
             }
         }
         Array => {
             let arr = old.u.arr
-            arr.elem_type = .resolve_type(arr.elem_type)
+            arr.elem_type = .resolve_type(arr.elem_type, p_a, p_e, p_r)
             if not arr.elem_type? return null
             let res = .check_expression(arr.size_expr)
             if not res? return null
@@ -74,8 +97,10 @@ def TypeChecker::resolve_type(&this, old: &Type, allow_incomplete: bool = false)
         Enum => {}
 
         else => {
-            .error(Error::new(old.span, `Unhandled type in resolve {old.base.str()}`))
-            resolved = null
+            if error {
+                .error(Error::new(old.span, `Unhandled type in resolve {old.base.str()}`))
+                resolved = null
+            }
         }
     }
     return resolved
@@ -129,7 +154,10 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
     }
 
     // OK, so we need to make a new instance of this template (aka a specialization)
-    let resolved_struc = Structure::new()
+    let resolved_struc = .o.program.get_struct_deep_copy(struc, struc.sym.ns)
+    resolved_struc.is_templated = false
+    resolved_struc.template_params = null
+    resolved_struc.template_instances = null
     let parent_ns = struc.sym.ns
 
     // This is the scope that we'll use to resolve the template parameters
@@ -180,16 +208,6 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
     sym.u.struc = resolved_struc
     resolved_struc.sym = sym
 
-    // Note: We _need_ to deep-copy the fields here, otherwise we'll end up with a bunch of
-    // pointers to the same types across different specializations, which is not what we want.
-    for field : struc.fields.iter() {
-        let new_type = .o.program.get_type_deep_copy(field.type, .o.ns())
-        let new_field = Variable::new(new_type)
-        new_field.sym = Symbol::from_local_variable(field.sym.name, new_field, field.sym.span)
-
-        resolved_struc.fields.push(new_field)
-    }
-
     let instance = TemplateInstance::new(template_args, parent: struc.sym, resolved: sym)
     struc.template_instances.push(instance)
 
@@ -209,11 +227,11 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
     return sym
 }
 
-def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true, hint: &Type = null): &Symbol {
+def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true, hint: &Type = null, resolve_templates: bool = true): &Symbol {
     match node.type {
         ASTType::NSLookup => {
             let lhs_span = node.u.lookup.lhs.span
-            let lhs = .resolve_scoped_identifier(node.u.lookup.lhs)
+            let lhs = .resolve_scoped_identifier(node.u.lookup.lhs, error, hint: null, resolve_templates)
             if not lhs? return null
 
             let name = node.u.lookup.rhs_name
@@ -246,13 +264,13 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             return res
         }
         ASTType::Specialization => {
-            let base = .resolve_scoped_identifier(node.u.spec.base)
+            let base = .resolve_scoped_identifier(node.u.spec.base, error, hint, resolve_templates)
             if not base? return null
 
             let args = node.u.spec.template_args
             let failed = false
             for let i = 0; i < args.size; i += 1 {
-                let resolved_arg = .resolve_type(args.at(i), allow_incomplete: true)
+                let resolved_arg = .resolve_type(args.at(i), allow_incomplete: true, error, resolve_templates)
                 if not resolved_arg? {
                     failed = true
                     continue
@@ -262,11 +280,18 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             if failed return null
             base = base.remove_alias()
 
+            if not resolve_templates {
+                node.resolved_symbol = base
+                return base
+            }
+
             match base.type {
                 Structure => {
                     let struc = base.u.struc
                     if not struc.is_templated {
-                        .error(Error::new(node.span, `Can only specialize a templated structure, got {base.display}`))
+                        if error {
+                            .error(Error::new(node.span, `Can only specialize a templated structure, got {base.display}`))
+                        }
                         return null
                     }
 
@@ -275,13 +300,17 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                     return res
                 }
                 else => {
-                    .error(Error::new(node.span, `Can only specialize a structure, got {base.display}`))
+                    if error {
+                        .error(Error::new(node.span, `Can only specialize a structure, got {base.display}`))
+                    }
                     return null
                 }
             }
         }
         else => {
-            .error(Error::new(node.span, `Don't know how to resolve node type {node.type}`))
+            if error {
+                .error(Error::new(node.span, `Don't know how to resolve node type {node.type}`))
+            }
             return null
         }
     }
@@ -367,7 +396,7 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
         .call_dbg_on_enum_value(&arg.expr)
     }
 
-    return .o.get_base_type(Void, node.span)
+    return .get_base_type(Void, node.span)
 }
 
 def TypeChecker::check_constructor(&this, node: &AST): &Type {
@@ -487,7 +516,7 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
         }
         if _lhs.eq(_rhs) and _lhs.base == BaseType::Pointer {
             if node.type == ASTType::Minus {
-                return .o.get_base_type(BaseType::I64, node.span)
+                return .get_base_type(BaseType::I64, node.span)
             }
         }
     }
@@ -551,7 +580,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 ))
             }
-            return .o.get_base_type(BaseType::Bool, node.span)
+            return .get_base_type(BaseType::Bool, node.span)
         }
         Equals | NotEquals => {
             if not lhs.eq(rhs) {
@@ -563,7 +592,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             if lhs.base == BaseType::Structure {
                 .error(Error::new(node.span, "Cannot compare structs directly"))
             }
-            return .o.get_base_type(BaseType::Bool, node.span)
+            return .get_base_type(BaseType::Bool, node.span)
         }
         And | Or => {
             if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
@@ -572,7 +601,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 ))
             }
-            return .o.get_base_type(BaseType::Bool, node.span)
+            return .get_base_type(BaseType::Bool, node.span)
         }
         Modulus | BitwiseOr | BitwiseAnd | BitwiseXor | LeftShift | RightShift => {
             if not lhs.is_integer() or not rhs.is_integer() {
@@ -620,7 +649,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         }
     }
 
-    return .o.get_type_by_name("str", node.span)
+    return .get_type_by_name("str", node.span)
 }
 
 def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
@@ -687,19 +716,19 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 return .resolve_type(node.u.num_literal.suffix)
             }
             if hint? and hint.is_integer() then return hint
-            return .o.get_base_type(BaseType::U32, node.span)
+            return .get_base_type(BaseType::U32, node.span)
         }
         ASTType::FloatLiteral => {
             if node.u.num_literal.suffix? {
                 return .resolve_type(node.u.num_literal.suffix)
             }
             if hint? and hint.is_float() then return hint
-            return .o.get_base_type(BaseType::F32, node.span)
+            return .get_base_type(BaseType::F32, node.span)
         }
         ASTType::StringLiteral => {
-            return .o.get_type_by_name("str", node.span)
+            return .get_type_by_name("str", node.span)
         }
-        ASTType::Null => return .o.get_type_by_name("untyped_ptr", node.span)
+        ASTType::Null => return .get_type_by_name("untyped_ptr", node.span)
         ASTType::Cast => {
             let typ = .check_expression(node.u.cast.lhs)
             if not typ? return null
@@ -712,14 +741,14 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return .check_format_string(node)
         }
         ASTType::CharLiteral => {
-            return .o.get_base_type(BaseType::Char, node.span)
+            return .get_base_type(BaseType::Char, node.span)
         }
         ASTType::BoolLiteral => {
-            return .o.get_base_type(BaseType::Bool, node.span)
+            return .get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Negate => {
             if not hint? {
-                hint = .o.get_base_type(BaseType::I32, node.span)
+                hint = .get_base_type(BaseType::I32, node.span)
             }
             let typ = .check_expression(node.u.unary, hint)
             if not typ? return null
@@ -745,10 +774,10 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             if typ.base != BaseType::Pointer {
                 .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
             }
-            return .o.get_base_type(BaseType::Bool, node.span)
+            return .get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Not => {
-            let typ = .check_expression(node.u.unary, hint: .o.get_base_type(BaseType::Bool, node.span))
+            let typ = .check_expression(node.u.unary, hint: .get_base_type(BaseType::Bool, node.span))
             if not typ? return null
             if typ.base != BaseType::Bool {
                 .error(Error::new(node.span, `Cannot negate non-boolean type: {typ.str()}`))
@@ -761,8 +790,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             if not typ? return null
 
             match typ.base {
-                BaseType::Char => return .o.get_type_by_name("str", node.span)
-                BaseType::Void => return .o.get_type_by_name("untyped_ptr", node.span)
+                BaseType::Char => return .get_type_by_name("str", node.span)
+                BaseType::Void => return .get_type_by_name("untyped_ptr", node.span)
                 else => {
                     let ptr = Type::new_resolved(BaseType::Pointer, node.span)
                     ptr.u.ptr = typ
@@ -784,7 +813,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             let typ = .resolve_type(node.u.size_of_type)
             if not typ? return null
             node.u.size_of_type = typ
-            return .o.get_base_type(BaseType::U32, node.span)
+            return .get_base_type(BaseType::U32, node.span)
         }
         ASTType::If => {
             .check_if(node, is_expr: true, hint)
@@ -1051,7 +1080,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
 }
 
 def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type = null) {
-    let cond_type = .check_expression(node.u.if_stmt.cond, hint: .o.get_base_type(BaseType::Bool, node.span))
+    let cond_type = .check_expression(node.u.if_stmt.cond, hint: .get_base_type(BaseType::Bool, node.span))
     if cond_type? and cond_type.base != BaseType::Bool {
         .error(Error::new_note(
             node.u.if_stmt.cond.span, "Condition must be a boolean",
@@ -1122,7 +1151,7 @@ def TypeChecker::check_while(&this, node: &AST) {
     let cond = node.u.loop.cond
     let body = node.u.loop.body
 
-    let cond_type = .check_expression(cond, hint: .o.get_base_type(BaseType::Bool, node.span))
+    let cond_type = .check_expression(cond, hint: .get_base_type(BaseType::Bool, node.span))
     if cond_type? and cond_type.base != BaseType::Bool {
         .error(Error::new_note(
             cond.span, "Condition must be a boolean",
@@ -1146,7 +1175,7 @@ def TypeChecker::check_for(&this, node: &AST) {
     if init? then .check_statement(init)
 
     if cond? {
-        let cond_type = .check_expression(cond, hint: .o.get_base_type(BaseType::Bool, node.span))
+        let cond_type = .check_expression(cond, hint: .get_base_type(BaseType::Bool, node.span))
         if cond_type? and cond_type.base != BaseType::Bool {
             .error(Error::new_note(
                 cond.span, "Condition must be a boolean",
@@ -1188,14 +1217,14 @@ def TypeChecker::check_statement(&this, node: &AST) {
             node.returns = true
         }
         ASTType::Assert => {
-            let expr_typ = .check_expression(node.u.assertion.expr, hint: .o.get_base_type(BaseType::Bool, node.span))
+            let expr_typ = .check_expression(node.u.assertion.expr, hint: .get_base_type(BaseType::Bool, node.span))
             if expr_typ? and expr_typ.base != BaseType::Bool {
                 .error(Error::new(node.span, `Can only assert boolean types, got {expr_typ.str()}`))
             }
 
             if node.u.assertion.msg? {
                 let msg_typ = .check_expression(node.u.assertion.msg)
-                if msg_typ? and msg_typ != .o.get_type_by_name("str", node.span) {
+                if msg_typ? and msg_typ != .get_type_by_name("str", node.span) {
                     .error(Error::new(node.span, `Can only assert strings, got {msg_typ.str()}`))
                 }
             }
@@ -1366,11 +1395,11 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
             }
             yield sym.u.var.type
         }
-        IntLiteral  => .o.get_base_type(BaseType::I32, node.span)
-        FloatLiteral => .o.get_base_type(BaseType::F32, node.span)
-        BoolLiteral => .o.get_base_type(BaseType::Bool, node.span)
-        CharLiteral => .o.get_base_type(BaseType::Char, node.span)
-        StringLiteral => .o.get_type_by_name("str", node.span)
+        IntLiteral  => .get_base_type(BaseType::I32, node.span)
+        FloatLiteral => .get_base_type(BaseType::F32, node.span)
+        BoolLiteral => .get_base_type(BaseType::Bool, node.span)
+        CharLiteral => .get_base_type(BaseType::Char, node.span)
+        StringLiteral => .get_type_by_name("str", node.span)
         Plus |
         Minus |
         Multiply |
@@ -1401,7 +1430,7 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
         }
         Negate => {
             if not hint? {
-                hint = .o.get_base_type(BaseType::I32, node.span)
+                hint = .get_base_type(BaseType::I32, node.span)
             }
             let typ = .check_const_expression(node.u.unary, hint)
             if not typ? return null
@@ -1577,11 +1606,24 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
     func.scope = .scope()
 }
 
+// We can't really fully resolve the types for the template struct itself, but we can
+// try to evaluate some of the explicit types so we have some more information.
+def TypeChecker::loosely_resolve_templated_struct(&this, struc: &Structure) {
+    for field : struc.fields.iter() {
+        // Don't error here, we'll do that later when we specialize the struct
+        let res = .resolve_type(field.type, allow_incomplete: true, error: false, resolve_templates: false)
+        field.type = res
+    }
+}
+
 def TypeChecker::resolve_struct(&this, struc: &Structure) {
     let fields = struc.fields
 
     // We cannot resolve templated structs.
-    if struc.is_templated return
+    if struc.is_templated {
+        .loosely_resolve_templated_struct(struc)
+        return
+    }
 
     for field : fields.iter() {
         let res = .resolve_type(field.type)
@@ -1594,18 +1636,26 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
 }
 
 def TypeChecker::check_function_declaration(&this, func: &Function) {
+    let allow_incomplete = false
+    let error = true
+    let resolve_templates = true
+
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
-        if struc.is_templated then return
+        if struc.is_templated {
+            allow_incomplete = true
+            error = false
+            resolve_templates = false
+        }
     }
 
-    func.return_type = .resolve_type(func.return_type)
+    func.return_type = .resolve_type(func.return_type, allow_incomplete, error, resolve_templates)
     if not func.return_type? {
-        func.return_type = .o.get_base_type(BaseType::Void, func.sym.span)
+        func.return_type = .get_base_type(BaseType::Void, func.sym.span)
     }
 
     for param : func.params.iter() {
-        param.type = .resolve_type(param.type)
+        param.type = .resolve_type(param.type, allow_incomplete, error, resolve_templates)
     }
 
     // A function keeps track of a type that represents an equivalent function pointer type
