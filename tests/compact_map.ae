@@ -1,0 +1,30 @@
+/// out: "pass"
+
+import std::compact_map::Map
+
+def main() {
+    let map = Map<u32, u32>::new()
+    map.insert(1, 2)
+    map.insert(2, 3)
+    map.insert(3, 4)
+    map.insert(4, 5)
+    map.insert(5, 6)
+    map.insert(6, 7)
+    map.insert(7, 8)
+    map.insert(8, 9)
+    map.insert(9, 10)
+
+    for let i = 1; i < 10; i += 1 {
+        assert map.at(i) == i + 1
+    }
+
+    // Should preserve insertion order
+    let i = 1
+    for it : map.iter() {
+        assert it.key == i
+        assert it.value == i + 1
+        i += 1
+    }
+
+    println("pass")
+}
