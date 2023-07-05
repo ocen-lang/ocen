@@ -2038,8 +2038,10 @@ void std_vector_Iterator__16_next(std_vector_Iterator__16 *this);
 bool std_vector_Iterator__16_has_next(std_vector_Iterator__16 *this);
 std_vector_Iterator__16 std_vector_Iterator__16_make(std_vector_Vector__16 *vec);
 bool i32_eq(i32 this, i32 other);
+bool u32_eq(u32 this, u32 other);
 u32 str_hash(char *this);
 u32 i32_hash(i32 this);
+u32 u32_hash(u32 this);
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s);
 std_buffer_Buffer std_buffer_Buffer_from_sized_str(char *s, u32 size);
@@ -4511,6 +4513,9 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Cannot increment or decrement non-integer type: %s", types_Type_str(lhs))));
         return NULL;
       } 
+      if (!ast_nodes_AST_is_lvalue(node->u.unary)) {
+        passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can't perform %s on a non-lvalue", ast_nodes_ASTType_dbg(node->type))));
+      } 
       return lhs;
     } break;
     default: {
@@ -5003,6 +5008,20 @@ types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typeche
           passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Cannot do pointer arithmetic in constant expressions"));
         } 
         __yield_0 = passes_typechecker_TypeChecker_check_binary_op(this, node, types_Type_unaliased(lhs), types_Type_unaliased(rhs));
+      } break;
+      case ast_nodes_ASTType_Negate: {
+        if (!((bool)hint)) {
+          hint=passes_generic_pass_GenericPass_get_base_type(this->o, types_BaseType_I32, node->span);
+        } 
+        types_Type *typ = passes_typechecker_TypeChecker_check_const_expression(this, node->u.unary, hint);
+        if (!((bool)typ)) 
+        return NULL;
+        
+        if (!types_Type_is_numeric(typ)) {
+          passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Cannot negate non-numeric type: %s", types_Type_str(typ))));
+          return NULL;
+        } 
+        return typ;
       } break;
       default: {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, "Unsupported operator in constant expression"));
@@ -11038,6 +11057,10 @@ bool i32_eq(i32 this, i32 other) {
   return this==other;
 }
 
+bool u32_eq(u32 this, u32 other) {
+  return this==other;
+}
+
 u32 str_hash(char *this) {
   u32 hash = ((u32)5381);
   u32 len = str_len(this);
@@ -11048,7 +11071,11 @@ u32 str_hash(char *this) {
 }
 
 u32 i32_hash(i32 this) {
-  return ((u32)this);
+  return (((u32)this) * ((u32)7817));
+}
+
+u32 u32_hash(u32 this) {
+  return (((u32)this) * ((u32)7817));
 }
 
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity) {
