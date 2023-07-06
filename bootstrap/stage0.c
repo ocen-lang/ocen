@@ -1791,6 +1791,7 @@ std_compact_map_KeyIterator__0 std_compact_map_Map__0_iter_keys(std_compact_map_
 char *std_compact_map_KeyIterator__0_cur(std_compact_map_KeyIterator__0 *this);
 void std_compact_map_KeyIterator__0_next(std_compact_map_KeyIterator__0 *this);
 bool std_compact_map_KeyIterator__0_has_value(std_compact_map_KeyIterator__0 *this);
+bool std_compact_map_Map__0_is_empty(std_compact_map_Map__0 *this);
 void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacity);
 std_compact_map_ValueIterator__0 std_compact_map_Map__0_iter_values(std_compact_map_Map__0 *this);
 std_value_Value *std_compact_map_ValueIterator__0_cur(std_compact_map_ValueIterator__0 *this);
@@ -2425,6 +2426,7 @@ std_value_Value *docgen_DocGenerator_gen_enum(docgen_DocGenerator *this, ast_nod
   std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(enum_doc, "id", std_value_Value_new_str(format_string("%x", enum_->type)));
   std_value_Value_insert(enum_doc, "description", std_value_Value_new_str(format_string("enum name: %s", enum_->sym->display)));
+  std_value_Value_insert(enum_doc, "kind", std_value_Value_new_str("enum"));
   if (enum_->sym->is_extern) {
     std_value_Value_insert(enum_doc, "extern", std_value_Value_new_str(enum_->sym->out_name));
   } 
@@ -2468,7 +2470,7 @@ char *docgen_DocGenerator_gen_templated_type(docgen_DocGenerator *this, types_Ty
 }
 
 char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(((bool)type), "compiler/docgen.oc:57:12: Assertion failed: `type?`", "gen_typename_str called with null type");
+  ae_assert(((bool)type), "compiler/docgen.oc:58:12: Assertion failed: `type?`", "gen_typename_str called with null type");
   switch (type->base) {
     case types_BaseType_Char:
     case types_BaseType_Bool:
@@ -2494,7 +2496,7 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
         ast_nodes_Structure *struc = type->u.struc;
         ast_nodes_TemplateInstance *instance = type->template_instance;
         ast_scopes_Symbol *parent = instance->parent;
-        ae_assert(parent->type==ast_scopes_SymbolType_Structure, "compiler/docgen.oc:72:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");
+        ae_assert(parent->type==ast_scopes_SymbolType_Structure, "compiler/docgen.oc:73:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");
         ast_nodes_Structure *parent_struc = parent->u.struc;
         return docgen_DocGenerator_gen_templated_type(this, parent_struc->type, instance->params);
       } 
@@ -2540,25 +2542,25 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
           return strdup(node->u.ident.name);
         } break;
         default: {
-          ae_assert(false, "compiler/docgen.oc:115:28: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", ast_nodes_ASTType_dbg(node->type)));
+          ae_assert(false, "compiler/docgen.oc:116:28: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", ast_nodes_ASTType_dbg(node->type)));
           return "<unknown>";
         } break;
       }
     } break;
     default: {
-      ae_assert(false, "compiler/docgen.oc:121:20: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", types_BaseType_dbg(type->base)));
+      ae_assert(false, "compiler/docgen.oc:122:20: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", types_BaseType_dbg(type->base)));
       return "<unknown>";
     } break;
   }
 }
 
 std_value_Value *docgen_DocGenerator_gen_typename(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(((bool)type), "compiler/docgen.oc:128:12: Assertion failed: `type?`", "gen_typename called with null type");
+  ae_assert(((bool)type), "compiler/docgen.oc:129:12: Assertion failed: `type?`", "gen_typename called with null type");
   return std_value_Value_new_str(docgen_DocGenerator_gen_typename_str(this, type));
 }
 
 std_value_Value *docgen_DocGenerator_gen_methods(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:133:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");
+  ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:134:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");
   std_value_Value *methods_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   for (std_map_Iterator__4 __iter = std_map_Map__4_iter(type->methods); std_map_Iterator__4_has_value(&__iter); std_map_Iterator__4_next(&__iter)) {
     std_map_Node__4 *it = std_map_Iterator__4_cur(&__iter);
@@ -2576,7 +2578,11 @@ std_value_Value *docgen_DocGenerator_gen_function(docgen_DocGenerator *this, ast
   std_value_Value_insert(func_doc, "id", std_value_Value_new_str(format_string("%x", func)));
   std_value_Value_insert(func_doc, "name", std_value_Value_new_str(format_string("%s", func->sym->name)));
   std_value_Value_insert(func_doc, "description", std_value_Value_new_str(format_string("func name: %s", func->sym->display)));
-  std_value_Value_insert(func_doc, "is_method", std_value_Value_new_bool(func->is_method));
+  if (func->is_method) {
+    std_value_Value_insert(func_doc, "kind", std_value_Value_new_str("method"));
+  }  else {
+    std_value_Value_insert(func_doc, "kind", std_value_Value_new_str("function"));
+  } 
   if (func->sym->is_extern) {
     std_value_Value_insert(func_doc, "extern", std_value_Value_new_str(func->sym->out_name));
   } 
@@ -2605,9 +2611,9 @@ std_value_Value *docgen_DocGenerator_gen_struct(docgen_DocGenerator *this, ast_n
   std_value_Value_insert(struc_doc, "name", std_value_Value_new_str(format_string("%s", struc->sym->name)));
   std_value_Value_insert(struc_doc, "description", std_value_Value_new_str(format_string("struc name: %s", struc->sym->display)));
   if (struc->is_union) {
-    std_value_Value_insert(struc_doc, "type", std_value_Value_new_str("union"));
+    std_value_Value_insert(struc_doc, "kind", std_value_Value_new_str("union"));
   }  else {
-    std_value_Value_insert(struc_doc, "type", std_value_Value_new_str("struct"));
+    std_value_Value_insert(struc_doc, "kind", std_value_Value_new_str("struct"));
   } 
   std_value_Value_insert(struc_doc, "is_templated", std_value_Value_new_bool(struc->is_templated));
   if (struc->is_templated) {
@@ -2647,25 +2653,38 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
   std_value_Value *ns_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(ns_doc, "id", std_value_Value_new_str(format_string("%x", ns)));
   std_value_Value_insert(ns_doc, "description", std_value_Value_new_str(format_string("ns name: %s", ns->sym->display)));
-  std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(ns->enums); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
-    ast_nodes_Enum *enum_ = std_vector_Iterator__10_cur(&__iter);
-    {
-      std_value_Value *enum_doc = docgen_DocGenerator_gen_enum(this, enum_);
-      std_value_Value_insert(enum_doc, enum_->sym->name, enum_doc);
+  std_value_Value_insert(ns_doc, "kind", std_value_Value_new_str("namespace"));
+  if (!std_vector_Vector__10_is_empty(ns->enums)) {
+    std_value_Value *enums_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+    for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(ns->enums); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
+      ast_nodes_Enum *enum_ = std_vector_Iterator__10_cur(&__iter);
+      {
+        std_value_Value *enum_doc = docgen_DocGenerator_gen_enum(this, enum_);
+        std_value_Value_insert(enums_doc, enum_->sym->name, enum_doc);
+      }
     }
-  }
-  std_value_Value_insert(ns_doc, "enums", enum_doc);
+    std_value_Value_insert(ns_doc, "enums", enums_doc);
+  } 
   if (!std_vector_Vector__7_is_empty(ns->structs)) {
     std_value_Value *structs_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+    std_value_Value *unions_doc = std_value_Value_new(std_value_ValueType_Dictionary);
     for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(ns->structs); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
       ast_nodes_Structure *struc = std_vector_Iterator__7_cur(&__iter);
       {
         std_value_Value *struct_doc = docgen_DocGenerator_gen_struct(this, struc);
-        std_value_Value_insert(structs_doc, struc->sym->name, struct_doc);
+        if (!struc->is_union) {
+          std_value_Value_insert(structs_doc, struc->sym->name, struct_doc);
+        }  else {
+          std_value_Value_insert(unions_doc, struc->sym->name, struct_doc);
+        } 
       }
     }
-    std_value_Value_insert(ns_doc, "structs", structs_doc);
+    if (!std_compact_map_Map__0_is_empty(std_value_Value_as_dict(structs_doc))) {
+      std_value_Value_insert(ns_doc, "structs", structs_doc);
+    } 
+    if (!std_compact_map_Map__0_is_empty(std_value_Value_as_dict(unions_doc))) {
+      std_value_Value_insert(ns_doc, "unions", unions_doc);
+    } 
   } 
   if (!std_vector_Vector__9_is_empty(ns->variables)) {
     std_value_Value *vars_doc = std_value_Value_new(std_value_ValueType_Dictionary);
@@ -2675,6 +2694,7 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
         ast_nodes_Variable *var = node->u.var_decl.var;
         std_value_Value *var_doc = std_value_Value_new(std_value_ValueType_Dictionary);
         std_value_Value_insert(var_doc, "description", std_value_Value_new_str(format_string("var name: %s", var->sym->display)));
+        std_value_Value_insert(var_doc, "kind", std_value_Value_new_str("variable"));
         std_value_Value_insert(var_doc, "type", docgen_DocGenerator_gen_typename(this, var->type));
         if (var->sym->is_extern) {
           std_value_Value_insert(var_doc, "extern", std_value_Value_new_str(var->sym->out_name));
@@ -2692,6 +2712,7 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
         ast_nodes_Variable *var = node->u.var_decl.var;
         std_value_Value *const_doc = std_value_Value_new(std_value_ValueType_Dictionary);
         std_value_Value_insert(const_doc, "description", std_value_Value_new_str(format_string("const name: %s", var->sym->display)));
+        std_value_Value_insert(const_doc, "kind", std_value_Value_new_str("constant"));
         std_value_Value_insert(const_doc, "type", docgen_DocGenerator_gen_typename(this, var->type));
         if (var->sym->is_extern) {
           std_value_Value_insert(const_doc, "extern", std_value_Value_new_str(var->sym->out_name));
@@ -2733,6 +2754,7 @@ std_value_Value *docgen_DocGenerator_gen_builtin(docgen_DocGenerator *this, type
   std_value_Value *type_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(type_doc, "id", std_value_Value_new_str(format_string("%x", type)));
   std_value_Value_insert(type_doc, "description", std_value_Value_new_str(format_string("type name: %s", type->sym->display)));
+  std_value_Value_insert(type_doc, "kind", std_value_Value_new_str("builtin"));
   std_value_Value *methods_doc = docgen_DocGenerator_gen_methods(this, type);
   std_value_Value_insert(type_doc, "methods", methods_doc);
   return type_doc;
@@ -8836,6 +8858,10 @@ void std_compact_map_KeyIterator__0_next(std_compact_map_KeyIterator__0 *this) {
 
 bool std_compact_map_KeyIterator__0_has_value(std_compact_map_KeyIterator__0 *this) {
   return std_vector_Iterator__18_has_value(&this->iter);
+}
+
+bool std_compact_map_Map__0_is_empty(std_compact_map_Map__0 *this) {
+  return this->items->size==((u32)0);
 }
 
 void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacity) {

@@ -150,6 +150,8 @@ def Map::at(&this, key: K): V {
     return item.value
 }
 
+def Map::is_empty(&this): bool => .items.size == 0
+
 def Map::iter(&this): Iterator<Item<K, V>> => .items.iter()
 def Map::iter_keys(&this): KeyIterator<K, V> => KeyIterator<K, V>(.items.iter())
 def Map::iter_values(&this): ValueIterator<K, V> => ValueIterator<K, V>(.items.iter())
