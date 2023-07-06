@@ -216,14 +216,12 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     ns_doc.insert("id", Value::new_str(`{ns:x}`))
     ns_doc.insert("description", Value::new_str(`ns name: {ns.sym.display}`))
 
-    if not ns.enums.is_empty() {
-        let enum_doc = Value::new(Dictionary)
-        for enum_ : ns.enums.iter() {
-            let enum_doc = .gen_enum(enum_)
-            enum_doc.insert(enum_.sym.name, enum_doc)
-        }
-        ns_doc.insert("enums", enum_doc)
+    let enum_doc = Value::new(Dictionary)
+    for enum_ : ns.enums.iter() {
+        let enum_doc = .gen_enum(enum_)
+        enum_doc.insert(enum_.sym.name, enum_doc)
     }
+    ns_doc.insert("enums", enum_doc)
 
     if not ns.structs.is_empty() {
         let structs_doc = Value::new(Dictionary)
@@ -323,7 +321,7 @@ def generate_doc_json(program: &Program, json_path: str) {
 
     let docs = docs_generator.gen_ns(program.global)
     let builtins = docs_generator.gen_builtins(program)
-    docs.insert("buitlins", builtins)
+    docs.insert("builtins", builtins)
 
     let container = Value::new(Dictionary)
     container.insert("ocen", docs)
