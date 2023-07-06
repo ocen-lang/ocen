@@ -1,0 +1,22 @@
+/// out: "1 4 7 | 1 7"
+
+import std::linkedlist::LinkedList
+
+def main() {
+    let ll = LinkedList<i32>::new()
+
+    ll.push(1)
+    let node = ll.push(4)
+    ll.push(7)
+
+    for v : ll.iter() {
+        print(`{v} `)
+    }
+    print("| ")
+
+    ll.remove_node(node)
+
+    for v : ll.iter() {
+        print(`{v} `)
+    }
+}

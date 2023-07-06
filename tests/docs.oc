@@ -1,0 +1,21 @@
+/// skip
+
+// This file is not meant to be run on it's own.
+
+// This is just a dummy file that gets copied into the `compiler` directory and
+// imports everything so we can generate documentation for it.
+
+import std::{ vector, map, compact_map, heap, deque }
+import std::{ buffer, bufferio, image, json, math }
+import std::{ value, vec, sdl, glut }
+import std::traits::{ hash, eq, compare }
+import std::vector
+import std::vector
+import std::vector
+import std::vector
+import std::vector
+
+import @parser
+import @passes::mod // includes all passes
+import @utils
+import @docgen

@@ -64,20 +64,34 @@ def Map::get_index(&this, key: K, hash: u32): u32 {
     return first_deleted as u32
 }
 
-// def Map::remove(&this, key: K) {
-//     let hash = key.hash()
-//     let index = .get_index(key, hash)
-//     if .indices[index] == INDEX_FREE {
-//         return
-//     }
 
-//     assert index >= 0
-//     let item = .items.at(.indices[index] as u32) // Should be safe
-//     item.hash = 0
-//     item.key = 0
-//     item.value = 0
-//     .indices[index] = INDEX_DELETED
-// }
+// TODO: Don't mess up the insertion order when removing an item. Maybe use a linked list?
+def Map::remove(&this, key: K) {
+    let hash = key.hash()
+    let index = .get_index(key, hash)
+    if .indices[index] == INDEX_FREE {
+        return
+    }
+    assert index >= 0
+
+    let item_index = .indices[index] as u32
+    let item = .items.at(item_index)
+
+    let last_item = .items.at(.items.size - 1)
+    let last_index = .get_index(last_item.key, last_item.hash)
+
+    assert last_index >= 0
+    assert .indices[last_index] >= 0
+
+    let last_item_index = .indices[last_index] as u32
+    assert last_item_index == .items.size - 1 // Sanity check
+
+    .indices[index] = INDEX_DELETED
+    .items.data[item_index] = last_item
+    .items.pop()
+
+    .indices[last_index] = index as i32
+}
 
 def Map::resize(&this, new_capacity: u32) {
     free(.indices)
@@ -143,7 +157,7 @@ def Map::iter_values(&this): ValueIterator<K, V> => ValueIterator<K, V>(.items.i
 struct KeyIterator<K, V> {
     iter: Iterator<Item<K, V>>
 }
-def KeyIterator::has_next(&this): bool => .iter.has_next()
+def KeyIterator::has_value(&this): bool => .iter.has_value()
 def KeyIterator::next(&this) { .iter.next() }
 def KeyIterator::cur(&this): K => .iter.cur().key
 
@@ -151,6 +165,6 @@ def KeyIterator::cur(&this): K => .iter.cur().key
 struct ValueIterator<K, V> {
     iter: Iterator<Item<K, V>>
 }
-def ValueIterator::has_next(&this): bool => .iter.has_next()
+def ValueIterator::has_value(&this): bool => .iter.has_value()
 def ValueIterator::next(&this) { .iter.next() }
 def ValueIterator::cur(&this): V => .iter.cur().value

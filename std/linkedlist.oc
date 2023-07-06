@@ -1,0 +1,120 @@
+import std::libc::{ calloc, free }
+
+struct Node<T> {
+    value: T
+
+    next: &Node<T>
+    prev: &Node<T>
+}
+
+def Node::new(val: T, next: &Node<T> = null, prev: &Node<T> = null): &Node<T> {
+    let node = calloc(1, sizeof(Node<T>)) as &Node<T>
+    node.value = val
+    node.next = next
+    node.prev = prev
+    return node
+}
+
+struct LinkedList<T> {
+    head: &Node<T>
+    tail: &Node<T>
+    size: u32
+}
+
+def LinkedList::new(): &LinkedList<T> {
+    let ll = calloc(1, sizeof(LinkedList<T>)) as &LinkedList<T>
+    ll.head = null
+    ll.tail = null
+    ll.size = 0
+    return ll
+}
+
+def LinkedList::push_front(&this, val: T): &Node<T> {
+    let node = Node<T>::new(val, .head)
+    if .head != null {
+        .head.prev = node
+    }
+    .head = node
+    if .tail == null {
+        .tail = node
+    }
+    .size += 1
+    return node
+}
+
+def LinkedList::push(&this, val: T): &Node<T> {
+    let node = Node<T>::new(val, null, .tail)
+    if .tail != null {
+        .tail.next = node
+    }
+    .tail = node
+    if .head == null {
+        .head = node
+    }
+    .size += 1
+    return node
+}
+
+def LinkedList::remove_node(&this, node: &Node<T>) {
+    if node.prev != null {
+        node.prev.next = node.next
+    } else {
+        .head = node.next
+    }
+    if node.next != null {
+        node.next.prev = node.prev
+    } else {
+        .tail = node.prev
+    }
+    .size -= 1
+    free(node)
+}
+
+def LinkedList::pop_front(&this): T {
+    assert .head != null, "Empty list in LinkedList::pop_front"
+    let node = .head
+    let val = node.value
+    .remove_node(node)
+    return val
+}
+
+def LinkedList::pop(&this): T {
+    assert .tail != null, "Empty list in LinkedList::pop"
+    let node = .tail
+    let val = node.value
+    .remove_node(node)
+    return val
+}
+
+def LinkedList::free(&this) {
+    let cur = .head
+    while cur? {
+        let next = cur.next
+        .remove_node(cur)
+        cur = next
+    }
+    free(this)
+}
+
+def LinkedList::is_empty(&this): bool => .head == null
+
+def LinkedList::iter(&this): Iterator<T> => Iterator<T>(.head, forward: true)
+def LinkedList::iter_rev(&this): Iterator<T> => Iterator<T>(.head, forward: false)
+
+
+struct Iterator<T> {
+    node: &Node<T>
+    forward: bool
+}
+
+def Iterator::has_value(&this): bool => .node?
+
+def Iterator::next(&this) {
+    if .forward {
+        .node = .node.next
+    } else {
+        .node = .node.prev
+    }
+}
+
+def Iterator::cur(&this): T => .node.value
