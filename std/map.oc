@@ -205,9 +205,7 @@ def Iterator::make(map: &Map<K, V>): Iterator<K, V> {
     return it
 }
 
-def Iterator::has_next(&this): bool {
-    return .node?
-}
+def Iterator::has_value(&this): bool => .node?
 
 def Iterator::cur(&this): &Node<K, V> => .node
 
@@ -230,7 +228,8 @@ def Iterator::next(&this) {
 struct KeyIterator<K, V> {
     map_iter: Iterator<K, V>
 }
-def KeyIterator::has_next(&this): bool => .map_iter.has_next()
+def KeyIterator::has_value(&this): bool => .map_iter.has_value()
+
 def KeyIterator::cur(&this): K => .map_iter.cur().key
 def KeyIterator::next(&this) {
     .map_iter.next()
@@ -240,7 +239,7 @@ def KeyIterator::next(&this) {
 struct ValueIterator<K, V> {
     map_iter: Iterator<K, V>
 }
-def ValueIterator::has_next(&this): bool => .map_iter.has_next()
+def ValueIterator::has_value(&this): bool => .map_iter.has_value()
 def ValueIterator::cur(&this): V => .map_iter.cur().value
 def ValueIterator::next(&this) {
     .map_iter.next()

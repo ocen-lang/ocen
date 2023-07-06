@@ -845,7 +845,7 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     //          ...
     //      }
     // and converting it into
-    //      for let __iter = expr; __iter.has_next(); __iter.next() {
+    //      for let __iter = expr; __iter.has_value(); __iter.next() {
     //          let i = __iter.get();
     //          {
     //             ...
@@ -875,7 +875,7 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
 
         let member = AST::new(ASTType::Member, expr.span)
         member.u.member.lhs = iter_name
-        member.u.member.rhs_name = "has_next"
+        member.u.member.rhs_name = "has_value"
         member.u.member.rhs_span = expr.span
 
         let node = AST::new(ASTType::Call, expr.span)

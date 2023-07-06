@@ -225,7 +225,7 @@ struct NSIterator {
     curr: &Namespace
 }
 
-def NSIterator::has_next(&this): bool => .stack? and not .stack.is_empty()
+def NSIterator::has_value(&this): bool => .stack? and not .stack.is_empty()
 
 def NSIterator::next(&this) {
     assert not .stack.is_empty()

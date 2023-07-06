@@ -23,7 +23,7 @@ def main() {
     map.insert("key16", "value16")
 
     let count = 0
-    for let iter = map.iter(); iter.has_next(); iter.next() {
+    for let iter = map.iter(); iter.has_value(); iter.next() {
         count += 1
     }
     if count == map.num_items {

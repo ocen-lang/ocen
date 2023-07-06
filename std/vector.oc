@@ -83,7 +83,7 @@ struct Iterator<T> {
 
 def Iterator::make(vec: &Vector<T>): Iterator<T> => Iterator<T>(vec, 0)
 
-def Iterator::has_next(&this): bool => .index < .vec.size
+def Iterator::has_value(&this): bool => .index < .vec.size
 
 def Iterator::next(&this) {
     assert .index < .vec.size, "Out of bounds in Iterator::next"

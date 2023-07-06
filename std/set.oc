@@ -28,7 +28,7 @@ def Set::extend(&this, other: &Set<T>) {
 }
 
 def Set::subtract(&this, other: &Set<T>) {
-    for let iter = other.iter(); iter.has_next(); iter.next() {
+    for let iter = other.iter(); iter.has_value(); iter.next() {
         .remove(iter.cur())
     }
 }
@@ -47,7 +47,7 @@ struct Iterator<T> {
 }
 
 def Iterator::make(set: &Set<T>): Iterator<T> => Iterator<T>(MapIterator<T, bool>::make(set.map))
-def Iterator::has_next(&this): bool => .map_iter.has_next()
+def Iterator::has_value(&this): bool => .map_iter.has_value()
 def Iterator::cur(&this): T => .map_iter.cur().key
 def Iterator::next(&this) {
     .map_iter.next()
