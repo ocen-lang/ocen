@@ -2647,17 +2647,15 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
   std_value_Value *ns_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(ns_doc, "id", std_value_Value_new_str(format_string("%x", ns)));
   std_value_Value_insert(ns_doc, "description", std_value_Value_new_str(format_string("ns name: %s", ns->sym->display)));
-  if (!std_vector_Vector__10_is_empty(ns->enums)) {
-    std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-    for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(ns->enums); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
-      ast_nodes_Enum *enum_ = std_vector_Iterator__10_cur(&__iter);
-      {
-        std_value_Value *enum_doc = docgen_DocGenerator_gen_enum(this, enum_);
-        std_value_Value_insert(enum_doc, enum_->sym->name, enum_doc);
-      }
+  std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+  for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(ns->enums); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
+    ast_nodes_Enum *enum_ = std_vector_Iterator__10_cur(&__iter);
+    {
+      std_value_Value *enum_doc = docgen_DocGenerator_gen_enum(this, enum_);
+      std_value_Value_insert(enum_doc, enum_->sym->name, enum_doc);
     }
-    std_value_Value_insert(ns_doc, "enums", enum_doc);
-  } 
+  }
+  std_value_Value_insert(ns_doc, "enums", enum_doc);
   if (!std_vector_Vector__7_is_empty(ns->structs)) {
     std_value_Value *structs_doc = std_value_Value_new(std_value_ValueType_Dictionary);
     for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(ns->structs); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
@@ -2760,7 +2758,7 @@ void docgen_generate_doc_json(ast_program_Program *program, char *json_path) {
   docgen_DocGenerator docs_generator = (docgen_DocGenerator){};
   std_value_Value *docs = docgen_DocGenerator_gen_ns(&docs_generator, program->global);
   std_value_Value *builtins = docgen_DocGenerator_gen_builtins(&docs_generator, program);
-  std_value_Value_insert(docs, "buitlins", builtins);
+  std_value_Value_insert(docs, "builtins", builtins);
   std_value_Value *container = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(container, "ocen", docs);
   std_json_write_to_file(container, json_path);
