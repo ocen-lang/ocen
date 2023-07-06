@@ -29,7 +29,7 @@ struct Symbol {
     name: str        // Name in the scope it was defined in
     display: str     // Fully qualified display name, including namespaces
     out_name: str    // Name used in the output C code
-    span: Span          // Span of the declaration
+    span: Span       // Span of the declaration
     ns: &Namespace   // Namespace it was defined in
 
     type: SymbolType

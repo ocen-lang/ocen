@@ -4,8 +4,8 @@ struct Foo {
     func: fn(): i32
 }
 
-def a0(): i32 { return 0; }
-def a1(): i32 { return 1; }
+def a0(): i32 { return 0 }
+def a1(): i32 { return 1 }
 
 def main() {
     let x: Foo

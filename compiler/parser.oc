@@ -439,7 +439,9 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     if .consume_if(TokenType::Colon) { type = .parse_type(); }
 
     let var = Variable::new(type)
-    var.sym = Symbol::from_local_variable(name.text, var, name.span)
+    var.sym = Symbol::new_with_parent(Variable, .ns, .ns.sym, name.text, name.span)
+    var.sym.u.var = var
+
     if is_const {
         var.sym.type = SymbolType::Constant
     }
@@ -1111,14 +1113,9 @@ def Parser::parse_function(&this): &Function {
     let is_method = false
     let is_static = true
 
-    let ident = if .token_is(TokenType::Identifier) {
-        yield .parse_scoped_identifier()
-
-    } else {
-        .error(Error::new(.token().span, "Unexpected token"))
-        yield null
-    }
+    let ident = .parse_scoped_identifier()
     if not ident? return null
+
     let name_span = ident.span
 
     let func = Function::new()
