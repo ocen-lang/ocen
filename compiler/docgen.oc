@@ -143,6 +143,7 @@ def DocGenerator::gen_methods(&this, type: &Type): &Value {
 
 def DocGenerator::gen_function(&this, func: &Function): &Value {
     let func_doc = Value::new(Dictionary)
+    func_doc.insert("id", Value::new_str(`{func:x}`))
     func_doc.insert("name", Value::new_str(`{func.sym.name}`))
     func_doc.insert("description", Value::new_str(`func name: {func.sym.display}`))
     func_doc.insert("is_method", Value::new_bool(func.is_method))
@@ -171,6 +172,7 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
 def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
     let struc_doc = Value::new(Dictionary)
     struc_doc.insert("id", Value::new_str(`{struc.type:x}`))
+    struc_doc.insert("name", Value::new_str(`{struc.sym.name}`))
     struc_doc.insert("description", Value::new_str(`struc name: {struc.sym.display}`))
     if struc.is_union {
         struc_doc.insert("type", Value::new_str("union"))
@@ -211,6 +213,7 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
 
 def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     let ns_doc = Value::new(Dictionary)
+    ns_doc.insert("id", Value::new_str(`{ns.type:x}`))
     ns_doc.insert("description", Value::new_str(`ns name: {ns.sym.display}`))
 
     if not ns.enums.is_empty() {
@@ -317,12 +320,13 @@ def DocGenerator::gen_builtins(&this, program: &Program): &Value {
 
 def generate_doc_json(program: &Program, json_path: str) {
     let docs_generator = DocGenerator()
+
     let docs = docs_generator.gen_ns(program.global)
     let builtins = docs_generator.gen_builtins(program)
+    docs.insert("buitlins", builtins)
 
     let container = Value::new(Dictionary)
-    container.insert("builtins", builtins)
-    container.insert("namespaces", docs)
+    container.insert("ocen", docs)
 
     json::write_to_file(container, json_path)
 }
