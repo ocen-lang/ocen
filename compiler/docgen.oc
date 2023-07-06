@@ -213,7 +213,7 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
 
 def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     let ns_doc = Value::new(Dictionary)
-    ns_doc.insert("id", Value::new_str(`{ns.type:x}`))
+    ns_doc.insert("id", Value::new_str(`{ns:x}`))
     ns_doc.insert("description", Value::new_str(`ns name: {ns.sym.display}`))
 
     if not ns.enums.is_empty() {
