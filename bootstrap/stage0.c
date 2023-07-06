@@ -2573,6 +2573,7 @@ std_value_Value *docgen_DocGenerator_gen_methods(docgen_DocGenerator *this, type
 
 std_value_Value *docgen_DocGenerator_gen_function(docgen_DocGenerator *this, ast_nodes_Function *func) {
   std_value_Value *func_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+  std_value_Value_insert(func_doc, "id", std_value_Value_new_str(format_string("%x", func)));
   std_value_Value_insert(func_doc, "name", std_value_Value_new_str(format_string("%s", func->sym->name)));
   std_value_Value_insert(func_doc, "description", std_value_Value_new_str(format_string("func name: %s", func->sym->display)));
   std_value_Value_insert(func_doc, "is_method", std_value_Value_new_bool(func->is_method));
@@ -2601,6 +2602,7 @@ std_value_Value *docgen_DocGenerator_gen_function(docgen_DocGenerator *this, ast
 std_value_Value *docgen_DocGenerator_gen_struct(docgen_DocGenerator *this, ast_nodes_Structure *struc) {
   std_value_Value *struc_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(struc_doc, "id", std_value_Value_new_str(format_string("%x", struc->type)));
+  std_value_Value_insert(struc_doc, "name", std_value_Value_new_str(format_string("%s", struc->sym->name)));
   std_value_Value_insert(struc_doc, "description", std_value_Value_new_str(format_string("struc name: %s", struc->sym->display)));
   if (struc->is_union) {
     std_value_Value_insert(struc_doc, "type", std_value_Value_new_str("union"));
@@ -2643,6 +2645,7 @@ std_value_Value *docgen_DocGenerator_gen_struct(docgen_DocGenerator *this, ast_n
 
 std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_program_Namespace *ns) {
   std_value_Value *ns_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+  std_value_Value_insert(ns_doc, "id", std_value_Value_new_str(format_string("%x", ns)));
   std_value_Value_insert(ns_doc, "description", std_value_Value_new_str(format_string("ns name: %s", ns->sym->display)));
   if (!std_vector_Vector__10_is_empty(ns->enums)) {
     std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
@@ -2757,9 +2760,9 @@ void docgen_generate_doc_json(ast_program_Program *program, char *json_path) {
   docgen_DocGenerator docs_generator = (docgen_DocGenerator){};
   std_value_Value *docs = docgen_DocGenerator_gen_ns(&docs_generator, program->global);
   std_value_Value *builtins = docgen_DocGenerator_gen_builtins(&docs_generator, program);
+  std_value_Value_insert(docs, "buitlins", builtins);
   std_value_Value *container = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert(container, "builtins", builtins);
-  std_value_Value_insert(container, "namespaces", docs);
+  std_value_Value_insert(container, "ocen", docs);
   std_json_write_to_file(container, json_path);
 }
 
