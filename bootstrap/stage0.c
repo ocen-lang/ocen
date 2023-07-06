@@ -11,7 +11,6 @@
 #include <string.h>
 #include <signal.h>
 
-
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
@@ -553,8 +552,8 @@ char *errors_MessageType_dbg(errors_MessageType this) {
 }
 
 /* Constants */
-#define INDEX_FREE ((0 - 1))
-#define INDEX_DELETED ((0 - 2))
+#define std_compact_map_INDEX_FREE (-1)
+#define std_compact_map_INDEX_DELETED (-2)
 /* Struct typedefs */
 typedef struct docgen_DocGenerator docgen_DocGenerator;
 typedef struct passes_register_types_RegisterTypes passes_register_types_RegisterTypes;
@@ -6509,7 +6508,8 @@ ast_nodes_AST *parser_Parser_parse_global_value(parser_Parser *this, bool is_con
     type=parser_Parser_parse_type(this);
   } 
   ast_nodes_Variable *var = ast_nodes_Variable_new(type);
-  var->sym=ast_scopes_Symbol_from_local_variable(name->text, var, name->span);
+  var->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Variable, this->ns, this->ns->sym, name->text, name->span);
+  var->sym->u.var=var;
   if (is_const) {
     var->sym->type=ast_scopes_SymbolType_Constant;
   } 
@@ -7151,14 +7151,7 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   types_Type *parent_type = ((types_Type *)NULL);
   bool is_method = false;
   bool is_static = true;
-  ast_nodes_AST *ident = ({ ast_nodes_AST *__yield_0;
-    if (parser_Parser_token_is(this, tokens_TokenType_Identifier)) {
-      __yield_0 = parser_Parser_parse_scoped_identifier(this);
-    }  else {
-      parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, "Unexpected token"));
-      __yield_0 = NULL;
-    } 
-;__yield_0; });
+  ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(this);
   if (!((bool)ident)) 
   return NULL;
   
@@ -8738,7 +8731,7 @@ u32 u32_max(u32 this, u32 other) {
 std_value_Value *std_compact_map_Map__0_at(std_compact_map_Map__0 *this, char *key) {
   u32 hash = str_hash(key);
   u32 index = std_compact_map_Map__0_get_index(this, key, hash);
-  if (this->indices[index]==INDEX_FREE) {
+  if (this->indices[index]==std_compact_map_INDEX_FREE) {
     ae_assert(false, ".//std/compact_map.oc:145:16: Assertion failed: `false`", "Key not found in Map::at()");
   } 
   ae_assert((index >= ((u32)0)), ".//std/compact_map.oc:148:12: Assertion failed: `index >= 0`", NULL);
@@ -8758,10 +8751,10 @@ u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u3
   u32 i = j;
   i32 first_deleted = -1;
   while (true) {
-    if (this->indices[i]==INDEX_FREE) 
+    if (this->indices[i]==std_compact_map_INDEX_FREE) 
     break;
     
-    if (this->indices[i]==INDEX_DELETED) {
+    if (this->indices[i]==std_compact_map_INDEX_DELETED) {
       if ((first_deleted < 0)) {
         first_deleted=((i32)i);
       } 
@@ -8784,7 +8777,7 @@ u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u3
 void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value) {
   u32 hash = str_hash(key);
   u32 index = std_compact_map_Map__0_get_index(this, key, hash);
-  if (this->indices[index]==INDEX_FREE) {
+  if (this->indices[index]==std_compact_map_INDEX_FREE) {
     this->indices[index]=((i32)this->items->size);
     std_vector_Vector__18_push(this->items, (std_compact_map_Item__0){.hash=hash, .key=key, .value=value});
     if ((((u32)this->items->size) >= this->capacity)) {
@@ -8799,7 +8792,7 @@ void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_
 void std_compact_map_Map__0_remove(std_compact_map_Map__0 *this, char *key) {
   u32 hash = str_hash(key);
   u32 index = std_compact_map_Map__0_get_index(this, key, hash);
-  if (this->indices[index]==INDEX_FREE) {
+  if (this->indices[index]==std_compact_map_INDEX_FREE) {
     return ;
   } 
   ae_assert((index >= ((u32)0)), ".//std/compact_map.oc:75:12: Assertion failed: `index >= 0`", NULL);
@@ -8811,7 +8804,7 @@ void std_compact_map_Map__0_remove(std_compact_map_Map__0 *this, char *key) {
   ae_assert((this->indices[last_index] >= 0), ".//std/compact_map.oc:84:12: Assertion failed: `.indices[last_index] >= 0`", NULL);
   u32 last_item_index = ((u32)this->indices[last_index]);
   ae_assert(last_item_index==(this->items->size - ((u32)1)), ".//std/compact_map.oc:87:12: Assertion failed: `last_item_index == .items.size - 1`", NULL);
-  this->indices[index]=INDEX_DELETED;
+  this->indices[index]=std_compact_map_INDEX_DELETED;
   this->items->data[item_index]=last_item;
   std_vector_Vector__18_pop(this->items);
   this->indices[last_index]=((i32)index);
@@ -8820,7 +8813,7 @@ void std_compact_map_Map__0_remove(std_compact_map_Map__0 *this, char *key) {
 std_value_Value *std_compact_map_Map__0_get(std_compact_map_Map__0 *this, char *key, std_value_Value *defolt) {
   u32 hash = str_hash(key);
   u32 index = std_compact_map_Map__0_get_index(this, key, hash);
-  if (this->indices[index]==INDEX_FREE) {
+  if (this->indices[index]==std_compact_map_INDEX_FREE) {
     return defolt;
   } 
   ae_assert((index >= ((u32)0)), ".//std/compact_map.oc:136:12: Assertion failed: `index >= 0`", NULL);
@@ -8849,12 +8842,12 @@ void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacit
   this->indices=((i32 *)calloc(new_capacity, ((u32)sizeof(i32))));
   this->capacity=new_capacity;
   for (u32 i = ((u32)0); (i < new_capacity); i++) {
-    this->indices[i]=INDEX_FREE;
+    this->indices[i]=std_compact_map_INDEX_FREE;
   }
   for (u32 i = ((u32)0); (i < this->items->size); i++) {
     std_compact_map_Item__0 item = std_vector_Vector__18_at(this->items, i);
     u32 index = std_compact_map_Map__0_get_index(this, item.key, item.hash);
-    if (this->indices[index]==INDEX_FREE) {
+    if (this->indices[index]==std_compact_map_INDEX_FREE) {
       this->indices[index]=((i32)i);
     } 
   }
@@ -8880,7 +8873,7 @@ std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity) {
   std_vector_Vector__18 *items = std_vector_Vector__18_new(((u32)16));
   i32 *indices = ((i32 *)calloc(capacity, ((u32)sizeof(i32))));
   for (u32 i = ((u32)0); (i < capacity); i++) {
-    indices[i]=INDEX_FREE;
+    indices[i]=std_compact_map_INDEX_FREE;
   }
   std_compact_map_Map__0 *map = ((std_compact_map_Map__0 *)calloc(((u32)1), ((u32)sizeof(std_compact_map_Map__0))));
   map->items=items;
