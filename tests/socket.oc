@@ -1,0 +1,19 @@
+import std::socket::{ Socket, SocketMode }
+import std::buffer::Buffer
+
+
+def main() {
+    let host = "localhost"
+    let port = 69420i32
+
+    let response = Buffer::make()
+    let socket = Socket::connect(host, port, UDP)
+    println(f"{socket.fd}")
+
+
+    {
+        let msg = Buffer::from_str("Hello, world!")
+        let val = socket.write(&msg)
+        println(f"Wrote {val} bytes")
+    }
+}
