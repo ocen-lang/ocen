@@ -1,0 +1,123 @@
+// Public facing API
+import std::buffer::Buffer
+import std::libc::{ exit, strerror }
+
+
+struct Socket {
+    fd: i32
+}
+
+enum SocketMode {
+    UDP
+    TCP
+}
+
+def Socket::connect(host: str, port: i32, mode: SocketMode): Socket {
+    let sock: Socket
+
+	// Creating socket
+	sock.fd = match mode {
+        UDP => socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP),
+        TCP => socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+    }
+	if (sock.fd < 0){
+        println(`Error creating socket: {strerror(errno)}`)
+        exit(1)
+	}
+
+	// Adding server address info. to struct
+	let server_address: SockAddrIn
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(port);
+
+    let hostm = gethostbyname(host)
+    if not hostm? or not hostm.h_addr? {
+        panic(`Error getting host by name, exiting`)
+    }
+    server_address.sin_addr.s_addr = *(hostm.h_addr as &i32)
+
+	// Assigning IP address to struct
+	if (inet_pton(AF_INET, host, &server_address.sin_addr) < 0) {
+        println(`inet_pton had an error: {strerror(errno)}`)
+        exit(1)
+  	}
+
+    // Connecting to the socket
+  	if (connect(sock.fd, (&server_address) as &SockAddr, sizeof(SockAddrIn)) < 0) {
+        println(`Error connecting to socket: {strerror(errno)}`)
+        exit(1)
+    }
+
+    return sock
+}
+
+def Socket::read(&this, buf: &Buffer, max_size: u32): u32 {
+    buf.resize_if_necessary(max_size)
+    buf.size = read(this.fd, buf.data, max_size)
+    return buf.size
+}
+
+def Socket::read_exactly(&this, buf: &Buffer, size: u32): u32 {
+    buf.resize_if_necessary(size)
+    buf.size = 0
+    while size > 0 {
+        let n = read(this.fd, buf.data + buf.size, size)
+        if n < 0 {
+            println(`Error reading from socket: {strerror(errno)}`)
+            return -1
+        }
+        buf.size += n
+        size -= n
+    }
+    return buf.size
+}
+
+def Socket::write(&this, buf: &Buffer): u32 => write(this.fd, buf.data, buf.size)
+
+
+/// Internal stuff
+
+@compiler c_include "sys/socket.h"
+@compiler c_include "netinet/in.h"
+@compiler c_include "arpa/inet.h"
+@compiler c_include "unistd.h"
+@compiler c_include "errno.h"
+@compiler c_include "sys/types.h"
+@compiler c_include "time.h"
+@compiler c_include "netdb.h"
+
+struct SockAddr extern("struct sockaddr")
+struct HostEnt extern("struct hostent") {
+    h_addr: &u8 // this type is a lie
+}
+struct SinAddr extern("struct in_addr") {
+    s_addr: i32
+}
+struct SockAddrIn extern("struct sockaddr_in") {
+    sin_family: i32
+    sin_port: i32
+    sin_addr: SinAddr
+}
+
+def htons(val: i32): i32 extern
+def htonl(val: i32): i32 extern
+
+let errno: i32 extern
+let AF_INET: i32 extern
+let SOCK_STREAM: i32 extern
+let INADDR_ANY: i32 extern
+let IPPROTO_UDP: i32 extern
+let IPPROTO_TCP: i32 extern
+let SOCK_DGRAM: i32 extern
+
+def socket(domain: i32, type: i32, protocol: i32): i32 extern
+def bind(sockfd: i32, addr: &SockAddr, addrlen: i32): i32 extern
+def listen(sockfd: i32, backlog: i32): i32 extern
+def accept(sockfd: i32, addr: &SockAddr, addrlen: &i32): i32 extern
+def inet_pton(af: i32, src: str, dst: untyped_ptr): i32 extern
+def connect(sockfd: i32, addr: &SockAddr, addrlen: u32): i32 extern
+def gethostbyname(name: str): &HostEnt extern
+
+def read(fd: i32, buf: untyped_ptr, count: u32): u32 extern
+def write(fd: i32, buf: untyped_ptr, count: u32): u32 extern
+def close(fd: i32): i32 extern

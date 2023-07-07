@@ -311,6 +311,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 def DocGenerator::gen_builtin(&this, type: &Type): &Value {
     let type_doc = Value::new(Dictionary)
     type_doc.insert("id", Value::new_str(`{type:x}`))
+    type_doc.insert("name", Value::new_str(`{type.sym.name}`))
     type_doc.insert("description", Value::new_str(`type name: {type.sym.display}`))
     type_doc.insert("kind", Value::new_str("builtin"))
 

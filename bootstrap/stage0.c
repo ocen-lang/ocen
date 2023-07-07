@@ -2753,6 +2753,7 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
 std_value_Value *docgen_DocGenerator_gen_builtin(docgen_DocGenerator *this, types_Type *type) {
   std_value_Value *type_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(type_doc, "id", std_value_Value_new_str(format_string("%x", type)));
+  std_value_Value_insert(type_doc, "name", std_value_Value_new_str(format_string("%s", type->sym->name)));
   std_value_Value_insert(type_doc, "description", std_value_Value_new_str(format_string("type name: %s", type->sym->display)));
   std_value_Value_insert(type_doc, "kind", std_value_Value_new_str("builtin"));
   std_value_Value *methods_doc = docgen_DocGenerator_gen_methods(this, type);
