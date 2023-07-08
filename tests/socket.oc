@@ -1,3 +1,5 @@
+/// compile
+
 import std::socket::{ Socket, SocketMode }
 import std::buffer::Buffer
 
