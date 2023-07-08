@@ -1458,7 +1458,7 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 }
             }
             Namespace => {
-                .consume(TokenType::Namespace)
+                let start = .consume(TokenType::Namespace).span
                 let name = .consume(TokenType::Identifier)
 
                 let old_ns = .ns
@@ -1472,7 +1472,9 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 .ns = new_ns
                 .consume(TokenType::OpenCurly)
                 .parse_namespace_until(TokenType::CloseCurly)
-                .consume(TokenType::CloseCurly)
+                let end = .consume(TokenType::CloseCurly).span
+                new_ns.span = start.join(end)
+
                 .ns = old_ns
             }
             Struct | Union => {
@@ -1639,7 +1641,11 @@ def Parser::load_file(&this, filename: str) {
     .curr = 0
 
     .ns.is_a_file = true
+
+    let start = .token().span
     .parse_namespace_until(TokenType::EOF)
+    let end = .token().span
+    .ns.span = start.join(end)
 }
 
 def couldnt_find_stdlib() {

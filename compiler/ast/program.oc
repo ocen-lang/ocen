@@ -26,6 +26,7 @@ struct Namespace {
     sym: &Symbol
     scope: &Scope
     path: str
+    span: Span
 
     // Does this namespace correspond to an actual file with source code? Or is it just an
     // intermediate namespace for a directory?

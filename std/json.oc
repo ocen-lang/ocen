@@ -1,4 +1,6 @@
 //* JSON parsing and serialization
+//*
+//* This module heavily relies on {{Value}} as the representation of the data.
 
 import std::buffer::Buffer
 import std::vector::Vector
@@ -181,7 +183,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
     }
 }
 
-//* Serialize a Value into JSON, returning a new Buffer
+//* Serialize a Value into JSON, returning a new {{Buffer}}
 def serialize(val: &Value): Buffer {
     let sb = Buffer::make()
     serialize_into(val, &sb)
