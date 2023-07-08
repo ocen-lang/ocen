@@ -128,14 +128,21 @@ def serialize_into(val: &Value, sb: &Buffer) {
             let buf = val.u.as_str
             for let i = 0; i < buf.size; i += 1 {
                 let c = buf.data[i] as char
-                if c.is_print() {
-                    if c == '\\' or c == '"' {
-                        sb.putsf(`\\{c}`)
-                    } else {
-                        sb.putc(c)
+                match c {
+                    '\b' => sb.puts("\\b")
+                    '\f' => sb.puts("\\f")
+                    '\n' => sb.puts("\\n")
+                    '\r' => sb.puts("\\r")
+                    '\t' => sb.puts("\\t")
+                    '\\' => sb.puts("\\\\")
+                    '"' => sb.puts("\\\"")
+                    else => {
+                        if c.is_print() {
+                            sb.putc(c)
+                        } else {
+                            sb.putsf(`\\x{buf.data[i]:02x}`)
+                        }
                     }
-                } else {
-                    sb.putsf(`\\x{buf.data[i]:02x}`)
                 }
             }
             sb.puts("\"")
