@@ -1107,7 +1107,7 @@ def Parser::parse_template_params(&this, out_span: &Span = null): &Vector<&Varia
 }
 
 def Parser::parse_function(&this): &Function {
-    let start = .consume(TokenType::Def).span
+    let start = .consume(TokenType::Def)
 
     let parent_type = null as &Type
     let is_method = false
@@ -1135,6 +1135,10 @@ def Parser::parse_function(&this): &Function {
 
     func.sym = Symbol::new_with_parent(Function, .ns, .ns.sym, name, name_span)
     func.sym.u.func = func
+
+    if start.comment? {
+        func.sym.comment = start.comment
+    }
 
     .consume(TokenType::OpenParen)
     while not .token_is(TokenType::CloseParen) {
@@ -1215,7 +1219,7 @@ def Parser::parse_function(&this): &Function {
     }
 
     .curr_func = null
-    func.span = start.join(func.body.span)
+    func.span = start.span.join(func.body.span)
     return func
 }
 
@@ -1416,6 +1420,9 @@ def Parser::parse_enum(&this): &Enum {
 }
 
 def Parser::parse_namespace_until(&this, end_type: TokenType) {
+    if .token().comment? {
+        .ns.sym.comment = .token().comment
+    }
     while not .token_is(end_type) {
         match .token().type {
             Def => {

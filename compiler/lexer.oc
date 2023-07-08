@@ -1,6 +1,7 @@
 import std::vector::Vector
-import @errors::Error
 import std::span::{Span, Location}
+import std::buffer::Buffer
+import @errors::Error
 import @tokens::{Token, TokenType}
 
 def is_hex_digit(c: char): bool {
@@ -19,24 +20,40 @@ struct Lexer {
     tokens: &Vector<&Token>
 
     errors: &Vector<&Error>
+
+    in_comment: bool
+    comment: Buffer
+    comment_start: Location
 }
 
 def Lexer::make(source: str, filename: str): Lexer {
+    let start_loc = Location(filename, 1, 1, 0)
     return Lexer(
         source,
         source_len: source.len(),
         i: 0,
-        loc: Location(filename, 1, 1, 0),
+        loc: start_loc,
         seen_newline: false,
         tokens: Vector<&Token>::new(),
-        errors: Vector<&Error>::new()
+        errors: Vector<&Error>::new(),
+        in_comment: false,
+        comment: Buffer::make(),
+        comment_start: start_loc,
     )
 }
 
 def Lexer::push(&this, token: &Token) {
     token.seen_newline = .seen_newline
+    if .comment.size > 0 {
+        token.comment = .comment.new_str()
+        token.comment_loc = .comment_start
+    }
+    .comment.clear()
+
     .tokens.push(token)
+
     .seen_newline = false
+    .in_comment = false
 }
 
 def Lexer::push_type(&this, type: TokenType, len: u32) {
@@ -195,6 +212,29 @@ def Lexer::lex_numeric_literal(&this) {
     .push(token)
 }
 
+def Lexer::lex_comment(&this) {
+    // Skip leading slashes
+    while .cur() == '/' { .inc() }
+
+    // We only save comments that have a leading asterisk or dot
+    let save_comment = false
+    if .cur() == '*' or .cur() == '.' {
+        .inc()
+        save_comment = true
+    }
+
+    // Skip whitespace
+    while .cur() == ' ' or .cur() == '\t' { .inc() }
+
+    // Read the comment and store it into the buffer
+    while .i < .source_len and .cur() != '\n' {
+        if save_comment then .comment.putc(.cur())
+        .inc()
+    }
+
+    if save_comment then .comment.putc('\n')
+}
+
 def Lexer::lex(&this): &Vector<&Token> {
     while .i < .source_len {
         let c = .cur()
@@ -254,12 +294,7 @@ def Lexer::lex(&this): &Vector<&Token> {
                 else => .push_type(TokenType::GreaterThan, len: 1)
             }
             '/' => match .peek(1) {
-                '/' => {
-                    .inc()
-                    while .i < .source_len and .cur() != '\n' {
-                        .inc()
-                    }
-                }
+                '/' => .lex_comment()
                 '='  => .push_type(TokenType::SlashEquals, len: 2)
                 else => .push_type(TokenType::Slash, len: 1)
             }

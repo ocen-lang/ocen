@@ -1,4 +1,4 @@
-// A dynbamic list of objects
+//* A dynamic list of objects
 
 import std::libc::{calloc, realloc, free}
 
@@ -41,6 +41,7 @@ def Vector::push_front(&this, value: T) {
     .size += 1
 }
 
+//* Pop an element from the end of the vector and return it
 def Vector::pop(&this): T {
     assert .size > 0, "Empty vector in Vector::pop"
     .size -= 1

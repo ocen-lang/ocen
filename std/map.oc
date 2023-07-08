@@ -1,8 +1,8 @@
-// A simple hash-map
-//
-// Preconditions:
-//  - K must implement the `hash` method:    K::hash(this): u32
-//  - K must implement the `eq` method:      K::eq(this, other: K): bool
+//* A simple hash-map
+//*
+//* Preconditions:
+//*  - K must implement the `hash` method:    K::hash(this): u32
+//*  - K must implement the `eq` method:      K::eq(this, other: K): bool
 
 import std::vector::Vector
 import std::libc::{ calloc, realloc, free }

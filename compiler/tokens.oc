@@ -1,4 +1,4 @@
-import std::span::Span
+import std::span::{ Span, Location }
 import std::libc::calloc
 
 struct Token {
@@ -7,11 +7,15 @@ struct Token {
     text: str
     suffix: &Token
     seen_newline: bool
+
+    // Always comes *before* the token
+    comment: str
+    comment_loc: Location
 }
 
 def Token::new(type: TokenType, span: Span, text: str): &Token {
     let tok = calloc(1, sizeof(Token)) as &Token
-    *tok = Token(type, span, text, suffix: null, seen_newline: false)
+    *tok = Token(type, span, text, suffix: null, seen_newline: false, comment: null, comment_loc: Location::default())
     return tok
 }
 
