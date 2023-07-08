@@ -1,11 +1,14 @@
-// A type that holds an Image, stored in 32-bit floating point format.
-// Each of the RGB values are supposed to be in the range [0,1].
-// The `Vec` type is used to represent the pixel colors as well.
+//* Image struct / IO utilities (PPM)
 
 import std::vec::Vec
 import std::libc::{ calloc, free }
 import std::math::clamp01
 
+//* A type that holds an Image
+//*
+//* The image is stored in 32-bit floating point format.
+//* Each of the RGB values are supposed to be in the range [0,1].
+//* The `Vec` type is used to represent the pixel colors as well.
 struct Image {
     width: u32
     height: u32

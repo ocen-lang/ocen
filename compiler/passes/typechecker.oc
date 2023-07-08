@@ -1,3 +1,8 @@
+//* Resolve and check types in the AST
+//*
+//* This pass actually goes through the AST and checks the types of all the nodes.
+//* Any remaining unresolved types should be resolved after this
+
 import std::vector::Vector
 import std::span::Span
 import std::buffer::Buffer
@@ -8,9 +13,6 @@ import @errors::Error
 import @passes::generic_pass::GenericPass
 import @types::{ Type, BaseType, FunctionType, UnresolvedTemplate }
 import @ast::nodes::*
-
-// This pass actually goes through the AST and checks the types of all the nodes.
-// Any remaining unresolved types should be resolved after this
 
 struct TypeChecker {
     o: &GenericPass

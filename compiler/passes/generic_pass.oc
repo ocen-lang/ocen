@@ -1,3 +1,5 @@
+//* Common helper functions for passes
+
 import std::vector::Vector
 import std::span::Span
 import @ast::scopes::{ Scope, Symbol, SymbolType }

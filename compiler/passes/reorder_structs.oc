@@ -1,13 +1,14 @@
+//* Topologically sort structs
+//*
+//* This is needed because in C structs need to be declared before they are used
+//* in other structs. The ordered structs are stored in `program.ordered_structs`
+
 import @passes::generic_pass::GenericPass
 import std::vector::Vector
 import std::map::Map
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable, TemplateInstance }
 import std::libc::{ calloc, free }
-
-
-// This pass reorders structs so that they can be generated in the correct order for C,
-// and stores the result inside `program.ordered_structs`
 
 struct ReorderStructs {
     o: &GenericPass

@@ -1,3 +1,5 @@
+//* A binary heap
+
 import std::vector::Vector
 import std::traits::compare
 import std::libc::{ calloc, free }

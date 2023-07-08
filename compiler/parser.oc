@@ -1,3 +1,5 @@
+//* The parser
+
 import @ast::nodes::*
 import @ast::program::{ Namespace, Program }
 import @lexer::Lexer
@@ -1171,6 +1173,10 @@ def Parser::parse_function(&this): &Function {
         var.default_value = default_value
         func.params.push(var)
 
+        if var_name.comment? {
+            var.sym.comment = var_name.comment
+        }
+
         if not .token_is(TokenType::CloseParen) {
             .consume(TokenType::Comma)
         }
@@ -1342,7 +1348,7 @@ def Parser::parse_import(&this): &AST {
 }
 
 def Parser::parse_struct(&this): &Structure {
-    let start_span = .token().span
+    let start = .token()
     let is_union = if .token_is(TokenType::Union) {
         .consume(TokenType::Union)
         yield true
@@ -1356,6 +1362,10 @@ def Parser::parse_struct(&this): &Structure {
     struc.is_union = is_union
     struc.sym = Symbol::new_with_parent(Structure, .ns, .ns.sym, name.text, name.span)
     struc.sym.u.struc = struc
+
+    if start.comment? {
+        struc.sym.comment = start.comment
+    }
 
     if .token_is(TokenType::LessThan) {
         struc.is_templated = true
@@ -1375,6 +1385,9 @@ def Parser::parse_struct(&this): &Structure {
 
             let var = Variable::new(type)
             var.sym = Symbol::from_local_variable(name.text, var, name.span)
+            if name.comment? {
+                var.sym.comment = name.comment
+            }
 
             struc.fields.push(var)
             if not .token_is(TokenType::CloseCurly) {
@@ -1382,19 +1395,23 @@ def Parser::parse_struct(&this): &Structure {
             }
         }
         let end = .consume(TokenType::CloseCurly)
-        struc.span = start_span.join(end.span)
+        struc.span = start.span.join(end.span)
     }
 
     return struc
 }
 
 def Parser::parse_enum(&this): &Enum {
-    let start_span = .consume(TokenType::Enum).span
+    let start = .consume(TokenType::Enum)
     let name = .consume(TokenType::Identifier)
 
     let enum_def = Enum::new()
-    enum_def.sym = Symbol::new_with_parent(Enum, .ns, .ns.sym, name.text, start_span)
+    enum_def.sym = Symbol::new_with_parent(Enum, .ns, .ns.sym, name.text, start.span)
     enum_def.sym.u.enum_ = enum_def
+
+    if start.comment? {
+        enum_def.sym.comment = start.comment
+    }
 
     .parse_extern_into_symbol(enum_def.sym)
 
@@ -1405,6 +1422,10 @@ def Parser::parse_enum(&this): &Enum {
         var.sym = Symbol::new_with_parent(Variable, .ns, enum_def.sym, name.text, name.span)
         var.sym.u.var = var
 
+        if name.comment? {
+            var.sym.comment = name.comment
+        }
+
         if .consume_if(TokenType::Equals) {
             .parse_extern_into_symbol(var.sym)
         }
@@ -1414,7 +1435,8 @@ def Parser::parse_enum(&this): &Enum {
             .consume_newline_or(TokenType::Comma)
         }
     }
-    .consume(TokenType::CloseCurly)
+    let end = .consume(TokenType::CloseCurly)
+    enum_def.span = start.span.join(end.span)
 
     return enum_def
 }

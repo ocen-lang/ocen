@@ -1,3 +1,5 @@
+//* Utilities for displaying errors
+
 import std::vector::Vector
 import std::span::Span
 import std::libc::{free, strsep, exit, calloc, getenv as get_environment_variable}

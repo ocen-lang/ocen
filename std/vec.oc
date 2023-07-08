@@ -1,7 +1,8 @@
-// A type that represents a vector in 3D space
+//* Mathematical vector library
 
 import std::math::{ sqrt, sin, cos }
 
+//* A type representing a 3D vector
 struct Vec {
     x: f32
     y: f32

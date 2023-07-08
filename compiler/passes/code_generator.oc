@@ -1,3 +1,5 @@
+//* Generate C code from the AST
+
 import std::buffer::Buffer
 import std::vector::Vector
 import std::libc::free

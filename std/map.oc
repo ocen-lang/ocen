@@ -8,12 +8,14 @@ import std::vector::Vector
 import std::libc::{ calloc, realloc, free }
 import std::traits::{ hash, eq }
 
+//* Linked list node for the hash map
 struct Node<K, V> {
     key: K
     value: V
     next: &Node<K, V>
 }
 
+//* Creates a new node
 def Node::new(key: K, value: V, next: &Node<K, V> = null): &Node<K, V> {
     let node = calloc(1, sizeof(Node<K, V>)) as &Node<K, V>
     node.key = key
@@ -22,6 +24,7 @@ def Node::new(key: K, value: V, next: &Node<K, V> = null): &Node<K, V> {
     return node
 }
 
+//* Free the linked list starting at this node
 def Node::free_list(&this) {
     let cur = this
     while cur? {
@@ -31,6 +34,7 @@ def Node::free_list(&this) {
     }
 }
 
+//* Hash Map
 struct Map<K, V> {
     buckets: &&Node<K, V>
     num_items: u32
@@ -38,6 +42,7 @@ struct Map<K, V> {
     num_collisions: u32
 }
 
+//* Creates a new hash map
 def Map::new(): &Map<K, V> {
     let map = calloc(1, sizeof(Map<K, V>)) as &Map<K, V>
     map.num_buckets = 4
@@ -45,6 +50,7 @@ def Map::new(): &Map<K, V> {
     return map
 }
 
+//* Hashes a key and returns the bucket index
 def Map::hash(&this, key: K): u32 {
     let hash = key.hash()
     hash = hash % .num_buckets
@@ -54,6 +60,7 @@ def Map::hash(&this, key: K): u32 {
     return hash
 }
 
+//* Returns the node with the given key, or null
 def Map::get_node(&this, key: K): &Node<K, V> {
     let hash = .hash(key)
     let node = .buckets[hash]
@@ -66,22 +73,26 @@ def Map::get_node(&this, key: K): &Node<K, V> {
     return null
 }
 
+//* Returns the value for the given key, or fails
 def Map::at(&this, key: K): V {
     let node = .get_node(key)
     assert node?, "Key not found"
     return node.value
 }
 
+//* Returns the value for the given key, or the default value
 def Map::get(&this, key: K, defolt: V): V {
     let node = .get_node(key)
     if not node? then return defolt
     return node.value
 }
 
+//* Checks if the map contains the given key
 def Map::contains(&this, key: K): bool {
     return .get_node(key)?
 }
 
+//* Inserts / updates the given key-value pair
 def Map::insert(&this, key: K, value: V) {
     let node = .get_node(key)
     if node? {
@@ -100,12 +111,14 @@ def Map::insert(&this, key: K, value: V) {
     }
 }
 
+//* Inserts all key-value pairs from the other map into
 def Map::extend(&this, other: &Map<K, V>) {
     for iter : other.iter() {
         .insert(iter.key, iter.value)
     }
 }
 
+//* Removes the given key from the map
 def Map::remove(&this, key: K) {
     let node = .get_node(key)
     if node? {
@@ -124,6 +137,7 @@ def Map::remove(&this, key: K) {
     }
 }
 
+//* Resizes the map to double the number of buckets
 def Map::resize(&this) {
     let old_buckets = .buckets
     let old_num_buckets = .num_buckets
@@ -149,16 +163,7 @@ def Map::resize(&this) {
     free(old_buckets)
 }
 
-def Map::print_keys(&this) {
-    for let i = 0; i < .num_buckets; i += 1 {
-        let node = .buckets[i]
-        while node? {
-            println(f"- '{node.key}'")
-            node = node.next
-        }
-    }
-}
-
+//* Pushes all keys into the given vector
 def Map::push_keys(&this, vec: &Vector<K>) {
     for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
@@ -169,8 +174,10 @@ def Map::push_keys(&this, vec: &Vector<K>) {
     }
 }
 
+//* Checks if the map is empty
 def Map::is_empty(&this): bool => .num_items == 0
 
+//* Frees the map and all its nodes
 def Map::free(&this) {
     for let i = 0; i < .num_buckets; i += 1 {
         .buckets[i].free_list()
@@ -178,13 +185,18 @@ def Map::free(&this) {
     free(.buckets)
 }
 
+//* Returns an iterator over the map
 def Map::iter(&this): Iterator<K, V> {
     return Iterator<K, V>::make(this)
 }
 
+//* Returns an iterator over the keys of the map
 def Map::iter_keys(&this): KeyIterator<K, V> => KeyIterator<K, V>(.iter())
+
+//* Returns an iterator over the values of the map
 def Map::iter_values(&this): ValueIterator<K, V> => ValueIterator<K, V>(.iter())
 
+//* Iterator over the items of a map
 struct Iterator<K, V> {
     idx: i32
     node: &Node<K, V>
@@ -225,17 +237,17 @@ def Iterator::next(&this) {
     }
 }
 
+//* Iterator over the keys of a map
 struct KeyIterator<K, V> {
     map_iter: Iterator<K, V>
 }
 def KeyIterator::has_value(&this): bool => .map_iter.has_value()
-
 def KeyIterator::cur(&this): K => .map_iter.cur().key
 def KeyIterator::next(&this) {
     .map_iter.next()
 }
 
-
+//* Iterator over the values of a map
 struct ValueIterator<K, V> {
     map_iter: Iterator<K, V>
 }

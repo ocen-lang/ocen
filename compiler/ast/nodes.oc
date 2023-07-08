@@ -1,3 +1,5 @@
+//* Contains the core AST types
+
 import std::vector::Vector
 import std::map::Map
 import std::span::Span
@@ -189,6 +191,7 @@ def Structure::find_template_instance(&this, template_args: &Vector<&Type>): &Sy
 
 struct Enum {
     sym: &Symbol
+    span: Span
     fields: &Vector<&Variable>
     type: &Type
 }

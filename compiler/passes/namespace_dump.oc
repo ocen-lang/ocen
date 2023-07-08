@@ -1,3 +1,5 @@
+//* Dump the namespace tree for debug
+
 import @ast::program::*
 import @ast::nodes::*
 

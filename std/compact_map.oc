@@ -1,3 +1,7 @@
+//* An order-preserving hash map.
+//*
+//* Uses open addressing with linear probing. Inspired by Python's dict.
+
 import std::vector::{ Vector, Iterator }
 import std::traits::{ hash, eq }
 import std::libc::{ calloc, free, realloc }

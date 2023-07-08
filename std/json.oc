@@ -1,9 +1,12 @@
+//* JSON parsing and serialization
+
 import std::buffer::Buffer
 import std::vector::Vector
 import std::value::{ Value, ValueType }
 import std::span::{ Span, Location }
 import std::libc::calloc
 
+//* JSON Parser
 struct Parser {
     tokens: &Vector<&Token>
     curr: u32
@@ -15,7 +18,7 @@ def Parser::make(tokens: &Vector<&Token>): Parser {
     parser.curr = 0
     return parser
 }
- 
+
 def Parser::token(&this): &Token => .tokens.at(.curr)
 
 def Parser::consume(&this, type: TokenType): &Token {
@@ -100,16 +103,15 @@ def Parser::parse(&this): &Value => match .token().type {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-def parse(source: str, filename: str): &Value {
+//* Parse a JSON string into a Value
+def parse(source: str, filename: str = "<anonymous>"): &Value {
     let lexer = Lexer::make(source, filename)
     let tokens = lexer.lex()
     let parser = Parser::make(tokens)
     return parser.parse()
 }
 
-def parse_from_str(json_str: str): &Value => parse(json_str, "<anonymous>")
-
+//* Open and parse a JSON file into a Value
 def parse_from_file(filename: str): &Value {
     let file = File::open(filename, "r")
     let source = file.slurp()
@@ -117,6 +119,7 @@ def parse_from_file(filename: str): &Value {
     return parse(source, filename)
 }
 
+//* Serialize a Value into JSON, into a given Buffer
 def serialize_into(val: &Value, sb: &Buffer) {
     match val.type {
         Null => sb.puts("null")
@@ -178,12 +181,14 @@ def serialize_into(val: &Value, sb: &Buffer) {
     }
 }
 
+//* Serialize a Value into JSON, returning a new Buffer
 def serialize(val: &Value): Buffer {
     let sb = Buffer::make()
     serialize_into(val, &sb)
     return sb
 }
 
+//* Serialize a Value into JSON, writing to a file
 def write_to_file(val: &Value, filename: str) {
     let file = File::open(filename, "w")
     let sb = serialize(val)
@@ -192,6 +197,7 @@ def write_to_file(val: &Value, filename: str) {
     file.close()
 }
 
+//* Lexer for JSON
 struct Lexer {
     source: str
     source_len: u32
@@ -213,7 +219,6 @@ def Lexer::make(source: str, filename: str): Lexer {
 def Lexer::push(&this, token: &Token) {
     .tokens.push(token)
 }
-
 
 def Lexer::push_type(&this, type: TokenType, len: u32) {
     let start_loc = .loc

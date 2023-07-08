@@ -1,3 +1,9 @@
+//* Wrapper for doing binary IO on a buffer
+//*
+//* This is a very thin wrapper around a buffer, and gives you a
+//* simple bunch of methods for reading and writing integers
+//* and bytes of different sizes in different endiannesses.
+
 import std::buffer::Buffer
 
 struct BufferIO {
