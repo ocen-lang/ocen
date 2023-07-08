@@ -14,20 +14,22 @@ struct DocGenerator {}
 def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
     let enum_doc = Value::new(Dictionary)
     enum_doc.insert("id", Value::new_str(`{enum_.type:x}`))
+    enum_doc.insert("name", Value::new_str(enum_.sym.name))
     enum_doc.insert("description", Value::new_str(`enum name: {enum_.sym.display}`))
     enum_doc.insert("kind", Value::new_str("enum"))
     if enum_.sym.is_extern {
         enum_doc.insert("extern", Value::new_str(enum_.sym.out_name))
     }
 
-    let fields_doc = Value::new(Dictionary)
+    let fields_doc = Value::new(List)
     for field : enum_.fields.iter() {
         let field_doc = Value::new(Dictionary)
+        field_doc.insert("name", Value::new_str(field.sym.name))
         field_doc.insert("description", Value::new_str(`field name: {field.sym.display}`))
         if field.sym.is_extern {
             field_doc.insert("extern", Value::new_str(field.sym.out_name))
         }
-        fields_doc.insert(field.sym.name, field_doc)
+        fields_doc.push(field_doc)
     }
     enum_doc.insert("fields", fields_doc)
 
@@ -199,15 +201,16 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
         struc_doc.insert("extern", Value::new_str(struc.sym.out_name))
     }
 
-    let fields_doc = Value::new(Dictionary)
+    let fields_doc = Value::new(List)
     for field : struc.fields.iter() {
         let field_doc = Value::new(Dictionary)
         field_doc.insert("description", Value::new_str(`struc name: {field.sym.display}`))
+        field_doc.insert("name", Value::new_str(field.sym.name))
         field_doc.insert("type", .gen_typename(field.type))
         if field.sym.is_extern {
             field_doc.insert("extern", Value::new_str(field.sym.out_name))
         }
-        fields_doc.insert(field.sym.name, field_doc)
+        fields_doc.push(field_doc)
     }
     struc_doc.insert("fields", fields_doc)
 
@@ -258,6 +261,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             let var = node.u.var_decl.var
             let var_doc = Value::new(Dictionary)
             var_doc.insert("description", Value::new_str(`var name: {var.sym.display}`))
+            var_doc.insert("name", Value::new_str(var.sym.name))
             var_doc.insert("kind", Value::new_str("variable"))
             var_doc.insert("type", .gen_typename(var.type))
             if var.sym.is_extern {
@@ -274,6 +278,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             let var = node.u.var_decl.var
             let const_doc = Value::new(Dictionary)
             const_doc.insert("description", Value::new_str(`const name: {var.sym.display}`))
+            const_doc.insert("name", Value::new_str(var.sym.name))
             const_doc.insert("kind", Value::new_str("constant"))
             const_doc.insert("type", .gen_typename(var.type))
             if var.sym.is_extern {

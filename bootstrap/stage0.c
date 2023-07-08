@@ -2425,21 +2425,23 @@ void errors_display_error_messages(std_vector_Vector__11 *errors, u32 detail_lev
 std_value_Value *docgen_DocGenerator_gen_enum(docgen_DocGenerator *this, ast_nodes_Enum *enum_) {
   std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   std_value_Value_insert(enum_doc, "id", std_value_Value_new_str(format_string("%x", enum_->type)));
+  std_value_Value_insert(enum_doc, "name", std_value_Value_new_str(enum_->sym->name));
   std_value_Value_insert(enum_doc, "description", std_value_Value_new_str(format_string("enum name: %s", enum_->sym->display)));
   std_value_Value_insert(enum_doc, "kind", std_value_Value_new_str("enum"));
   if (enum_->sym->is_extern) {
     std_value_Value_insert(enum_doc, "extern", std_value_Value_new_str(enum_->sym->out_name));
   } 
-  std_value_Value *fields_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+  std_value_Value *fields_doc = std_value_Value_new(std_value_ValueType_List);
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enum_->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
     {
       std_value_Value *field_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+      std_value_Value_insert(field_doc, "name", std_value_Value_new_str(field->sym->name));
       std_value_Value_insert(field_doc, "description", std_value_Value_new_str(format_string("field name: %s", field->sym->display)));
       if (field->sym->is_extern) {
         std_value_Value_insert(field_doc, "extern", std_value_Value_new_str(field->sym->out_name));
       } 
-      std_value_Value_insert(fields_doc, field->sym->name, field_doc);
+      std_value_Value_push(fields_doc, field_doc);
     }
   }
   std_value_Value_insert(enum_doc, "fields", fields_doc);
@@ -2470,7 +2472,7 @@ char *docgen_DocGenerator_gen_templated_type(docgen_DocGenerator *this, types_Ty
 }
 
 char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(((bool)type), "compiler/docgen.oc:58:12: Assertion failed: `type?`", "gen_typename_str called with null type");
+  ae_assert(((bool)type), "compiler/docgen.oc:60:12: Assertion failed: `type?`", "gen_typename_str called with null type");
   switch (type->base) {
     case types_BaseType_Char:
     case types_BaseType_Bool:
@@ -2496,7 +2498,7 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
         ast_nodes_Structure *struc = type->u.struc;
         ast_nodes_TemplateInstance *instance = type->template_instance;
         ast_scopes_Symbol *parent = instance->parent;
-        ae_assert(parent->type==ast_scopes_SymbolType_Structure, "compiler/docgen.oc:73:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");
+        ae_assert(parent->type==ast_scopes_SymbolType_Structure, "compiler/docgen.oc:75:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");
         ast_nodes_Structure *parent_struc = parent->u.struc;
         return docgen_DocGenerator_gen_templated_type(this, parent_struc->type, instance->params);
       } 
@@ -2542,25 +2544,25 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
           return strdup(node->u.ident.name);
         } break;
         default: {
-          ae_assert(false, "compiler/docgen.oc:116:28: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", ast_nodes_ASTType_dbg(node->type)));
+          ae_assert(false, "compiler/docgen.oc:118:28: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", ast_nodes_ASTType_dbg(node->type)));
           return "<unknown>";
         } break;
       }
     } break;
     default: {
-      ae_assert(false, "compiler/docgen.oc:122:20: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", types_BaseType_dbg(type->base)));
+      ae_assert(false, "compiler/docgen.oc:124:20: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", types_BaseType_dbg(type->base)));
       return "<unknown>";
     } break;
   }
 }
 
 std_value_Value *docgen_DocGenerator_gen_typename(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(((bool)type), "compiler/docgen.oc:129:12: Assertion failed: `type?`", "gen_typename called with null type");
+  ae_assert(((bool)type), "compiler/docgen.oc:131:12: Assertion failed: `type?`", "gen_typename called with null type");
   return std_value_Value_new_str(docgen_DocGenerator_gen_typename_str(this, type));
 }
 
 std_value_Value *docgen_DocGenerator_gen_methods(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:134:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");
+  ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:136:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");
   std_value_Value *methods_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   for (std_map_Iterator__4 __iter = std_map_Map__4_iter(type->methods); std_map_Iterator__4_has_value(&__iter); std_map_Iterator__4_next(&__iter)) {
     std_map_Node__4 *it = std_map_Iterator__4_cur(&__iter);
@@ -2630,17 +2632,18 @@ std_value_Value *docgen_DocGenerator_gen_struct(docgen_DocGenerator *this, ast_n
   if (struc->sym->is_extern) {
     std_value_Value_insert(struc_doc, "extern", std_value_Value_new_str(struc->sym->out_name));
   } 
-  std_value_Value *fields_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+  std_value_Value *fields_doc = std_value_Value_new(std_value_ValueType_List);
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
     {
       std_value_Value *field_doc = std_value_Value_new(std_value_ValueType_Dictionary);
       std_value_Value_insert(field_doc, "description", std_value_Value_new_str(format_string("struc name: %s", field->sym->display)));
+      std_value_Value_insert(field_doc, "name", std_value_Value_new_str(field->sym->name));
       std_value_Value_insert(field_doc, "type", docgen_DocGenerator_gen_typename(this, field->type));
       if (field->sym->is_extern) {
         std_value_Value_insert(field_doc, "extern", std_value_Value_new_str(field->sym->out_name));
       } 
-      std_value_Value_insert(fields_doc, field->sym->name, field_doc);
+      std_value_Value_push(fields_doc, field_doc);
     }
   }
   std_value_Value_insert(struc_doc, "fields", fields_doc);
@@ -2694,6 +2697,7 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
         ast_nodes_Variable *var = node->u.var_decl.var;
         std_value_Value *var_doc = std_value_Value_new(std_value_ValueType_Dictionary);
         std_value_Value_insert(var_doc, "description", std_value_Value_new_str(format_string("var name: %s", var->sym->display)));
+        std_value_Value_insert(var_doc, "name", std_value_Value_new_str(var->sym->name));
         std_value_Value_insert(var_doc, "kind", std_value_Value_new_str("variable"));
         std_value_Value_insert(var_doc, "type", docgen_DocGenerator_gen_typename(this, var->type));
         if (var->sym->is_extern) {
@@ -2712,6 +2716,7 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
         ast_nodes_Variable *var = node->u.var_decl.var;
         std_value_Value *const_doc = std_value_Value_new(std_value_ValueType_Dictionary);
         std_value_Value_insert(const_doc, "description", std_value_Value_new_str(format_string("const name: %s", var->sym->display)));
+        std_value_Value_insert(const_doc, "name", std_value_Value_new_str(var->sym->name));
         std_value_Value_insert(const_doc, "kind", std_value_Value_new_str("constant"));
         std_value_Value_insert(const_doc, "type", docgen_DocGenerator_gen_typename(this, var->type));
         if (var->sym->is_extern) {
