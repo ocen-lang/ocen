@@ -1,0 +1,11 @@
+/// compile
+
+namespace lol {
+    struct Foo {}
+    def Foo::foo(): str => "hello"
+    def foo(): u32 => 1
+}
+
+def main() {
+    let x: u32 = lol::foo()
+}
