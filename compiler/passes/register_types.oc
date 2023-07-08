@@ -44,6 +44,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
     func.sym.u.func = func
     func.return_type = .o.program.get_type_by_name("str", span)
     func.is_method = true
+    func.parent_type = enum_.type
 
     let var = Variable::new(enum_.type)
     var.sym = Symbol::from_local_variable("this", var, span)

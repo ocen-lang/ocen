@@ -31,6 +31,7 @@ struct Symbol {
     out_name: str    // Name used in the output C code
     span: Span       // Span of the declaration
     ns: &Namespace   // Namespace it was defined in
+    comment: str     // Comment attached to the declaration
 
     type: SymbolType
     u: SymbolUnion

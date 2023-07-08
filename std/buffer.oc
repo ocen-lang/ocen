@@ -84,6 +84,10 @@ def Buffer::putsf(&this, s: str) {
 def Buffer::str(&this): str => .data as str
 def Buffer::new_str(&this): str => (.data as str).copy()
 
+def Buffer::clear(&this) {
+    .size = 0
+}
+
 def Buffer::free(&this) {
     free(.data)
 }

@@ -148,9 +148,13 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
     let func_doc = Value::new(Dictionary)
     func_doc.insert("id", Value::new_str(`{func:x}`))
     func_doc.insert("name", Value::new_str(`{func.sym.name}`))
-    func_doc.insert("description", Value::new_str(`func name: {func.sym.display}`))
+
+    if func.sym.comment? {
+        func_doc.insert("description", Value::new_str(func.sym.comment))
+    }
     if func.is_method {
         func_doc.insert("kind", Value::new_str("method"))
+        func_doc.insert("parent", .gen_typename(func.parent_type))
     } else {
         func_doc.insert("kind", Value::new_str("function"))
     }
@@ -223,7 +227,10 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
 def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     let ns_doc = Value::new(Dictionary)
     ns_doc.insert("id", Value::new_str(`{ns:x}`))
-    ns_doc.insert("description", Value::new_str(`ns name: {ns.sym.display}`))
+    let comment = ns.sym.comment
+    if comment? {
+        ns_doc.insert("description", Value::new_str(comment))
+    }
     ns_doc.insert("kind", Value::new_str("namespace"))
 
     if not ns.enums.is_empty() {

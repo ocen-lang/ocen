@@ -5,6 +5,15 @@ struct Location {
     index: u32
 }
 
+def Location::default(): Location {
+    let loc: Location
+    loc.filename = "<default>"
+    loc.line = 0
+    loc.col = 0
+    loc.index = 0
+    return loc
+}
+
 def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}
 
 def Location::is_before(&this, other: Location): bool {
