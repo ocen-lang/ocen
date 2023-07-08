@@ -1,4 +1,5 @@
-// A dynamically typed value, useful for JSON + other stuff
+//* A dynamically typed value, used with JSON/etc
+
 import std::vector::Vector
 import std::compact_map::Map
 import std::json

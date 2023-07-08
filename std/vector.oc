@@ -2,7 +2,7 @@
 
 import std::libc::{calloc, realloc, free}
 
-
+//* A dynamic list of objects
 struct Vector<T> {
     data: &T
     size: u32
@@ -17,11 +17,13 @@ def Vector::new(capacity: u32 = 16): &Vector<T> {
     return list
 }
 
+//* Resizes the vector to a new capacity
 def Vector::resize(&this, new_capacity: u32) {
     .capacity = new_capacity
     .data = realloc(.data , .capacity * sizeof(T)) as &T
 }
 
+//* Pushes an element to the end of the vector
 def Vector::push(&this, value: T) {
     if .size == .capacity {
         .resize(.capacity * 2)
@@ -30,6 +32,8 @@ def Vector::push(&this, value: T) {
     .size += 1
 }
 
+//* Pushes an element to the front of the vector
+//* This is an O(n) operation
 def Vector::push_front(&this, value: T) {
     if .size == .capacity {
         .resize(.capacity * 2)
@@ -41,29 +45,34 @@ def Vector::push_front(&this, value: T) {
     .size += 1
 }
 
-//* Pop an element from the end of the vector and return it
+//* Pops an element from the end of the vector and returns it
 def Vector::pop(&this): T {
     assert .size > 0, "Empty vector in Vector::pop"
     .size -= 1
     return .data[.size]
 }
 
+//* Appends the contents of another vector to this one
 def Vector::extend(&this, other: &Vector<T>) {
     for val : other.iter() {
         .push(val)
     }
 }
 
+//* Returns the last element of the vector
 def Vector::back(&this): T {
     assert .size > 0, "Empty vector in Vector::back"
     return .data[.size - 1]
 }
 
+//* Returns the element at the given index
 def Vector::at(&this, i: u32): T {
     assert i < .size, "Out of bounds in Vector::at"
     return .data[i]
 }
 
+//* Clears the vector
+//* This does not free the memory
 def Vector::clear(&this) {
     .size = 0
 }
@@ -77,6 +86,7 @@ def Vector::free(&this) {
     free(this)
 }
 
+//* Iterator for the vector
 struct Iterator<T> {
     vec: &Vector<T>
     index: u32

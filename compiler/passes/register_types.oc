@@ -1,11 +1,12 @@
+//* Register all types in the program
+
+
 import @passes::generic_pass::GenericPass
 import std::span::Span
 import @ast::scopes::{ Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @types::{ Type, BaseType, FunctionType }
 import @ast::nodes::{ Function, Structure, Enum, Variable }
-
-// This pass adds all of the new structs / enums / namespaces to the symbol table
 
 struct RegisterTypes {
     o: &GenericPass

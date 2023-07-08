@@ -1,3 +1,5 @@
+//* A doubly linked list
+
 import std::libc::{ calloc, free }
 
 struct Node<T> {

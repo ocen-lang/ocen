@@ -1,3 +1,5 @@
+//* Contains Symbol/Scope and related types
+
 import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
 import @ast::program::Namespace
 import @types::Type

@@ -1,3 +1,5 @@
+//* The lexer
+
 import std::vector::Vector
 import std::span::{Span, Location}
 import std::buffer::Buffer

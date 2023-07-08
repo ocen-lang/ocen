@@ -1,3 +1,5 @@
+//* Contains the Program/Namespace types
+
 import std::vector::Vector
 import std::span::Span
 import std::map::Map
