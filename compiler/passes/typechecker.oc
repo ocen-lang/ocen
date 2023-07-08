@@ -12,6 +12,8 @@ import @ast::program::{ Program, Namespace }
 import @errors::Error
 import @passes::generic_pass::GenericPass
 import @types::{ Type, BaseType, FunctionType, UnresolvedTemplate }
+import @lexer::Lexer
+import @parser::Parser
 import @ast::nodes::*
 
 struct TypeChecker {
@@ -1295,6 +1297,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
 }
 
 def TypeChecker::check_function(&this, func: &Function) {
+    func.sym.comment = .resolve_doc_links(func.sym.comment, func.span)
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.is_templated then return
@@ -1354,6 +1357,7 @@ def TypeChecker::check_global_variable(&this, node: &AST) {
     if not init? return
 
     let var = node.u.var_decl.var
+    var.sym.comment = .resolve_doc_links(var.sym.comment, node.span)
     let init_type = .check_expression(init, hint: var.type)
     if not init_type? or not var.type? return
 
@@ -1365,6 +1369,7 @@ def TypeChecker::check_global_variable(&this, node: &AST) {
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
+    ns.sym.comment = .resolve_doc_links(ns.sym.comment, ns.span)
 
     for func : ns.functions.iter() {
         .check_function(func)
@@ -1379,6 +1384,11 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         }
     }
 
+    for enum_ : ns.enums.iter() {
+        // Rest of the enum is already resolved
+        enum_.sym.comment = .resolve_doc_links(enum_.sym.comment, enum_.span)
+    }
+
     for node : ns.variables.iter() {
         .check_global_variable(node)
     }
@@ -1388,6 +1398,74 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     }
     .o.pop_namespace()
     .o.pop_scope()
+}
+
+// FIXME: This should really live somewhere else...
+def TypeChecker::resolve_doc_links(&this, doc: str, obj_span: Span): str {
+    if not doc? return null
+
+    let buffer = Buffer::make()
+    let prev = 0
+    let doc_len = doc.len()
+    for let i = 0; i < doc_len - 1; i++ {
+        if doc[i] == '\\' {
+            i++
+
+        } if doc[i] == doc[i+1] == '{' {
+            buffer.putsf(doc.substring(prev, i-prev))
+            prev = i + 2
+            i++
+
+        } else if doc[i] == doc[i+1] == '}' {
+            let part = doc.substring(prev, i-prev)
+
+            // Parse a scoped-identifier
+            let lexer = Lexer::make(part, null)
+            let span = Span(obj_span.start, obj_span.start)
+            let tokens = lexer.lex()
+
+            if lexer.errors.size > 0 {
+                .error(Error::new(span, `Invalid documentation link: '{part}'`))
+                return doc
+            }
+
+            let parser = Parser::make(.o.program, .o.ns())
+            parser.tokens = tokens
+            parser.curr = 0
+
+            let ident = parser.parse_scoped_identifier()
+            if not ident? {
+                .error(Error::new(span, `Invalid documentation link: '{part}'`))
+                return doc
+            }
+
+            let sym = .resolve_scoped_identifier(ident, error: false)
+            if not sym? {
+                .error(Error::new(span, `Invalid documentation link: '{part}'`))
+                return doc
+            }
+
+            let linked_part = match sym.type {
+                Structure => `{sym.u.struc.type:x}`
+                Function => `{sym.u.func:x}`
+                Enum => `{sym.u.enum_.type:x}`
+                TypeDef => `{sym.u.type_def:x}`
+                Variable => `{sym.u.var:x}`
+                Constant => `{sym.u.var:x}`
+                Namespace => `{sym.u.ns:x}`
+            }
+
+            buffer.puts("{{")
+            buffer.putsf(linked_part)
+            buffer.puts("}}")
+            std::libc::free(part)
+
+            prev = i + 2
+            i++
+        }
+    }
+    buffer.putsf(doc.substring(prev, doc_len))
+    return buffer.str()
 }
 
 def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): &Type {
@@ -1627,6 +1705,7 @@ def TypeChecker::loosely_resolve_templated_struct(&this, struc: &Structure) {
 
 def TypeChecker::resolve_struct(&this, struc: &Structure) {
     let fields = struc.fields
+    struc.sym.comment = .resolve_doc_links(struc.sym.comment, struc.span)
 
     // We cannot resolve templated structs.
     if struc.is_templated {
