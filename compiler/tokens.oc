@@ -68,7 +68,6 @@ enum TokenType {
     MinusEquals
     MinusMinus
     NotEquals
-    Newline   // Not an actual token, but nice to have this here
     OpenCurly
     OpenParen
     OpenSquare
@@ -84,6 +83,9 @@ enum TokenType {
     StarEquals
     StringLiteral
     Tilde
+
+    //* Not an actual token, just here for convenience
+    Newline
 
     BEGIN_KEYWORDS
 

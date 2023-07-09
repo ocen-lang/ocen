@@ -155,9 +155,7 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
                 .inc()
             }
         }
-
-        // Should be unreachable
-        else => {}
+        else => assert false, "Invalid base for int literal"
     }
     let len = .i - start
     let text = .source.substring(start, len)

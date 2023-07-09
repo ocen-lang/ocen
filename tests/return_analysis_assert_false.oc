@@ -1,0 +1,7 @@
+/// compile
+
+def foo(): u32 {
+    assert false, "foo"
+}
+
+def main() => 0
