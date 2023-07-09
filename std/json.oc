@@ -162,7 +162,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
             for let i = 0; i < lst.size; i += 1 {
                 let value = lst.at(i)
                 if i > 0 {
-                    sb.puts(", ")
+                    sb.puts(",")
                 }
                 serialize_into(value, sb)
             }
@@ -173,12 +173,12 @@ def serialize_into(val: &Value, sb: &Buffer) {
             let first = true
             for iter : val.u.as_dict.iter() {
                 if not first {
-                    sb.puts(", ")
+                    sb.puts(",")
                 }
                 first = false
                 sb.puts("\"")
                 sb.puts(iter.key)
-                sb.puts("\": ")
+                sb.puts("\":")
                 let value = iter.value
                 serialize_into(value, sb)
             }
