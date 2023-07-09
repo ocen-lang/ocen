@@ -20,7 +20,7 @@ namespace m1 {
 
 
 def main() {
-    import m1::{m11::*, m12::baz}
+    import ::m1::{m11::*, m12::baz}
     foo()
     bar()
     baz()

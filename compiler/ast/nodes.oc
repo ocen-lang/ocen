@@ -300,9 +300,14 @@ def ImportPart::new(type: ImportPartType, span: Span): &ImportPart {
 }
 
 enum ImportType {
-    FromCurrentScope
-    FromParentNamespace
-    FromRootNamespace
+    //* Import from a global / library: `import foo`
+    GlobalNamespace
+    //* Import from a project namespace: `import @foo`
+    ProjectNamespace
+    //* Import from current / parent dir: `import ..foo`
+    ParentNamespace
+    //* Import from a local namespace: `import ::foo`
+    CurrentScope
 }
 
 struct Import {

@@ -23,7 +23,7 @@ def File::write(&this, buf: untyped_ptr, size: u32): i32 {
 }
 
 def File::slurp(&this): str {
-    import libc::*
+    import .libc::*
     let pos = ftell(this)
     fseek(this, 0, SEEK_END)
     let size = ftell(this) as u32

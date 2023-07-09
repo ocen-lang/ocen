@@ -1307,15 +1307,19 @@ def Parser::parse_import(&this): &AST {
     let type = match .token().type {
         TokenType::AtSign => {
             .consume(TokenType::AtSign)
-            yield ImportType::FromRootNamespace
+            yield ImportType::ProjectNamespace
+        }
+        TokenType::ColonColon => {
+            .consume(TokenType::ColonColon)
+            yield ImportType::CurrentScope
         }
         TokenType::Dot => {
             while .consume_if(TokenType::Dot) {
                 parent_count += 1
             }
-            yield ImportType::FromParentNamespace
+            yield ImportType::ParentNamespace
         }
-        else => ImportType::FromCurrentScope
+        else => ImportType::GlobalNamespace
     }
 
     // If this is a "top-level" module, this is already at the parent directory level.
@@ -1329,12 +1333,6 @@ def Parser::parse_import(&this): &AST {
     if parts.size == 0 {
         .error(Error::new(span, "Invalid import statement"))
         return null
-    }
-
-    // FIXME: This is a hack to make sure `std::` is always looked up in the root namespace.
-    let first_part = parts.at(0)
-    if first_part.type == Single and first_part.u.single.name.eq("std") {
-        type = ImportType::FromRootNamespace
     }
 
     let node = AST::new(ASTType::Import, span)
@@ -1610,11 +1608,12 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let base = match path.type {
         // We shouldn't have to import any files here, since they should already
         // be in the current scope.
-        FromCurrentScope => {
+        CurrentScope => {
             return true
         }
-        FromRootNamespace => .program.global
-        FromParentNamespace => {
+        GlobalNamespace => .program.global
+        ProjectNamespace => .program.project_root
+        ParentNamespace => {
             let cur = .ns
             for let i = 0; i < path.parent_count; i += 1 {
                 if not cur.parent? {
@@ -1656,22 +1655,11 @@ def couldnt_find_stdlib() {
     std::exit(1)
 }
 
-def Parser::parse_toplevel(program: &Program, filename: str) {
-    let t1 = filename.copy()
-    let dir = dirname(t1).copy()
-    free(t1)
-
-    let t2 = filename.copy()
-    let base = basename(t2).copy()
-    free(t2)
-
-    // FIXME: hack
-    base.remove_last_n(3)
-
+def Parser::find_and_import_stdlib(&this) {
     let ocen_root = "./"
-
     let std_path = f"{ocen_root}/std"
     let prelude_path = f"{std_path}/prelude.oc"
+
     if not std::File::exists(prelude_path) {
         ocen_root = std::libc::getenv("OCEN_ROOT")
         if not ocen_root? couldnt_find_stdlib()
@@ -1683,30 +1671,71 @@ def Parser::parse_toplevel(program: &Program, filename: str) {
         if not std::File::exists(prelude_path) couldnt_find_stdlib()
     }
 
-    let std_ns = Namespace::new(parent: program.global, path: std_path)
+    let std_ns = Namespace::new(parent: .program.global, path: std_path)
     std_ns.sym = Symbol::new_with_parent(
         Namespace,
-        ns: program.global,
-        parent: program.global.sym,
+        ns: .program.global,
+        parent: .program.global.sym,
         name: "std",
         Span::default()
     )
     std_ns.sym.u.ns = std_ns
 
-    program.global.namespaces.insert("std", std_ns)
+    .program.global.namespaces.insert("std", std_ns)
     std_ns.always_add_to_scope = true
     std_ns.is_top_level = true
 
-    let parser = Parser::make(program, std_ns)
+    // Create a parser for the prelude
+    let parser = Parser::make(.program, std_ns)
     parser.load_file(prelude_path)
+}
 
-    let ns = Namespace::new(parent: program.global, path: filename)
-    ns.sym = Symbol::new(Namespace, ns: null, "", "", "", Span::default())
+def Parser::parse_toplevel(program: &Program, filename: str) {
+    // Path to the directory of the file
+    let t1 = filename.copy()
+    let dir = dirname(t1).copy()
+    free(t1)
+
+    // Path to the file without the extension
+    let t2 = filename.copy()
+    let base = basename(t2).copy()
+    // FIXME: Actually check and remove extension correctly
+    base.remove_last_n(3)
+    free(t2)
+
+    // Just the name of the directory
+    let t3 = dir.copy()
+    let dir_base = basename(t3).copy()
+    free(t3)
+
+
+    // Namespace for the project directory
+    let project_ns = Namespace::new(parent: program.global, path: dir)
+    project_ns.sym = Symbol::new(Namespace,
+        ns: program.global,
+        name: dir_base,
+        display: "",
+        out_name: "",
+        Span::default()
+    )
+    project_ns.sym.u.ns = project_ns
+    program.global.namespaces.insert(dir_base, project_ns)
+    program.project_root = project_ns
+
+    // Namespace for the file
+    let ns = Namespace::new(parent: project_ns, path: filename)
+    ns.sym = Symbol::new(Namespace,
+        ns: project_ns,
+        name: base,
+        display: "",
+        out_name: "",
+        Span::default()
+    )
     ns.sym.u.ns = ns
+    project_ns.namespaces.insert(base, ns)
 
-    program.global.namespaces.insert(base, ns)
-    program.global.path = dir
 
-    parser.ns = ns
+    let parser = Parser::make(program, ns)
+    parser.find_and_import_stdlib()
     parser.load_file(filename)
 }

@@ -93,6 +93,7 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
 
 struct Program {
     global: &Namespace
+    project_root: &Namespace
 
     // This vector stores the order in which the structs should be generated
     // to avoid dependency issues
