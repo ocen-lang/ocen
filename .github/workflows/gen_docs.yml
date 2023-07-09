@@ -1,0 +1,25 @@
+name: Generate docs.json file
+
+on: [push]
+
+jobs:
+  generate_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: 3-stage bootstrap
+        run: |
+          cd ${{ github.workspace }}
+          ./meta/bootstrap.sh
+
+      - name: Generate Documentation
+        run: |
+          cd ${{ github.workspace }}
+          mkdir -p build-docs
+          ./bootstrap/ocen compiler/main.oc --docs build-docs/docs.json
+
+      - name: Copy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: docs
+          folder: build-docs
