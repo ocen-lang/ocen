@@ -1606,9 +1606,14 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     let alias = part.u.single.alias
     if not alias? then alias = name
 
+    let prev_project_root = .o.program.project_root
+
     let base = match path.type {
         GlobalNamespace => {
-            yield .o.program.global.find_importable_symbol(name)
+            let lib = .o.program.global.find_importable_symbol(name)
+            assert lib.type == Namespace
+            .o.program.project_root = lib.u.ns
+            yield lib
         }
         ProjectNamespace => {
             yield .o.program.project_root.find_importable_symbol(name)
@@ -1639,6 +1644,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     }
 
     .handle_import_path_base(path.parts, base, alias, start_idx: 1)
+    .o.program.project_root = prev_project_root
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
