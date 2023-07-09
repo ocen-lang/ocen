@@ -221,6 +221,9 @@ def Lexer::lex_comment(&this) {
     if .cur() == '*' or .cur() == '.' {
         .inc()
         save_comment = true
+        if .comment.size == 0 {
+            .comment_start = .loc
+        }
     }
 
     // Skip whitespace

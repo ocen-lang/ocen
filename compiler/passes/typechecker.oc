@@ -1302,7 +1302,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
 }
 
 def TypeChecker::check_function(&this, func: &Function) {
-    func.sym.comment = .resolve_doc_links(func.sym.comment, func.span)
+    .resolve_doc_links(func.sym)
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.is_templated then return
@@ -1341,7 +1341,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     .o.pop_scope()
 }
 
-def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
+def TypeChecker::handle_namespace_imports(&this, ns: &Namespace, is_global: bool = false) {
     .o.push_namespace(ns)
     .o.push_scope(ns.scope)
 
@@ -1350,7 +1350,14 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace) {
     }
 
     for child : ns.namespaces.iter_values() {
-        .handle_namespace_imports(child)
+        if is_global {
+            let prev_root = .o.program.project_root
+            .o.program.project_root = child
+            .handle_namespace_imports(child)
+            .o.program.project_root = prev_root
+        } else {
+            .handle_namespace_imports(child)
+        }
     }
 
     .o.pop_scope()
@@ -1362,7 +1369,7 @@ def TypeChecker::check_global_variable(&this, node: &AST) {
     if not init? return
 
     let var = node.u.var_decl.var
-    var.sym.comment = .resolve_doc_links(var.sym.comment, node.span)
+    .resolve_doc_links(var.sym)
     let init_type = .check_expression(init, hint: var.type)
     if not init_type? or not var.type? return
 
@@ -1374,7 +1381,7 @@ def TypeChecker::check_global_variable(&this, node: &AST) {
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
-    ns.sym.comment = .resolve_doc_links(ns.sym.comment, ns.span)
+    .resolve_doc_links(ns.sym)
 
     for func : ns.functions.iter() {
         .check_function(func)
@@ -1391,9 +1398,9 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 
     for enum_ : ns.enums.iter() {
         // Rest of the enum is already resolved
-        enum_.sym.comment = .resolve_doc_links(enum_.sym.comment, enum_.span)
+        .resolve_doc_links(enum_.sym)
         for field : enum_.fields.iter() {
-            field.sym.comment = .resolve_doc_links(field.sym.comment, field.sym.span)
+            .resolve_doc_links(field.sym)
         }
     }
 
@@ -1409,11 +1416,12 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 }
 
 // FIXME: This should really live somewhere else...
-def TypeChecker::resolve_doc_links(&this, doc: str, obj_span: Span): str {
-    if not doc? return null
+def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
+    if not (sym.comment? and .o.program.check_doc_links) return
 
     let buffer = Buffer::make()
     let prev = 0
+    let doc = sym.comment
     let doc_len = doc.len()
     for let i = 0; i < doc_len - 1; i++ {
         if doc[i] == '\\' {
@@ -1429,12 +1437,12 @@ def TypeChecker::resolve_doc_links(&this, doc: str, obj_span: Span): str {
 
             // Parse a scoped-identifier
             let lexer = Lexer::make(part, null)
-            let span = Span(obj_span.start, obj_span.start)
+            let span = Span(sym.comment_loc, sym.comment_loc)
             let tokens = lexer.lex()
 
             if lexer.errors.size > 0 {
-                .error(Error::new(span, `Invalid documentation link: '{part}'`))
-                return doc
+                .error(Error::new(span, `Invalid link: '{part}' in this doc`))
+                return
             }
 
             let parser = Parser::make(.o.program, .o.ns())
@@ -1443,14 +1451,14 @@ def TypeChecker::resolve_doc_links(&this, doc: str, obj_span: Span): str {
 
             let ident = parser.parse_scoped_identifier()
             if not ident? {
-                .error(Error::new(span, `Invalid documentation link: '{part}'`))
-                return doc
+                .error(Error::new(span, `Invalid link: '{part}' in this doc`))
+                return
             }
 
             let sym = .resolve_scoped_identifier(ident, error: false)
             if not sym? {
-                .error(Error::new(span, `Invalid documentation link: '{part}'`))
-                return doc
+                .error(Error::new(span, `Couldn't find symbol '{part}' in this doc link`))
+                return
             }
 
             let linked_part = match sym.type {
@@ -1473,7 +1481,7 @@ def TypeChecker::resolve_doc_links(&this, doc: str, obj_span: Span): str {
         }
     }
     buffer.putsf(doc.substring(prev, doc_len))
-    return buffer.str()
+    sym.comment = buffer.str()
 }
 
 def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): &Type {
@@ -1606,14 +1614,9 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     let alias = part.u.single.alias
     if not alias? then alias = name
 
-    let prev_project_root = .o.program.project_root
-
     let base = match path.type {
         GlobalNamespace => {
-            let lib = .o.program.global.find_importable_symbol(name)
-            assert lib.type == Namespace
-            .o.program.project_root = lib.u.ns
-            yield lib
+            yield .o.program.global.find_importable_symbol(name)
         }
         ProjectNamespace => {
             yield .o.program.project_root.find_importable_symbol(name)
@@ -1644,7 +1647,6 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     }
 
     .handle_import_path_base(path.parts, base, alias, start_idx: 1)
-    .o.program.project_root = prev_project_root
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
@@ -1722,7 +1724,7 @@ def TypeChecker::loosely_resolve_templated_struct(&this, struc: &Structure) {
 
 def TypeChecker::resolve_struct(&this, struc: &Structure) {
     let fields = struc.fields
-    struc.sym.comment = .resolve_doc_links(struc.sym.comment, struc.span)
+    .resolve_doc_links(struc.sym)
 
     // We cannot resolve templated structs.
     if struc.is_templated {
@@ -1732,7 +1734,7 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
 
     for field : fields.iter() {
         let res = .resolve_type(field.type)
-        field.sym.comment = .resolve_doc_links(field.sym.comment, field.sym.span)
+        .resolve_doc_links(field.sym)
         if not res? {
             .o.error(Error::new(field.sym.span, "Couldn't resolve type"))
         } else {
@@ -1844,7 +1846,7 @@ def TypeChecker::run(program: &Program) {
     )
     pass.pre_check_constants(program.global)
     pass.pre_check_namespace(program.global)
-    pass.handle_namespace_imports(program.global)
+    pass.handle_namespace_imports(program.global, is_global: true)
     pass.check_post_import(program.global)
 
     pass.check_namespace(program.global)

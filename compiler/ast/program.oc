@@ -99,9 +99,6 @@ struct Program {
     //* Structs in topologically sorted order. Filled by {{passes::reorder_structs}}
     ordered_structs: &Vector<&Structure>
 
-    errors: &Vector<&Error>
-    error_level: u32
-
     c_includes: &Vector<str>
     c_flags: &Vector<str>
 
@@ -112,6 +109,10 @@ struct Program {
     sources: &Map<str, str>
 
     library_paths: &Vector<str>
+
+    check_doc_links: bool
+    errors: &Vector<&Error>
+    error_level: u32
 }
 
 def Program::new(): &Program {
