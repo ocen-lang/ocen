@@ -10,7 +10,7 @@ struct Token {
     suffix: &Token
     seen_newline: bool
 
-    // Always comes *before* the token
+    //* Comment occuring *before* this token
     comment: str
     comment_loc: Location
 }

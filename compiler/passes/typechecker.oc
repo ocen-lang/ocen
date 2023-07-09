@@ -1387,6 +1387,9 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     for enum_ : ns.enums.iter() {
         // Rest of the enum is already resolved
         enum_.sym.comment = .resolve_doc_links(enum_.sym.comment, enum_.span)
+        for field : enum_.fields.iter() {
+            field.sym.comment = .resolve_doc_links(field.sym.comment, field.sym.span)
+        }
     }
 
     for node : ns.variables.iter() {
@@ -1580,7 +1583,7 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
     .o.insert_into_scope_checked(base, name: alias)
 }
 
-// Insert all the imported items defined in the Import AST statement into the current scope.
+//* Insert all the imported items into the current scope.
 def TypeChecker::handle_import_statement(&this, node: &AST) {
     let path = node.u.import_path
 
@@ -1718,6 +1721,7 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
 
     for field : fields.iter() {
         let res = .resolve_type(field.type)
+        field.sym.comment = .resolve_doc_links(field.sym.comment, field.sym.span)
         if not res? {
             .o.error(Error::new(field.sym.span, "Couldn't resolve type"))
         } else {

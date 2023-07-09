@@ -24,6 +24,7 @@ enum BaseType {
     F32
     F64
 
+    //* For convenience, to iterate over all the base types
     NUM_BASE_TYPES
 
     Pointer
@@ -56,7 +57,8 @@ def BaseType::str(this): str => match this {
 }
 
 struct FunctionType {
-    orig: &Function      // null if this is a function pointer
+    //* `null` if this is a function pointer
+    orig: &Function
     return_type: &Type
     params: &Vector<&Variable>
 }
@@ -122,8 +124,8 @@ struct Type {
     methods: &Map<str, &Function>
     sym: &Symbol
 
-    // This is used for specializations, so that they can point to the original
-    // template instance and the template arguments.
+    //* This is used for specializations, so that they can point to the original
+    //* template instance and the template arguments.
     template_instance: &TemplateInstance
 }
 

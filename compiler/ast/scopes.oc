@@ -28,12 +28,18 @@ union SymbolUnion {
 }
 
 struct Symbol {
-    name: str        // Name in the scope it was defined in
-    display: str     // Fully qualified display name, including namespaces
-    out_name: str    // Name used in the output C code
-    span: Span       // Span of the declaration
-    ns: &Namespace   // Namespace it was defined in
-    comment: str     // Comment attached to the declaration
+    //* Name in the scope it was defined in
+    name: str
+    //* Fully qualified display name, including namespaces
+    display: str
+    //* Name used in the output C code
+    out_name: str
+    //* Span of the declaration
+    span: Span
+    //* Namespace it was defined in
+    ns: &Namespace
+    //* Comment attached to the declaration
+    comment: str
 
     type: SymbolType
     u: SymbolUnion

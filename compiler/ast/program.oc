@@ -11,6 +11,7 @@ import @types::{ Type, BaseType }
 import @parser::Parser
 import @lexer::Lexer
 import @errors::{ display_error_messages }
+import @passes
 
 struct Namespace {
     parent: &Namespace
@@ -95,8 +96,7 @@ struct Program {
     global: &Namespace
     project_root: &Namespace
 
-    // This vector stores the order in which the structs should be generated
-    // to avoid dependency issues
+    //* Structs in topologically sorted order. Filled by {{passes::reorder_structs}}
     ordered_structs: &Vector<&Structure>
 
     errors: &Vector<&Error>
@@ -104,7 +104,9 @@ struct Program {
 
     c_includes: &Vector<str>
     c_flags: &Vector<str>
-    c_embeds: &Map<str, str> // Filename -> C code
+
+    //* Mapping from file name to file contents
+    c_embeds: &Map<str, str>
 
     gen_debug_info: bool
     sources: &Map<str, str>

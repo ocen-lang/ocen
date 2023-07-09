@@ -34,7 +34,6 @@ enum ASTType {
     CharLiteral
     FloatLiteral
     FormatStringLiteral
-    IsNotNull //  ptr? operator
     Cast
     Null
     MethodCall
@@ -52,6 +51,9 @@ enum ASTType {
     Dereference
     Negate
     Not
+
+    //* ptr? operator
+    IsNotNull
 
     // Binary operators
     And
@@ -247,7 +249,7 @@ struct Identifier {
 
 struct Argument {
     expr: &AST
-    label: str // Identifier
+    label: str
     label_span: Span
 }
 

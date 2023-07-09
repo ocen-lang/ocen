@@ -95,7 +95,7 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
     .out.puts(")")
 }
 
-// The point of this is to escape / unescape the correct characters
+//* Generate all the escape sequences in format string part
 def CodeGenerator::gen_format_string_part(&this, part: str) {
     let len = part.len()
     for let i = 0; i < len; i += 1 {
