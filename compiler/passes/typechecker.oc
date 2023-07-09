@@ -1599,10 +1599,13 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     if not alias? then alias = name
 
     let base = match path.type {
-        FromRootNamespace => {
+        GlobalNamespace => {
             yield .o.program.global.find_importable_symbol(name)
         }
-        FromParentNamespace => {
+        ProjectNamespace => {
+            yield .o.program.project_root.find_importable_symbol(name)
+        }
+        ParentNamespace => {
             let cur = .o.ns()
             for let i = 0; i < path.parent_count; i += 1 {
                 if not cur.parent? {
@@ -1617,7 +1620,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
 
         // This is the special case: a `Symbol` can't hold a scope, so we can't just
         // wrap all 3 cases into a symbol and avoid the manual lookup.
-        FromCurrentScope => {
+        CurrentScope => {
             yield .o.scope().lookup_recursive(name)
         }
     }

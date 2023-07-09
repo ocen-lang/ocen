@@ -20,8 +20,8 @@ namespace m1 {
 
 
 def main() {
-    import m1::{m11::*, m12::foo as baz}
-    import m1 as renamed
+    import ::m1::{m11::*, m12::foo as baz}
+    import ::m1 as renamed
     foo()
     renamed::m11::bar()
     baz()

@@ -10,6 +10,6 @@ namespace lmao {
 }
 
 def do_foo() {
-    import lmao::gottem::Greeter
+    import ::lmao::gottem::Greeter
     Greeter::greetings()
 }
