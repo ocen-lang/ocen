@@ -110,6 +110,8 @@ struct Program {
 
     gen_debug_info: bool
     sources: &Map<str, str>
+
+    library_paths: &Vector<str>
 }
 
 def Program::new(): &Program {
@@ -131,6 +133,7 @@ def Program::new(): &Program {
     prog.c_flags = Vector<str>::new()
     prog.c_embeds = Map<str, str>::new()
     prog.sources = Map<str, str>::new()
+    prog.library_paths = Vector<str>::new()
     return prog
 }
 
