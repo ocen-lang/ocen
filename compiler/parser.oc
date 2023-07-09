@@ -844,7 +844,7 @@ def Parser::parse_if(&this): &AST {
 }
 
 def Parser::parse_for_each(&this, start_span: Span): &AST {
-    // This function is responsible for parsing 
+    // This function is responsible for parsing
     //      for i : expr {
     //          ...
     //      }

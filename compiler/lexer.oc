@@ -226,7 +226,7 @@ def Lexer::lex_comment(&this) {
     }
 
     // Skip whitespace
-    while .cur() == ' ' or .cur() == '\t' { .inc() }
+    if .cur() == ' ' or .cur() == '\t' { .inc() }
 
     // Read the comment and store it into the buffer
     while .i < .source_len and .cur() != '\n' {

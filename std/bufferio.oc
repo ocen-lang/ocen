@@ -1,6 +1,6 @@
-//* Wrapper for doing binary IO on a buffer
+//* Wrapper for doing binary IO on a {{Buffer}}.
 //*
-//* This is a very thin wrapper around a buffer, and gives you a
+//* This is a very thin wrapper around a {{Buffer}}, and gives you a
 //* simple bunch of methods for reading and writing integers
 //* and bytes of different sizes in different endiannesses.
 
@@ -18,7 +18,9 @@ def BufferIO::make(data: &Buffer): BufferIO {
     )
 }
 
+//* Read a signed 64-bit integer in big-endian format.
 def BufferIO::read_i64_be(&this): i64 { return .read_u64_be() as i64 }
+//* Read an unsigned 64-bit integer in big-endian format.
 def BufferIO::read_u64_be(&this): u64 {
     let value = 0u64
     for let i = 0; i < 8; i += 1 {
@@ -28,8 +30,9 @@ def BufferIO::read_u64_be(&this): u64 {
     return value as u64
 }
 
-
+//* Read a signed 32-bit integer in big-endian format.
 def BufferIO::read_i32_be(&this): i32 { return .read_u32_be() as i32 }
+//* Read an unsigned 32-bit integer in big-endian format.
 def BufferIO::read_u32_be(&this): u32 {
     let value = 0
     for let i = 0; i < 4; i += 1 {
@@ -39,6 +42,7 @@ def BufferIO::read_u32_be(&this): u32 {
     return value
 }
 
+//* Read `count` bytes from the buffer.
 def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
     let dst = _dst as &u8
     for let i = 0; i < count; i += 1 {
@@ -47,7 +51,9 @@ def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
     .index  += count
 }
 
+//* Read a signed 16-bit integer in big-endian format.
 def BufferIO::read_i16_be(&this): i16 { return .read_i16_be() as i16 }
+//* Read an unsigned 16-bit integer in big-endian format.
 def BufferIO::read_u16_be(&this): u16 {
     let value = 0u16
     for let i = 0; i < 2; i += 1 {
@@ -57,7 +63,9 @@ def BufferIO::read_u16_be(&this): u16 {
     return value as u16
 }
 
+//* Write a signed 64-bit integer in big-endian format.
 def BufferIO::write_i64_be(&this, value: i64) { .write_u64_be(value as u64) }
+//* Write an unsigned 64-bit integer in big-endian format.
 def BufferIO::write_u64_be(&this, value: u64) {
     .data.resize_if_necessary(.data.size + 8)
     for let i = 0; i < 8; i += 1 {
@@ -66,7 +74,9 @@ def BufferIO::write_u64_be(&this, value: u64) {
     .data.size += 8
 }
 
+//* Write a signed 32-bit integer in big-endian format.
 def BufferIO::write_i32_be(&this, value: i32) { .write_u32_be(value as u32) }
+//* Write an unsigned 32-bit integer in big-endian format.
 def BufferIO::write_u32_be(&this, value: u32) {
     .data.resize_if_necessary(.data.size + 4)
     for let i = 0; i < 4; i += 1 {
@@ -75,7 +85,9 @@ def BufferIO::write_u32_be(&this, value: u32) {
     .data.size += 4
 }
 
+//* Write a signed 16-bit integer in big-endian format.
 def BufferIO::write_i16_be(&this, value: i16) { .write_u16_be(value as u16) }
+//* Write an unsigned 16-bit integer in big-endian format.
 def BufferIO::write_u16_be(&this, value: u16) {
     .data.resize_if_necessary(.data.size + 2)
     for let i = 0; i < 2; i += 1 {
@@ -84,13 +96,16 @@ def BufferIO::write_u16_be(&this, value: u16) {
     .data.size += 2
 }
 
+//* Write a signed 8-bit integer in big-endian format.
 def BufferIO::write_i8(&this, value: i8) { .write_u8(value as u8) }
+//* Write an unsigned 8-bit integer in big-endian format.
 def BufferIO::write_u8(&this, value: u8) {
     .data.resize_if_necessary(.data.size + 1)
     .data.data[.data.size] = value
     .data.size += 1
 }
 
+//* Write `count` bytes to the buffer.
 def BufferIO::write_bytes(&this, _src: untyped_ptr, count: u32) {
     let src = _src as &u8
     .data.resize_if_necessary(.data.size as u32 + count as u32)

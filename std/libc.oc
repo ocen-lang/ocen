@@ -1,5 +1,7 @@
 //* Bindings to libc functions
 
+import ::std::File
+
 // stdlib
 def malloc(size: u32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: u32): untyped_ptr extern
@@ -10,12 +12,12 @@ def getenv(name: str): str extern
 def system(cmd: str): i32 extern
 
 // stdio
-def fopen(name: str, mode: str): &std::File extern
-def fclose(file: &std::File): i32 extern
-def fread(ptr: untyped_ptr, size: u32, count: u32, file: &std::File): i32 extern
-def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &std::File): i32 extern
-def ftell(file: &std::File): i32 extern
-def fseek(file: &std::File, offset: i32, whence: i32): i32 extern
+def fopen(name: str, mode: str): &File extern
+def fclose(file: &File): i32 extern
+def fread(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32 extern
+def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32 extern
+def ftell(file: &File): i32 extern
+def fseek(file: &File, offset: i32, whence: i32): i32 extern
 const SEEK_SET: i32 extern
 const SEEK_CUR: i32 extern
 const SEEK_END: i32 extern

@@ -1,3 +1,8 @@
+//* Represents locations / spans in source code
+
+import std // This is just here to separate docs for modules and structs
+
+//* A location in a source file
 struct Location {
     filename: str
     line: u32
@@ -16,12 +21,14 @@ def Location::default(): Location {
 
 def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}
 
+//* Checks if the location is before the other location
 def Location::is_before(&this, other: Location): bool {
     if .line > other.line return false
     if .line < other.line return true
     return .col <= other.col
 }
 
+//* A span in a source file (start and end location)
 struct Span {
     start: Location
     end: Location
@@ -44,11 +51,13 @@ def Span::join(this, other: Span): Span {
     return span
 }
 
+//* Checks if the location is inside the span
 def Span::contains_loc(this, loc: Location): bool {
     if not .start.filename.eq(loc.filename) return false
     return .start.is_before(loc) and loc.is_before(.end)
 }
 
+//* Checks if the span starts right after the other span
 def Span::starts_right_after(this, other: Span): bool {
     if not .start.filename.eq(other.start.filename) return false
     return .start.index == other.end.index

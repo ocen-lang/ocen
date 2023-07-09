@@ -1,8 +1,20 @@
 //* A simple hash-map
 //*
-//* Preconditions:
-//*  - K must implement the `hash` method:    K::hash(this): u32
-//*  - K must implement the `eq` method:      K::eq(this, other: K): bool
+//* This hash map uses closed hashing with linked lists for collision resolution.
+//* The hash map will automatically resize itself when the number of items
+//* exceeds the number of buckets.
+//*
+//* Sample usage:
+//*
+//*     import std::map::Map
+//*
+//*     let map = Map<u32, str>::new()
+//*     map.insert(1, "one")
+//*     map.insert(2, "two")
+//*     for it : map.iter() {
+//*         println(`{it.key} = {it.value}`)
+//*     }
+//*     map.remove(1)
 
 import std::vector::Vector
 import std::libc::{ calloc, realloc, free }
@@ -34,7 +46,11 @@ def Node::free_list(&this) {
     }
 }
 
-//* Hash Map
+//* A Hash-map
+//*
+//* Preconditions:
+//*  - `K` type must implement the `hash` method: `K::hash(this): u32`
+//*  - `K` type must implement the `eq` method: `K::eq(this, b: K): bool`
 struct Map<K, V> {
     buckets: &&Node<K, V>
     num_items: u32
