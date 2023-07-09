@@ -19,6 +19,7 @@ jobs:
           ./bootstrap/ocen compiler/main.oc --docs build-docs/docs.json
 
       - name: Copy
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: docs
