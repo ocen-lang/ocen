@@ -334,7 +334,6 @@ typedef enum tokens_TokenType {
   tokens_TokenType_MinusEquals,
   tokens_TokenType_MinusMinus,
   tokens_TokenType_NotEquals,
-  tokens_TokenType_Newline,
   tokens_TokenType_OpenCurly,
   tokens_TokenType_OpenParen,
   tokens_TokenType_OpenSquare,
@@ -350,6 +349,7 @@ typedef enum tokens_TokenType {
   tokens_TokenType_StarEquals,
   tokens_TokenType_StringLiteral,
   tokens_TokenType_Tilde,
+  tokens_TokenType_Newline,
   tokens_TokenType_BEGIN_KEYWORDS,
   tokens_TokenType_And,
   tokens_TokenType_As,
@@ -416,7 +416,6 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_MinusEquals: return "MinusEquals";
     case tokens_TokenType_MinusMinus: return "MinusMinus";
     case tokens_TokenType_NotEquals: return "NotEquals";
-    case tokens_TokenType_Newline: return "Newline";
     case tokens_TokenType_OpenCurly: return "OpenCurly";
     case tokens_TokenType_OpenParen: return "OpenParen";
     case tokens_TokenType_OpenSquare: return "OpenSquare";
@@ -432,6 +431,7 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_StarEquals: return "StarEquals";
     case tokens_TokenType_StringLiteral: return "StringLiteral";
     case tokens_TokenType_Tilde: return "Tilde";
+    case tokens_TokenType_Newline: return "Newline";
     case tokens_TokenType_BEGIN_KEYWORDS: return "BEGIN_KEYWORDS";
     case tokens_TokenType_And: return "And";
     case tokens_TokenType_As: return "As";
@@ -6856,8 +6856,8 @@ std_value_Value *docgen_DocGenerator_gen_function(docgen_DocGenerator *this, ast
     std_value_Value_insert(func_doc, "extern", std_value_Value_new_str(func->sym->out_name));
   } 
   std_value_Value *return_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert(return_doc, "description", std_value_Value_new_str(format_string("return for %s", func->sym->display)));
-  std_value_Value_insert(return_doc, "type", docgen_DocGenerator_gen_typename(this, func->return_type));
+  types_Type *ret_type = func->return_type;
+  std_value_Value_insert(return_doc, "type", docgen_DocGenerator_gen_typename(this, ret_type));
   std_value_Value *params_doc = std_value_Value_new(std_value_ValueType_List);
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(func->params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
@@ -11396,7 +11396,8 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
       node->returns=true;
     } break;
     case ast_nodes_ASTType_Assert: {
-      types_Type *expr_typ = passes_typechecker_TypeChecker_check_expression(this, node->u.assertion.expr, passes_typechecker_TypeChecker_get_base_type(this, types_BaseType_Bool, node->span));
+      ast_nodes_AST *expr = node->u.assertion.expr;
+      types_Type *expr_typ = passes_typechecker_TypeChecker_check_expression(this, expr, passes_typechecker_TypeChecker_get_base_type(this, types_BaseType_Bool, node->span));
       if ((((bool)expr_typ) && (expr_typ->base != types_BaseType_Bool))) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only assert boolean types, got %s", types_Type_str(expr_typ))));
       } 
@@ -11405,6 +11406,9 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
         if ((((bool)msg_typ) && (msg_typ != passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span)))) {
           passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only assert strings, got %s", types_Type_str(msg_typ))));
         } 
+      } 
+      if ((expr->type==ast_nodes_ASTType_BoolLiteral && expr->u.bool_literal==false)) {
+        node->returns=true;
       } 
     } break;
     case ast_nodes_ASTType_Defer: {
@@ -12817,6 +12821,7 @@ tokens_Token *lexer_Lexer_lex_int_literal_different_base(lexer_Lexer *this) {
       }
     } break;
     default: {
+      ae_assert(false, "compiler/lexer.oc:158:24: Assertion failed: `false`", "Invalid base for int literal");
     } break;
   }
   u32 len = (this->i - start);

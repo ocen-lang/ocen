@@ -843,18 +843,23 @@ def Parser::parse_if(&this): &AST {
     return node
 }
 
+//* Parse for-each loops syntax sugar
+//*
+//* This function is responsible for parsing
+//*
+//*      for i : expr {
+//*          ...
+//*      }
+//*
+//* and converting it into
+//*
+//*      for let __iter = expr; __iter.has_value(); __iter.next() {
+//*          let i = __iter.get();
+//*          {
+//*             ...
+//*          }
+//*      }
 def Parser::parse_for_each(&this, start_span: Span): &AST {
-    // This function is responsible for parsing
-    //      for i : expr {
-    //          ...
-    //      }
-    // and converting it into
-    //      for let __iter = expr; __iter.has_value(); __iter.next() {
-    //          let i = __iter.get();
-    //          {
-    //             ...
-    //          }
-    //      }
 
     let name = .consume(Identifier)
     .consume(TokenType::Colon)

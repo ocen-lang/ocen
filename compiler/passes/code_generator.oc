@@ -950,8 +950,8 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
     }
 }
 
+//* Auto-generate `dbg()` method for enums
 def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
-    // Output debug info for enum
     let dbg = enum_.type.methods.at("dbg")
     .gen_function_decl(dbg)
     .out.puts(" {\n")

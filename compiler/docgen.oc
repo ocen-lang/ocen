@@ -168,8 +168,8 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
     }
 
     let return_doc = Value::new(Dictionary)
-    return_doc.insert("description", Value::new_str(`return for {func.sym.display}`))
-    return_doc.insert("type", .gen_typename(func.return_type))
+    let ret_type = func.return_type
+    return_doc.insert("type", .gen_typename(ret_type))
 
     let params_doc = Value::new(List)
     for param : func.params.iter() {

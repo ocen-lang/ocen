@@ -9,18 +9,20 @@ import @types::{ Type, BaseType }
 import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
 import std::libc::calloc
 
-// This is a helper class to use in passes to accomplish common tasks like managing
-// scopes / namespaces, resolving types, and inserting symbols into scopes.
-//
-// To use this, you should add a field to your pass struct like this:
-//     struct MyPass {
-//         o: &GenericPass
-//         ...
-//     }
-//
-// Then, initialize it with `my_pass.o = GenericPass::new(program)`. After this, you
-// can use the methods on it like `.o.push_scope(scope)` etc. inside the pass methods.
-
+//* Base class for passes
+//*
+//* This is a helper class to use in passes to accomplish common tasks like managing
+//* scopes / namespaces, resolving types, and inserting symbols into scopes.
+//*
+//* To use this, you should add a field to your pass struct like this:
+//*
+//*     struct MyPass {
+//*         o: &GenericPass
+//*         ...
+//*     }
+//*
+//* Then, initialize it with `my_pass.o = GenericPass::new(program)`. After this, you
+//* can use the methods on it like `.o.push_scope(scope)` etc. inside the pass methods.
 struct GenericPass {
     scope_stack: &Vector<&Scope>
     namespace_stack: &Vector<&Namespace>

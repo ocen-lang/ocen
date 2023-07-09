@@ -90,10 +90,12 @@ def ArrayType::new(elem_type: &Type, size_expr: &AST): &ArrayType {
     return type
 }
 
-// We have this here for the cases where we can't resolve a template
-// (e.g. when we're parsing a template definition). This is not actually
-// used in the compiler for generating any code, but is helpful for outputting
-// documentation.
+//* Stores an unresolved template specialization.
+//*
+//* We have this here for the cases where we can't resolve a template
+//* (e.g. when we're parsing a template definition). This is not actually
+//* used in the compiler for generating any code, but is helpful for outputting
+//* documentation.
 struct UnresolvedTemplate {
     base: &Type, // FIXME: Should this be a symbol?
     args: &Vector<&Type>
