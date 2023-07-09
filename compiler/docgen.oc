@@ -240,6 +240,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     if ns.sym.comment? {
         ns_doc.insert("description", Value::new_str(ns.sym.comment))
     }
+    ns_doc.insert("name", Value::new_str(ns.sym.name))
     ns_doc.insert("kind", Value::new_str("namespace"))
 
     if not ns.enums.is_empty() {
