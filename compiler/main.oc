@@ -1,3 +1,5 @@
+//* Entry point for the compiler
+
 import std::libc::{ exit, calloc, system }
 import .ast::program::Program
 import .parser::Parser

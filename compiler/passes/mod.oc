@@ -5,6 +5,7 @@ import @passes::typechecker::TypeChecker
 import @passes::reorder_structs::ReorderStructs
 import @passes::code_generator::CodeGenerator
 
+//* Typechecks the program
 def run_typecheck_passes(program: &Program) {
     // NamespaceDump::run(program) // Debug pass
 
@@ -14,6 +15,7 @@ def run_typecheck_passes(program: &Program) {
     if not program.errors.is_empty() then program.exit_with_errors()
 }
 
+//* Generates code for the program and returns it
 def run_codegen_passes(program: &Program): str {
     ReorderStructs::run(program)
     let code = CodeGenerator::run(program)

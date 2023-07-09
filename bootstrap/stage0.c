@@ -159,7 +159,6 @@ typedef enum ast_nodes_ASTType {
   ast_nodes_ASTType_CharLiteral,
   ast_nodes_ASTType_FloatLiteral,
   ast_nodes_ASTType_FormatStringLiteral,
-  ast_nodes_ASTType_IsNotNull,
   ast_nodes_ASTType_Cast,
   ast_nodes_ASTType_Null,
   ast_nodes_ASTType_MethodCall,
@@ -175,6 +174,7 @@ typedef enum ast_nodes_ASTType {
   ast_nodes_ASTType_Dereference,
   ast_nodes_ASTType_Negate,
   ast_nodes_ASTType_Not,
+  ast_nodes_ASTType_IsNotNull,
   ast_nodes_ASTType_And,
   ast_nodes_ASTType_Assignment,
   ast_nodes_ASTType_BitwiseAnd,
@@ -227,7 +227,6 @@ char *ast_nodes_ASTType_dbg(ast_nodes_ASTType this) {
     case ast_nodes_ASTType_CharLiteral: return "CharLiteral";
     case ast_nodes_ASTType_FloatLiteral: return "FloatLiteral";
     case ast_nodes_ASTType_FormatStringLiteral: return "FormatStringLiteral";
-    case ast_nodes_ASTType_IsNotNull: return "IsNotNull";
     case ast_nodes_ASTType_Cast: return "Cast";
     case ast_nodes_ASTType_Null: return "Null";
     case ast_nodes_ASTType_MethodCall: return "MethodCall";
@@ -243,6 +242,7 @@ char *ast_nodes_ASTType_dbg(ast_nodes_ASTType this) {
     case ast_nodes_ASTType_Dereference: return "Dereference";
     case ast_nodes_ASTType_Negate: return "Negate";
     case ast_nodes_ASTType_Not: return "Not";
+    case ast_nodes_ASTType_IsNotNull: return "IsNotNull";
     case ast_nodes_ASTType_And: return "And";
     case ast_nodes_ASTType_Assignment: return "Assignment";
     case ast_nodes_ASTType_BitwiseAnd: return "BitwiseAnd";
@@ -11578,6 +11578,12 @@ void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeCheck
     ast_nodes_Enum *enum_ = std_vector_Iterator__13_cur(&__iter);
     {
       enum_->sym->comment=passes_typechecker_TypeChecker_resolve_doc_links(this, enum_->sym->comment, enum_->span);
+      for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enum_->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
+        ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
+        {
+          field->sym->comment=passes_typechecker_TypeChecker_resolve_doc_links(this, field->sym->comment, field->sym->span);
+        }
+      }
     }
   }
   for (std_vector_Iterator__12 __iter = std_vector_Vector__12_iter(ns->variables); std_vector_Iterator__12_has_value(&__iter); std_vector_Iterator__12_next(&__iter)) {
@@ -11907,6 +11913,7 @@ void passes_typechecker_TypeChecker_resolve_struct(passes_typechecker_TypeChecke
     ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
     {
       types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, field->type, false, true, true);
+      field->sym->comment=passes_typechecker_TypeChecker_resolve_doc_links(this, field->sym->comment, field->sym->span);
       if (!((bool)res)) {
         passes_generic_pass_GenericPass_error(this->o, errors_Error_new(field->sym->span, "Couldn't resolve type"));
       }  else {
@@ -12427,7 +12434,7 @@ bool ast_program_NSIterator_has_value(ast_program_NSIterator *this) {
 }
 
 void ast_program_NSIterator_next(ast_program_NSIterator *this) {
-  ae_assert(!std_vector_Vector__9_is_empty(this->stack), "compiler/ast/program.oc:236:12: Assertion failed: `not .stack.is_empty()`", NULL);
+  ae_assert(!std_vector_Vector__9_is_empty(this->stack), "compiler/ast/program.oc:238:12: Assertion failed: `not .stack.is_empty()`", NULL);
   this->curr=std_vector_Vector__9_pop(this->stack);
   for (std_map_ValueIterator__2 __iter = std_map_Map__2_iter_values(this->curr->namespaces); std_map_ValueIterator__2_has_value(&__iter); std_map_ValueIterator__2_next(&__iter)) {
     ast_program_Namespace *ns = std_map_ValueIterator__2_cur(&__iter);
