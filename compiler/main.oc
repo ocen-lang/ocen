@@ -91,6 +91,7 @@ def parse_args(argc: i32, argv: &str, program: &Program) {
             "--docs" => {
                 i += 1
                 docs_path = argv[i]
+                program.check_doc_links = true
             }
             else => {
                 if argv[i][0] == '-' {

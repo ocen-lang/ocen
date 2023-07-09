@@ -3,7 +3,7 @@
 import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
 import @ast::program::Namespace
 import @types::Type
-import std::span::Span
+import std::span::{ Span, Location }
 import std::map::Map
 import std::vector::Vector
 import std::libc::calloc
@@ -40,6 +40,7 @@ struct Symbol {
     ns: &Namespace
     //* Comment attached to the declaration
     comment: str
+    comment_loc: Location
 
     type: SymbolType
     u: SymbolUnion
