@@ -112,13 +112,17 @@ struct Variable {
     sym: &Symbol
     type: &Type
 
-    // Only for functions, FIXMNE: move to `Parameter` type?
+    //* Only for function default arguments
     default_value: &AST
+
+    //* Original parsed type, for keeping track of locations
+    parsed_type: &Type
 }
 
 def Variable::new(type: &Type): &Variable {
     let var = calloc(1, sizeof(Variable)) as &Variable
     var.type = type
+    var.parsed_type = type
     return var
 }
 
@@ -168,29 +172,6 @@ def Structure::get_field(&this, name: str): &Variable {
     return null
 }
 
-def Structure::find_template_instance(&this, template_args: &Vector<&Type>): &Symbol {
-    let a = template_args
-    for instance : .template_instances.iter() {
-        let b = instance.params
-
-        if a.size != b.size continue
-
-        let all_ok = true
-        for let j = 0; j < a.size; j += 1 {
-            let a_type = a.at(j)
-            let b_type = b.at(j)
-            if not a_type.eq(b_type) {
-                all_ok = false
-                break
-            }
-        }
-
-        if all_ok return instance.resolved
-    }
-
-    return null
-}
-
 struct Enum {
     sym: &Symbol
     span: Span
@@ -236,29 +217,6 @@ def Function::new(): &Function {
     let func = calloc(1, sizeof(Function)) as &Function
     func.params = Vector<&Variable>::new()
     return func
-}
-
-def Function::find_template_instance(&this, template_args: &Vector<&Type>): &Symbol {
-    let a = template_args
-    for instance : .template_instances.iter() {
-        let b = instance.params
-
-        if a.size != b.size continue
-
-        let all_ok = true
-        for let j = 0; j < a.size; j += 1 {
-            let a_type = a.at(j)
-            let b_type = b.at(j)
-            if not a_type.eq(b_type) {
-                all_ok = false
-                break
-            }
-        }
-
-        if all_ok return instance.resolved
-    }
-
-    return null
 }
 
 struct Block {
