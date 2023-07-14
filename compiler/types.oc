@@ -157,7 +157,7 @@ def Type::can_have_methods(&this): bool => match .base {
     else => false
 }
 
-def Type::eq(&this, other: &Type): bool {
+def Type::eq(&this, other: &Type, strict: bool = false): bool {
     if (this == null and other == null) return true
     if (this == null or other == null) return false
 
@@ -172,24 +172,37 @@ def Type::eq(&this, other: &Type): bool {
         Function => {
             let af = .u.func
             let bf = other.u.func
-            if not af.return_type.eq(bf.return_type) return false
+            if not af.return_type.eq(bf.return_type, strict: true) return false
             if af.params.size != bf.params.size return false
             for let i = 0; i < af.params.size; i += 1 {
                 let a = af.params.at(i)
                 let b = bf.params.at(i)
-                if not a.type.eq(b.type) return false
+                if not a.type.eq(b.type, strict: true) return false
             }
             return true
         }
         Pointer => {
-            if .u.ptr.base == BaseType::Void or other.u.ptr.base == BaseType::Void {
-                return true
+            if not strict {
+                if .u.ptr.base == BaseType::Void or other.u.ptr.base == BaseType::Void {
+                    return true
+                }
             }
-            return .u.ptr.eq(other.u.ptr)
+            return .u.ptr.eq(other.u.ptr, strict: true)
         }
         Structure => return .u.struc == other.u.struc
         Enum => return .u.enum_ == other.u.enum_
-        else => return true
+        Array => {
+            if not .u.arr.elem_type.eq(other.u.arr.elem_type, strict: true) return false
+            // FIXME: how do we check the size? It's currently an AST
+            return true
+        }
+        else => {
+            if .base as u32 < BaseType::NUM_BASE_TYPES as u32 {
+                return true
+            }
+
+            assert false, `Unhandled case in Type::eq(), base = {.base}`
+        }
     }
 }
 
