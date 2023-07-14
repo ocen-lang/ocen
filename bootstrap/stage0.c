@@ -2,7 +2,7 @@
 #include "dirent.h"
 #include "libgen.h"
 
-/* Embed: /Users/mustafa/ocen-lang/ocen/std/./prelude.h */
+/* Embed: /home/gamingbuddhist/ocen//std/./prelude.h */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -1237,6 +1237,9 @@ struct ast_nodes_Function {
   bool is_method;
   bool is_static;
   types_Type *parent_type;
+  bool is_templated;
+  std_vector_Vector__4 *template_params;
+  std_vector_Vector__14 *template_instances;
 };
 
 struct ast_nodes_Block {
@@ -2076,7 +2079,7 @@ void parser_Parser_consume_newline_or(parser_Parser *this, tokens_TokenType type
 tokens_Token *parser_Parser_consume(parser_Parser *this, tokens_TokenType type);
 void parser_Parser_consume_end_of_statement(parser_Parser *this);
 types_Type *parser_Parser_parse_type(parser_Parser *this);
-ast_nodes_AST *parser_Parser_parse_scoped_identifier(parser_Parser *this);
+ast_nodes_AST *parser_Parser_parse_scoped_identifier(parser_Parser *this, bool consume_template);
 ast_nodes_AST *parser_Parser_parse_format_string(parser_Parser *this);
 ast_nodes_AST *parser_Parser_parse_match(parser_Parser *this);
 types_Type *parser_Parser_parse_literal_suffix_type(parser_Parser *this, tokens_Token *suffix);
@@ -2191,6 +2194,7 @@ ast_scopes_Scope *passes_typechecker_TypeChecker_scope(passes_typechecker_TypeCh
 types_Type *passes_typechecker_TypeChecker_get_base_type(passes_typechecker_TypeChecker *this, types_BaseType base, std_span_Span span);
 types_Type *passes_typechecker_TypeChecker_get_type_by_name(passes_typechecker_TypeChecker *this, char *name, std_span_Span span);
 types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeChecker *this, types_Type *old, bool allow_incomplete, bool error, bool resolve_templates);
+ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_templated_function(passes_typechecker_TypeChecker *this, ast_nodes_Function *func, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_resolve_templated_struct_methods(passes_typechecker_TypeChecker *this, ast_nodes_Structure *old, ast_nodes_Structure *cur);
 ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_templated_struct(passes_typechecker_TypeChecker *this, ast_nodes_Structure *struc, ast_nodes_AST *node);
 ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_scoped_identifier(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, bool error, types_Type *hint, bool resolve_templates);
@@ -2274,6 +2278,7 @@ ast_scopes_Symbol *ast_nodes_Structure_find_template_instance(ast_nodes_Structur
 ast_nodes_Enum *ast_nodes_Enum_new(void);
 ast_nodes_Variable *ast_nodes_Enum_get_field(ast_nodes_Enum *this, char *name);
 ast_nodes_Function *ast_nodes_Function_new(void);
+ast_scopes_Symbol *ast_nodes_Function_find_template_instance(ast_nodes_Function *this, std_vector_Vector__3 *template_args);
 ast_nodes_Argument *ast_nodes_Argument_new(char *label, std_span_Span label_span, ast_nodes_AST *expr);
 ast_nodes_ImportPart *ast_nodes_ImportPart_new(ast_nodes_ImportPartType type, std_span_Span span);
 ast_nodes_MatchCase *ast_nodes_MatchCase_new(ast_nodes_AST *cond, ast_nodes_AST *body);
@@ -2456,9 +2461,9 @@ std_value_Value *std_compact_map_Map__0_at(std_compact_map_Map__0 *this, char *k
   u32 hash = str_hash(key);
   u32 index = std_compact_map_Map__0_get_index(this, key, hash);
   if (this->indices[index]==std_compact_map_INDEX_FREE) {
-    ae_assert(false, "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:149:16: Assertion failed: `false`", "Key not found in Map::at()");
+    ae_assert(false, "/home/gamingbuddhist/ocen//std/compact_map.oc:149:16: Assertion failed: `false`", "Key not found in Map::at()");
   } 
-  ae_assert((index >= ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:152:12: Assertion failed: `index >= 0`", NULL);
+  ae_assert((index >= ((u32)0)), "/home/gamingbuddhist/ocen//std/compact_map.oc:152:12: Assertion failed: `index >= 0`", NULL);
   std_compact_map_Item__0 item = std_vector_Vector__2_at(this->items, ((u32)this->indices[index]));
   return item.value;
 }
@@ -2519,15 +2524,15 @@ void std_compact_map_Map__0_remove(std_compact_map_Map__0 *this, char *key) {
   if (this->indices[index]==std_compact_map_INDEX_FREE) {
     return ;
   } 
-  ae_assert((index >= ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:79:12: Assertion failed: `index >= 0`", NULL);
+  ae_assert((index >= ((u32)0)), "/home/gamingbuddhist/ocen//std/compact_map.oc:79:12: Assertion failed: `index >= 0`", NULL);
   u32 item_index = ((u32)this->indices[index]);
   std_compact_map_Item__0 item = std_vector_Vector__2_at(this->items, item_index);
   std_compact_map_Item__0 last_item = std_vector_Vector__2_at(this->items, (this->items->size - ((u32)1)));
   u32 last_index = std_compact_map_Map__0_get_index(this, last_item.key, last_item.hash);
-  ae_assert((last_index >= ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:87:12: Assertion failed: `last_index >= 0`", NULL);
-  ae_assert((this->indices[last_index] >= 0), "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:88:12: Assertion failed: `.indices[last_index] >= 0`", NULL);
+  ae_assert((last_index >= ((u32)0)), "/home/gamingbuddhist/ocen//std/compact_map.oc:87:12: Assertion failed: `last_index >= 0`", NULL);
+  ae_assert((this->indices[last_index] >= 0), "/home/gamingbuddhist/ocen//std/compact_map.oc:88:12: Assertion failed: `.indices[last_index] >= 0`", NULL);
   u32 last_item_index = ((u32)this->indices[last_index]);
-  ae_assert(last_item_index==(this->items->size - ((u32)1)), "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:91:12: Assertion failed: `last_item_index == .items.size - 1`", NULL);
+  ae_assert(last_item_index==(this->items->size - ((u32)1)), "/home/gamingbuddhist/ocen//std/compact_map.oc:91:12: Assertion failed: `last_item_index == .items.size - 1`", NULL);
   this->indices[index]=std_compact_map_INDEX_DELETED;
   this->items->data[item_index]=last_item;
   std_vector_Vector__2_pop(this->items);
@@ -2540,7 +2545,7 @@ std_value_Value *std_compact_map_Map__0_get(std_compact_map_Map__0 *this, char *
   if (this->indices[index]==std_compact_map_INDEX_FREE) {
     return defolt;
   } 
-  ae_assert((index >= ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/compact_map.oc:140:12: Assertion failed: `index >= 0`", NULL);
+  ae_assert((index >= ((u32)0)), "/home/gamingbuddhist/ocen//std/compact_map.oc:140:12: Assertion failed: `index >= 0`", NULL);
   std_compact_map_Item__0 item = std_vector_Vector__2_at(this->items, ((u32)this->indices[index]));
   return item.value;
 }
@@ -2630,7 +2635,7 @@ void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size
   if ((new_size >= this->capacity)) {
     i32 new_capacity = std_max((((i32)this->capacity) * 2), ((i32)new_size));
     this->data=((u8 *)realloc(this->data, ((u32)new_capacity)));
-    ae_assert(((bool)this->data), "/Users/mustafa/ocen-lang/ocen/std/buffer.oc:45:16: Assertion failed: `.data?`", "Out of memory!");
+    ae_assert(((bool)this->data), "/home/gamingbuddhist/ocen//std/buffer.oc:45:16: Assertion failed: `.data?`", "Out of memory!");
   } 
 }
 
@@ -2721,7 +2726,7 @@ void std_map_Map__0_push_keys(std_map_Map__0 *this, std_vector_Vector__6 *vec) {
 
 ast_nodes_Structure *std_map_Map__0_at(std_map_Map__0 *this, char *key) {
   std_map_Node__0 *node = std_map_Map__0_get_node(this, key);
-  ae_assert(((bool)node), "/Users/mustafa/ocen-lang/ocen/std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "/home/gamingbuddhist/ocen//std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -2955,7 +2960,7 @@ void std_map_Map__1_push_keys(std_map_Map__1 *this, std_vector_Vector__6 *vec) {
 
 ast_scopes_Symbol *std_map_Map__1_at(std_map_Map__1 *this, char *key) {
   std_map_Node__1 *node = std_map_Map__1_get_node(this, key);
-  ae_assert(((bool)node), "/Users/mustafa/ocen-lang/ocen/std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "/home/gamingbuddhist/ocen//std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -3189,7 +3194,7 @@ void std_map_Map__2_push_keys(std_map_Map__2 *this, std_vector_Vector__6 *vec) {
 
 ast_program_Namespace *std_map_Map__2_at(std_map_Map__2 *this, char *key) {
   std_map_Node__2 *node = std_map_Map__2_get_node(this, key);
-  ae_assert(((bool)node), "/Users/mustafa/ocen-lang/ocen/std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "/home/gamingbuddhist/ocen//std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -3423,7 +3428,7 @@ void std_map_Map__3_push_keys(std_map_Map__3 *this, std_vector_Vector__6 *vec) {
 
 char *std_map_Map__3_at(std_map_Map__3 *this, char *key) {
   std_map_Node__3 *node = std_map_Map__3_get_node(this, key);
-  ae_assert(((bool)node), "/Users/mustafa/ocen-lang/ocen/std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "/home/gamingbuddhist/ocen//std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -3657,7 +3662,7 @@ void std_map_Map__4_push_keys(std_map_Map__4 *this, std_vector_Vector__6 *vec) {
 
 ast_nodes_Function *std_map_Map__4_at(std_map_Map__4 *this, char *key) {
   std_map_Node__4 *node = std_map_Map__4_get_node(this, key);
-  ae_assert(((bool)node), "/Users/mustafa/ocen-lang/ocen/std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "/home/gamingbuddhist/ocen//std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -3891,7 +3896,7 @@ void std_map_Map__5_push_keys(std_map_Map__5 *this, std_vector_Vector__6 *vec) {
 
 ast_nodes_MatchCase *std_map_Map__5_at(std_map_Map__5 *this, char *key) {
   std_map_Node__5 *node = std_map_Map__5_get_node(this, key);
-  ae_assert(((bool)node), "/Users/mustafa/ocen-lang/ocen/std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "/home/gamingbuddhist/ocen//std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -4177,7 +4182,7 @@ u32 u32_hash(u32 this) {
 }
 
 tokens_Token *std_vector_Vector__0_at(std_vector_Vector__0 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4224,7 +4229,7 @@ std_vector_Vector__0 *std_vector_Vector__0_new(u32 capacity) {
 }
 
 tokens_Token *std_vector_Vector__0_pop(std_vector_Vector__0 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4242,7 +4247,7 @@ void std_vector_Vector__0_clear(std_vector_Vector__0 *this) {
 }
 
 tokens_Token *std_vector_Vector__0_back(std_vector_Vector__0 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4251,12 +4256,12 @@ std_vector_Iterator__0 std_vector_Vector__0_iter(std_vector_Vector__0 *this) {
 }
 
 tokens_Token *std_vector_Iterator__0_cur(std_vector_Iterator__0 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__0_next(std_vector_Iterator__0 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4269,7 +4274,7 @@ std_vector_Iterator__0 std_vector_Iterator__0_make(std_vector_Vector__0 *vec) {
 }
 
 std_value_Value *std_vector_Vector__1_at(std_vector_Vector__1 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4316,7 +4321,7 @@ std_vector_Vector__1 *std_vector_Vector__1_new(u32 capacity) {
 }
 
 std_value_Value *std_vector_Vector__1_pop(std_vector_Vector__1 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4334,7 +4339,7 @@ void std_vector_Vector__1_clear(std_vector_Vector__1 *this) {
 }
 
 std_value_Value *std_vector_Vector__1_back(std_vector_Vector__1 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4343,12 +4348,12 @@ std_vector_Iterator__1 std_vector_Vector__1_iter(std_vector_Vector__1 *this) {
 }
 
 std_value_Value *std_vector_Iterator__1_cur(std_vector_Iterator__1 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__1_next(std_vector_Iterator__1 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4361,7 +4366,7 @@ std_vector_Iterator__1 std_vector_Iterator__1_make(std_vector_Vector__1 *vec) {
 }
 
 std_compact_map_Item__0 std_vector_Vector__2_at(std_vector_Vector__2 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4408,7 +4413,7 @@ std_vector_Vector__2 *std_vector_Vector__2_new(u32 capacity) {
 }
 
 std_compact_map_Item__0 std_vector_Vector__2_pop(std_vector_Vector__2 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4426,7 +4431,7 @@ void std_vector_Vector__2_clear(std_vector_Vector__2 *this) {
 }
 
 std_compact_map_Item__0 std_vector_Vector__2_back(std_vector_Vector__2 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4435,12 +4440,12 @@ std_vector_Iterator__2 std_vector_Vector__2_iter(std_vector_Vector__2 *this) {
 }
 
 std_compact_map_Item__0 std_vector_Iterator__2_cur(std_vector_Iterator__2 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__2_next(std_vector_Iterator__2 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4453,7 +4458,7 @@ std_vector_Iterator__2 std_vector_Iterator__2_make(std_vector_Vector__2 *vec) {
 }
 
 types_Type *std_vector_Vector__3_at(std_vector_Vector__3 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4500,7 +4505,7 @@ std_vector_Vector__3 *std_vector_Vector__3_new(u32 capacity) {
 }
 
 types_Type *std_vector_Vector__3_pop(std_vector_Vector__3 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4518,7 +4523,7 @@ void std_vector_Vector__3_clear(std_vector_Vector__3 *this) {
 }
 
 types_Type *std_vector_Vector__3_back(std_vector_Vector__3 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4527,12 +4532,12 @@ std_vector_Iterator__3 std_vector_Vector__3_iter(std_vector_Vector__3 *this) {
 }
 
 types_Type *std_vector_Iterator__3_cur(std_vector_Iterator__3 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__3_next(std_vector_Iterator__3 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4545,7 +4550,7 @@ std_vector_Iterator__3 std_vector_Iterator__3_make(std_vector_Vector__3 *vec) {
 }
 
 ast_nodes_Variable *std_vector_Vector__4_at(std_vector_Vector__4 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4592,7 +4597,7 @@ std_vector_Vector__4 *std_vector_Vector__4_new(u32 capacity) {
 }
 
 ast_nodes_Variable *std_vector_Vector__4_pop(std_vector_Vector__4 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4610,7 +4615,7 @@ void std_vector_Vector__4_clear(std_vector_Vector__4 *this) {
 }
 
 ast_nodes_Variable *std_vector_Vector__4_back(std_vector_Vector__4 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4619,12 +4624,12 @@ std_vector_Iterator__4 std_vector_Vector__4_iter(std_vector_Vector__4 *this) {
 }
 
 ast_nodes_Variable *std_vector_Iterator__4_cur(std_vector_Iterator__4 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__4_next(std_vector_Iterator__4 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4637,7 +4642,7 @@ std_vector_Iterator__4 std_vector_Iterator__4_make(std_vector_Vector__4 *vec) {
 }
 
 ast_nodes_ImportPart *std_vector_Vector__5_at(std_vector_Vector__5 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4684,7 +4689,7 @@ std_vector_Vector__5 *std_vector_Vector__5_new(u32 capacity) {
 }
 
 ast_nodes_ImportPart *std_vector_Vector__5_pop(std_vector_Vector__5 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4702,7 +4707,7 @@ void std_vector_Vector__5_clear(std_vector_Vector__5 *this) {
 }
 
 ast_nodes_ImportPart *std_vector_Vector__5_back(std_vector_Vector__5 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4711,12 +4716,12 @@ std_vector_Iterator__5 std_vector_Vector__5_iter(std_vector_Vector__5 *this) {
 }
 
 ast_nodes_ImportPart *std_vector_Iterator__5_cur(std_vector_Iterator__5 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__5_next(std_vector_Iterator__5 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4729,7 +4734,7 @@ std_vector_Iterator__5 std_vector_Iterator__5_make(std_vector_Vector__5 *vec) {
 }
 
 char *std_vector_Vector__6_at(std_vector_Vector__6 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4776,7 +4781,7 @@ std_vector_Vector__6 *std_vector_Vector__6_new(u32 capacity) {
 }
 
 char *std_vector_Vector__6_pop(std_vector_Vector__6 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4794,7 +4799,7 @@ void std_vector_Vector__6_clear(std_vector_Vector__6 *this) {
 }
 
 char *std_vector_Vector__6_back(std_vector_Vector__6 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4803,12 +4808,12 @@ std_vector_Iterator__6 std_vector_Vector__6_iter(std_vector_Vector__6 *this) {
 }
 
 char *std_vector_Iterator__6_cur(std_vector_Iterator__6 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__6_next(std_vector_Iterator__6 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4821,7 +4826,7 @@ std_vector_Iterator__6 std_vector_Iterator__6_make(std_vector_Vector__6 *vec) {
 }
 
 ast_scopes_Scope *std_vector_Vector__7_at(std_vector_Vector__7 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4868,7 +4873,7 @@ std_vector_Vector__7 *std_vector_Vector__7_new(u32 capacity) {
 }
 
 ast_scopes_Scope *std_vector_Vector__7_pop(std_vector_Vector__7 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4886,7 +4891,7 @@ void std_vector_Vector__7_clear(std_vector_Vector__7 *this) {
 }
 
 ast_scopes_Scope *std_vector_Vector__7_back(std_vector_Vector__7 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4895,12 +4900,12 @@ std_vector_Iterator__7 std_vector_Vector__7_iter(std_vector_Vector__7 *this) {
 }
 
 ast_scopes_Scope *std_vector_Iterator__7_cur(std_vector_Iterator__7 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__7_next(std_vector_Iterator__7 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -4913,7 +4918,7 @@ std_vector_Iterator__7 std_vector_Iterator__7_make(std_vector_Vector__7 *vec) {
 }
 
 ast_program_Namespace *std_vector_Vector__8_at(std_vector_Vector__8 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -4960,7 +4965,7 @@ std_vector_Vector__8 *std_vector_Vector__8_new(u32 capacity) {
 }
 
 ast_program_Namespace *std_vector_Vector__8_pop(std_vector_Vector__8 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -4978,7 +4983,7 @@ void std_vector_Vector__8_clear(std_vector_Vector__8 *this) {
 }
 
 ast_program_Namespace *std_vector_Vector__8_back(std_vector_Vector__8 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -4987,12 +4992,12 @@ std_vector_Iterator__8 std_vector_Vector__8_iter(std_vector_Vector__8 *this) {
 }
 
 ast_program_Namespace *std_vector_Iterator__8_cur(std_vector_Iterator__8 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__8_next(std_vector_Iterator__8 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5005,7 +5010,7 @@ std_vector_Iterator__8 std_vector_Iterator__8_make(std_vector_Vector__8 *vec) {
 }
 
 ast_nodes_Function *std_vector_Vector__9_at(std_vector_Vector__9 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5052,7 +5057,7 @@ std_vector_Vector__9 *std_vector_Vector__9_new(u32 capacity) {
 }
 
 ast_nodes_Function *std_vector_Vector__9_pop(std_vector_Vector__9 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5070,7 +5075,7 @@ void std_vector_Vector__9_clear(std_vector_Vector__9 *this) {
 }
 
 ast_nodes_Function *std_vector_Vector__9_back(std_vector_Vector__9 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5079,12 +5084,12 @@ std_vector_Iterator__9 std_vector_Vector__9_iter(std_vector_Vector__9 *this) {
 }
 
 ast_nodes_Function *std_vector_Iterator__9_cur(std_vector_Iterator__9 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__9_next(std_vector_Iterator__9 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5097,7 +5102,7 @@ std_vector_Iterator__9 std_vector_Iterator__9_make(std_vector_Vector__9 *vec) {
 }
 
 ast_nodes_Structure *std_vector_Vector__10_at(std_vector_Vector__10 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5144,7 +5149,7 @@ std_vector_Vector__10 *std_vector_Vector__10_new(u32 capacity) {
 }
 
 ast_nodes_Structure *std_vector_Vector__10_pop(std_vector_Vector__10 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5162,7 +5167,7 @@ void std_vector_Vector__10_clear(std_vector_Vector__10 *this) {
 }
 
 ast_nodes_Structure *std_vector_Vector__10_back(std_vector_Vector__10 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5171,12 +5176,12 @@ std_vector_Iterator__10 std_vector_Vector__10_iter(std_vector_Vector__10 *this) 
 }
 
 ast_nodes_Structure *std_vector_Iterator__10_cur(std_vector_Iterator__10 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__10_next(std_vector_Iterator__10 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5189,7 +5194,7 @@ std_vector_Iterator__10 std_vector_Iterator__10_make(std_vector_Vector__10 *vec)
 }
 
 ast_nodes_AST *std_vector_Vector__11_at(std_vector_Vector__11 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5236,7 +5241,7 @@ std_vector_Vector__11 *std_vector_Vector__11_new(u32 capacity) {
 }
 
 ast_nodes_AST *std_vector_Vector__11_pop(std_vector_Vector__11 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5254,7 +5259,7 @@ void std_vector_Vector__11_clear(std_vector_Vector__11 *this) {
 }
 
 ast_nodes_AST *std_vector_Vector__11_back(std_vector_Vector__11 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5263,12 +5268,12 @@ std_vector_Iterator__11 std_vector_Vector__11_iter(std_vector_Vector__11 *this) 
 }
 
 ast_nodes_AST *std_vector_Iterator__11_cur(std_vector_Iterator__11 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__11_next(std_vector_Iterator__11 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5281,7 +5286,7 @@ std_vector_Iterator__11 std_vector_Iterator__11_make(std_vector_Vector__11 *vec)
 }
 
 ast_nodes_Enum *std_vector_Vector__12_at(std_vector_Vector__12 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5328,7 +5333,7 @@ std_vector_Vector__12 *std_vector_Vector__12_new(u32 capacity) {
 }
 
 ast_nodes_Enum *std_vector_Vector__12_pop(std_vector_Vector__12 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5346,7 +5351,7 @@ void std_vector_Vector__12_clear(std_vector_Vector__12 *this) {
 }
 
 ast_nodes_Enum *std_vector_Vector__12_back(std_vector_Vector__12 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5355,12 +5360,12 @@ std_vector_Iterator__12 std_vector_Vector__12_iter(std_vector_Vector__12 *this) 
 }
 
 ast_nodes_Enum *std_vector_Iterator__12_cur(std_vector_Iterator__12 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__12_next(std_vector_Iterator__12 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5373,7 +5378,7 @@ std_vector_Iterator__12 std_vector_Iterator__12_make(std_vector_Vector__12 *vec)
 }
 
 errors_Error *std_vector_Vector__13_at(std_vector_Vector__13 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5420,7 +5425,7 @@ std_vector_Vector__13 *std_vector_Vector__13_new(u32 capacity) {
 }
 
 errors_Error *std_vector_Vector__13_pop(std_vector_Vector__13 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5438,7 +5443,7 @@ void std_vector_Vector__13_clear(std_vector_Vector__13 *this) {
 }
 
 errors_Error *std_vector_Vector__13_back(std_vector_Vector__13 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5447,12 +5452,12 @@ std_vector_Iterator__13 std_vector_Vector__13_iter(std_vector_Vector__13 *this) 
 }
 
 errors_Error *std_vector_Iterator__13_cur(std_vector_Iterator__13 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__13_next(std_vector_Iterator__13 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5465,7 +5470,7 @@ std_vector_Iterator__13 std_vector_Iterator__13_make(std_vector_Vector__13 *vec)
 }
 
 ast_nodes_TemplateInstance *std_vector_Vector__14_at(std_vector_Vector__14 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5512,7 +5517,7 @@ std_vector_Vector__14 *std_vector_Vector__14_new(u32 capacity) {
 }
 
 ast_nodes_TemplateInstance *std_vector_Vector__14_pop(std_vector_Vector__14 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5530,7 +5535,7 @@ void std_vector_Vector__14_clear(std_vector_Vector__14 *this) {
 }
 
 ast_nodes_TemplateInstance *std_vector_Vector__14_back(std_vector_Vector__14 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5539,12 +5544,12 @@ std_vector_Iterator__14 std_vector_Vector__14_iter(std_vector_Vector__14 *this) 
 }
 
 ast_nodes_TemplateInstance *std_vector_Iterator__14_cur(std_vector_Iterator__14 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__14_next(std_vector_Iterator__14 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5557,7 +5562,7 @@ std_vector_Iterator__14 std_vector_Iterator__14_make(std_vector_Vector__14 *vec)
 }
 
 ast_nodes_Argument *std_vector_Vector__15_at(std_vector_Vector__15 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5604,7 +5609,7 @@ std_vector_Vector__15 *std_vector_Vector__15_new(u32 capacity) {
 }
 
 ast_nodes_Argument *std_vector_Vector__15_pop(std_vector_Vector__15 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5622,7 +5627,7 @@ void std_vector_Vector__15_clear(std_vector_Vector__15 *this) {
 }
 
 ast_nodes_Argument *std_vector_Vector__15_back(std_vector_Vector__15 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5631,12 +5636,12 @@ std_vector_Iterator__15 std_vector_Vector__15_iter(std_vector_Vector__15 *this) 
 }
 
 ast_nodes_Argument *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__15_next(std_vector_Iterator__15 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5649,7 +5654,7 @@ std_vector_Iterator__15 std_vector_Iterator__15_make(std_vector_Vector__15 *vec)
 }
 
 std_vector_Vector__5 *std_vector_Vector__16_at(std_vector_Vector__16 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5696,7 +5701,7 @@ std_vector_Vector__16 *std_vector_Vector__16_new(u32 capacity) {
 }
 
 std_vector_Vector__5 *std_vector_Vector__16_pop(std_vector_Vector__16 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5714,7 +5719,7 @@ void std_vector_Vector__16_clear(std_vector_Vector__16 *this) {
 }
 
 std_vector_Vector__5 *std_vector_Vector__16_back(std_vector_Vector__16 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5723,12 +5728,12 @@ std_vector_Iterator__16 std_vector_Vector__16_iter(std_vector_Vector__16 *this) 
 }
 
 std_vector_Vector__5 *std_vector_Iterator__16_cur(std_vector_Iterator__16 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__16_next(std_vector_Iterator__16 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5741,7 +5746,7 @@ std_vector_Iterator__16 std_vector_Iterator__16_make(std_vector_Vector__16 *vec)
 }
 
 ast_nodes_MatchCase *std_vector_Vector__17_at(std_vector_Vector__17 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5788,7 +5793,7 @@ std_vector_Vector__17 *std_vector_Vector__17_new(u32 capacity) {
 }
 
 ast_nodes_MatchCase *std_vector_Vector__17_pop(std_vector_Vector__17 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5806,7 +5811,7 @@ void std_vector_Vector__17_clear(std_vector_Vector__17 *this) {
 }
 
 ast_nodes_MatchCase *std_vector_Vector__17_back(std_vector_Vector__17 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5815,12 +5820,12 @@ std_vector_Iterator__17 std_vector_Vector__17_iter(std_vector_Vector__17 *this) 
 }
 
 ast_nodes_MatchCase *std_vector_Iterator__17_cur(std_vector_Iterator__17 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__17_next(std_vector_Iterator__17 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -5833,7 +5838,7 @@ std_vector_Iterator__17 std_vector_Iterator__17_make(std_vector_Vector__17 *vec)
 }
 
 u32 std_vector_Vector__18_at(std_vector_Vector__18 *this, u32 i) {
-  ae_assert((i < this->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "/home/gamingbuddhist/ocen//std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -5880,7 +5885,7 @@ std_vector_Vector__18 *std_vector_Vector__18_new(u32 capacity) {
 }
 
 u32 std_vector_Vector__18_pop(std_vector_Vector__18 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:50:12: Assertion failed: `.size > 0`", "Empty vector in Vector::pop");
   this->size-=((u32)1);
   return this->data[this->size];
 }
@@ -5898,7 +5903,7 @@ void std_vector_Vector__18_clear(std_vector_Vector__18 *this) {
 }
 
 u32 std_vector_Vector__18_back(std_vector_Vector__18 *this) {
-  ae_assert((this->size > ((u32)0)), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((this->size > ((u32)0)), "/home/gamingbuddhist/ocen//std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
   return this->data[(this->size - ((u32)1))];
 }
 
@@ -5907,12 +5912,12 @@ std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this) 
 }
 
 u32 std_vector_Iterator__18_cur(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__18_next(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "/Users/mustafa/ocen-lang/ocen/std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "/home/gamingbuddhist/ocen//std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=((u32)1);
 }
 
@@ -6766,7 +6771,7 @@ types_Type *parser_Parser_parse_type(parser_Parser *this) {
   return ({ types_Type *__yield_0;
     switch (parser_Parser_token(this)->type) {
       case tokens_TokenType_Identifier: {
-        ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(this);
+        ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(this, true);
         char *name = (ident->type==ast_nodes_ASTType_Identifier ? ident->u.ident.name : "<unresolved>");
         types_Type *typ = types_Type_new_unresolved(name, ident->span);
         typ->u.unresolved=ident;
@@ -6823,7 +6828,7 @@ types_Type *parser_Parser_parse_type(parser_Parser *this) {
 ;__yield_0; });
 }
 
-ast_nodes_AST *parser_Parser_parse_scoped_identifier(parser_Parser *this) {
+ast_nodes_AST *parser_Parser_parse_scoped_identifier(parser_Parser *this, bool consume_template) {
   tokens_Token *tok = parser_Parser_consume(this, tokens_TokenType_Identifier);
   ast_nodes_AST *node = ast_nodes_AST_new(ast_nodes_ASTType_Identifier, tok->span);
   node->u.ident.name=tok->text;
@@ -6837,6 +6842,9 @@ ast_nodes_AST *parser_Parser_parse_scoped_identifier(parser_Parser *this) {
         node=lookup;
       } break;
       case tokens_TokenType_LessThan: {
+        if (!consume_template) 
+        return node;
+        
         tokens_Token *prev_token = std_vector_Vector__0_at(this->tokens, (((u32)this->curr) - ((u32)1)));
         if (!std_span_Span_starts_right_after(parser_Parser_token(this)->span, prev_token->span)) {
           return node;
@@ -7122,7 +7130,7 @@ ast_nodes_AST *parser_Parser_parse_atom(parser_Parser *this, tokens_TokenType en
       node->u.char_literal=tok->text;
     } break;
     case tokens_TokenType_Identifier: {
-      node=parser_Parser_parse_scoped_identifier(this);
+      node=parser_Parser_parse_scoped_identifier(this, true);
     } break;
     case tokens_TokenType_True:
     case tokens_TokenType_False: {
@@ -7719,7 +7727,7 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   types_Type *parent_type = ((types_Type *)NULL);
   bool is_method = false;
   bool is_static = true;
-  ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(this);
+  ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(this, false);
   if (!((bool)ident)) 
   return NULL;
   
@@ -7745,6 +7753,11 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, this->ns, this->ns->sym, name, name_span);
   func->sym->u.func=func;
   parser_Parser_add_doc_comment(this, func->sym, start);
+  if (parser_Parser_token_is(this, tokens_TokenType_LessThan)) {
+    func->is_templated=true;
+    func->template_params=parser_Parser_parse_template_params(this, NULL);
+    func->template_instances=std_vector_Vector__14_new(((u32)16));
+  } 
   parser_Parser_consume(this, tokens_TokenType_OpenParen);
   while (!parser_Parser_token_is(this, tokens_TokenType_CloseParen)) {
     bool found_amp = parser_Parser_consume_if(this, tokens_TokenType_Ampersand);
@@ -8204,8 +8217,8 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1642:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1643:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1649:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1650:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, ((u32)0))->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__2_contains(this->program->global->namespaces, lib_name)) {
@@ -9666,9 +9679,22 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
   for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(functions); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
     ast_nodes_Function *func = std_vector_Iterator__9_cur(&__iter);
     {
-      if (!func->sym->is_extern) 
-      passes_code_generator_CodeGenerator_gen_function(this, func);
+      if (func->sym->is_extern) 
+      continue;
       
+      if (func->is_templated) {
+        for (std_vector_Iterator__14 __iter = std_vector_Vector__14_iter(func->template_instances); std_vector_Iterator__14_has_value(&__iter); std_vector_Iterator__14_next(&__iter)) {
+          ast_nodes_TemplateInstance *instance = std_vector_Iterator__14_cur(&__iter);
+          {
+            ast_scopes_Symbol *sym = instance->resolved;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:919:24: Assertion failed: `sym.type == Function`", NULL);
+            ast_nodes_Function *func = sym->u.func;
+            passes_code_generator_CodeGenerator_gen_function(this, func);
+          }
+        }
+      }  else {
+        passes_code_generator_CodeGenerator_gen_function(this, func);
+      } 
     }
   }
   for (std_map_ValueIterator__2 __iter = std_map_Map__2_iter_values(ns->namespaces); std_map_ValueIterator__2_has_value(&__iter); std_map_ValueIterator__2_next(&__iter)) {
@@ -9692,7 +9718,23 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
         if (struc->is_templated) 
         continue;
         
+      }  else       if (func->is_templated) {
+        for (std_vector_Iterator__14 __iter = std_vector_Vector__14_iter(func->template_instances); std_vector_Iterator__14_has_value(&__iter); std_vector_Iterator__14_next(&__iter)) {
+          ast_nodes_TemplateInstance *instance = std_vector_Iterator__14_cur(&__iter);
+          {
+            ast_scopes_Symbol *sym = instance->resolved;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:944:24: Assertion failed: `sym.type == Function`", NULL);
+            ast_nodes_Function *func = sym->u.func;
+            passes_code_generator_CodeGenerator_gen_function_decl(this, func);
+            if (func->exits) 
+            std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
+            
+            std_buffer_Buffer_puts(&this->out, ";\n");
+          }
+        }
+        continue;
       } 
+      
       passes_code_generator_CodeGenerator_gen_function_decl(this, func);
       if (func->exits) 
       std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
@@ -9926,6 +9968,23 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
               resolved=type;
             } 
           } break;
+          case ast_scopes_SymbolType_Function: {
+            ast_nodes_Function *func = res->u.func;
+            if ((func->is_templated && !allow_incomplete)) {
+              if (error) {
+                passes_typechecker_TypeChecker_error(this, errors_Error_new(old->span, format_string("Cannot use templated function %s as a type", func->sym->name)));
+                return NULL;
+              } 
+              return resolved;
+            } 
+            resolved=res->u.func->type;
+            if ((node->type==ast_nodes_ASTType_Specialization && func->is_templated)) {
+              ae_assert(!resolve_templates, "compiler/passes/typechecker.oc:95:36: Assertion failed: `not resolve_templates`", "Should have been errored in resolve_scoped_identifier");
+              types_Type *type = types_Type_new_resolved(types_BaseType_UnresolvedTemplate, node->span);
+              type->u.unresolved_spec=types_UnresolvedTemplate_new(resolved, node->u.spec.template_args);
+              resolved=type;
+            } 
+          } break;
           case ast_scopes_SymbolType_Enum: {
             resolved=res->u.enum_->type;
           } break;
@@ -9978,6 +10037,53 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
     } break;
   }
   return resolved;
+}
+
+ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_templated_function(passes_typechecker_TypeChecker *this, ast_nodes_Function *func, ast_nodes_AST *node) {
+  {
+    ast_scopes_Symbol *found = ast_nodes_Function_find_template_instance(func, node->u.spec.template_args);
+    if (((bool)found)) 
+    return found;
+    
+  }
+  ast_nodes_Function *resolved_func = ast_program_Program_get_function_deep_copy(this->o->program, func, func->sym->ns);
+  resolved_func->is_templated=false;
+  resolved_func->template_params=NULL;
+  resolved_func->template_instances=NULL;
+  ast_program_Namespace *parent_ns = func->sym->ns;
+  std_vector_Vector__4 *template_params = func->template_params;
+  std_vector_Vector__3 *template_args = node->u.spec.template_args;
+  if ((template_params->size != template_args->size)) {
+    passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Invalid number of template arguments for %s", func->sym->name)));
+    return NULL;
+  } 
+  ast_scopes_Scope *scope = ast_scopes_Scope_new(parent_ns->scope);
+  resolved_func->scope=scope;
+  passes_generic_pass_GenericPass_push_scope(this->o, scope);
+  std_buffer_Buffer new_display_name = std_buffer_Buffer_make(((u32)16));
+  std_buffer_Buffer_puts(&new_display_name, func->sym->name);
+  std_buffer_Buffer_puts(&new_display_name, "<");
+  for (u32 i = ((u32)0); (i < template_params->size); i+=((u32)1)) {
+    ast_nodes_Variable *param = std_vector_Vector__4_at(template_params, i);
+    types_Type *arg = std_vector_Vector__3_at(template_args, i);
+    if ((i > ((u32)0))) 
+    std_buffer_Buffer_puts(&new_display_name, ", ");
+    
+    std_buffer_Buffer_puts(&new_display_name, types_Type_str(arg));
+    ast_scopes_Symbol *sym = ast_scopes_Symbol_new(ast_scopes_SymbolType_TypeDef, NULL, param->sym->name, param->sym->name, param->sym->name, param->sym->span);
+    sym->u.type_def=arg;
+    passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, sym, NULL);
+  }
+  std_buffer_Buffer_puts(&new_display_name, ">");
+  char *new_out_name = format_string("%s__%u", func->sym->name, func->template_instances->size);
+  resolved_func->sym->out_name=new_out_name;
+  resolved_func->sym->display=std_buffer_Buffer_str(&new_display_name);
+  ast_nodes_TemplateInstance *instance = ast_nodes_TemplateInstance_new(template_args, func->sym, resolved_func->sym);
+  std_vector_Vector__14_push(func->template_instances, instance);
+  passes_typechecker_TypeChecker_check_function_declaration(this, resolved_func);
+  passes_generic_pass_GenericPass_pop_scope(this->o);
+  std_vector_Vector__9_push(this->unchecked_functions, resolved_func);
+  return resolved_func->sym;
 }
 
 void passes_typechecker_TypeChecker_resolve_templated_struct_methods(passes_typechecker_TypeChecker *this, ast_nodes_Structure *old, ast_nodes_Structure *cur) {
@@ -10134,6 +10240,18 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_scoped_identifier(pass
             return NULL;
           } 
           ast_scopes_Symbol *res = passes_typechecker_TypeChecker_resolve_templated_struct(this, struc, node);
+          node->resolved_symbol=res;
+          return res;
+        } break;
+        case ast_scopes_SymbolType_Function: {
+          ast_nodes_Function *func = base->u.func;
+          if (!func->is_templated) {
+            if (error) {
+              passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Can only specialize a templated function, got %s", base->display)));
+            } 
+            return NULL;
+          } 
+          ast_scopes_Symbol *res = passes_typechecker_TypeChecker_resolve_templated_function(this, func, node);
           node->resolved_symbol=res;
           return res;
         } break;
@@ -11129,7 +11247,10 @@ void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecke
     if (struc->is_templated) 
     return ;
     
+  }  else   if (func->is_templated) {
+    return ;
   } 
+  
   if (func->checked) 
   return ;
   
@@ -11281,7 +11402,7 @@ void passes_typechecker_TypeChecker_resolve_doc_links(passes_typechecker_TypeChe
       parser_Parser parser = parser_Parser_make(this->o->program, passes_generic_pass_GenericPass_ns(this->o));
       parser.tokens=tokens;
       parser.curr=((u32)0);
-      ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(&parser);
+      ast_nodes_AST *ident = parser_Parser_parse_scoped_identifier(&parser, true);
       if (!((bool)ident)) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(span, format_string("Invalid link: '%s' in this doc", part)));
         return ;
@@ -11586,7 +11707,12 @@ void passes_typechecker_TypeChecker_check_function_declaration(passes_typechecke
       error=false;
       resolve_templates=false;
     } 
+  }  else   if (func->is_templated) {
+    allow_incomplete=true;
+    error=false;
+    resolve_templates=false;
   } 
+  
   func->return_type=passes_typechecker_TypeChecker_resolve_type(this, func->return_type, allow_incomplete, error, resolve_templates);
   if (!((bool)func->return_type)) {
     func->return_type=passes_typechecker_TypeChecker_get_base_type(this, types_BaseType_Void, func->sym->span);
@@ -12260,6 +12386,32 @@ ast_nodes_Function *ast_nodes_Function_new(void) {
   ast_nodes_Function *func = ((ast_nodes_Function *)calloc(((u32)1), ((u32)sizeof(ast_nodes_Function))));
   func->params=std_vector_Vector__4_new(((u32)16));
   return func;
+}
+
+ast_scopes_Symbol *ast_nodes_Function_find_template_instance(ast_nodes_Function *this, std_vector_Vector__3 *template_args) {
+  std_vector_Vector__3 *a = template_args;
+  for (std_vector_Iterator__14 __iter = std_vector_Vector__14_iter(this->template_instances); std_vector_Iterator__14_has_value(&__iter); std_vector_Iterator__14_next(&__iter)) {
+    ast_nodes_TemplateInstance *instance = std_vector_Iterator__14_cur(&__iter);
+    {
+      std_vector_Vector__3 *b = instance->params;
+      if ((a->size != b->size)) 
+      continue;
+      
+      bool all_ok = true;
+      for (u32 j = ((u32)0); (j < a->size); j+=((u32)1)) {
+        types_Type *a_type = std_vector_Vector__3_at(a, j);
+        types_Type *b_type = std_vector_Vector__3_at(b, j);
+        if (!types_Type_eq(a_type, b_type)) {
+          all_ok=false;
+          break;
+        } 
+      }
+      if (all_ok) 
+      return instance->resolved;
+      
+    }
+  }
+  return NULL;
 }
 
 ast_nodes_Argument *ast_nodes_Argument_new(char *label, std_span_Span label_span, ast_nodes_AST *expr) {

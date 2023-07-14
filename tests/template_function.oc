@@ -1,0 +1,13 @@
+/// compile
+
+
+def add<T>(a: T, b: T): T {
+    return a + b
+}
+
+def main() {
+    let x = add<u32>(1, 2)
+    let y = add<f32>(1.0, 2.0)
+    assert x == 3
+    assert y == 3.0
+}

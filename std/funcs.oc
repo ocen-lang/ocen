@@ -1,0 +1,12 @@
+def abs<T>(num: T) {
+    if num < 0 return -num
+}
+
+def main() {
+    let x = abs(-5)
+    let y = abs(-5.0)
+    let z = abs(-5i32)
+    let w = abs(-5.0f64)
+
+    print(f"{x} {y} {z} {w}")
+}

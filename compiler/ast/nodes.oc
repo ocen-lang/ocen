@@ -226,6 +226,10 @@ struct Function {
     is_method: bool
     is_static: bool
     parent_type: &Type
+
+    is_templated: bool
+    template_params: &Vector<&Variable>
+    template_instances: &Vector<&TemplateInstance>
 }
 
 def Function::new(): &Function {
@@ -234,6 +238,28 @@ def Function::new(): &Function {
     return func
 }
 
+def Function::find_template_instance(&this, template_args: &Vector<&Type>): &Symbol {
+    let a = template_args
+    for instance : .template_instances.iter() {
+        let b = instance.params
+
+        if a.size != b.size continue
+
+        let all_ok = true
+        for let j = 0; j < a.size; j += 1 {
+            let a_type = a.at(j)
+            let b_type = b.at(j)
+            if not a_type.eq(b_type) {
+                all_ok = false
+                break
+            }
+        }
+
+        if all_ok return instance.resolved
+    }
+
+    return null
+}
 
 struct Block {
     statements: &Vector<&AST>
