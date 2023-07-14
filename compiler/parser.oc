@@ -144,7 +144,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
             return_type = Type::new_unresolved_base(BaseType::Void, start_span)
         }
         let type = Type::new_resolved(BaseType::Function, start_span.join(close.span))
-        type.u.func = FunctionType::from_args(params, return_type)
+        type.u.func = FunctionType(null, params, return_type)
         yield type
     }
 
@@ -156,7 +156,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         let size_expr = .parse_expression(end_type: TokenType::CloseSquare)
         let close = .consume(TokenType::CloseSquare)
         let typ = Type::new_resolved(BaseType::Array, start_span.join(close.span))
-        typ.u.arr = ArrayType::new(elem_type, size_expr)
+        typ.u.arr = ArrayType(elem_type, size_expr)
         yield typ
     }
 

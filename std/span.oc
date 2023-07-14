@@ -21,6 +21,10 @@ def Location::default(): Location {
 
 def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}
 
+def Location::is_valid(&this): bool {
+    return .line > 0 and .col > 0 and .index >= 0
+}
+
 //* Checks if the location is before the other location
 def Location::is_before(&this, other: Location): bool {
     if .line > other.line return false
@@ -43,6 +47,10 @@ def Span::default(): Span {
     return span
 }
 
+def Span::is_valid(this): bool {
+    return .start.is_valid() and .end.is_valid()
+}
+
 // Needs to be called in the correct order!
 def Span::join(this, other: Span): Span {
     let span: Span
@@ -53,12 +61,14 @@ def Span::join(this, other: Span): Span {
 
 //* Checks if the location is inside the span
 def Span::contains_loc(this, loc: Location): bool {
+    if not .is_valid() return false
     if not .start.filename.eq(loc.filename) return false
     return .start.is_before(loc) and loc.is_before(.end)
 }
 
 //* Checks if the span starts right after the other span
 def Span::starts_right_after(this, other: Span): bool {
+    if not .is_valid() return false
     if not .start.filename.eq(other.start.filename) return false
     return .start.index == other.end.index
 }

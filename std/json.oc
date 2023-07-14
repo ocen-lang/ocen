@@ -133,7 +133,6 @@ def serialize_into(val: &Value, sb: &Buffer) {
         Integer => sb.putsf(`{val.u.as_num}`)
         String => {
             sb.puts("\"")
-            // Want to escape non-ASCII characters here
             let buf = val.u.as_str
             for let i = 0; i < buf.size; i += 1 {
                 let c = buf.data[i] as char

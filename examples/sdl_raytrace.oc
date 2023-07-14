@@ -256,7 +256,7 @@ def main() {
     let direction = Vec(0.0, 0.0, 1.0)
     camera = Camera::make(origin, direction)
 
-    img = Image::new(WIDTH, HEIGHT);
+    img = Image::new(WIDTH, HEIGHT)
 
     let e: sdl::Event
 
@@ -314,8 +314,6 @@ def main() {
         free(text)
 
         renderer.present()
-
-        // sdl::delay(1000 / 60)
     }
 
     renderer.destroy()

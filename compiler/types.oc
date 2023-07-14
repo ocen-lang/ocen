@@ -59,35 +59,13 @@ def BaseType::str(this): str => match this {
 struct FunctionType {
     //* `null` if this is a function pointer
     orig: &Function
-    return_type: &Type
     params: &Vector<&Variable>
-}
-
-def FunctionType::from_func(func: &Function): &FunctionType {
-    let type = calloc(1, sizeof(FunctionType)) as &FunctionType
-    type.orig = func
-    type.return_type = func.return_type
-    type.params = func.params
-    return type
-}
-
-def FunctionType::from_args(params: &Vector<&Variable>, return_type: &Type): &FunctionType {
-    let type = calloc(1, sizeof(FunctionType)) as &FunctionType
-    type.return_type = return_type
-    type.params = params
-    return type
+    return_type: &Type
 }
 
 struct ArrayType {
     elem_type: &Type
     size_expr: &AST
-}
-
-def ArrayType::new(elem_type: &Type, size_expr: &AST): &ArrayType {
-    let type = calloc(1, sizeof(ArrayType)) as &ArrayType
-    type.elem_type = elem_type
-    type.size_expr = size_expr
-    return type
 }
 
 //* Stores an unresolved template specialization.
@@ -101,21 +79,15 @@ struct UnresolvedTemplate {
     args: &Vector<&Type>
 }
 
-def UnresolvedTemplate::new(base: &Type, args: &Vector<&Type>): &UnresolvedTemplate {
-    let spec = calloc(1, sizeof(UnresolvedTemplate)) as &UnresolvedTemplate
-    spec.base = base
-    spec.args = args
-    return spec
-}
 
 struct TypeUnion {
     ptr: &Type
-    func: &FunctionType
     struc: &Structure
     enum_: &Enum
     unresolved: &AST
-    arr: &ArrayType
-    unresolved_spec: &UnresolvedTemplate
+    func: FunctionType
+    arr: ArrayType
+    unresolved_spec: UnresolvedTemplate
 }
 
 struct Type {
@@ -129,6 +101,12 @@ struct Type {
     //* This is used for specializations, so that they can point to the original
     //* template instance and the template arguments.
     template_instance: &TemplateInstance
+}
+
+def Type::shallow_copy(old: &Type): &Type {
+    let new = calloc(1, sizeof(Type)) as &Type
+    *new = *old
+    return new
 }
 
 def Type::new_resolved(base: BaseType, span: Span): &Type {
