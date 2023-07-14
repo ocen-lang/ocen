@@ -897,7 +897,7 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 def CodeGenerator::gen_function(&this, func: &Function) {
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
-        if struc.is_templated then return
+        if struc.sym.is_templated() then return
     }
 
     .gen_debug_info(func.sym.span)
@@ -919,8 +919,8 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
 
     for func : functions.iter() {
         if func.sym.is_extern then continue
-        if func.is_templated then {
-            for instance : func.template_instances.iter() {
+        if func.sym.is_templated() then {
+            for instance : func.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Function
                 let func = sym.u.func
@@ -943,9 +943,9 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 
         if func.is_method and func.parent_type.base == Structure {
             let struc = func.parent_type.u.struc
-            if struc.is_templated then continue
-        } else if func.is_templated then {
-            for instance : func.template_instances.iter() {
+            if struc.sym.is_templated() then continue
+        } else if func.sym.is_templated() then {
+            for instance : func.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Function
                 let func = sym.u.func

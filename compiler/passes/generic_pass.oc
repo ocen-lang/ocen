@@ -98,7 +98,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
     }
     SymbolType::Structure => {
         let struc = sym.u.struc
-        if struc.is_templated {
+        if sym.is_templated() {
             .error(Error::new_hint(
                 span, `Need to specify template specialization for {sym.display}`,
                 sym.span, `Template was defined here`

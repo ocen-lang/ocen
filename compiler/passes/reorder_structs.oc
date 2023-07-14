@@ -7,7 +7,8 @@ import @passes::generic_pass::GenericPass
 import std::vector::Vector
 import std::map::Map
 import @ast::program::{ Program, Namespace }
-import @ast::nodes::{ Structure, Variable, TemplateInstance }
+import @ast::nodes::{ Structure, Variable }
+import @ast::scopes::{ TemplateInstance }
 import std::libc::{ calloc, free }
 
 struct ReorderStructs {
@@ -36,8 +37,8 @@ def ReorderStructs::free(&this) {
 // Collects all structs we have in the namespace into the vector
 def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
     for struc : ns.structs.iter() {
-        if struc.is_templated {
-            for instance : struc.template_instances.iter() {
+        if struc.sym.is_templated() {
+            for instance : struc.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Structure
                 .all_structs.push(sym.u.struc)

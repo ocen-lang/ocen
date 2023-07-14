@@ -1,7 +1,7 @@
 //* Contains the structs for the type system.
 
-import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function, TemplateInstance }
-import @ast::scopes::Symbol
+import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
+import @ast::scopes::{ Symbol, TemplateInstance }
 import @ast::program::Namespace
 import std::vector::Vector
 import std::map::Map
