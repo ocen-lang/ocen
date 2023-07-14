@@ -912,7 +912,17 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
     for func : functions.iter() {
-        if not func.sym.is_extern then .gen_function(func)
+        if func.sym.is_extern then continue
+        if func.is_templated then {
+            for instance : func.template_instances.iter() {
+                let sym = instance.resolved
+                assert sym.type == Function
+                let func = sym.u.func
+                .gen_function(func)
+            }
+        } else {
+            .gen_function(func)
+        }
     }
 
     for child : ns.namespaces.iter_values() {
@@ -928,6 +938,16 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
         if func.is_method and func.parent_type.base == Structure {
             let struc = func.parent_type.u.struc
             if struc.is_templated then continue
+        } else if func.is_templated then {
+            for instance : func.template_instances.iter() {
+                let sym = instance.resolved
+                assert sym.type == Function
+                let func = sym.u.func
+                .gen_function_decl(func)
+                if func.exits then .out.puts(" __attribute__((noreturn))")
+                .out.puts(";\n")
+            }
+            continue
         }
 
         .gen_function_decl(func)

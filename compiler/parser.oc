@@ -166,7 +166,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
     }
 }
 
-def Parser::parse_scoped_identifier(&this): &AST {
+def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST {
     let tok = .consume(TokenType::Identifier)
     let node = AST::new(ASTType::Identifier, tok.span)
     node.u.ident.name = tok.text
@@ -181,6 +181,7 @@ def Parser::parse_scoped_identifier(&this): &AST {
                 node = lookup
             }
             TokenType::LessThan => {
+                if not consume_template return node
                 // FIXME: Is there a more robust way to do this?
                 // We want to be able to differentiate between a `<` that starts a specialization and
                 // a `<` that is part of a less-than comparison before typechecking, I don't know of
@@ -1126,7 +1127,7 @@ def Parser::parse_function(&this): &Function {
     let is_method = false
     let is_static = true
 
-    let ident = .parse_scoped_identifier()
+    let ident = .parse_scoped_identifier(consume_template: false)
     if not ident? return null
 
     let name_span = ident.span
@@ -1149,6 +1150,12 @@ def Parser::parse_function(&this): &Function {
     func.sym = Symbol::new_with_parent(Function, .ns, .ns.sym, name, name_span)
     func.sym.u.func = func
     .add_doc_comment(func.sym, start)
+
+    if .token_is(TokenType::LessThan) {
+        func.is_templated = true
+        func.template_params = .parse_template_params()
+        func.template_instances = Vector<&TemplateInstance>::new()
+    }
 
     .consume(TokenType::OpenParen)
     while not .token_is(TokenType::CloseParen) {
