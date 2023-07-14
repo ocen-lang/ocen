@@ -451,26 +451,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_type(node.u.size_of_type)
             .out.puts("))")
         }
-        Assert => {
-            let expr = node.u.assertion.expr
-            .out.puts("ae_assert(")
-            .gen_expression(expr)
-            .out.puts(", ")
-            {
-                .out.puts("\"")
-                .out.putsf(expr.span.start.str())
-                let expr_str = .o.program.get_source_text(expr.span)
-                .out.putsf(f": Assertion failed: `{expr_str}`")
-                .out.puts("\"")
-            }
-            .out.puts(", ")
-            if node.u.assertion.msg? {
-                .gen_expression(node.u.assertion.msg)
-            } else {
-                .out.puts("NULL")
-            }
-            .out.puts(")")
-        }
         Null => .out.puts("NULL")
 
         And |
@@ -772,6 +752,32 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .out.puts(") ")
             .gen_block(body)
             .out.puts("\n")
+        }
+        ASTType::Assert => {
+            let expr = node.u.assertion.expr
+            .out.puts("ae_assert(")
+            .gen_expression(expr)
+            .out.puts(", ")
+            {
+                .out.puts("\"")
+                .out.putsf(expr.span.start.str())
+                let expr_str = .o.program.get_source_text(expr.span)
+                .out.putsf(f": Assertion failed: `{expr_str}`")
+                .out.puts("\"")
+            }
+            .out.puts(", ")
+            if node.u.assertion.msg? {
+                .gen_expression(node.u.assertion.msg)
+            } else {
+                .out.puts("NULL")
+            }
+            .out.puts(");")
+
+            // If we have an explicit `assert false`, insert an exit after it to
+            // make GCCs static analyzer happy
+            if expr.type == BoolLiteral and expr.u.bool_literal == false {
+                .out.puts(" exit(1);")
+            }
         }
         else => {
             .gen_indent()
