@@ -18,6 +18,42 @@ enum SymbolType {
     Constant
 }
 
+struct TemplateInstance {
+    args: &Vector<&Type>
+    parent: &Symbol
+    resolved: &Symbol
+}
+
+def TemplateInstance::new(args: &Vector<&Type>, parent: &Symbol, resolved: &Symbol): &TemplateInstance {
+    let instance = calloc(1, sizeof(TemplateInstance)) as &TemplateInstance
+    instance.args = args
+    instance.parent = parent
+    instance.resolved = resolved
+    return instance
+}
+
+def TemplateInstance::matches(&this, other: &Vector<&Type>): bool {
+    assert other.size == .args.size
+    for let i = 0; i < other.size; i++ {
+        let a = .args.at(i)
+        let b = other.at(i)
+        if not a.eq(b, strict: true) return false
+    }
+    return true
+}
+
+struct Template {
+    params: &Vector<&Variable>
+    instances: &Vector<&TemplateInstance>
+}
+
+def Template::new(params: &Vector<&Variable>): &Template {
+    let templ = calloc(1, sizeof(Template)) as &Template
+    templ.params = params
+    templ.instances = Vector<&TemplateInstance>::new()
+    return templ
+}
+
 union SymbolUnion {
     func: &Function
     struc: &Structure
@@ -45,6 +81,8 @@ struct Symbol {
     type: SymbolType
     u: SymbolUnion
     is_extern: bool
+
+    template: &Template
 }
 
 def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, out_name: str, span: Span): &Symbol {
@@ -60,6 +98,8 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, out_n
 
 def Symbol::join_display(a: str, b: str): str => if a.len() == 0 then b else `{a}::{b}`
 def Symbol::join_out_name(a: str, b: str): str => if a.len() == 0 then b else `{a}_{b}`
+
+def Symbol::is_templated(&this): bool => .template?
 
 def Symbol::new_with_parent(type: SymbolType, ns: &Namespace, parent: &Symbol, name: str, span: Span): &Symbol {
     let display = Symbol::join_display(parent.display, name)

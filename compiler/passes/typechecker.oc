@@ -7,7 +7,7 @@ import std::vector::Vector
 import std::span::Span
 import std::buffer::Buffer
 import std::map::Map
-import @ast::scopes::{ Scope, Symbol, SymbolType }
+import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
 import @passes::generic_pass::GenericPass
@@ -75,7 +75,7 @@ def TypeChecker::resolve_type(
                     SymbolType::TypeDef => resolved = res.u.type_def
                     SymbolType::Structure => {
                         let struc = res.u.struc
-                        if struc.is_templated and not allow_incomplete {
+                        if res.is_templated() and not allow_incomplete {
                             if error {
                                 .error(Error::new(old.span, `Cannot use templated struct {struc.sym.name} as a type`))
                                 return null
@@ -83,7 +83,7 @@ def TypeChecker::resolve_type(
                             return resolved
                         }
                         resolved = res.u.struc.type
-                        if node.type == Specialization and struc.is_templated {
+                        if node.type == Specialization and res.is_templated() {
                             assert not resolve_templates, "Should have been errored in resolve_scoped_identifier"
                             let type = Type::new_resolved(UnresolvedTemplate, node.span)
                             type.u.unresolved_spec = UnresolvedTemplate(resolved, node.u.spec.template_args)
@@ -92,7 +92,7 @@ def TypeChecker::resolve_type(
                     }
                     SymbolType::Function => {
                         let func = res.u.func
-                        if func.is_templated and not allow_incomplete {
+                        if res.is_templated() and not allow_incomplete {
                             if error {
                                 .error(Error::new(old.span, `Cannot use templated function {func.sym.name} as a type`))
                                 return null
@@ -100,7 +100,7 @@ def TypeChecker::resolve_type(
                             return resolved
                         }
                         resolved = res.u.func.type
-                        if node.type == Specialization and func.is_templated {
+                        if node.type == Specialization and res.is_templated() {
                             assert not resolve_templates, "Should have been errored in resolve_scoped_identifier"
                             let type = Type::new_resolved(UnresolvedTemplate, node.span)
                             type.u.unresolved_spec = UnresolvedTemplate(resolved, node.u.spec.template_args)
@@ -146,113 +146,6 @@ def TypeChecker::resolve_type(
     return resolved
 }
 
-def find_template_instance(template_instances: &Vector<&TemplateInstance>, params: &Vector<&Type>): &Symbol {
-    let a = params
-    for instance : template_instances.iter() {
-        let b = instance.params
-
-        if a.size != b.size continue
-
-        let all_ok = true
-        for let j = 0; j < a.size; j += 1 {
-            let a_type = a.at(j)
-            let b_type = b.at(j)
-            if not a_type.eq(b_type) {
-                all_ok = false
-                break
-            }
-        }
-
-        if all_ok return instance.resolved
-    }
-
-    return null
-}
-
-def TypeChecker::setup_template_scope_and_symbol(
-    &this,
-    template_params: &Vector<&Variable>,
-    template_args: &Vector<&Type>,
-    sym: &Symbol,
-    span: Span,
-): &Scope {
-
-    // Some sanity checks
-    if template_params.size != template_args.size {
-        .error(Error::new(span, `Invalid number of template arguments for {sym.name}`))
-        return null
-    }
-
-    // Want to also build a new display name for the specialization
-    let new_display_name = Buffer::make()
-    new_display_name.puts(sym.name)
-    new_display_name.puts("<")
-
-    // This is the scope that we'll use to resolve the template parameters
-    let scope = Scope::new(sym.ns.scope)
-    .o.push_scope(scope)
-
-    // Add the template arguments to the scope with corresponding names
-    for let i = 0; i < template_params.size; i += 1 {
-        let param = template_params.at(i)
-        let arg = template_args.at(i)
-
-        if i > 0 then new_display_name.puts(", ")
-        new_display_name.puts(arg.str())
-
-        let cur_sym = Symbol::new(
-            TypeDef,
-            ns: null,
-            param.sym.name, // name
-            param.sym.name, // display
-            param.sym.name, // out_name
-            param.sym.span,
-        )
-        cur_sym.u.type_def = arg
-        .o.insert_into_scope_checked(cur_sym)
-    }
-    .o.pop_scope()
-
-    new_display_name.puts(">")
-    sym.display = new_display_name.str()
-
-    return scope
-}
-
-def TypeChecker::resolve_templated_function(&this, func: &Function, node: &AST): &Symbol {
-    // If we've already resolved this template, just return the symbol
-    {
-        let found = find_template_instance(func.template_instances, node.u.spec.template_args)
-        if found? return found
-    }
-
-    let resolved_func = .o.program.get_function_deep_copy(func, func.sym.ns)
-    resolved_func.is_templated = false
-    resolved_func.template_params = null
-    resolved_func.template_instances = null
-
-    let new_out_name = `{func.sym.name}__{func.template_instances.size}`
-    resolved_func.sym.out_name = new_out_name
-
-    let template_args = node.u.spec.template_args
-    let scope = .setup_template_scope_and_symbol(
-        func.template_params,
-        template_args,
-        resolved_func.sym, node.span
-    )
-
-    let instance = TemplateInstance::new(template_args, parent: func.sym, resolved: resolved_func.sym)
-    func.template_instances.push(instance)
-
-    .o.push_scope(scope)
-    .check_function_declaration(resolved_func)
-    .o.pop_scope()
-
-    .unchecked_functions.push(resolved_func)
-
-    return resolved_func.sym
-}
-
 def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &Structure) {
     let old_type = old.type
     let cur_type = cur.type
@@ -284,44 +177,19 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
         new_method.scope = .scope()
         .check_function_declaration(new_method)
-    }
 
-    // NOTE: We don't want to check these functions right now, since we could still be in the process
-    // of setting up the namespaces / imports / etc. We'll check them later at the end of the program.
-    for method : cur_methods.iter_values() {
-        .unchecked_functions.push(method)
+        // NOTE: We don't want to check these functions right now, since we could still be in the process
+        // of setting up the namespaces / imports / etc. We'll check them later at the end of the program.
+        .unchecked_functions.push(new_method)
     }
 }
 
-def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST): &Symbol {
-    // If we've already resolved this template, just return the symbol
-    {
-        let found = find_template_instance(struc.template_instances, node.u.spec.template_args)
-        if found? return found
-    }
-
-    // OK, so we need to make a new instance of this template (aka a specialization)
+def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &TemplateInstance) {
+    let sym = instance.resolved
     let resolved_struc = .o.program.get_struct_deep_copy(struc, struc.sym.ns)
-    resolved_struc.is_templated = false
-    resolved_struc.template_params = null
-    resolved_struc.template_instances = null
-    let parent_ns = struc.sym.ns
-
-    let new_out_name = `{struc.sym.name}__{struc.template_instances.size}`
-    let sym = Symbol::new_with_parent(Structure, parent_ns, parent_ns.sym, new_out_name, struc.sym.span)
-    sym.u.struc = resolved_struc
+    resolved_struc.sym.template = null
     resolved_struc.sym = sym
-
-    let template_args = node.u.spec.template_args
-    let scope = .setup_template_scope_and_symbol(
-        struc.template_params,
-        template_args,
-        sym, node.span
-    )
-    .o.push_scope(scope)
-
-    let instance = TemplateInstance::new(template_args, parent: struc.sym, resolved: sym)
-    struc.template_instances.push(instance)
+    sym.u.struc = resolved_struc
 
     let typ = Type::new_resolved(Structure, sym.span)
     typ.u.struc = resolved_struc
@@ -329,15 +197,98 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, node: &AST):
     typ.sym = sym
     typ.template_instance = instance
 
-    // Resolve the types of the fields
     .resolve_struct(resolved_struc)
-
-    // Instantiate all the methods for this specialization
     .resolve_templated_struct_methods(struc, resolved_struc)
-
-    .o.pop_scope()
-    return sym
 }
+
+def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &TemplateInstance) {
+    let sym = instance.resolved
+    let resolved_func = .o.program.get_function_deep_copy(func, func.sym.ns)
+    resolved_func.sym.template = null
+    resolved_func.sym = sym
+    sym.u.func = resolved_func
+
+    .check_function_declaration(resolved_func)
+    .unchecked_functions.push(resolved_func)
+}
+
+
+def find_template_instance(template_instances: &Vector<&TemplateInstance>, args: &Vector<&Type>): &Symbol {
+    for instance : template_instances.iter() {
+        if instance.matches(args) return instance.resolved
+    }
+    return null
+}
+
+def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Symbol {
+    // If we've already resolved this template, just return the symbol
+    {
+        let found = find_template_instance(sym.template.instances, node.u.spec.template_args)
+        if found? return found
+    }
+
+    let parent_ns = sym.ns
+    let template_args = node.u.spec.template_args
+    let template_params = sym.template.params
+
+    if template_params.size != template_args.size {
+        .error(Error::new(node.span, `Invalid number of template arguments for {sym.name}`))
+        return null
+    }
+
+    // Want to also build a new display name for the specialization
+    let new_display_name = Buffer::make()
+    new_display_name.puts(sym.name)
+    new_display_name.puts("<")
+
+    // This is the scope that we'll use to resolve the template parameters
+    let scope = Scope::new(sym.ns.scope)
+    .o.push_scope(scope)
+
+    // Add the template arguments to the scope with corresponding names
+    for let i = 0; i < template_params.size; i += 1 {
+        let param = template_params.at(i)
+        let arg = template_args.at(i)
+
+        if i > 0 then new_display_name.puts(", ")
+        new_display_name.puts(arg.str())
+
+        let cur_sym = Symbol::new(
+            TypeDef,
+            ns: null,
+            param.sym.name, // name
+            param.sym.name, // display
+            param.sym.name, // out_name
+            param.sym.span,
+        )
+        cur_sym.u.type_def = arg
+        .o.insert_into_scope_checked(cur_sym)
+    }
+
+    new_display_name.puts(">")
+
+    // NOTE: We need to do `new_with_parent` to properly set the namespaced names of the symbol
+    let new_out_name = `{sym.name}__{sym.template.instances.size}`
+    let new_sym = Symbol::new_with_parent(sym.type, parent_ns, parent_ns.sym, new_out_name, sym.span)
+    new_sym.name = sym.name
+    new_sym.display = new_display_name.str()
+
+    let instance = TemplateInstance::new(template_args, parent: sym, resolved: new_sym)
+    sym.template.instances.push(instance)
+
+    match sym.type {
+        Structure => .resolve_templated_struct(sym.u.struc, instance)
+        Function => .resolve_templated_function(sym.u.func, instance)
+        else => {
+            .error(Error::new(node.span, `Cannot specialize non-templated symbol {sym.name}`))
+            return null
+        }
+    }
+    .o.pop_scope()
+
+    return new_sym
+}
+
 
 def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true, hint: &Type = null, resolve_templates: bool = true): &Symbol {
     match node.type {
@@ -379,6 +330,12 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             let base = .resolve_scoped_identifier(node.u.spec.base, error, hint, resolve_templates)
             if not base? return null
 
+            base = base.remove_alias()
+            if not base.is_templated() {
+                .error(Error::new(node.span, `Cannot specialize non-templated symbol {base.name}`))
+                return null
+            }
+
             let args = node.u.spec.template_args
             let failed = false
             for let i = 0; i < args.size; i += 1 {
@@ -390,47 +347,13 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 args.data[i] = resolved_arg
             }
             if failed return null
-            base = base.remove_alias()
 
             if not resolve_templates {
                 node.resolved_symbol = base
                 return base
             }
 
-            match base.type {
-                Structure => {
-                    let struc = base.u.struc
-                    if not struc.is_templated {
-                        if error {
-                            .error(Error::new(node.span, `Can only specialize a templated structure, got {base.display}`))
-                        }
-                        return null
-                    }
-
-                    let res = .resolve_templated_struct(struc, node)
-                    node.resolved_symbol = res
-                    return res
-                }
-                Function => {
-                    let func = base.u.func
-                    if not func.is_templated {
-                        if error {
-                            .error(Error::new(node.span, `Can only specialize a templated function, got {base.display}`))
-                        }
-                        return null
-                    }
-
-                    let res = .resolve_templated_function(func, node)
-                    node.resolved_symbol = res
-                    return res
-                }
-                else => {
-                    if error {
-                        .error(Error::new(node.span, `Can only specialize a structure, got {base.display}`))
-                    }
-                    return null
-                }
-            }
+            return .resolve_templated_symbol(base, node)
         }
         else => {
             if error {
@@ -1419,8 +1342,8 @@ def TypeChecker::check_function(&this, func: &Function) {
     .resolve_doc_links(func.sym)
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
-        if struc.is_templated then return
-    } else if func.is_templated {
+        if struc.sym.is_templated() then return
+    } else if func.sym.is_templated() {
         return
     }
     if func.checked then return
@@ -1843,7 +1766,7 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
     .resolve_doc_links(struc.sym)
 
     // We cannot resolve templated structs.
-    if struc.is_templated {
+    if struc.sym.is_templated() {
         .loosely_resolve_templated_struct(struc)
         return
     }
@@ -1866,12 +1789,12 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
-        if struc.is_templated {
+        if struc.sym.is_templated() {
             allow_incomplete = true
             error = false
             resolve_templates = false
         }
-    } else if func.is_templated {
+    } else if func.sym.is_templated() {
         allow_incomplete = true
         error = false
         resolve_templates = false

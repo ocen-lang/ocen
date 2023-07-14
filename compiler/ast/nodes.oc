@@ -131,30 +131,12 @@ struct VarDeclaration {
     init: &AST
 }
 
-struct TemplateInstance {
-    params: &Vector<&Type>
-    parent: &Symbol
-    resolved: &Symbol
-}
-
-def TemplateInstance::new(params: &Vector<&Type>, parent: &Symbol, resolved: &Symbol): &TemplateInstance {
-    let instance = calloc(1, sizeof(TemplateInstance)) as &TemplateInstance
-    instance.params = params
-    instance.parent = parent
-    instance.resolved = resolved
-    return instance
-}
-
 struct Structure {
     sym: &Symbol
     fields: &Vector<&Variable>
     type: &Type
     is_union: bool
     span: Span
-
-    is_templated: bool
-    template_params: &Vector<&Variable>
-    template_instances: &Vector<&TemplateInstance>
 }
 
 def Structure::new(): &Structure {
@@ -207,10 +189,6 @@ struct Function {
     is_method: bool
     is_static: bool
     parent_type: &Type
-
-    is_templated: bool
-    template_params: &Vector<&Variable>
-    template_instances: &Vector<&TemplateInstance>
 }
 
 def Function::new(): &Function {

@@ -8,7 +8,7 @@ import std::span::Span
 import std::map::Map
 import std::vector::Vector
 import @tokens::{ Token, TokenType }
-import @ast::scopes::{ Symbol, SymbolType }
+import @ast::scopes::{ Symbol, SymbolType, Template }
 import @errors::Error
 import std::libc::{ calloc, free }
 import @utils::directory_exists
@@ -1093,7 +1093,7 @@ def Parser::parse_block(&this): &AST {
     return node
 }
 
-def Parser::parse_template_params(&this, out_span: &Span = null): &Vector<&Variable> {
+def Parser::parse_template_params(&this, sym: &Symbol, out_span: &Span = null) {
     let start = .consume(TokenType::LessThan).span
     let params = Vector<&Variable>::new()
     while not .token_is(TokenType::GreaterThan) {
@@ -1111,7 +1111,8 @@ def Parser::parse_template_params(&this, out_span: &Span = null): &Vector<&Varia
     if out_span? {
         *out_span = start.join(end)
     }
-    return params
+
+    sym.template = Template::new(params)
 }
 
 def Parser::add_doc_comment(&this, sym: &Symbol, token: &Token) {
@@ -1152,9 +1153,7 @@ def Parser::parse_function(&this): &Function {
     .add_doc_comment(func.sym, start)
 
     if .token_is(TokenType::LessThan) {
-        func.is_templated = true
-        func.template_params = .parse_template_params()
-        func.template_instances = Vector<&TemplateInstance>::new()
+        .parse_template_params(func.sym)
     }
 
     .consume(TokenType::OpenParen)
@@ -1376,9 +1375,7 @@ def Parser::parse_struct(&this): &Structure {
     .add_doc_comment(struc.sym, start)
 
     if .token_is(TokenType::LessThan) {
-        struc.is_templated = true
-        struc.template_params = .parse_template_params()
-        struc.template_instances = Vector<&TemplateInstance>::new()
+        .parse_template_params(struc.sym)
     }
 
     .parse_extern_into_symbol(struc.sym)

@@ -79,7 +79,7 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
                 assert parent.type == Structure, "Template instance parent is not a structure"
 
                 let parent_struc = parent.u.struc
-                return .gen_templated_type(parent_struc.type, instance.params)
+                return .gen_templated_type(parent_struc.type, instance.args)
             }
         }
         UnresolvedTemplate => {
@@ -199,11 +199,11 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
     } else {
         struc_doc.insert("kind", Value::new_str("struct"))
     }
-    struc_doc.insert("is_templated", Value::new_bool(struc.is_templated))
+    struc_doc.insert("is_templated", Value::new_bool(struc.sym.is_templated()))
 
-    if struc.is_templated {
+    if struc.sym.is_templated() {
         let params_doc = Value::new(List)
-        for var : struc.template_params.iter() {
+        for var : struc.sym.template.params.iter() {
             let name = var.sym.name
             params_doc.push(Value::new_str(name))
         }
