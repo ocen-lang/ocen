@@ -1,0 +1,25 @@
+@compiler c_include "unistd.h"
+@compiler c_include "pthread.h"
+
+namespace impl {
+    struct pthread_t extern
+    struct pthread_attr_t extern
+    def pthread_create(thread: &pthread_t, attr: &pthread_attr_t, start_routine: fn(untyped_ptr): untyped_ptr, arg: untyped_ptr): i32 extern
+    def pthread_join(thread: pthread_t, retval: &untyped_ptr): i32 extern
+}
+
+struct Thread {
+    tid: impl::pthread_t
+}
+
+def Thread::make(callback: fn(untyped_ptr): untyped_ptr, arg: untyped_ptr = null): Thread {
+    let thread: Thread
+    impl::pthread_create(&thread.tid, null, callback, arg)
+    return thread
+}
+
+def Thread::join(&this) {
+    impl::pthread_join(.tid, null)
+}
+
+def sleep(seconds: u32) extern
