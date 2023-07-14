@@ -1501,7 +1501,6 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 
     for func : ns.functions.iter() {
         .check_function(func)
-        .unchecked_functions.push(func)
     }
 
     for node : ns.constants.iter() {
