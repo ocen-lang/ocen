@@ -1,0 +1,28 @@
+/// compile
+
+import std::thread::{ Thread, sleep }
+
+def foo(arg: untyped_ptr): untyped_ptr {
+    while true {
+        println("foo")
+        sleep(1)
+    }
+    return null
+}
+
+def bar(arg: untyped_ptr): untyped_ptr {
+    while true {
+        println("bar")
+        sleep(1)
+    }
+    return null
+}
+
+
+def main() {
+    let t1 = Thread::make(foo)
+    let t2 = Thread::make(bar)
+
+    t1.join()
+    t2.join()
+}
