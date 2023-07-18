@@ -8,7 +8,7 @@ type inference, namespaces, stricter types and a module system. It transpiles to
 Use the following command to build the initial compiler:
 
 ```shell
-$ ./meta/bootstrap.sh       # Generates ./bootstrap/ocen if successful
+$ meta/bootstrap.sh       # Generates bootstrap/ocen if successful
 ```
 
 ### Compiling other programs
@@ -25,9 +25,9 @@ $ export PATH=$OCEN_ROOT/bootstrap:$PATH # Add the compiler to your PATH
 You can then use the compiler as follows:
 
 ```shell
-$ ocen file.oc                # generates ./out and ./out.c
-$ ocen file.oc -o ./build/out # generates ./build/out and ./build/out.c
-$ ocen file.oc -n -c ./temp.c # generates only ./temp.c
+$ ocen file.oc                # generates out and out.c
+$ ocen file.oc -o build/out   # generates build/out and build/out.c
+$ ocen file.oc -n -c temp.c   # generates only temp.c
 ```
 
 For tips on developing the compiler, see [DEVELOPING.md](./DEVELOPING.md).
