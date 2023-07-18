@@ -41,6 +41,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
     let span = enum_.sym.span
 
     let func = Function::new()
+    func.span = Span::default()
     func.sym = Symbol::new_with_parent(Function, enum_.sym.ns, enum_.sym, "dbg", span)
     func.sym.u.func = func
     func.return_type = .o.program.get_type_by_name("str", span)

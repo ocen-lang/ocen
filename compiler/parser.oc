@@ -1615,7 +1615,7 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
 //* Finds the library with the name provided
 def Parser::find_external_library(&this, name: str): &Namespace {
     for lib_path : .program.library_paths.iter() {
-        let path = f"{lib_path}/{name}"
+        let path = if lib_path.len() > 0 then  f"{lib_path}/{name}" else name
         if directory_exists(path) {
             let ns = Namespace::new(parent: .program.global, path: path)
             ns.sym = Symbol::new_with_parent(
