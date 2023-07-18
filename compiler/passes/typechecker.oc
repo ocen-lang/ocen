@@ -1475,7 +1475,7 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
             let part = doc.substring(prev, i-prev)
 
             // Parse a scoped-identifier
-            let lexer = Lexer::make(part, null)
+            let lexer = Lexer::make(part, sym.span.start.filename)
             let span = Span(sym.comment_loc, sym.comment_loc)
             let tokens = lexer.lex()
 

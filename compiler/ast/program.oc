@@ -167,7 +167,7 @@ def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Fun
     let func_text = .get_source_text(old.span)
     if not func_text? return null
 
-    let lexer = Lexer::make(func_text, null)
+    let lexer = Lexer::make(func_text, old.span.start.filename)
     lexer.loc = old.span.start
 
     let tokens = lexer.lex()
@@ -188,7 +188,7 @@ def Program::get_struct_deep_copy(&this, old: &Structure, ns: &Namespace): &Stru
     let text = .get_source_text(old.span)
     if not text? return null
 
-    let lexer = Lexer::make(text, null)
+    let lexer = Lexer::make(text, old.span.start.filename)
     lexer.loc = old.span.start
 
     let tokens = lexer.lex()
