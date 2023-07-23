@@ -24,14 +24,19 @@ def File::write(&this, buf: untyped_ptr, size: u32): i32 {
 
 def File::slurp(&this): str {
     import .libc::*
+    let size = .size()
+    let buf = calloc((size as u32 + 1), sizeof(char))
+    fread(buf, 1, size, this)
+    return buf as str
+}
+
+def File::size(&this): u32 {
+    import .libc::*
     let pos = ftell(this)
     fseek(this, 0, SEEK_END)
     let size = ftell(this) as u32
     fseek(this, pos, SEEK_SET)
-    let buf = calloc((size as u32 + 1), sizeof(char))
-    fread(buf, 1, size, this)
-    fseek(this, pos, SEEK_SET)
-    return buf as str
+    return size
 }
 
 def File::exists(path: str): bool {
@@ -67,6 +72,20 @@ def str::substring(this, start: u32, len: u32): str {
     let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str
     libc::memcpy(new_str, &this[start], len)
     return new_str
+}
+
+def str::ends_with(this, suffix: str): bool {
+    let suffix_len = suffix.len()
+    let len = .len()
+    if suffix_len > len {
+        return false
+    }
+    for let i = 0; i < suffix_len; i += 1 {
+        if this[len - suffix_len + i] != suffix[i] {
+            return false
+        }
+    }
+    return true
 }
 
 def str::strip_trailing_whitespace(this) {

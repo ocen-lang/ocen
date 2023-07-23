@@ -124,7 +124,7 @@ def Program::new(): &Program {
         ns: prog.global,
         name: "",
         display: "",
-        out_name: "",
+        full_name: "",
         Span::default()
     )
     prog.global.sym.u.ns = prog.global

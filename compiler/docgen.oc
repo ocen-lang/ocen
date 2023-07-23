@@ -20,7 +20,7 @@ def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
     }
     enum_doc.insert("kind", Value::new_str("enum"))
     if enum_.sym.is_extern {
-        enum_doc.insert("extern", Value::new_str(enum_.sym.out_name))
+        enum_doc.insert("extern", Value::new_str(enum_.sym.out_name()))
     } else {
         .gen_location(enum_doc, enum_.sym.span)
     }
@@ -33,7 +33,7 @@ def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
             field_doc.insert("description", Value::new_str(field.sym.comment))
         }
         if field.sym.is_extern {
-            field_doc.insert("extern", Value::new_str(field.sym.out_name))
+            field_doc.insert("extern", Value::new_str(field.sym.out_name()))
         }
         fields_doc.push(field_doc)
     }
@@ -174,7 +174,7 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
     }
 
     if func.sym.is_extern {
-        func_doc.insert("extern", Value::new_str(func.sym.out_name))
+        func_doc.insert("extern", Value::new_str(func.sym.out_name()))
     } else {
         .gen_location(func_doc, func.span)
     }
@@ -222,7 +222,7 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
         struc_doc.insert("template_params", params_doc)
     }
     if struc.sym.is_extern {
-        struc_doc.insert("extern", Value::new_str(struc.sym.out_name))
+        struc_doc.insert("extern", Value::new_str(struc.sym.out_name()))
     } else {
         .gen_location(struc_doc, struc.span)
     }
@@ -236,7 +236,7 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
             field_doc.insert("description", Value::new_str(field.sym.comment))
         }
         if field.sym.is_extern {
-            field_doc.insert("extern", Value::new_str(field.sym.out_name))
+            field_doc.insert("extern", Value::new_str(field.sym.out_name()))
         }
         fields_doc.push(field_doc)
     }
@@ -303,7 +303,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             var_doc.insert("type", .gen_typename(var.type))
             .gen_location(var_doc, var.sym.span)
             if var.sym.is_extern {
-                var_doc.insert("extern", Value::new_str(var.sym.out_name))
+                var_doc.insert("extern", Value::new_str(var.sym.out_name()))
             }
             vars_doc.insert(var.sym.name, var_doc)
         }
@@ -324,7 +324,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             const_doc.insert("type", .gen_typename(var.type))
             .gen_location(const_doc, var.sym.span)
             if var.sym.is_extern {
-                const_doc.insert("extern", Value::new_str(var.sym.out_name))
+                const_doc.insert("extern", Value::new_str(var.sym.out_name()))
             }
             consts_doc.insert(var.sym.name, const_doc)
         }

@@ -206,6 +206,9 @@ def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &T
     let resolved_func = .o.program.get_function_deep_copy(func, func.sym.ns)
     resolved_func.sym.template = null
     resolved_func.sym = sym
+    if func.parent_type? {
+        sym.update_parent(func.parent_type.sym)
+    }
     sym.u.func = resolved_func
 
     .check_function_declaration(resolved_func)
@@ -213,7 +216,7 @@ def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &T
 }
 
 
-def find_template_instance(template_instances: &Vector<&TemplateInstance>, args: &Vector<&Type>): &Symbol {
+def TypeChecker::find_template_instance(&this, template_instances: &Vector<&TemplateInstance>, args: &Vector<&Type>): &Symbol {
     for instance : template_instances.iter() {
         if instance.matches(args) return instance.resolved
     }
@@ -223,7 +226,7 @@ def find_template_instance(template_instances: &Vector<&TemplateInstance>, args:
 def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Symbol {
     // If we've already resolved this template, just return the symbol
     {
-        let found = find_template_instance(sym.template.instances, node.u.spec.template_args)
+        let found = .find_template_instance(sym.template.instances, node.u.spec.template_args)
         if found? return found
     }
 
@@ -270,7 +273,6 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
     // NOTE: We need to do `new_with_parent` to properly set the namespaced names of the symbol
     let new_out_name = `{sym.name}__{sym.template.instances.size}`
     let new_sym = Symbol::new_with_parent(sym.type, parent_ns, parent_ns.sym, new_out_name, sym.span)
-    new_sym.name = sym.name
     new_sym.display = new_display_name.str()
 
     let instance = TemplateInstance::new(template_args, parent: sym, resolved: new_sym)
@@ -1343,10 +1345,8 @@ def TypeChecker::check_function(&this, func: &Function) {
     if func.is_method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.sym.is_templated() then return
-    } else if func.sym.is_templated() {
-        return
     }
-    if func.checked then return
+    if func.sym.is_templated() or func.checked then return
     func.checked = true
 
     let new_scope = Scope::new(func.scope)
@@ -1794,7 +1794,8 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
             error = false
             resolve_templates = false
         }
-    } else if func.sym.is_templated() {
+    }
+    if func.sym.is_templated() {
         allow_incomplete = true
         error = false
         resolve_templates = false

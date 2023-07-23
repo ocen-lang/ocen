@@ -51,6 +51,15 @@ def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
     .index  += count
 }
 
+//* Read a signed 8-bit integer
+def BufferIO::read_i8(&this): i8 { return .read_u8() as i8 }
+//* Read an unsigned 8-bit integer
+def BufferIO::read_u8(&this): u8 {
+    let value = .data.data[.index]
+    .index += 1
+    return value
+}
+
 //* Read a signed 16-bit integer in big-endian format.
 def BufferIO::read_i16_be(&this): i16 { return .read_i16_be() as i16 }
 //* Read an unsigned 16-bit integer in big-endian format.

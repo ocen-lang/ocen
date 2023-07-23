@@ -207,7 +207,7 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
 }
 
 def Type::is_str(&this): bool {
-    return .base == Alias and .sym.out_name.eq("str")
+    return .base == Alias and .sym.full_name.eq("str")
 }
 
 def Type::unaliased(&this): &Type {

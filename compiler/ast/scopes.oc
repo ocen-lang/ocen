@@ -68,8 +68,9 @@ struct Symbol {
     name: str
     //* Fully qualified display name, including namespaces
     display: str
-    //* Name used in the output C code
-    out_name: str
+    //* Name used in the output C code (except extern)
+    full_name: str
+
     //* Span of the declaration
     span: Span
     //* Namespace it was defined in
@@ -80,16 +81,23 @@ struct Symbol {
 
     type: SymbolType
     u: SymbolUnion
+
     is_extern: bool
+    extern_name: str
 
     template: &Template
 }
 
-def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, out_name: str, span: Span): &Symbol {
+def Symbol::out_name(&this): str {
+    if .is_extern return .extern_name
+    return .full_name
+}
+
+def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_name: str, span: Span): &Symbol {
     let item = calloc(1, sizeof(Symbol)) as &Symbol
     item.name = name
     item.display = display
-    item.out_name = out_name
+    item.full_name = full_name
     item.span = span
     item.type = type
     item.ns = ns
@@ -97,20 +105,20 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, out_n
 }
 
 def Symbol::join_display(a: str, b: str): str => if a.len() == 0 then b else `{a}::{b}`
-def Symbol::join_out_name(a: str, b: str): str => if a.len() == 0 then b else `{a}_{b}`
+def Symbol::join_full_name(a: str, b: str): str => if a.len() == 0 then b else `{a}_{b}`
 
 def Symbol::is_templated(&this): bool => .template?
 
 def Symbol::new_with_parent(type: SymbolType, ns: &Namespace, parent: &Symbol, name: str, span: Span): &Symbol {
     let display = Symbol::join_display(parent.display, name)
-    let out_name = Symbol::join_out_name(parent.out_name, name)
-    return Symbol::new(type, ns, name, display, out_name, span)
+    let full_name = Symbol::join_full_name(parent.full_name, name)
+    return Symbol::new(type, ns, name, display, full_name, span)
 }
 
 def Symbol::update_parent(&this, parent: &Symbol) {
     .display = Symbol::join_display(parent.display, .name)
     if not .is_extern {
-        .out_name = Symbol::join_out_name(parent.out_name, .name)
+        .full_name = Symbol::join_full_name(parent.full_name, .name)
     }
 }
 
@@ -120,7 +128,7 @@ def Symbol::from_local_variable(name: str, var: &Variable, span: Span): &Symbol 
         ns: null,
         name: name,
         display: name,
-        out_name: name,
+        full_name: name,
         span: span,
     )
     item.u.var = var

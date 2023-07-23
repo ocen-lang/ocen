@@ -1,0 +1,313 @@
+import std::buffer::Buffer
+import std::bufferio::BufferIO
+import std::libc::memset
+import std::image::Image
+import std::vec::Vec
+
+struct Pixel {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+def Pixel::hash(this): u32 {
+    let r = .r as u32
+    let g = .g as u32
+    let b = .b as u32
+    let a = .a as u32
+    return (r * 3 + g * 5 + b * 7 + a * 11) % 64
+}
+
+def Pixel::eq(this, other: Pixel): bool {
+    return .r == other.r and .g == other.g and .b == other.b and .a == other.a
+}
+
+struct QOIDecoder {
+    io: BufferIO,
+
+    width: u32,
+    height: u32,
+    channels: u8,
+    colorspace: u8,
+
+    pixels_done: u32,
+    prev: Pixel,
+    seen: [Pixel; 64],
+
+    img: &Image
+}
+
+def QOIDecoder::make(data: &Buffer): QOIDecoder {
+    let decoder: QOIDecoder
+    memset(&decoder, 0, sizeof(QOIDecoder))
+    decoder.io = BufferIO::make(data)
+    decoder.prev = Pixel(0, 0, 0, 255)
+    return decoder
+}
+
+def QOIDecoder::decode(&this): &Image {
+    let magic = .io.read_u32_be()
+    assert magic == 0x716f6966, "Invalid magic number"
+
+    .width = .io.read_u32_be()
+    .height = .io.read_u32_be()
+
+    .channels = .io.read_u8()
+    .colorspace = .io.read_u8()
+
+    if .channels == 4 {
+        println(`WARNING: QOI decoder does not support alpha. Ignoring alpha channel.`)
+    }
+
+    .img = Image::new(.width, .height)
+    .decode_pixels()
+    return .img
+}
+
+def QOIDecoder::handle_pixel(&this, pix: Pixel) {
+    let hash = pix.hash()
+    let seen = .seen[hash]
+    .seen[hash] = pix
+    .prev = pix
+
+    // ignoring alpha
+    let col = Vec(
+        pix.r as f32 / 255.0,
+        pix.g as f32 / 255.0,
+        pix.b as f32 / 255.0,
+    )
+    .img.data[.pixels_done] = col
+
+    .pixels_done += 1
+}
+
+def QOIDecoder::decode_pixels(&this) {
+    while .pixels_done < .width * .height {
+        let b = .io.read_u8()
+
+        if b == 0b11111110 {
+            .decode_op_rgb()
+        } else if b == 0b11111111 {
+            .decode_op_rgba()
+
+        } else if b >> 6 == 0b00 {
+            .decode_op_index(b)
+
+        } else if b >> 6 == 0b01 {
+            .decode_op_diff(b)
+
+        } else if b >> 6 == 0b10 {
+            .decode_op_luma(b)
+
+        } else if b >> 6 == 0b11 {
+            .decode_op_run(b)
+
+        } else {
+            assert false, "Invalid opcode"
+        }
+    }
+}
+
+def QOIDecoder::decode_op_rgb(&this) {
+    let r = .io.read_u8()
+    let g = .io.read_u8()
+    let b = .io.read_u8()
+    let pixel = Pixel(r, g, b, 255)
+    .handle_pixel(pixel)
+}
+
+def QOIDecoder::decode_op_rgba(&this) {
+    println("QOI_OP_RGBA")
+    let r = .io.read_u8()
+    let g = .io.read_u8()
+    let b = .io.read_u8()
+    let a = .io.read_u8()
+    let pixel = Pixel(r, g, b, a)
+    .handle_pixel(pixel)
+}
+
+def QOIDecoder::decode_op_luma(&this, first: u8) {
+    let second = .io.read_u8()
+
+    let dg = ((first & 0b00111111u8) - 32) as u8
+    let dr_dg = ((second >> 4u8) - 8) as u8
+    let db_dg = ((second & 0b1111u8) - 8) as u8
+
+    let dr = dg + dr_dg
+    let db = dg + db_dg
+
+    let pixel = Pixel(
+        .prev.r + dr,
+        .prev.g + dg,
+        .prev.b + db,
+        .prev.a
+    )
+
+    .handle_pixel(pixel)
+}
+
+def QOIDecoder::decode_op_index(&this, first: u8) {
+    let index = first & 0b00111111
+    let pixel = .seen[index]
+    .handle_pixel(pixel)
+}
+
+def QOIDecoder::decode_op_diff(&this, first: u8) {
+    let r = (first >> 4 & 0b11) - 2
+    let g = (first >> 2 & 0b11) - 2
+    let b = (first >> 0 & 0b11) - 2
+    let pixel = Pixel(
+        .prev.r + (r as u8),
+        .prev.g + (g as u8),
+        .prev.b + (b as u8),
+        .prev.a
+    )
+    .handle_pixel(pixel)
+}
+
+def QOIDecoder::decode_op_run(&this, first: u8) {
+    let run = (first & 0b00111111) as u32 + 1
+    for let i = 0; i < run; i++ {
+        .handle_pixel(.prev)
+    }
+}
+
+struct QOIEncoder {
+    io: BufferIO,
+    img: &Image
+
+    seen: [Pixel; 64]
+    prev: Pixel
+    pixels_done: u32
+}
+
+def QOIEncoder::make(img: &Image, buffer: &Buffer): QOIEncoder {
+    let encoder: QOIEncoder
+    memset(&encoder, 0, sizeof(QOIEncoder))
+    encoder.img = img
+    encoder.io = BufferIO::make(buffer)
+    encoder.prev = Pixel(0, 0, 0, 255)
+    return encoder
+}
+
+def QOIEncoder::encode_header(&this) {
+    .io.write_u32_be(0x716f6966) // Magic
+    .io.write_u32_be(.img.width)
+    .io.write_u32_be(.img.height)
+    .io.write_u8(3) // Channels
+    .io.write_u8(0) // Colorspace
+}
+
+def QOIEncoder::img_pix(&this, idx: u32): Pixel {
+    let col = .img.data[idx]
+    return Pixel(
+        (col.x * 255.0) as u8,
+        (col.y * 255.0) as u8,
+        (col.z * 255.0) as u8,
+        255
+    )
+}
+
+def QOIEncoder::handle_pixel(&this, pix: Pixel, num: u32 = 1) {
+    let hash = pix.hash()
+    .seen[hash] = pix
+    .prev = pix
+    .pixels_done += num
+}
+
+def QOIEncoder::encode_pixel(&this, pix: Pixel) {
+    // Case 1: Is this a run?
+    if .prev.eq(pix) {
+        let run = 1
+        while .pixels_done + run < .img.width * .img.height and run < 62 {
+            if not .prev.eq(.img_pix(.pixels_done + run)) {
+                break
+            }
+            run += 1
+        }
+
+        assert 1 <= run <= 62, "Run length must be between 1 and 62"
+
+        .io.write_u8((0b11u8 << 6) | (run as u8 - 1))
+        .handle_pixel(pix, run)
+        return
+    }
+
+    // Is this in the seen table?
+    {
+        let hash = pix.hash()
+        let seen_pix = .seen[hash]
+        if seen_pix.eq(pix) {
+            .io.write_u8((0b00u8 << 6u8) | hash as u8)
+            .handle_pixel(pix)
+            return
+        }
+    }
+
+    // Can we use diff_rgb or diff_luma?
+    {
+        let dr = pix.r as i32 - .prev.r as i32
+        let dg = pix.g as i32 - .prev.g as i32
+        let db = pix.b as i32 - .prev.b as i32
+
+        // diff_rgb
+        if -2 <= dr < 2 and -2 <= dg < 2 and -2 <= db < 2 {
+            let dr_u = (dr + 2) as u8
+            let dg_u = (dg + 2) as u8
+            let db_u = (db + 2) as u8
+            .io.write_u8((0b01u8 << 6) | (dr_u << 4) | (dg_u << 2) | db_u)
+            .handle_pixel(pix)
+            return
+        }
+
+        // diff_luma
+        let dr_dg = dr - dg
+        let db_dg = db - dg
+        if -32 <= dg < 32 and -8 <= dr_dg < 8 and -8 <= db_dg < 8 {
+            let dg_u = (dg + 32) as u8
+            let dr_dg_u = (dr_dg + 8) as u8
+            let db_dg_u = (db_dg + 8) as u8
+            .io.write_u8((0b10u8 << 6) | dg_u)
+            .io.write_u8((dr_dg_u << 4) | db_dg_u)
+            .handle_pixel(pix)
+            return
+        }
+    }
+
+    // Save as rgb
+    .io.write_u8(0b11111110)
+    .io.write_u8(pix.r)
+    .io.write_u8(pix.g)
+    .io.write_u8(pix.b)
+    .handle_pixel(pix)
+}
+
+def QOIEncoder::encode_pixels(&this) {
+    while .pixels_done < .img.width * .img.height {
+        .encode_pixel(.img_pix(.pixels_done))
+    }
+}
+
+def QOIEncoder::encode_end(&this) {
+    for let i = 0; i < 7; i++ {
+        .io.write_u8(0)
+    }
+    .io.write_u8(1)
+}
+
+def QOIEncoder::encode(&this) {
+    .encode_header()
+    .encode_pixels()
+    .encode_end()
+}
+
+def encode(img: &Image, data: &Buffer) {
+    let encoder = QOIEncoder::make(img, data)
+    encoder.encode()
+}
+
+def decode(data: &Buffer): &Image {
+    let decoder = QOIDecoder::make(data)
+    return decoder.decode()
+}
