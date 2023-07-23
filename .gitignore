@@ -19,3 +19,7 @@ test.txt
 
 out.c
 out
+
+*.ppm
+*.png
+*.qoi

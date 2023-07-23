@@ -1,0 +1,118 @@
+import std::fft::{ ffgat2, ifft2 }
+import std::math::{ TAU }
+import std::image::Image
+import std::vec::Vec
+import std::complex::Complex
+import std::libc::{ free, memcpy }
+import std::sort::sort
+
+def get_image_channel(img: &Image, out: &Complex, channel: i32) {
+    for let i = 0; i < img.height * img.width; i++ {
+        let col = img.data[i]
+        let val = match channel {
+            0 => col.x,
+            1 => col.y,
+            2 => col.z,
+            else => (col.x + col.y + col.z) / 3.0
+        }
+        out[i] = Complex::new(val, 0.0)
+    }
+}
+
+def save_image_channel(img: &Image, data: &Complex, channel: i32) {
+    for let i = 0; i < img.height * img.width; i++ {
+        let col = img.data[i]
+        let val = data[i].real().clamp01()
+        match channel {
+            0 => img.data[i].x = val
+            1 => img.data[i].y = val
+            2 => img.data[i].z = val
+            else => img.data[i] = Vec(val, val, val)
+        }
+    }
+}
+
+def process_channel(img: &Image, channel: i32, discard_pct: f32) {
+    let num_pixels = img.width * img.height
+    let data_a = std::new<Complex>(num_pixels)
+    let data_b = std::new<Complex>(num_pixels)
+
+    get_image_channel(img, data_a, channel)
+    fft2(data_a, img.height, img.width, data_b)
+
+    let tmp = std::new<Complex>(num_pixels)
+    memcpy(tmp, data_b, num_pixels * sizeof(Complex))
+
+    sort<Complex>(tmp, num_pixels)
+    let index = (num_pixels as f32 * discard_pct) as u32
+    let threshold = tmp[index].abs()
+
+    for let i = 0; i < num_pixels; i++ {
+        if data_b[i].abs() < threshold {
+            data_b[i] = Complex::new(0.0, 0.0)
+        }
+    }
+    free(tmp)
+
+    ifft2(data_b, img.height, img.width, data_a)
+    save_image_channel(img, data_a, channel)
+
+    free(data_a)
+    free(data_b)
+}
+
+def process_image_rgb(img: &Image, discard_pct: f32) {
+    process_channel(img, channel: 0, discard_pct)
+    process_channel(img, channel: 1, discard_pct)
+    process_channel(img, channel: 2, discard_pct)
+}
+
+def process_image_grayscale(img: &Image, discard_pct: f32) {
+    process_channel(img, channel: -1, discard_pct)
+}
+
+def main(argc: i32, argv: &str) {
+    let input = null as str
+    let output = null as str
+    let quality = 0.01
+    let grayscale = false
+
+    let pos_count = 0
+    for let i = 1i32; i < argc; i++ {
+        let arg = argv[i]
+
+        if arg.eq("-q") {
+            assert i+1 < argc, "Missing argument for -q"
+            quality = argv[i + 1].to_f32()
+            assert 0.0 <= quality <= 1.0, "Quality must be between 0 and 1"
+            i++
+        } else if arg.eq("-g") {
+            grayscale = true
+        } else if pos_count == 0 {
+            input = arg
+            pos_count++
+        } else if pos_count == 1 {
+            output = arg
+            pos_count++
+        } else {
+            println("Unknown argument: {arg}")
+            return 1
+        }
+    }
+
+    if pos_count != 2 {
+        println("Usage: {argv[0]} [-q quality] [-g] input output")
+        return 1
+    }
+
+    let img = Image::load(input)
+
+    if grayscale {
+        process_image_grayscale(img, 1.0 - quality)
+    } else {
+        process_image_rgb(img, 1.0 - quality)
+    }
+
+    img.save(output)
+    img.free()
+}

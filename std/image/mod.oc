@@ -2,7 +2,7 @@
 
 import std::vec::Vec
 import std::libc::{ calloc, free }
-import std::math::clamp01
+import std::math
 import std::buffer::Buffer
 
 //* A type that holds an Image

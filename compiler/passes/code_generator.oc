@@ -755,6 +755,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         }
         ASTType::Assert => {
             let expr = node.u.assertion.expr
+            .gen_indent()
             .out.puts("ae_assert(")
             .gen_expression(expr)
             .out.puts(", ")
@@ -762,8 +763,15 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
                 .out.puts("\"")
                 .out.putsf(expr.span.start.str())
                 let expr_str = .o.program.get_source_text(expr.span)
-                .out.putsf(f": Assertion failed: `{expr_str}`")
-                .out.puts("\"")
+                .out.puts(": Assertion failed: `")
+                let len = expr_str.len()
+                for let i = 0; i < len; i += 1 {
+                    match expr_str[i] {
+                        '"' => .out.puts("\\\"")
+                        else => .out.putc(expr_str[i])
+                    }
+                }
+                .out.puts("`\"")
             }
             .out.puts(", ")
             if node.u.assertion.msg? {
