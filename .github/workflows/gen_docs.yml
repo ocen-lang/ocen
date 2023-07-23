@@ -16,7 +16,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           mkdir -p build-docs
-          ./bootstrap/ocen compiler/main.oc --docs build-docs/docs.json
+          ./meta/gen_docs.sh build-docs/docs.json
 
       - name: Copy
         if: ${{ github.ref == 'refs/heads/master' }}
