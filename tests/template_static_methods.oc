@@ -1,7 +1,8 @@
+/// compile
+
 struct Foo {}
 
 def Foo::bar<T>(x: T): T => x
-
 
 def main() {
     Foo::bar<i32>(5)

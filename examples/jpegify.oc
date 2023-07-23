@@ -1,4 +1,4 @@
-import std::fft::{ ffgat2, ifft2 }
+import std::fft::{ fft2, ifft2 }
 import std::math::{ TAU }
 import std::image::Image
 import std::vec::Vec

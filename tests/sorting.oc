@@ -1,0 +1,18 @@
+/// exit: 0
+
+import std::sort::sort
+
+def main() {
+    let foo: [str; 4]
+    foo[0] = "foo"
+    foo[2] = "baz"
+    foo[3] = "quux"
+    foo[1] = "bar"
+
+    sort<str>(foo, 4)
+
+    assert foo[0].eq("bar")
+    assert foo[1].eq("baz")
+    assert foo[2].eq("foo")
+    assert foo[3].eq("quux")
+}
