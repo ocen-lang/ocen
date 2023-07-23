@@ -193,7 +193,7 @@ def CodeGenerator::gen_constant(&this, node: &AST) {
     if not const_.sym.is_extern {
         .gen_indent()
         .out.puts("#define ")
-        .out.puts(const_.sym.out_name)
+        .out.puts(const_.sym.out_name())
         .out.puts(" (")
         .gen_expression(node.u.var_decl.init)
         .out.puts(")\n")
@@ -272,7 +272,7 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
 }
 
 def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
-    .out.putsf(`({struc.sym.out_name})\{`)
+    .out.putsf(`({struc.sym.out_name()})\{`)
     let fields = struc.fields
     let args = node.u.call.args
     for let i = 0; i < args.size; i += 1 {
@@ -280,7 +280,7 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
         let arg = args.at(i)
         let field = fields.at(i)
 
-        .out.putsf(`.{field.sym.out_name}=`)
+        .out.putsf(`.{field.sym.out_name()}=`)
         .gen_expression(arg.expr)
     }
     .out.puts("}")
@@ -346,7 +346,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 // Method call
                 let sym = node.resolved_symbol
                 match sym.type {
-                    Function => .out.puts(sym.out_name)
+                    Function => .out.puts(sym.out_name())
                     else => {
                         .error(Error::new(
                             node.span, `Unhandled symbol type in CodeGenerator::gen_expression: {sym.type}`
@@ -372,7 +372,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 return
             }
             match sym.type {
-                Function | Variable | Constant => .out.puts(sym.out_name)
+                Function | Variable | Constant => .out.puts(sym.out_name())
                 else => std::panic(`Unhandled symbol type: {sym.type}`)
             }
         }
@@ -518,7 +518,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
 def CodeGenerator::gen_var_declaration(&this, node: &AST) {
     let var = node.u.var_decl.var
 
-    .gen_type_and_name(var.type, var.sym.out_name)
+    .gen_type_and_name(var.type, var.sym.out_name())
     if node.u.var_decl.init? {
         .out.puts(" = ")
         .gen_expression(node.u.var_decl.init)
@@ -816,8 +816,8 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
         I8   | I16  | I32  | I64 |
         U8   | U16  | U32  | U64 |
         F32  | F64 => acc.replace(`{cur.base.str()} {acc}`)
-        Structure => acc.replace(`{cur.u.struc.sym.out_name} {acc}`)
-        Enum => acc.replace(`{cur.u.enum_.sym.out_name} {acc}`)
+        Structure => acc.replace(`{cur.u.struc.sym.out_name()} {acc}`)
+        Enum => acc.replace(`{cur.u.enum_.sym.out_name()} {acc}`)
 
         Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
 
@@ -830,7 +830,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             for let i = 0; i < params.size; i += 1 {
                 if i != 0 then args_str.puts(", ")
                 let var = params.at(i)
-                let arg_str = .get_type_name_string(var.type, var.sym.out_name, is_func_def: false)
+                let arg_str = .get_type_name_string(var.type, var.sym.out_name(), is_func_def: false)
                 args_str.putsf(arg_str)
             }
             if is_func_def and cur == top {
@@ -899,6 +899,7 @@ def CodeGenerator::gen_function(&this, func: &Function) {
         let struc = func.parent_type.u.struc
         if struc.sym.is_templated() then return
     }
+    if func.sym.is_templated() then return
 
     .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
@@ -908,8 +909,8 @@ def CodeGenerator::gen_function(&this, func: &Function) {
 }
 
 def CodeGenerator::gen_function_decl(&this, func: &Function) {
-    let func_name = func.sym.out_name
-    let s = .get_type_name_string(func.type, func_name, true)
+    let funfull_name = func.sym.out_name()
+    let s = .get_type_name_string(func.type, funfull_name, true)
     .out.putsf(s)
 }
 
@@ -944,7 +945,9 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
         if func.is_method and func.parent_type.base == Structure {
             let struc = func.parent_type.u.struc
             if struc.sym.is_templated() then continue
-        } else if func.sym.is_templated() then {
+        }
+
+        if func.sym.is_templated() then {
             for instance : func.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Function
@@ -989,7 +992,7 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
     for field : enum_.fields.iter() {
         .gen_indent()
         .out.puts("case ")
-        .out.puts(field.sym.out_name)
+        .out.puts(field.sym.out_name())
         .out.putsf(`: return "{field.sym.name}";\n`)
     }
     // This is mostly for extern enums, but is also useful for cases
@@ -1005,13 +1008,13 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
 }
 
 def CodeGenerator::gen_enum(&this, enum_: &Enum) {
-    let enum_name = enum_.sym.out_name
+    let enum_name = enum_.sym.out_name()
 
     if not enum_.sym.is_extern {
         .out.putsf(`typedef enum {enum_name} \{\n`)
         for field : enum_.fields.iter() {
             .out.puts("  ")
-            .out.puts(field.sym.out_name)
+            .out.puts(field.sym.out_name())
             .out.puts(",\n")
         }
         .out.putsf(`\} {enum_name};\n\n`)
@@ -1020,16 +1023,16 @@ def CodeGenerator::gen_enum(&this, enum_: &Enum) {
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
-    let struc_name = struc.sym.out_name
+    let strufull_name = struc.sym.out_name()
     if struc.is_union {
-        .out.putsf(`union {struc_name} \{\n`)
+        .out.putsf(`union {strufull_name} \{\n`)
     } else {
-        .out.putsf(`struct {struc_name} \{\n`)
+        .out.putsf(`struct {strufull_name} \{\n`)
     }
 
     for field : struc.fields.iter() {
         .out.puts("  ")
-        .gen_type_and_name(field.type, field.sym.out_name)
+        .gen_type_and_name(field.type, field.sym.out_name())
         .out.puts(";\n")
     }
     .out.puts("};\n\n")
@@ -1044,11 +1047,11 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     for struc : structs.iter() {
         if struc.sym.is_extern then continue
 
-        let struc_name = struc.sym.out_name
+        let strufull_name = struc.sym.out_name()
         if struc.is_union {
-            .out.putsf(`typedef union {struc_name} {struc_name};\n`)
+            .out.putsf(`typedef union {strufull_name} {strufull_name};\n`)
         } else {
-            .out.putsf(`typedef struct {struc_name} {struc_name};\n`)
+            .out.putsf(`typedef struct {strufull_name} {strufull_name};\n`)
         }
     }
 

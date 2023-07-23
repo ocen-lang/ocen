@@ -1,0 +1,30 @@
+import std::image::Image
+import std::File
+import std::buffer::Buffer
+import std::bufferio::BufferIO
+
+def encode(img: &Image, data: &Buffer) {
+    let io = BufferIO::make(data)
+
+    let u8buf = calloc(1, img.width * img.height * 3) as &u8
+    defer free(u8buf)
+
+    for let i = 0; i < img.width * img.height; i += 1 {
+        let col = *(img.data + i)
+        let offset = u8buf + i * 3
+        *(offset + 0) = (clamp01(col.x) * 255.0) as u8
+        *(offset + 1) = (clamp01(col.y) * 255.0) as u8
+        *(offset + 2) = (clamp01(col.z) * 255.0) as u8
+    }
+
+    let header = `P6 {img.width} {img.height} 255\n`
+    defer free(header)
+
+    io.write_bytes(header, header.len())
+    io.write_bytes(u8buf, img.width * img.height * 3)
+}
+
+def decode(data: &Buffer): &Image {
+    assert false, "PPM decoding not implemented yet"
+}
+

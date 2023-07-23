@@ -30,11 +30,23 @@ def Buffer::from_str(s: str): Buffer {
     )
 }
 
+def Buffer::from_file(path: str): Buffer {
+    let file = std::File::open(path, "rb")
+    assert file?, `Could not open file: {path}`
+
+    let size = file.size()
+    let data = file.slurp()
+    assert data?, `Could not read file: {path}`
+    file.close()
+
+    return Buffer::from_sized_str(data, size)
+}
+
 def Buffer::from_sized_str(s: str, size: u32): Buffer {
     return Buffer(
         data: s as &u8,
         size: size as u32,
-        capacity: s.len() as u32,
+        capacity: size as u32,
     )
 }
 

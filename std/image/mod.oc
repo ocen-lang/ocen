@@ -1,0 +1,74 @@
+//* Image struct / IO utilities (PPM)
+
+import std::vec::Vec
+import std::libc::{ calloc, free }
+import std::math::clamp01
+import std::buffer::Buffer
+
+//* A type that holds an Image
+//*
+//* The image is stored in 32-bit floating point format.
+//* Each of the RGB values are supposed to be in the range [0,1].
+struct Image {
+    width: u32
+    height: u32
+    data: &Vec
+}
+
+def Image::new(width: u32, height: u32): &Image {
+    let img = calloc(1, sizeof(Image)) as &Image
+    *img = Image(width, height, calloc(width * height, sizeof(Vec)))
+    return img
+}
+
+def Image::free(&this) {
+    free(.data)
+    free(this)
+}
+
+def Image::get(&this, x: u32, y: u32): Vec => .data[y * .width + x]
+def Image::set(&this, x: u32, y: u32, col: Vec) { .data[y * .width + x] = col }
+
+def Image::save(&this, filename: str) {
+    import .ppm
+    import .qoi
+
+    let buffer = Buffer::make()
+    if filename.ends_with(".ppm") {
+        ppm::encode(this, &buffer)
+    } else if filename.ends_with(".qoi") {
+        qoi::encode(this, &buffer)
+    } else {
+        assert false, `Unknown file format for image: ${filename}`
+    }
+
+    let file = std::File::open(filename, "wb")
+    file.write(buffer.data, buffer.size)
+    file.close()
+    buffer.free()
+}
+
+def Image::load(filename: str): &Image {
+    import .ppm
+    import .qoi
+
+    let data = Buffer::from_file(filename)
+
+    let image = null as &Image
+    if filename.ends_with(".ppm") {
+        image = ppm::decode(&data)
+    } else if filename.ends_with(".qoi") {
+        image = qoi::decode(&data)
+    } else {
+        assert false, `Unknown file format for image: ${filename}`
+    }
+
+    assert image?, `Failed to load image: ${filename}`
+    data.free()
+    return image
+}
+
+
+def Image::clear(&this) {
+    std::libc::memset(.data, 0, .width * .height * sizeof(Vec))
+}

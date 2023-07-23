@@ -2,12 +2,12 @@
 @compiler c_flag "-O3"
 
 import std::vec::Vec
-import std::vector::OldVector
+import std::vector::Vector
 import std::image::Image
 import std::math::{ rand01, sqrt }
 import std::libc::malloc
 
-const TOL = 0.00001;
+const TOL: f32 = 0.00001;
 
 def random_vec(): Vec {
     return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
@@ -77,10 +77,12 @@ def background_color(ray: &Ray): Vec {
     return res.multf(t).add(col2)
 }
 
-def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
+def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, obj_col: &Vec): i32 {
     let idx = -1
 
-    for obj : objs.iter(i) {
+    for let i = 0; i < objs.size; i++ {
+        let obj = objs.at(i)
+
         let tmp_t: f32
         let tmp_n: Vec
         let tmp_col: Vec
@@ -97,7 +99,7 @@ def find_hit(ray: &Ray, objs: &OldVector, t: &f32, n: &Vec, obj_col: &Vec): i32 
     return idx
 }
 
-def raytrace(ray: &Ray, objs: &OldVector, depth: i32): Vec {
+def raytrace(ray: &Ray, objs: &Vector<&Sphere>, depth: i32): Vec {
     if depth < 0
         return Vec(0.0, 0.0, 0.0)
 
@@ -116,14 +118,14 @@ def raytrace(ray: &Ray, objs: &OldVector, depth: i32): Vec {
 }
 
 def main() {
-    let objs = OldVector::new()
+    let objs = Vector<&Sphere>::new()
     objs.push(Sphere::new(0.0,    0.0, -1.0,   0.5, 1.0, 0.6, 0.3))
     objs.push(Sphere::new(0.0, -100.5, -1.0, 100.0, 0.5, 0.5, 0.5))
 
     // Image
     let aspect_ratio = 16.0 / 9.0
     let image_width = 800
-    let image_height = (image_width as f32 / aspect_ratio) as i32
+    let image_height = (image_width as f32 / aspect_ratio) as u32
     let samples_per_pixel = 100
 
     // Camera
@@ -166,5 +168,5 @@ def main() {
         }
     }
     println("")
-    img.save("out.ppm");
+    img.save("out.qoi");
 }
