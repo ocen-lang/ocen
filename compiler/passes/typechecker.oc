@@ -210,6 +210,7 @@ def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &T
         sym.update_parent(func.parent_type.sym)
     }
     sym.u.func = resolved_func
+    resolved_func.scope = .scope()
 
     .check_function_declaration(resolved_func)
     .unchecked_functions.push(resolved_func)
@@ -1352,6 +1353,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     let new_scope = Scope::new(func.scope)
     let params = func.params
 
+    .o.push_scope(func.scope)
     for param : params.iter() {
         let default_expr = param.default_value
         if default_expr? {
@@ -1367,6 +1369,7 @@ def TypeChecker::check_function(&this, func: &Function) {
 
         new_scope.items.insert(param.sym.name, param.sym)
     }
+    .o.pop_scope()
 
     new_scope.cur_func = func
 

@@ -12,9 +12,9 @@ def encode(img: &Image, data: &Buffer) {
     for let i = 0; i < img.width * img.height; i += 1 {
         let col = *(img.data + i)
         let offset = u8buf + i * 3
-        *(offset + 0) = (clamp01(col.x) * 255.0) as u8
-        *(offset + 1) = (clamp01(col.y) * 255.0) as u8
-        *(offset + 2) = (clamp01(col.z) * 255.0) as u8
+        *(offset + 0) = ((col.x).clamp01() * 255.0) as u8
+        *(offset + 1) = ((col.y).clamp01() * 255.0) as u8
+        *(offset + 2) = ((col.z).clamp01() * 255.0) as u8
     }
 
     let header = `P6 {img.width} {img.height} 255\n`

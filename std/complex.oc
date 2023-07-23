@@ -1,0 +1,51 @@
+
+@compiler c_include "complex.h"
+import std::math
+
+struct Complex extern("float complex")
+
+def Complex::new(real: f32, imag: f32): Complex extern("CMPLXF")
+def Complex::real(this): f32 extern("crealf")
+def Complex::imag(this): f32 extern("cimagf")
+def Complex::abs(this): f32 extern("cabsf")
+def Complex::arg(this): f32 extern("cargf")
+def Complex::conj(this): Complex extern("conjf")
+def Complex::exp(this): Complex extern("cexpf")
+def Complex::log(this): Complex extern("clogf")
+
+def Complex::sin(this): Complex extern("csinf")
+def Complex::cos(this): Complex extern("ccosf")
+def Complex::tan(this): Complex extern("ctanf")
+def Complex::asin(this): Complex extern("casinf")
+def Complex::acos(this): Complex extern("cacosf")
+def Complex::atan(this): Complex extern("catanf")
+def Complex::atan2(this, other: Complex): Complex extern("catan2f")
+
+def Complex::add(this, other: Complex): Complex {
+    return Complex::new(this.real() + other.real(), this.imag() + other.imag())
+}
+
+def Complex::sub(this, other: Complex): Complex {
+    return Complex::new(this.real() - other.real(), this.imag() - other.imag())
+}
+
+def Complex::mul(this, other: Complex): Complex {
+    return Complex::new(this.real() * other.real() - this.imag() * other.imag(),
+                        this.real() * other.imag() + this.imag() * other.real())
+}
+
+def Complex::div(this, other: Complex): Complex {
+    let denom = other.real() * other.real() + other.imag() * other.imag()
+    return Complex::new((this.real() * other.real() + this.imag() * other.imag()) / denom,
+                        (this.imag() * other.real() - this.real() * other.imag()) / denom)
+}
+
+def Complex::eq(this, other: Complex): bool {
+    return .real() == other.real() and .imag() == other.imag()
+}
+
+def Complex::compare(this, other: Complex): i8 {
+    if this.eq(other) then return 0
+    if this.abs() < other.abs() then return -1
+    return 1
+}

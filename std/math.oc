@@ -1,20 +1,25 @@
 @compiler c_flag "-lm"
 @compiler c_include "math.h"
 
-def sqrt(x: f32): f32 extern
-def cos(x: f32): f32 extern
-def sin(x: f32): f32 extern
-def tan(x: f32): f32 extern
-def atan2(x: f32, y: f32): f32 extern
-def rand01(): f32 extern("drand48")
+def f32::sqrt(this): f32 extern("sqrtf")
+def f32::cos(this): f32 extern("cosf")
+def f32::sin(this): f32 extern("sinf")
+def f32::tan(this): f32 extern("tanf")
+def f32::atan2(this, y: f32): f32 extern("atan2f")
+def f32::log(this): f32 extern("logf")
+def f32::log2(this): f32 extern("log2f")
+def f32::ceilf(this): f32 extern("ceilf")
+
 def randint(): i32 extern("rand")
+def rand01(): f32 extern("drand48")
 
-def minf(a: f32, b: f32): f32 { if a < b return a; else return b; }
-def maxf(a: f32, b: f32): f32 { if a > b return a; else return b; }
+def f32::min(this, b: f32): f32 => if this < b then this else b
+def f32::max(this, b: f32): f32 => if this > b then this else b
 
-def clampf(x: f32, min: f32, max: f32): f32 { return maxf(minf(x, max), min); }
-def clamp01(x: f32): f32 { return clampf(x, 0.0, 1.0); }
+def f32::clamp(this, min: f32, max: f32): f32 => f32::max(f32::min(this, max), min)
+def f32::clamp01(this): f32 => this.clamp(0.0, 1.0)
 
 const PI: f32 extern("M_PI")
+const TAU: f32 = PI * 2.0
 def degrees(radians: f32): f32 { return radians * 180.0 / PI; }
 def radians(degrees: f32): f32 { return degrees * PI / 180.0; }

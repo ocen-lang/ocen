@@ -1,0 +1,30 @@
+import std::traits::compare
+
+def sort<T>(data: &T, size: u32, cmp: fn(T,T): i8 = T::compare) {
+    if size <= 1 {
+        return
+    }
+
+    let pivot = data[size / 2]
+    let i = 0
+    let j = size - 1
+
+    while i <= j {
+        while cmp(data[i], pivot) < 0 {
+            i += 1
+        }
+        while cmp(data[j], pivot) > 0 {
+            j -= 1
+        }
+        if i <= j {
+            let tmp = data[i]
+            data[i] = data[j]
+            data[j] = tmp
+            i += 1
+            j -= 1
+        }
+    }
+
+    sort<T>(data, j + 1, cmp)
+    sort<T>(data + i, size - i, cmp)
+}

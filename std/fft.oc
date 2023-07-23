@@ -1,0 +1,105 @@
+import std::complex::Complex
+import std::math
+import std::libc::{ calloc, free, memset }
+
+def fft_impl(data: &Complex, N: u32, out: &Complex, step: u32, factor: f32) {
+    if N == 1 {
+        out[0] = data[0]
+        return
+    }
+
+    let half = N / 2
+    fft_impl(data, half, out, step * 2, factor)
+    fft_impl(data + step, half, out + half, step * 2, factor)
+
+    for let i = 0; i < half; i++ {
+        let c = i as f32 / N as f32
+        let phase = factor * -2.0 * 3.14159 * c
+
+        let even = out[i]
+        let odd = out[i + half]
+        let t = Complex::new(phase.cos(), phase.sin()).mul(odd)
+        out[i] = even.add(t)
+        out[i + half] = even.sub(t)
+    }
+}
+
+def is_power_of_2(x: u32): bool => x & (x - 1) == 0
+
+def next_power_of_2(x: u32): u32 {
+    let y = x - 1
+    y = y | (y >> 1)
+    y = y | (y >> 2)
+    y = y | (y >> 4)
+    y = y | (y >> 8)
+    y = y | (y >> 16)
+    return y + 1
+}
+
+def fft2_impl(in: &Complex, R: u32, C: u32, out: &Complex, inv: bool) {
+    let buf_size = if R > C then R else C
+    buf_size = next_power_of_2(buf_size)
+
+    let buf_in = calloc(buf_size, sizeof(Complex)) as &Complex
+    let buf_out = calloc(buf_size, sizeof(Complex)) as &Complex
+
+    for let r = 0; r < R; r++ {
+        for let c = 0; c < C; c++ {
+            buf_in[c] = in[r * C + c]
+        }
+        if inv {
+            ifft(buf_in, C, buf_out)
+        } else {
+            fft(buf_in, C, buf_out)
+        }
+        for let c = 0; c < C; c++ {
+            out[r * C + c] = buf_out[c]
+        }
+    }
+
+    memset(buf_in, 0, buf_size * sizeof(Complex))
+
+    for let c = 0; c < C; c++ {
+        for let r = 0; r < R; r++ {
+            buf_in[r] = out[r * C + c]
+        }
+        if inv {
+            ifft(buf_in, R, buf_out)
+        } else {
+            fft(buf_in, R, buf_out)
+        }
+        for let r = 0; r < R; r++ {
+            out[r * C + c] = buf_out[r]
+        }
+    }
+
+    free(buf_in)
+    free(buf_out)
+}
+
+// Fast Fourier Transform
+def fft(data: &Complex, N: u32, out: &Complex) {
+    assert is_power_of_2(N), "N must be a power of 2 for FFT. Please pad your data with zeros."
+    fft_impl(data, N, out, 1, 1.0)
+}
+
+// Inverse Fast Fourier Transform
+def ifft(data: &Complex, N: u32, out: &Complex) {
+    assert is_power_of_2(N), "N must be a power of 2 for FFT. Please pad your data with zeros."
+
+    fft_impl(data, N, out, 1, -1.0)
+    let d = Complex::new(N as f32, 0.0)
+    for let i = 0; i < N; i++ {
+        out[i] = out[i].div(d)
+    }
+}
+
+// 2D Fast Fourier Transform
+def fft2(in: &Complex, R: u32, C: u32, out: &Complex) {
+    fft2_impl(in, R, C, out, false)
+}
+
+// 2D Inverse Fast Fourier Transform
+def ifft2(in: &Complex, R: u32, C: u32, out: &Complex) {
+    fft2_impl(in, R, C, out, true)
+}

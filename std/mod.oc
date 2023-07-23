@@ -61,6 +61,7 @@ def panic(msg: str = "<panic>") exits {
 
 def str::to_i32(this): i32 extern("atoi")
 def str::to_u32(this): u32 => this.to_i32() as u32 // FIXME: this doesn't always work
+def str::to_f32(this): f32 extern("atof")
 
 def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
 def str::len(this): u32 => libc::strlen(this)
@@ -109,8 +110,10 @@ def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
 def char::is_print(this): bool => libc::isprint(this)
 
-def min(a: i32, b: i32): i32 => if a < b then a else b
-def max(a: i32, b: i32): i32 => if a > b then a else b
+def i32::min(this, b: i32): i32 => if this < b then this else b
+def i32::max(this, b: i32): i32 => if this > b then this else b
 
 def u32::min(this, other: u32): u32 => if this < other then this else other
 def u32::max(this, other: u32): u32 => if this > other then this else other
+
+def new<T>(count: u32 = 1): &T => libc::calloc(count, sizeof(T)) as &T
