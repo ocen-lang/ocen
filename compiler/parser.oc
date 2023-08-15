@@ -1476,6 +1476,17 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 let struc = .parse_struct()
                 if struc? then .ns.structs.push(struc)
             }
+            TypeDef => {
+                let start = .consume(TokenType::TypeDef).span
+                let name = .consume(TokenType::Identifier)
+                .consume(TokenType::Equals)
+                let type = .parse_type()
+                .consume_end_of_statement()
+
+                if type? {
+                    .ns.typedefs.insert(name.text, type)
+                }
+            }
             Enum => {
                 let enum_value = .parse_enum()
                 if enum_value? then .ns.enums.push(enum_value)

@@ -22,6 +22,7 @@ struct Namespace {
     constants: &Vector<&AST>
     variables: &Vector<&AST>
     imports: &Vector<&AST>
+    typedefs: &Map<str, &Type>
     namespaces: &Map<str, &Namespace>
 
     sym: &Symbol
@@ -55,6 +56,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.enums = Vector<&Enum>::new()
     ns.constants = Vector<&AST>::new()
     ns.variables = Vector<&AST>::new()
+    ns.typedefs = Map<str, &Type>::new()
     ns.namespaces = Map<str, &Namespace>::new()
     ns.imports = Vector<&AST>::new()
     ns.path = path

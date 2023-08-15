@@ -1,0 +1,27 @@
+/// out: "10.0"
+
+struct StructWithAVeryLongNameHere {
+    x: i32,
+    y: i32,
+}
+
+typedef ShortName = StructWithAVeryLongNameHere
+
+struct TemplatedStructDefinition<T> {
+    x: T
+}
+
+def TemplatedStructDefinition::add(&this, val: T) {
+    .x += val
+}
+
+typedef TemFloat = TemplatedStructDefinition<f32>
+
+let FOO: TemFloat
+
+def main() {
+    let f = TemFloat(5.0)
+    f.add(5.0)
+    FOO.add(7.0)
+    println(f"{f.x:.1f}")
+}

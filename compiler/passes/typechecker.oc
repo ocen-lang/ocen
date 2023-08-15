@@ -520,6 +520,8 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         Identifier | NSLookup | Specialization => {
             let sym = .resolve_scoped_identifier(callee, error: true)
             if not sym? return null
+
+            sym = sym.remove_alias()
             callee.resolved_symbol = sym
 
             yield match sym.type {
@@ -900,6 +902,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             let item = .resolve_scoped_identifier(node, error: true, hint)
             if not item? return null
 
+            item = item.remove_alias()
             match item.type {
                 Function => return item.u.func.type
                 Variable | Constant => return item.u.var.type
@@ -1383,7 +1386,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     .o.pop_scope()
 }
 
-def TypeChecker::handle_namespace_imports(&this, ns: &Namespace, is_global: bool = false) {
+def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) {
     .o.push_namespace(ns)
     .o.push_scope(ns.scope)
 
@@ -1395,10 +1398,10 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace, is_global: bool
         if is_global {
             let prev_root = .o.program.project_root
             .o.program.project_root = child
-            .handle_namespace_imports(child)
+            .handle_imports(child)
             .o.program.project_root = prev_root
         } else {
-            .handle_namespace_imports(child)
+            .handle_imports(child)
         }
     }
 
@@ -1406,18 +1409,27 @@ def TypeChecker::handle_namespace_imports(&this, ns: &Namespace, is_global: bool
     .o.pop_namespace()
 }
 
-def TypeChecker::check_global_variable(&this, node: &AST) {
-    let init = node.u.var_decl.init
-    if not init? return
-
+def TypeChecker::check_globals(&this, node: &AST, is_const: bool) {
     let var = node.u.var_decl.var
     .resolve_doc_links(var.sym)
-    let init_type = .check_expression(init, hint: var.type)
-    if not init_type? or not var.type? return
 
-    if not init_type.eq(var.type) {
-        .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {init_type.str()}`))
+    let init = node.u.var_decl.init
+    if is_const {
+        if init? {
+            .check_const_expression(init)
+        } else if not node.u.var_decl.var.sym.is_extern {
+            .error(Error::new(node.span, "Constant must have an initializer"))
+        }
+
+    } else if init? {
+        let init_type = .check_expression(init, hint: var.type)
+        if not init_type? or not var.type? return
+
+        if not init_type.eq(var.type) {
+            .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {init_type.str()}`))
+        }
     }
+
 }
 
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
@@ -1430,12 +1442,11 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     }
 
     for node : ns.constants.iter() {
-        let init = node.u.var_decl.init
-        if init? {
-            .check_const_expression(init)
-        } else if not node.u.var_decl.var.sym.is_extern {
-            .error(Error::new(node.span, "Constant must have an initializer"))
-        }
+        .check_globals(node, is_const: true)
+    }
+
+    for node : ns.variables.iter() {
+        .check_globals(node, is_const: false)
     }
 
     for enum_ : ns.enums.iter() {
@@ -1444,10 +1455,6 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
         for field : enum_.fields.iter() {
             .resolve_doc_links(field.sym)
         }
-    }
-
-    for node : ns.variables.iter() {
-        .check_global_variable(node)
     }
 
     for child : ns.namespaces.iter_values() {
@@ -1824,12 +1831,26 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
+    for it : ns.typedefs.iter() {
+        let sym = .o.scope().lookup_recursive(it.key)
+        assert sym?, "Should have added the symbol into scope already"
+        assert sym.type == TypeDef
+
+        // FIXME: Why is there a `typedef` and `alias` at symbol/type level? Only one
+        // should really be sufficient.
+        sym.u.type_def = .resolve_type(it.value)
+    }
+
     for func : ns.functions.iter() {
         .check_function_declaration(func)
     }
 
     for struc : ns.structs.iter() {
         .resolve_struct(struc)
+    }
+
+    for node : ns.constants.iter() {
+        .pre_check_globals(node, is_const: true)
     }
 
     for node : ns.variables.iter() {
@@ -1851,27 +1872,12 @@ def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
         .error(Error::new(node.span, f"{c} must have a type"))
         return
     }
-    var.type = .resolve_type(var.type)
-    if not var.type? then return
-
-    .o.insert_into_scope_checked(var.sym)
+    let type = .resolve_type(var.type)
+    if not type? then return
+    var.type = type
 }
 
-def TypeChecker::pre_check_constants(&this, ns: &Namespace) {
-    .o.push_scope(ns.scope)
-
-    for node : ns.constants.iter() {
-        .pre_check_globals(node, is_const: true)
-    }
-
-    for child : ns.namespaces.iter_values() {
-        .pre_check_constants(child)
-    }
-
-    .o.pop_scope()
-}
-
-def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
+def TypeChecker::check_pre_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
     for func : ns.functions.iter() {
@@ -1879,21 +1885,19 @@ def TypeChecker::pre_check_namespace(&this, ns: &Namespace) {
     }
 
     for child : ns.namespaces.iter_values() {
-        .pre_check_namespace(child)
+        .check_pre_import(child)
     }
 
     .o.pop_scope()
 }
-
 
 def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
         unchecked_functions: Vector<&Function>::new()
     )
-    pass.pre_check_constants(program.global)
-    pass.pre_check_namespace(program.global)
-    pass.handle_namespace_imports(program.global, is_global: true)
+    pass.check_pre_import(program.global)
+    pass.handle_imports(program.global, is_global: true)
     pass.check_post_import(program.global)
 
     pass.check_namespace(program.global)

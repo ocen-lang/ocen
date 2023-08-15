@@ -6,7 +6,7 @@ import @passes::generic_pass::GenericPass
 import @ast::scopes::{ Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @types::{ Type, BaseType, FunctionType }
-import @ast::nodes::{ Function, Structure, Enum, Variable }
+import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
 
 struct RegisterTypes {
     o: &GenericPass
@@ -35,6 +35,11 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     for field : enum_.fields.iter() {
         field.type = typ
     }
+}
+
+def RegisterTypes::register_globals(&this, node: &AST) {
+    let var = node.u.var_decl.var
+    .o.insert_into_scope_checked(var.sym)
 }
 
 def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
@@ -69,6 +74,17 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
         .register_enum(ns, enum_)
         .add_dbg_method_for_enum(enum_)
     }
+    for node : ns.constants.iter() {
+        .register_globals(node)
+    }
+    for node : ns.variables.iter() {
+        .register_globals(node)
+    }
+    for it : ns.typedefs.iter() {
+        // NOTE: We add a dummy type here, which will be replaced later in the
+        // type resolution pass
+        .register_alias(it.key, null)
+    }
     for child : ns.namespaces.iter_values() {
         if child.always_add_to_scope {
             .o.insert_into_scope_checked(child.sym)
@@ -99,7 +115,7 @@ def RegisterTypes::register_alias(&this, name: str, orig: &Type) {
     alias.sym = sym
     sym.u.type_def = alias
 
-    .o.program.global.scope.items.insert(name, sym)
+    .o.insert_into_scope_checked(sym, name)
 }
 
 
@@ -107,6 +123,8 @@ def RegisterTypes::register_builtin_types(&this) {
     for let i = 0; i < BaseType::NUM_BASE_TYPES as u32; i += 1 {
         .register_base_type(i as BaseType)
     }
+
+    .o.push_scope(.o.program.global.scope)
 
     // untyped_ptr
     {
@@ -123,6 +141,8 @@ def RegisterTypes::register_builtin_types(&this) {
         typ.u.ptr = base
         .register_alias("str", typ)
     }
+
+    .o.pop_scope()
 
     // For internal compiler use
     .o.error_type = Type::new_resolved(BaseType::Error, Span::default())

@@ -2,7 +2,7 @@ import std::sdl::{this, ttf::{this, Font}}
 import std::vec::Vec
 import std::vector::Vector
 import std::image::Image
-import std::math::{ rand01, sqrt }
+import std::math::{ rand01 }
 import std::libc::{ calloc, free }
 
 // Make raytracer go brrr
@@ -61,8 +61,8 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
     let disc = b * b - 4.0 * a * c
     if disc < 0.0
         return false
-    let t0 = (-b - sqrt(disc)) / (2.0 * a)
-    let t1 = (-b + sqrt(disc)) / (2.0 * a)
+    let t0 = (-b - disc.sqrt()) / (2.0 * a)
+    let t1 = (-b + disc.sqrt()) / (2.0 * a)
 
     let best = t0;
     if best < TOL
