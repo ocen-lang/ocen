@@ -1157,6 +1157,7 @@ def Parser::parse_function(&this): &Function {
     }
 
     .consume(TokenType::OpenParen)
+    let seen_default = false
     while not .token_is(TokenType::CloseParen) {
         let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
@@ -1181,7 +1182,12 @@ def Parser::parse_function(&this): &Function {
         let default_value = null as &AST
         if .consume_if(TokenType::Equals) {
             default_value = .parse_expression(end_type: TokenType::Comma)
+            seen_default = true
+
+        } else if seen_default {
+            .error(Error::new(var_name.span, "Cannot have non-default parameters after default parameters"))
         }
+
         let var = Variable::new(type)
         var.sym = Symbol::from_local_variable(var_name.text, var, var_name.span)
         var.default_value = default_value
