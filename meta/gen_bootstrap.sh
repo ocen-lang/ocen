@@ -30,6 +30,15 @@ else
     exit 1
 fi
 
+echo "[+] Compiling examples"
+if ./meta/compile_examples.sh; then
+    echo
+else
+    echo
+    echo "[-] Error: Examples did not compile"
+    exit 1
+fi
+
 
 read -p "Are you sure you want to replace bootstrap/stage0.c? [y/N] " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then

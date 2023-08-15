@@ -116,6 +116,7 @@ enum TokenType {
     Struct
     True
     Then
+    TypeDef
     Union
     Import
     Void
@@ -150,6 +151,7 @@ def TokenType::from_text(text: str): TokenType => match text {
     "struct" => TokenType::Struct
     "true" => TokenType::True
     "then" => TokenType::Then
+    "typedef" => TokenType::TypeDef
     "union" => TokenType::Union
     "import" => TokenType::Import
     "void" => TokenType::Void
@@ -186,6 +188,7 @@ def TokenType::str(this): str => match this {
     Struct => "struct"
     True => "true"
     Then => "then"
+    TypeDef => "typedef"
     Union => "union"
     Import => "import"
     Void => "void"
