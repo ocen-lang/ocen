@@ -8,7 +8,8 @@ type inference, namespaces, stricter types and a module system. It transpiles to
 Use the following command to build the initial compiler:
 
 ```shell
-$ ./meta/bootstrap.sh       # Generates ./bootstrap/ocen if successful
+$ ./meta/bootstrap.sh  # Generates initial compiler
+$ ./bootstrap/ocen --help
 ```
 
 ### Compiling other programs

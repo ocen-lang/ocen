@@ -1,7 +1,6 @@
 import std::sdl::{this, ttf::{this, Font}}
 import std::vec::Vec
 import std::vector::Vector
-import std::image::Image
 import std::math::{ rand01 }
 import std::libc::{ calloc, free }
 
@@ -140,7 +139,7 @@ struct Camera {
     w: Vec
 }
 
-let img: &Image
+let img: [[Vec; HEIGHT]; WIDTH]
 let objs: &Vector<&Sphere>
 let samples: u32 = 0
 
@@ -194,9 +193,9 @@ def draw(screen: &u8, pitch: u32) {
             let ray = camera.ray(x, y)
             let color = raytrace(&ray, objs, 5)
 
-            let prev_color = img.get(x, y)
+            let prev_color = img[x][y]
             let new_color = prev_color.add(color)
-            img.set(x, y, new_color)
+            img[x][y] = new_color
 
             // Save to screen
             let r = (new_color.x / samples as f32) * 255.0
@@ -256,8 +255,6 @@ def main() {
     let direction = Vec(0.0, 0.0, 1.0)
     camera = Camera::make(origin, direction)
 
-    img = Image::new(WIDTH, HEIGHT)
-
     let e: sdl::Event
 
     let quit = false
@@ -296,7 +293,7 @@ def main() {
 
         if modified {
             camera = Camera::make(origin, direction)
-            img.clear()
+            std::libc::memset(img, 0, sizeof(Vec) * WIDTH * HEIGHT)
             samples = 0
         }
 

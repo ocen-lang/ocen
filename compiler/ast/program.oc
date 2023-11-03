@@ -78,7 +78,6 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
         if var.sym.name.eq(name) return var.sym
     }
 
-
     for func : .functions.iter() {
         if func.is_method then continue
         if func.sym.name.eq(name) return func.sym
@@ -91,6 +90,10 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     for enum_ : .enums.iter() {
         if enum_.sym.name.eq(name) return enum_.sym
     }
+
+    let td = .typedefs.get(name, null)
+    if td? then return td.sym
+
     return null
 }
 

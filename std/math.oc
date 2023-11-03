@@ -17,7 +17,9 @@ def f32::min(this, b: f32): f32 => if this < b then this else b
 def f32::max(this, b: f32): f32 => if this > b then this else b
 
 def f32::clamp(this, min: f32, max: f32): f32 => f32::max(f32::min(this, max), min)
-def f32::clamp01(this): f32 => this.clamp(0.0, 1.0)
+def f32::clamp01(this): f32 => this.clamp(0.0, 1.0)\
+
+def i32::abs(this): i32 => if this < 0 then -this else this
 
 const PI: f32 extern("M_PI")
 const TAU: f32 = PI * 2.0

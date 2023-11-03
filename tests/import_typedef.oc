@@ -1,0 +1,23 @@
+/// compile
+
+struct Bar {
+    h: i32
+}
+
+namespace Foo {
+    struct Bar {
+        x: i32
+    }
+
+    typedef Baz = Bar
+    typedef InnerBar = Bar
+}
+
+import ::Foo::Baz
+typedef OuterBar = Foo::Bar
+
+def main() {
+    let x = Baz(5)
+    let y = OuterBar(10)
+    let z = Foo::InnerBar(15)
+}

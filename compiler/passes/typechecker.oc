@@ -1831,16 +1831,6 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
-    for it : ns.typedefs.iter() {
-        let sym = .o.scope().lookup_recursive(it.key)
-        assert sym?, "Should have added the symbol into scope already"
-        assert sym.type == TypeDef
-
-        // FIXME: Why is there a `typedef` and `alias` at symbol/type level? Only one
-        // should really be sufficient.
-        sym.u.type_def = .resolve_type(it.value)
-    }
-
     for func : ns.functions.iter() {
         .check_function_declaration(func)
     }
@@ -1882,6 +1872,18 @@ def TypeChecker::check_pre_import(&this, ns: &Namespace) {
 
     for func : ns.functions.iter() {
         .pre_check_function(ns, func)
+    }
+
+    for it : ns.typedefs.iter() {
+        let sym = .o.scope().lookup_recursive(it.key)
+        assert sym?, "Should have added the symbol into scope already"
+        assert sym.type == TypeDef
+
+        // FIXME: Why is there a `typedef` and `alias` at symbol/type level? Only one
+        // should really be sufficient.
+        let res = .resolve_type(it.value)
+        sym.u.type_def = res
+        it.value = res
     }
 
     for child : ns.namespaces.iter_values() {

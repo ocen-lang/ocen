@@ -1508,6 +1508,7 @@ bool silent = false;
 bool debug = false;
 u32 error_level = ((u32)2);
 char *docs_path = NULL;
+bool include_stdlib = true;
 /* function declarations */
 FILE *std_File_open(char *path, char *mode);
 i32 std_File_read(FILE *this, void *buf, u32 size);
@@ -1531,8 +1532,12 @@ bool char_is_alnum(char this);
 bool char_is_print(char this);
 i32 i32_min(i32 this, i32 b);
 i32 i32_max(i32 this, i32 b);
+i8 i8_min(i8 this, i8 b);
+i8 i8_max(i8 this, i8 b);
 u32 u32_min(u32 this, u32 other);
 u32 u32_max(u32 this, u32 other);
+u8 u8_min(u8 this, u8 other);
+u8 u8_max(u8 this, u8 other);
 std_value_Value *std_compact_map_Map__0_at(std_compact_map_Map__0 *this, char *key);
 void std_compact_map_Map__0_free(std_compact_map_Map__0 *this);
 u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u32 hash);
@@ -2196,7 +2201,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
 void parser_Parser_load_file(parser_Parser *this, char *filename);
 void parser_couldnt_find_stdlib(void);
 void parser_Parser_find_and_import_stdlib(parser_Parser *this);
-void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename);
+void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, bool include_stdlib);
 u32 utils_edit_distance(char *str1, char *str2);
 char *utils_find_word_suggestion(char *s, std_vector_Vector__5 *options);
 bool utils_directory_exists(char *path);
@@ -2542,11 +2547,27 @@ i32 i32_max(i32 this, i32 b) {
   return ((this > b) ? this : b);
 }
 
+i8 i8_min(i8 this, i8 b) {
+  return ((this < b) ? this : b);
+}
+
+i8 i8_max(i8 this, i8 b) {
+  return ((this > b) ? this : b);
+}
+
 u32 u32_min(u32 this, u32 other) {
   return ((this < other) ? this : other);
 }
 
 u32 u32_max(u32 this, u32 other) {
+  return ((this > other) ? this : other);
+}
+
+u8 u8_min(u8 this, u8 other) {
+  return ((this < other) ? this : other);
+}
+
+u8 u8_max(u8 this, u8 other) {
   return ((this > other) ? this : other);
 }
 
@@ -8544,7 +8565,7 @@ void parser_Parser_find_and_import_stdlib(parser_Parser *this) {
   std_map_Map__3_insert(this->program->global->namespaces, "std", std_ns);
 }
 
-void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename) {
+void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, bool include_stdlib) {
   char *t1 = strdup(filename);
   char *dir = strdup(dirname(t1));
   free(t1);
@@ -8565,7 +8586,9 @@ void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename) 
   ns->sym->u.ns=ns;
   std_map_Map__3_insert(project_ns->namespaces, base, ns);
   parser_Parser parser = parser_Parser_make(program, ns);
-  parser_Parser_find_and_import_stdlib(&parser);
+  if (include_stdlib) {
+    parser_Parser_find_and_import_stdlib(&parser);
+  } 
   parser_Parser_load_file(&parser, filename);
 }
 
@@ -8938,6 +8961,12 @@ void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pa
     {
       ast_nodes_Variable *var = node->u.var_decl.var;
       passes_generic_pass_GenericPass_insert_into_scope_checked(this, var->sym, NULL);
+    }
+  }
+  for (std_map_Iterator__2 __iter = std_map_Map__2_iter(ns->typedefs); std_map_Iterator__2_has_value(&__iter); std_map_Iterator__2_next(&__iter)) {
+    std_map_Node__2 *it = std_map_Iterator__2_cur(&__iter);
+    {
+      passes_generic_pass_GenericPass_insert_into_scope_checked(this, it->value->sym, it->key);
     }
   }
 }
@@ -10901,7 +10930,6 @@ types_Type *passes_typechecker_TypeChecker_check_member(passes_typechecker_TypeC
       node->resolved_symbol=method->sym;
       return method->type;
     } 
-    passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Type %s has no member named '%s'", types_Type_str(lhs), node->u.member.rhs_name)));
   } 
   passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Type %s has no member named '%s'", types_Type_str(lhs), node->u.member.rhs_name)));
   return NULL;
@@ -12001,13 +12029,6 @@ void passes_typechecker_TypeChecker_check_function_declaration(passes_typechecke
 void passes_typechecker_TypeChecker_check_post_import(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns) {
   passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
   passes_generic_pass_GenericPass_push_namespace(this->o, ns);
-  for (std_map_Iterator__2 __iter = std_map_Map__2_iter(ns->typedefs); std_map_Iterator__2_has_value(&__iter); std_map_Iterator__2_next(&__iter)) {
-    std_map_Node__2 *it = std_map_Iterator__2_cur(&__iter);
-    {
-      ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1837:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1838:16: Assertion failed: `sym.type == TypeDef`", NULL);      sym->u.type_def=passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
-    }
-  }
   for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(ns->functions); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
     ast_nodes_Function *func = std_vector_Iterator__10_cur(&__iter);
     {
@@ -12062,6 +12083,15 @@ void passes_typechecker_TypeChecker_check_pre_import(passes_typechecker_TypeChec
     ast_nodes_Function *func = std_vector_Iterator__10_cur(&__iter);
     {
       passes_typechecker_TypeChecker_pre_check_function(this, ns, func);
+    }
+  }
+  for (std_map_Iterator__2 __iter = std_map_Map__2_iter(ns->typedefs); std_map_Iterator__2_has_value(&__iter); std_map_Iterator__2_next(&__iter)) {
+    std_map_Node__2 *it = std_map_Iterator__2_cur(&__iter);
+    {
+      ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1879:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1880:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
+      sym->u.type_def=res;
+      it->value=res;
     }
   }
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
@@ -12413,6 +12443,10 @@ ast_scopes_Symbol *ast_program_Namespace_find_importable_symbol(ast_program_Name
       
     }
   }
+  types_Type *td = std_map_Map__2_get(this->typedefs, name, NULL);
+  if (((bool)td)) 
+  return td->sym;
+  
   return NULL;
 }
 
@@ -12515,7 +12549,7 @@ bool ast_program_NSIterator_has_value(ast_program_NSIterator *this) {
 }
 
 void ast_program_NSIterator_next(ast_program_NSIterator *this) {
-  ae_assert(!std_vector_Vector__7_is_empty(this->stack), "compiler/ast/program.oc:244:12: Assertion failed: `not .stack.is_empty()`", NULL);  this->curr=std_vector_Vector__7_pop(this->stack);
+  ae_assert(!std_vector_Vector__7_is_empty(this->stack), "compiler/ast/program.oc:247:12: Assertion failed: `not .stack.is_empty()`", NULL);  this->curr=std_vector_Vector__7_pop(this->stack);
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(this->curr->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
     ast_program_Namespace *ns = std_map_ValueIterator__3_cur(&__iter);
     {
@@ -13794,7 +13828,7 @@ char *types_Type_str(types_Type *this) {
         __yield_0 = this->u.enum_->sym->display;
       } break;
       case types_BaseType_Alias: {
-        __yield_0 = format_string("%s", this->name);
+        __yield_0 = this->name;
       } break;
       default: {
         __yield_0 = types_BaseType_str(this->base);
@@ -13809,6 +13843,7 @@ void usage(i32 code) {
   printf("Options:""\n");
   printf("    -o path        Output executable (default: ./out)""\n");
   printf("    -c path        Output C code (default: {out}.c)""\n");
+  printf("    --no-stdlid    Don't include the standard library""\n");
   printf("    -e0            Minimal one-line errors""\n");
   printf("    -e1            Error messages with source code (default)""\n");
   printf("    -e2            Error messages with source / hints""\n");
@@ -13885,6 +13920,8 @@ void parse_args(i32 argc, char **argv, ast_program_Program *program) {
         i+=((u32)1);
         docs_path=argv[i];
         program->check_doc_links=true;
+      } else if (!strcmp(__match_str, "--no-stdlib")) {
+        include_stdlib=false;
       } else  {
         if (argv[i][((u32)0)]=='-') {
           printf("Unknown option: %s""\n", argv[i]);
@@ -13915,7 +13952,7 @@ i32 main(i32 argc, char **argv) {
   parse_args(argc, argv, program);
   program->error_level=error_level;
   program->gen_debug_info=debug;
-  parser_Parser_parse_toplevel(program, filename);
+  parser_Parser_parse_toplevel(program, filename, include_stdlib);
   if (!std_vector_Vector__14_is_empty(program->errors)) 
   ast_program_Program_exit_with_errors(program);
   
