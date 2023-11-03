@@ -7,7 +7,7 @@ def malloc(size: u32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: u32): untyped_ptr extern
 def calloc(size: u32, elem_size: u32): untyped_ptr extern
 def free(ptr: untyped_ptr) extern
-def exit(code: i32) extern
+def exit(code: i32) exits extern
 def getenv(name: str): str extern
 def system(cmd: str): i32 extern
 

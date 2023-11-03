@@ -1,23 +1,25 @@
 //* Image struct / IO utilities (PPM)
 
-import std::vec::Vec
 import std::libc::{ calloc, free }
-import std::math
 import std::buffer::Buffer
 
-//* A type that holds an Image
-//*
-//* The image is stored in 32-bit floating point format.
-//* Each of the RGB values are supposed to be in the range [0,1].
+//* A type that holds an Image in 24-bit RGB format
+
+struct Color {
+    r: u8
+    g: u8
+    b: u8
+}
+
 struct Image {
     width: u32
     height: u32
-    data: &Vec
+    data: &Color
 }
 
 def Image::new(width: u32, height: u32): &Image {
     let img = calloc(1, sizeof(Image)) as &Image
-    *img = Image(width, height, calloc(width * height, sizeof(Vec)))
+    *img = Image(width, height, calloc(width * height, sizeof(Color)))
     return img
 }
 
@@ -26,8 +28,8 @@ def Image::free(&this) {
     free(this)
 }
 
-def Image::get(&this, x: u32, y: u32): Vec => .data[y * .width + x]
-def Image::set(&this, x: u32, y: u32, col: Vec) { .data[y * .width + x] = col }
+def Image::get(&this, x: u32, y: u32): Color => .data[y * .width + x]
+def Image::set(&this, x: u32, y: u32, col: Color) { .data[y * .width + x] = col }
 
 def Image::save(&this, filename: str) {
     import .ppm
@@ -70,5 +72,5 @@ def Image::load(filename: str): &Image {
 
 
 def Image::clear(&this) {
-    std::libc::memset(.data, 0, .width * .height * sizeof(Vec))
+    std::libc::memset(.data, 0, .width * .height * sizeof(Color))
 }

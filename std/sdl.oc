@@ -76,7 +76,7 @@ enum MouseButton extern("u8") {
 
 struct Keysym extern("SDL_Keysym") {
     scancode: Key
-    sym: i32
+    sym: Key
     mod: i32
 }
 

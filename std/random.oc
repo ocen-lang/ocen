@@ -1,0 +1,42 @@
+
+struct RandomState {
+    x: u32
+    y: u32
+    z: u32
+    w: u32
+}
+
+let global_random_state: RandomState = RandomState(123456789, 362436069, 521288629, 88675123)
+
+def RandomState::seed(&this, s: u32) {
+    this.x = s
+    this.y = s ^ 0x49616E42
+    this.z = s ^ 0x6C078965
+    this.w = s ^ 0x8F1BBCDC
+}
+
+def RandomState::make(s: u32 = 0): RandomState {
+    let rs: RandomState
+    rs.seed(s)
+    return rs
+}
+
+def randint(state: &RandomState=null): u32 {
+    // Can't do this in default args since they are evaluated at the callsite, 
+    // and `global_random_state` may not be imported there
+    if not state? then state = &global_random_state
+
+    let t = state.x ^ (state.x << 11)
+    state.x = state.y
+    state.y = state.z
+    state.z = state.w
+    state.w = (state.w ^ (state.w >> 19)) ^ (t ^ (t >> 8))
+    return state.w
+}
+
+def randu32(state: &RandomState=null): u32 => randint(state)
+def randi32(state: &RandomState=null): i32 => (randint(state) as i32)
+
+def randu64(state: &RandomState=null): u64 => (randint(state) as u64) << 32 | randint(state) as u64
+def randf32(state: &RandomState=null): f32 => (randint(state) as f32) / 4294967296.0
+def randf64(state: &RandomState=null): f64 => (randint(state) as f64) / 4294967296.0

@@ -1,0 +1,10 @@
+/// out: "2400945431 3444232677 2639662501 3489240994 2627305591"
+
+import std::random as rng
+
+def main() {
+    let rs = rng::RandomState::make(5)
+    for let i = 0; i < 5; ++i {
+        print(`{rng::randint(&rs)} `)
+    }
+}

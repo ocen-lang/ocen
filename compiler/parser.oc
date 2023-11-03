@@ -1734,7 +1734,7 @@ def Parser::find_and_import_stdlib(&this) {
     .program.global.namespaces.insert("std", std_ns)
 }
 
-def Parser::parse_toplevel(program: &Program, filename: str) {
+def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool) {
     // Path to the directory of the file
     let t1 = filename.copy()
     let dir = dirname(t1).copy()
@@ -1780,6 +1780,8 @@ def Parser::parse_toplevel(program: &Program, filename: str) {
 
 
     let parser = Parser::make(program, ns)
-    parser.find_and_import_stdlib()
+    if include_stdlib {
+        parser.find_and_import_stdlib()
+    }
     parser.load_file(filename)
 }

@@ -3,7 +3,7 @@
 
 import std::vec::Vec
 import std::vector::Vector
-import std::image::Image
+import std::image::{ Image, Color }
 import std::math::{ rand01 }
 import std::libc::malloc
 
@@ -164,7 +164,13 @@ def main() {
                 let color = raytrace(&ray, objs, 5)
                 total_col = total_col.add(color)
             }
-            img.set(x, y, total_col.multf(div_factor))
+            total_col = total_col.multf(div_factor * 255.0)
+            let u8col = Color(
+                total_col.x as u8,
+                total_col.y as u8,
+                total_col.z as u8,
+            )
+            img.set(x, y, u8col)
         }
     }
     println("")

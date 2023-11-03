@@ -169,6 +169,10 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace) {
         let var = node.u.var_decl.var
         .insert_into_scope_checked(var.sym)
     }
+
+    for it : ns.typedefs.iter() {
+        .insert_into_scope_checked(it.value.sym, it.key)
+    }
 }
 
 def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
