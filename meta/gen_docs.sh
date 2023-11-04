@@ -10,29 +10,10 @@ cat > compiler/doc.oc << EOF
 //*
 //* Nothing to see here
 
-import std::buffer
-import std::bufferio
-import std::compact_map
-import std::complex
-import std::deque
-import std::fft
-import std::glut
-import std::hash
-import std::heap
-import std::image
-import std::json
-import std::libc
-import std::linkedlist
-import std::map
-import std::math
-import std::sdl
-import std::socket
-import std::sort
-import std::span
-import std::thread
-import std::value
-import std::vec
-import std::vector
+import std::{ vector, map, compact_map, heap, deque, set, linkedlist }
+import std::{ buffer, bufferio, image, json, math, complex, fft, random }
+import std::{ value, vec, sdl, glut, socket, sort, thread, video_renderer }
+import std::traits::{ hash, eq, compare }
 
 // Compiler imports
 
