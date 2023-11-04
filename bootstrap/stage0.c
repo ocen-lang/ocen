@@ -9945,11 +9945,13 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
     } break;
     case types_BaseType_Pointer: {
       bool needs_parens = (((bool)cur->u.ptr) && (cur->u.ptr->base==types_BaseType_Function || cur->u.ptr->base==types_BaseType_Array));
-      if (needs_parens) {
+      if (cur->u.ptr->base==types_BaseType_Function) {
+      }  else       if (needs_parens) {
         str_replace(&acc, format_string("(*%s)", acc));
       }  else {
         str_replace(&acc, format_string("*%s", acc));
       } 
+      
       acc=passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.ptr, acc, false);
     } break;
     case types_BaseType_Array: {
@@ -9969,7 +9971,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:890:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:892:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
 }
@@ -10019,7 +10021,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__8_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:934:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:936:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
         }
@@ -10055,7 +10057,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__8_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:961:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:963:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function_decl(this, func);
             if (func->exits) 
             std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
@@ -10729,10 +10731,13 @@ types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChe
   if (!((bool)res)) 
   return NULL;
   
-  if ((res->base != types_BaseType_Function)) {
+  if ((res->base==types_BaseType_Pointer && res->u.ptr->base==types_BaseType_Function)) {
+    res=res->u.ptr;
+  }  else   if ((res->base != types_BaseType_Function)) {
     passes_typechecker_TypeChecker_error(this, errors_Error_new(callee->span, format_string("Cannot call a non-function type: %s", types_Type_str(res))));
     return NULL;
   } 
+  
   types_FunctionType func = res->u.func;
   if ((((bool)func.orig) && func.orig->exits)) 
   node->returns=true;
@@ -12089,7 +12094,7 @@ void passes_typechecker_TypeChecker_check_pre_import(passes_typechecker_TypeChec
     std_map_Node__2 *it = std_map_Iterator__2_cur(&__iter);
     {
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1879:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1880:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1881:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1882:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
       sym->u.type_def=res;
       it->value=res;
     }

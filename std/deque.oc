@@ -78,4 +78,15 @@ def Deque::back(&this): T {
     return .data[.tail - 1]
 }
 
+def Deque::at(&this, index: u32): T {
+    assert index < .size, "Index out of bounds in Deque::at()"
+
+    return .data[(.head + index) % .capacity]
+}
+
+def Deque::free(&this) {
+    free(.data)
+    free(this)
+}
+
 def Deque::is_empty(&this): bool => .size == 0

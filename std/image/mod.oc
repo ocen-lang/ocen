@@ -70,6 +70,54 @@ def Image::load(filename: str): &Image {
     return image
 }
 
+def interp(t: f32, a: f32, b: f32): f32 {
+    return a * (1.0 - t) + b * t
+}
+
+def bilinear_interp(t0: f32, t1: f32, a: f32, b: f32, c: f32, d: f32):f32 {
+    return interp(t1, interp(t0, a, b), interp(t0, c, d))
+}
+
+def Image::get_interpolated(&this, xf: f32, yf: f32): Color {
+    assert 0.0 <= xf < (.width as f32), `X coordinate out of bounds: {xf}`
+    assert 0.0 <= yf < (.height as f32), `Y coordinate out of bounds: {yf}`
+
+    let x_fl = xf as u32
+    let y_fl = yf as u32
+
+    let x_cl = if xf != (x_fl as f32) then x_fl + 1 else x_fl
+    let y_cl = if yf != (y_fl as f32) then y_fl + 1 else y_fl
+
+    let a = .get(x_fl, y_fl)
+    let b = .get(x_cl, y_fl)
+    let c = .get(x_fl, y_cl)
+    let d = .get(x_cl, y_cl)
+
+    let x_ratio = xf - (x_fl as f32)
+    let y_ratio = yf - (y_fl as f32)
+
+    let col = Color(
+        bilinear_interp(x_ratio, y_ratio, a.r as f32, b.r as f32, c.r as f32, d.r as f32) as u8,
+        bilinear_interp(x_ratio, y_ratio, a.g as f32, b.g as f32, c.g as f32, d.g as f32) as u8,
+        bilinear_interp(x_ratio, y_ratio, a.b as f32, b.b as f32, c.b as f32, d.b as f32) as u8,
+    )
+    return col
+}
+
+def Image::resize(&this, new_width: u32, new_height: u32): &Image {
+    let resized = Image::new(new_width, new_height)
+    let x_ratio = .width as f32 / new_width as f32
+    let y_ratio = .height as f32 / new_height as f32
+    for let ny = 0; ny < new_height; ++ny {
+        for let nx = 0; nx < new_width; ++nx {
+            let x = (nx as f32 * x_ratio)
+            let y = (ny as f32 * y_ratio)
+            resized.set(nx, ny, .get_interpolated(x, y))
+        }
+    }
+    return resized
+}
+
 
 def Image::clear(&this) {
     std::libc::memset(.data, 0, .width * .height * sizeof(Color))
