@@ -40,3 +40,23 @@ def isdigit(c: char): bool extern
 def isalpha(c: char): bool extern
 def isalnum(c: char): bool extern
 def isprint(c: char): bool extern
+
+// unistd.h
+@compiler c_include "sys/types.h"
+@compiler c_include "sys/wait.h"
+@compiler c_include "unistd.h"
+
+def pipe(fds: &i32): i32 extern
+def fork(): i32 extern
+def dup2(a: i32, b: i32): i32 extern
+def close(a: i32): i32 extern
+def execvp(a: str, b: &str): i32 extern
+def waitpid(a: i32, b: &i32, c: i32): i32 extern
+def write(a: i32, b: &u32, c: u32): i32 extern
+
+// macros
+const STDIN_FILENO: i32 extern
+def WEXITSTATUS(a: i32): i32 extern
+def WTERMSIG(a: i32): i32 extern
+def WIFEXITED(a: i32): bool extern
+def WIFSIGNALED(a: i32): bool extern
