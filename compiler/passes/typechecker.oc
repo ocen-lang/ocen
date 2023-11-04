@@ -535,7 +535,10 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     }
     if not res? return null
 
-    if res.base != BaseType::Function {
+    if res.base == BaseType::Pointer and res.u.ptr.base == BaseType::Function {
+        res = res.u.ptr
+
+    } else if res.base != BaseType::Function {
         .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
         return null
     }
@@ -556,7 +559,6 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     }
 
     return func.return_type
-
 }
 
 def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type): &Type {
