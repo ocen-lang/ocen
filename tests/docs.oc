@@ -7,7 +7,7 @@
 
 import std::{ vector, map, compact_map, heap, deque, set }
 import std::{ buffer, bufferio, image, json, math, complex, fft, random }
-import std::{ value, vec, sdl, glut, socket, sort, thread }
+import std::{ value, vec, sdl, glut, socket, sort, thread, video_renderer }
 import std::traits::{ hash, eq, compare }
 
 import @parser

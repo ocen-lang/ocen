@@ -1,0 +1,139 @@
+import std::vector::Vector
+import std::image::{ Image, Color }
+import std::libc:: {
+    pipe, fork, dup2, close, execvp, waitpid, write, exit,
+    WEXITSTATUS, WTERMSIG, WIFEXITED, WIFSIGNALED, STDIN_FILENO
+}
+
+const READ_END: u32 = 0
+const WRITE_END: u32 = 1
+
+struct FFMPEGContext {
+    pipe: i32
+    pid: i32
+    width: u32
+}
+
+def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verbose: bool = false): &FFMPEGContext {
+    let pipefd: [i32; 2]
+
+    if (pipe(pipefd) < 0) {
+        println(`FFMPEG: Could not create a pipe`);
+        return null;
+    }
+
+    let child = fork();
+    if (child < 0) {
+        println(`FFMPEG: Could not fork`);
+        return null;
+    }
+
+    if (child == 0) {
+        if (dup2(pipefd[READ_END], STDIN_FILENO) < 0) {
+            println(`FFMPEG CHILD: Could not dup2`);
+            std::exit(1);
+        }
+        close(pipefd[WRITE_END]);
+
+        let args = Vector<str>::new()
+        args.push("ffmpeg")
+        if verbose {
+            args.push("-loglevel"); args.push("verbose")
+        }
+        args.push("-y")
+        args.push("-f"); args.push("rawvideo")
+        args.push("-pix_fmt"); args.push("rgba")
+        args.push("-s"); args.push(`{width}x{height}`)
+        args.push("-r"); args.push(`{fps}`)
+        args.push("-i"); args.push("-")
+        args.push("-c:v"); args.push("libx264")
+        args.push("-vb"); args.push("2500k")
+        args.push("-c:a"); args.push("aac")
+        args.push("-ab"); args.push("200k")
+        args.push("-pix_fmt"); args.push("yuv420p")
+        args.push(out_name)
+        args.push(null)
+
+        let ret = execvp("ffmpeg", args.data)
+        if (ret < 0) {
+            println(`FFMPEG CHILD: Could not execvp`);
+            exit(1);
+        }
+        assert false, "unreachable"
+    }
+
+    if (close(pipefd[READ_END]) < 0) {
+        println(`FFMPEG: Could not close pipefd[READ_END]`);
+    }
+
+    let ffmpeg = std::new<FFMPEGContext>();    
+    ffmpeg.pid = child;
+    ffmpeg.pipe = pipefd[WRITE_END];
+    ffmpeg.width = width;
+    return ffmpeg;
+}
+
+def FFMPEGContext::finish(&this): bool {
+    let pipe = .pipe;
+    let pid = .pid;
+    std::libc::free(this)
+
+    if (close(pipe) < 0) {
+        println(`FFMPEG: Could not close pipe`);
+        return false;
+    }
+
+    while true {
+        let wstatus = 0i32
+        if (waitpid(pid, &wstatus, 0) < 0) {
+            println(`FFMPEG: waitpid failed`);
+            return false;
+        }
+
+        if (WIFEXITED(wstatus)) {
+            let exit_status = WEXITSTATUS(wstatus);
+            if (exit_status != 0) {
+                println(`FFMPEG: ffmpeg exited with status {exit_status}`);
+                return false;
+            }
+
+            return true;
+        }
+
+        if (WIFSIGNALED(wstatus)) {
+            println(`FFMPEG: ffmpeg was killed by signal {WTERMSIG(wstatus)}`);
+            return false;
+        }
+    }
+
+    assert false, "unreachable"
+}
+
+def FFMPEGContext::send_frame(&this, img: &Image): bool {
+    let data = std::new<u32>(.width * img.height);
+    let padding = .width - img.width;
+    for let y = 0; y < img.height; ++y  {
+        let out_x = 0
+        for let x = 0; x < padding/2; ++x {
+            data[y * .width + out_x] = 0;
+            ++out_x;
+        }
+        for let x = 0; x < img.width; ++x {
+            let col = img.get(x, y);
+            let c = (255 << 24) | (col.b as u32 << 16) | (col.g as u32 << 8) | (col.r as u32);
+            data[y * .width + out_x] = c;
+            ++out_x;
+        }
+        for let x = padding/2; x < padding; ++x {
+            data[y * .width + out_x] = 0;
+            ++out_x;
+        }
+    }
+    if write(.pipe, data, .width * img.height * 4) < 0 {
+        println(`FFMPEG: Could not write to pipe`)
+        std::libc::free(data)
+        return false
+    }
+    std::libc::free(data)
+    return true
+}

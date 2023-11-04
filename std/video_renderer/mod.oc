@@ -1,0 +1,46 @@
+import std::sdl
+
+import .ffmpeg::FFMPEGContext
+import .sdl::SDLContext
+import std::image::{Image, Color}
+
+
+enum VideoRendererType {
+    FFMPEG
+    SDL
+}
+
+union VideoRendererUnion {
+    ffmpeg: &FFMPEGContext
+    sdl: &SDLContext
+}
+
+struct VideoRenderer {
+    type: VideoRendererType
+    u: VideoRendererUnion
+}
+
+def VideoRenderer::create(type: VideoRendererType, width: u32, height: u32, fps: u32, out_name: str = "out.mp4", verbose: bool = false): &VideoRenderer {
+    let vr = std::new<VideoRenderer>()
+    vr.type = type
+    match type {
+        FFMPEG => vr.u.ffmpeg = FFMPEGContext::create(width, height, fps, out_name, verbose)
+        SDL => vr.u.sdl = SDLContext::create(width, height, fps)
+    }
+    return vr
+}
+
+def VideoRenderer::send_frame(&this, img: &Image) {
+    match .type {
+        FFMPEG => .u.ffmpeg.send_frame(img)
+        SDL => .u.sdl.send_frame(img)
+    }
+}
+
+def VideoRenderer::finish(&this) {
+    match .type {
+        FFMPEG => .u.ffmpeg.finish()
+        SDL => .u.sdl.finish()
+    }
+}
+

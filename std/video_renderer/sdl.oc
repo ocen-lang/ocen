@@ -1,0 +1,95 @@
+
+import std::sdl
+import std::image::{Image, Color}
+
+struct SDLContext {
+    window: &sdl::Window
+    renderer: &sdl::Renderer
+    buffer: &sdl::Texture
+    orig_width: u32
+
+    frame_time: u32
+    last_frame: i32
+}
+
+def SDLContext::create(width: u32, height: u32, fps: u32): &SDLContext {
+    let ctx = std::new<SDLContext>()
+    sdl::init(sdl::INIT_EVERYTHING)
+    sdl::create_window_renderer(width as i32, height as i32, 0, &ctx.window, &ctx.renderer)
+    assert ctx.window?, "Failed to create window"
+    assert ctx.renderer?, "Failed to create renderer"
+
+    ctx.renderer.set_draw_color(0, 0, 0, 255)
+    ctx.renderer.clear()
+    ctx.renderer.present()
+
+    ctx.orig_width = width
+    ctx.buffer = ctx.renderer.create_texture(
+        sdl::PIXELFORMAT_ABGR8888,
+        sdl::TEXTUREACCESS_STREAMING,
+        width as i32,
+        height as i32
+    )
+    assert ctx.buffer?, "Failed to create buffer"
+
+    ctx.frame_time = 1000 / fps
+    ctx.last_frame = sdl::get_ticks()
+    return ctx
+}
+
+def SDLContext::finish(&this) {
+    .renderer.destroy()
+    .window.destroy()
+    sdl::quit()
+    std::exit(0)
+}
+
+def SDLContext::send_frame(&this, img: &Image) {
+    let e: sdl::Event
+    let quit = false
+    while sdl::poll_event(&e) {
+        match e.type {
+            Quit => quit = true
+            KeyDown => {
+                match e.key.keysym.scancode {
+                    Q | Escape => quit = true
+                    else => {}
+                }
+            }
+            else => {}
+        }
+    }
+    if quit then .finish()
+
+    let current_tick = sdl::get_ticks()
+    let elapsed = current_tick - .last_frame
+    if elapsed < .frame_time as i32 {
+        sdl::delay(.frame_time as i32 - elapsed)
+    }
+
+    let data: &u8
+    let i_pitch = 0i32
+    .buffer.lock(null, (&data) as &untyped_ptr, &i_pitch)
+
+    assert i_pitch > 0
+    let pitch = i_pitch as u32
+
+    let padding = .orig_width - img.width;
+    for let y = 0; y < img.height; ++y  {
+        let out_x = padding/2
+        for let x = 0; x < img.width; ++x {
+            let col = img.get(x, y);
+            let off = y * pitch + out_x * 4
+            data[off + 0] = col.r
+            data[off + 1] = col.g
+            data[off + 2] = col.b
+            data[off + 3] = 255 as u8
+            ++out_x;
+        }
+    }
+
+    .buffer.unlock()
+    .renderer.copy(.buffer, null, null)
+    .renderer.present()
+    .last_frame = sdl::get_ticks()
+}
