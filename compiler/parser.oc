@@ -1569,6 +1569,10 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
 def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Span): &Namespace {
     let sym = base.find_importable_symbol(name)
 
+    // Special case for "this", we are not allowed to have a module with that name.
+    // This is because we use "this" to refer to the current namespace in an import
+    if name.eq("this") return base
+
     if sym? and sym.type != Namespace then return base
     let next = if sym? then sym.u.ns else null
 
