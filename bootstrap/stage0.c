@@ -1,4 +1,7 @@
 #include "ctype.h"
+#include "sys/types.h"
+#include "sys/wait.h"
+#include "unistd.h"
 #include "dirent.h"
 #include "libgen.h"
 
@@ -1806,7 +1809,7 @@ std_vector_Vector__0 *std_vector_Vector__0_new(u32 capacity);
 tokens_Token *std_vector_Vector__0_pop(std_vector_Vector__0 *this);
 void std_vector_Vector__0_push(std_vector_Vector__0 *this, tokens_Token *value);
 void std_vector_Vector__0_clear(std_vector_Vector__0 *this);
-tokens_Token *std_vector_Vector__0_back(std_vector_Vector__0 *this);
+tokens_Token *std_vector_Vector__0_back(std_vector_Vector__0 *this, u32 i);
 std_vector_Iterator__0 std_vector_Vector__0_iter(std_vector_Vector__0 *this);
 tokens_Token *std_vector_Iterator__0_cur(std_vector_Iterator__0 *this);
 void std_vector_Iterator__0_next(std_vector_Iterator__0 *this);
@@ -1822,7 +1825,7 @@ std_vector_Vector__1 *std_vector_Vector__1_new(u32 capacity);
 std_value_Value *std_vector_Vector__1_pop(std_vector_Vector__1 *this);
 void std_vector_Vector__1_push(std_vector_Vector__1 *this, std_value_Value *value);
 void std_vector_Vector__1_clear(std_vector_Vector__1 *this);
-std_value_Value *std_vector_Vector__1_back(std_vector_Vector__1 *this);
+std_value_Value *std_vector_Vector__1_back(std_vector_Vector__1 *this, u32 i);
 std_vector_Iterator__1 std_vector_Vector__1_iter(std_vector_Vector__1 *this);
 std_value_Value *std_vector_Iterator__1_cur(std_vector_Iterator__1 *this);
 void std_vector_Iterator__1_next(std_vector_Iterator__1 *this);
@@ -1838,7 +1841,7 @@ std_vector_Vector__2 *std_vector_Vector__2_new(u32 capacity);
 std_compact_map_Item__0 std_vector_Vector__2_pop(std_vector_Vector__2 *this);
 void std_vector_Vector__2_push(std_vector_Vector__2 *this, std_compact_map_Item__0 value);
 void std_vector_Vector__2_clear(std_vector_Vector__2 *this);
-std_compact_map_Item__0 std_vector_Vector__2_back(std_vector_Vector__2 *this);
+std_compact_map_Item__0 std_vector_Vector__2_back(std_vector_Vector__2 *this, u32 i);
 std_vector_Iterator__2 std_vector_Vector__2_iter(std_vector_Vector__2 *this);
 std_compact_map_Item__0 std_vector_Iterator__2_cur(std_vector_Iterator__2 *this);
 void std_vector_Iterator__2_next(std_vector_Iterator__2 *this);
@@ -1854,7 +1857,7 @@ std_vector_Vector__3 *std_vector_Vector__3_new(u32 capacity);
 types_Type *std_vector_Vector__3_pop(std_vector_Vector__3 *this);
 void std_vector_Vector__3_push(std_vector_Vector__3 *this, types_Type *value);
 void std_vector_Vector__3_clear(std_vector_Vector__3 *this);
-types_Type *std_vector_Vector__3_back(std_vector_Vector__3 *this);
+types_Type *std_vector_Vector__3_back(std_vector_Vector__3 *this, u32 i);
 std_vector_Iterator__3 std_vector_Vector__3_iter(std_vector_Vector__3 *this);
 types_Type *std_vector_Iterator__3_cur(std_vector_Iterator__3 *this);
 void std_vector_Iterator__3_next(std_vector_Iterator__3 *this);
@@ -1870,7 +1873,7 @@ std_vector_Vector__4 *std_vector_Vector__4_new(u32 capacity);
 ast_nodes_ImportPart *std_vector_Vector__4_pop(std_vector_Vector__4 *this);
 void std_vector_Vector__4_push(std_vector_Vector__4 *this, ast_nodes_ImportPart *value);
 void std_vector_Vector__4_clear(std_vector_Vector__4 *this);
-ast_nodes_ImportPart *std_vector_Vector__4_back(std_vector_Vector__4 *this);
+ast_nodes_ImportPart *std_vector_Vector__4_back(std_vector_Vector__4 *this, u32 i);
 std_vector_Iterator__4 std_vector_Vector__4_iter(std_vector_Vector__4 *this);
 ast_nodes_ImportPart *std_vector_Iterator__4_cur(std_vector_Iterator__4 *this);
 void std_vector_Iterator__4_next(std_vector_Iterator__4 *this);
@@ -1886,7 +1889,7 @@ std_vector_Vector__5 *std_vector_Vector__5_new(u32 capacity);
 char *std_vector_Vector__5_pop(std_vector_Vector__5 *this);
 void std_vector_Vector__5_push(std_vector_Vector__5 *this, char *value);
 void std_vector_Vector__5_clear(std_vector_Vector__5 *this);
-char *std_vector_Vector__5_back(std_vector_Vector__5 *this);
+char *std_vector_Vector__5_back(std_vector_Vector__5 *this, u32 i);
 std_vector_Iterator__5 std_vector_Vector__5_iter(std_vector_Vector__5 *this);
 char *std_vector_Iterator__5_cur(std_vector_Iterator__5 *this);
 void std_vector_Iterator__5_next(std_vector_Iterator__5 *this);
@@ -1902,7 +1905,7 @@ std_vector_Vector__6 *std_vector_Vector__6_new(u32 capacity);
 ast_scopes_Scope *std_vector_Vector__6_pop(std_vector_Vector__6 *this);
 void std_vector_Vector__6_push(std_vector_Vector__6 *this, ast_scopes_Scope *value);
 void std_vector_Vector__6_clear(std_vector_Vector__6 *this);
-ast_scopes_Scope *std_vector_Vector__6_back(std_vector_Vector__6 *this);
+ast_scopes_Scope *std_vector_Vector__6_back(std_vector_Vector__6 *this, u32 i);
 std_vector_Iterator__6 std_vector_Vector__6_iter(std_vector_Vector__6 *this);
 ast_scopes_Scope *std_vector_Iterator__6_cur(std_vector_Iterator__6 *this);
 void std_vector_Iterator__6_next(std_vector_Iterator__6 *this);
@@ -1918,7 +1921,7 @@ std_vector_Vector__7 *std_vector_Vector__7_new(u32 capacity);
 ast_program_Namespace *std_vector_Vector__7_pop(std_vector_Vector__7 *this);
 void std_vector_Vector__7_push(std_vector_Vector__7 *this, ast_program_Namespace *value);
 void std_vector_Vector__7_clear(std_vector_Vector__7 *this);
-ast_program_Namespace *std_vector_Vector__7_back(std_vector_Vector__7 *this);
+ast_program_Namespace *std_vector_Vector__7_back(std_vector_Vector__7 *this, u32 i);
 std_vector_Iterator__7 std_vector_Vector__7_iter(std_vector_Vector__7 *this);
 ast_program_Namespace *std_vector_Iterator__7_cur(std_vector_Iterator__7 *this);
 void std_vector_Iterator__7_next(std_vector_Iterator__7 *this);
@@ -1934,7 +1937,7 @@ std_vector_Vector__8 *std_vector_Vector__8_new(u32 capacity);
 ast_scopes_TemplateInstance *std_vector_Vector__8_pop(std_vector_Vector__8 *this);
 void std_vector_Vector__8_push(std_vector_Vector__8 *this, ast_scopes_TemplateInstance *value);
 void std_vector_Vector__8_clear(std_vector_Vector__8 *this);
-ast_scopes_TemplateInstance *std_vector_Vector__8_back(std_vector_Vector__8 *this);
+ast_scopes_TemplateInstance *std_vector_Vector__8_back(std_vector_Vector__8 *this, u32 i);
 std_vector_Iterator__8 std_vector_Vector__8_iter(std_vector_Vector__8 *this);
 ast_scopes_TemplateInstance *std_vector_Iterator__8_cur(std_vector_Iterator__8 *this);
 void std_vector_Iterator__8_next(std_vector_Iterator__8 *this);
@@ -1950,7 +1953,7 @@ std_vector_Vector__9 *std_vector_Vector__9_new(u32 capacity);
 ast_nodes_Variable *std_vector_Vector__9_pop(std_vector_Vector__9 *this);
 void std_vector_Vector__9_push(std_vector_Vector__9 *this, ast_nodes_Variable *value);
 void std_vector_Vector__9_clear(std_vector_Vector__9 *this);
-ast_nodes_Variable *std_vector_Vector__9_back(std_vector_Vector__9 *this);
+ast_nodes_Variable *std_vector_Vector__9_back(std_vector_Vector__9 *this, u32 i);
 std_vector_Iterator__9 std_vector_Vector__9_iter(std_vector_Vector__9 *this);
 ast_nodes_Variable *std_vector_Iterator__9_cur(std_vector_Iterator__9 *this);
 void std_vector_Iterator__9_next(std_vector_Iterator__9 *this);
@@ -1966,7 +1969,7 @@ std_vector_Vector__10 *std_vector_Vector__10_new(u32 capacity);
 ast_nodes_Function *std_vector_Vector__10_pop(std_vector_Vector__10 *this);
 void std_vector_Vector__10_push(std_vector_Vector__10 *this, ast_nodes_Function *value);
 void std_vector_Vector__10_clear(std_vector_Vector__10 *this);
-ast_nodes_Function *std_vector_Vector__10_back(std_vector_Vector__10 *this);
+ast_nodes_Function *std_vector_Vector__10_back(std_vector_Vector__10 *this, u32 i);
 std_vector_Iterator__10 std_vector_Vector__10_iter(std_vector_Vector__10 *this);
 ast_nodes_Function *std_vector_Iterator__10_cur(std_vector_Iterator__10 *this);
 void std_vector_Iterator__10_next(std_vector_Iterator__10 *this);
@@ -1982,7 +1985,7 @@ std_vector_Vector__11 *std_vector_Vector__11_new(u32 capacity);
 ast_nodes_Structure *std_vector_Vector__11_pop(std_vector_Vector__11 *this);
 void std_vector_Vector__11_push(std_vector_Vector__11 *this, ast_nodes_Structure *value);
 void std_vector_Vector__11_clear(std_vector_Vector__11 *this);
-ast_nodes_Structure *std_vector_Vector__11_back(std_vector_Vector__11 *this);
+ast_nodes_Structure *std_vector_Vector__11_back(std_vector_Vector__11 *this, u32 i);
 std_vector_Iterator__11 std_vector_Vector__11_iter(std_vector_Vector__11 *this);
 ast_nodes_Structure *std_vector_Iterator__11_cur(std_vector_Iterator__11 *this);
 void std_vector_Iterator__11_next(std_vector_Iterator__11 *this);
@@ -1998,7 +2001,7 @@ std_vector_Vector__12 *std_vector_Vector__12_new(u32 capacity);
 ast_nodes_AST *std_vector_Vector__12_pop(std_vector_Vector__12 *this);
 void std_vector_Vector__12_push(std_vector_Vector__12 *this, ast_nodes_AST *value);
 void std_vector_Vector__12_clear(std_vector_Vector__12 *this);
-ast_nodes_AST *std_vector_Vector__12_back(std_vector_Vector__12 *this);
+ast_nodes_AST *std_vector_Vector__12_back(std_vector_Vector__12 *this, u32 i);
 std_vector_Iterator__12 std_vector_Vector__12_iter(std_vector_Vector__12 *this);
 ast_nodes_AST *std_vector_Iterator__12_cur(std_vector_Iterator__12 *this);
 void std_vector_Iterator__12_next(std_vector_Iterator__12 *this);
@@ -2014,7 +2017,7 @@ std_vector_Vector__13 *std_vector_Vector__13_new(u32 capacity);
 ast_nodes_Enum *std_vector_Vector__13_pop(std_vector_Vector__13 *this);
 void std_vector_Vector__13_push(std_vector_Vector__13 *this, ast_nodes_Enum *value);
 void std_vector_Vector__13_clear(std_vector_Vector__13 *this);
-ast_nodes_Enum *std_vector_Vector__13_back(std_vector_Vector__13 *this);
+ast_nodes_Enum *std_vector_Vector__13_back(std_vector_Vector__13 *this, u32 i);
 std_vector_Iterator__13 std_vector_Vector__13_iter(std_vector_Vector__13 *this);
 ast_nodes_Enum *std_vector_Iterator__13_cur(std_vector_Iterator__13 *this);
 void std_vector_Iterator__13_next(std_vector_Iterator__13 *this);
@@ -2030,7 +2033,7 @@ std_vector_Vector__14 *std_vector_Vector__14_new(u32 capacity);
 errors_Error *std_vector_Vector__14_pop(std_vector_Vector__14 *this);
 void std_vector_Vector__14_push(std_vector_Vector__14 *this, errors_Error *value);
 void std_vector_Vector__14_clear(std_vector_Vector__14 *this);
-errors_Error *std_vector_Vector__14_back(std_vector_Vector__14 *this);
+errors_Error *std_vector_Vector__14_back(std_vector_Vector__14 *this, u32 i);
 std_vector_Iterator__14 std_vector_Vector__14_iter(std_vector_Vector__14 *this);
 errors_Error *std_vector_Iterator__14_cur(std_vector_Iterator__14 *this);
 void std_vector_Iterator__14_next(std_vector_Iterator__14 *this);
@@ -2046,7 +2049,7 @@ std_vector_Vector__15 *std_vector_Vector__15_new(u32 capacity);
 ast_nodes_Argument *std_vector_Vector__15_pop(std_vector_Vector__15 *this);
 void std_vector_Vector__15_push(std_vector_Vector__15 *this, ast_nodes_Argument *value);
 void std_vector_Vector__15_clear(std_vector_Vector__15 *this);
-ast_nodes_Argument *std_vector_Vector__15_back(std_vector_Vector__15 *this);
+ast_nodes_Argument *std_vector_Vector__15_back(std_vector_Vector__15 *this, u32 i);
 std_vector_Iterator__15 std_vector_Vector__15_iter(std_vector_Vector__15 *this);
 ast_nodes_Argument *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this);
 void std_vector_Iterator__15_next(std_vector_Iterator__15 *this);
@@ -2062,7 +2065,7 @@ std_vector_Vector__16 *std_vector_Vector__16_new(u32 capacity);
 std_vector_Vector__4 *std_vector_Vector__16_pop(std_vector_Vector__16 *this);
 void std_vector_Vector__16_push(std_vector_Vector__16 *this, std_vector_Vector__4 *value);
 void std_vector_Vector__16_clear(std_vector_Vector__16 *this);
-std_vector_Vector__4 *std_vector_Vector__16_back(std_vector_Vector__16 *this);
+std_vector_Vector__4 *std_vector_Vector__16_back(std_vector_Vector__16 *this, u32 i);
 std_vector_Iterator__16 std_vector_Vector__16_iter(std_vector_Vector__16 *this);
 std_vector_Vector__4 *std_vector_Iterator__16_cur(std_vector_Iterator__16 *this);
 void std_vector_Iterator__16_next(std_vector_Iterator__16 *this);
@@ -2078,7 +2081,7 @@ std_vector_Vector__17 *std_vector_Vector__17_new(u32 capacity);
 ast_nodes_MatchCase *std_vector_Vector__17_pop(std_vector_Vector__17 *this);
 void std_vector_Vector__17_push(std_vector_Vector__17 *this, ast_nodes_MatchCase *value);
 void std_vector_Vector__17_clear(std_vector_Vector__17 *this);
-ast_nodes_MatchCase *std_vector_Vector__17_back(std_vector_Vector__17 *this);
+ast_nodes_MatchCase *std_vector_Vector__17_back(std_vector_Vector__17 *this, u32 i);
 std_vector_Iterator__17 std_vector_Vector__17_iter(std_vector_Vector__17 *this);
 ast_nodes_MatchCase *std_vector_Iterator__17_cur(std_vector_Iterator__17 *this);
 void std_vector_Iterator__17_next(std_vector_Iterator__17 *this);
@@ -2094,7 +2097,7 @@ std_vector_Vector__18 *std_vector_Vector__18_new(u32 capacity);
 u32 std_vector_Vector__18_pop(std_vector_Vector__18 *this);
 void std_vector_Vector__18_push(std_vector_Vector__18 *this, u32 value);
 void std_vector_Vector__18_clear(std_vector_Vector__18 *this);
-u32 std_vector_Vector__18_back(std_vector_Vector__18 *this);
+u32 std_vector_Vector__18_back(std_vector_Vector__18 *this, u32 i);
 std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this);
 u32 std_vector_Iterator__18_cur(std_vector_Iterator__18 *this);
 void std_vector_Iterator__18_next(std_vector_Iterator__18 *this);
@@ -4537,7 +4540,7 @@ u32 u32_hash(u32 this) {
 }
 
 tokens_Token *std_vector_Vector__0_at(std_vector_Vector__0 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__0_free(std_vector_Vector__0 *this) {
@@ -4599,8 +4602,8 @@ void std_vector_Vector__0_clear(std_vector_Vector__0 *this) {
   this->size=((u32)0);
 }
 
-tokens_Token *std_vector_Vector__0_back(std_vector_Vector__0 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+tokens_Token *std_vector_Vector__0_back(std_vector_Vector__0 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__0 std_vector_Vector__0_iter(std_vector_Vector__0 *this) {
@@ -4608,11 +4611,11 @@ std_vector_Iterator__0 std_vector_Vector__0_iter(std_vector_Vector__0 *this) {
 }
 
 tokens_Token *std_vector_Iterator__0_cur(std_vector_Iterator__0 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__0_next(std_vector_Iterator__0 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__0_has_value(std_vector_Iterator__0 *this) {
@@ -4624,7 +4627,7 @@ std_vector_Iterator__0 std_vector_Iterator__0_make(std_vector_Vector__0 *vec) {
 }
 
 std_value_Value *std_vector_Vector__1_at(std_vector_Vector__1 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__1_free(std_vector_Vector__1 *this) {
@@ -4686,8 +4689,8 @@ void std_vector_Vector__1_clear(std_vector_Vector__1 *this) {
   this->size=((u32)0);
 }
 
-std_value_Value *std_vector_Vector__1_back(std_vector_Vector__1 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+std_value_Value *std_vector_Vector__1_back(std_vector_Vector__1 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__1 std_vector_Vector__1_iter(std_vector_Vector__1 *this) {
@@ -4695,11 +4698,11 @@ std_vector_Iterator__1 std_vector_Vector__1_iter(std_vector_Vector__1 *this) {
 }
 
 std_value_Value *std_vector_Iterator__1_cur(std_vector_Iterator__1 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__1_next(std_vector_Iterator__1 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__1_has_value(std_vector_Iterator__1 *this) {
@@ -4711,7 +4714,7 @@ std_vector_Iterator__1 std_vector_Iterator__1_make(std_vector_Vector__1 *vec) {
 }
 
 std_compact_map_Item__0 std_vector_Vector__2_at(std_vector_Vector__2 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__2_free(std_vector_Vector__2 *this) {
@@ -4773,8 +4776,8 @@ void std_vector_Vector__2_clear(std_vector_Vector__2 *this) {
   this->size=((u32)0);
 }
 
-std_compact_map_Item__0 std_vector_Vector__2_back(std_vector_Vector__2 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+std_compact_map_Item__0 std_vector_Vector__2_back(std_vector_Vector__2 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__2 std_vector_Vector__2_iter(std_vector_Vector__2 *this) {
@@ -4782,11 +4785,11 @@ std_vector_Iterator__2 std_vector_Vector__2_iter(std_vector_Vector__2 *this) {
 }
 
 std_compact_map_Item__0 std_vector_Iterator__2_cur(std_vector_Iterator__2 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__2_next(std_vector_Iterator__2 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__2_has_value(std_vector_Iterator__2 *this) {
@@ -4798,7 +4801,7 @@ std_vector_Iterator__2 std_vector_Iterator__2_make(std_vector_Vector__2 *vec) {
 }
 
 types_Type *std_vector_Vector__3_at(std_vector_Vector__3 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__3_free(std_vector_Vector__3 *this) {
@@ -4860,8 +4863,8 @@ void std_vector_Vector__3_clear(std_vector_Vector__3 *this) {
   this->size=((u32)0);
 }
 
-types_Type *std_vector_Vector__3_back(std_vector_Vector__3 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+types_Type *std_vector_Vector__3_back(std_vector_Vector__3 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__3 std_vector_Vector__3_iter(std_vector_Vector__3 *this) {
@@ -4869,11 +4872,11 @@ std_vector_Iterator__3 std_vector_Vector__3_iter(std_vector_Vector__3 *this) {
 }
 
 types_Type *std_vector_Iterator__3_cur(std_vector_Iterator__3 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__3_next(std_vector_Iterator__3 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__3_has_value(std_vector_Iterator__3 *this) {
@@ -4885,7 +4888,7 @@ std_vector_Iterator__3 std_vector_Iterator__3_make(std_vector_Vector__3 *vec) {
 }
 
 ast_nodes_ImportPart *std_vector_Vector__4_at(std_vector_Vector__4 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__4_free(std_vector_Vector__4 *this) {
@@ -4947,8 +4950,8 @@ void std_vector_Vector__4_clear(std_vector_Vector__4 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_ImportPart *std_vector_Vector__4_back(std_vector_Vector__4 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_ImportPart *std_vector_Vector__4_back(std_vector_Vector__4 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__4 std_vector_Vector__4_iter(std_vector_Vector__4 *this) {
@@ -4956,11 +4959,11 @@ std_vector_Iterator__4 std_vector_Vector__4_iter(std_vector_Vector__4 *this) {
 }
 
 ast_nodes_ImportPart *std_vector_Iterator__4_cur(std_vector_Iterator__4 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__4_next(std_vector_Iterator__4 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__4_has_value(std_vector_Iterator__4 *this) {
@@ -4972,7 +4975,7 @@ std_vector_Iterator__4 std_vector_Iterator__4_make(std_vector_Vector__4 *vec) {
 }
 
 char *std_vector_Vector__5_at(std_vector_Vector__5 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__5_free(std_vector_Vector__5 *this) {
@@ -5034,8 +5037,8 @@ void std_vector_Vector__5_clear(std_vector_Vector__5 *this) {
   this->size=((u32)0);
 }
 
-char *std_vector_Vector__5_back(std_vector_Vector__5 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+char *std_vector_Vector__5_back(std_vector_Vector__5 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__5 std_vector_Vector__5_iter(std_vector_Vector__5 *this) {
@@ -5043,11 +5046,11 @@ std_vector_Iterator__5 std_vector_Vector__5_iter(std_vector_Vector__5 *this) {
 }
 
 char *std_vector_Iterator__5_cur(std_vector_Iterator__5 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__5_next(std_vector_Iterator__5 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__5_has_value(std_vector_Iterator__5 *this) {
@@ -5059,7 +5062,7 @@ std_vector_Iterator__5 std_vector_Iterator__5_make(std_vector_Vector__5 *vec) {
 }
 
 ast_scopes_Scope *std_vector_Vector__6_at(std_vector_Vector__6 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__6_free(std_vector_Vector__6 *this) {
@@ -5121,8 +5124,8 @@ void std_vector_Vector__6_clear(std_vector_Vector__6 *this) {
   this->size=((u32)0);
 }
 
-ast_scopes_Scope *std_vector_Vector__6_back(std_vector_Vector__6 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_scopes_Scope *std_vector_Vector__6_back(std_vector_Vector__6 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__6 std_vector_Vector__6_iter(std_vector_Vector__6 *this) {
@@ -5130,11 +5133,11 @@ std_vector_Iterator__6 std_vector_Vector__6_iter(std_vector_Vector__6 *this) {
 }
 
 ast_scopes_Scope *std_vector_Iterator__6_cur(std_vector_Iterator__6 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__6_next(std_vector_Iterator__6 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__6_has_value(std_vector_Iterator__6 *this) {
@@ -5146,7 +5149,7 @@ std_vector_Iterator__6 std_vector_Iterator__6_make(std_vector_Vector__6 *vec) {
 }
 
 ast_program_Namespace *std_vector_Vector__7_at(std_vector_Vector__7 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__7_free(std_vector_Vector__7 *this) {
@@ -5208,8 +5211,8 @@ void std_vector_Vector__7_clear(std_vector_Vector__7 *this) {
   this->size=((u32)0);
 }
 
-ast_program_Namespace *std_vector_Vector__7_back(std_vector_Vector__7 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_program_Namespace *std_vector_Vector__7_back(std_vector_Vector__7 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__7 std_vector_Vector__7_iter(std_vector_Vector__7 *this) {
@@ -5217,11 +5220,11 @@ std_vector_Iterator__7 std_vector_Vector__7_iter(std_vector_Vector__7 *this) {
 }
 
 ast_program_Namespace *std_vector_Iterator__7_cur(std_vector_Iterator__7 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__7_next(std_vector_Iterator__7 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__7_has_value(std_vector_Iterator__7 *this) {
@@ -5233,7 +5236,7 @@ std_vector_Iterator__7 std_vector_Iterator__7_make(std_vector_Vector__7 *vec) {
 }
 
 ast_scopes_TemplateInstance *std_vector_Vector__8_at(std_vector_Vector__8 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__8_free(std_vector_Vector__8 *this) {
@@ -5295,8 +5298,8 @@ void std_vector_Vector__8_clear(std_vector_Vector__8 *this) {
   this->size=((u32)0);
 }
 
-ast_scopes_TemplateInstance *std_vector_Vector__8_back(std_vector_Vector__8 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_scopes_TemplateInstance *std_vector_Vector__8_back(std_vector_Vector__8 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__8 std_vector_Vector__8_iter(std_vector_Vector__8 *this) {
@@ -5304,11 +5307,11 @@ std_vector_Iterator__8 std_vector_Vector__8_iter(std_vector_Vector__8 *this) {
 }
 
 ast_scopes_TemplateInstance *std_vector_Iterator__8_cur(std_vector_Iterator__8 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__8_next(std_vector_Iterator__8 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__8_has_value(std_vector_Iterator__8 *this) {
@@ -5320,7 +5323,7 @@ std_vector_Iterator__8 std_vector_Iterator__8_make(std_vector_Vector__8 *vec) {
 }
 
 ast_nodes_Variable *std_vector_Vector__9_at(std_vector_Vector__9 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__9_free(std_vector_Vector__9 *this) {
@@ -5382,8 +5385,8 @@ void std_vector_Vector__9_clear(std_vector_Vector__9 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_Variable *std_vector_Vector__9_back(std_vector_Vector__9 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_Variable *std_vector_Vector__9_back(std_vector_Vector__9 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__9 std_vector_Vector__9_iter(std_vector_Vector__9 *this) {
@@ -5391,11 +5394,11 @@ std_vector_Iterator__9 std_vector_Vector__9_iter(std_vector_Vector__9 *this) {
 }
 
 ast_nodes_Variable *std_vector_Iterator__9_cur(std_vector_Iterator__9 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__9_next(std_vector_Iterator__9 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__9_has_value(std_vector_Iterator__9 *this) {
@@ -5407,7 +5410,7 @@ std_vector_Iterator__9 std_vector_Iterator__9_make(std_vector_Vector__9 *vec) {
 }
 
 ast_nodes_Function *std_vector_Vector__10_at(std_vector_Vector__10 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__10_free(std_vector_Vector__10 *this) {
@@ -5469,8 +5472,8 @@ void std_vector_Vector__10_clear(std_vector_Vector__10 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_Function *std_vector_Vector__10_back(std_vector_Vector__10 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_Function *std_vector_Vector__10_back(std_vector_Vector__10 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__10 std_vector_Vector__10_iter(std_vector_Vector__10 *this) {
@@ -5478,11 +5481,11 @@ std_vector_Iterator__10 std_vector_Vector__10_iter(std_vector_Vector__10 *this) 
 }
 
 ast_nodes_Function *std_vector_Iterator__10_cur(std_vector_Iterator__10 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__10_next(std_vector_Iterator__10 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__10_has_value(std_vector_Iterator__10 *this) {
@@ -5494,7 +5497,7 @@ std_vector_Iterator__10 std_vector_Iterator__10_make(std_vector_Vector__10 *vec)
 }
 
 ast_nodes_Structure *std_vector_Vector__11_at(std_vector_Vector__11 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__11_free(std_vector_Vector__11 *this) {
@@ -5556,8 +5559,8 @@ void std_vector_Vector__11_clear(std_vector_Vector__11 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_Structure *std_vector_Vector__11_back(std_vector_Vector__11 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_Structure *std_vector_Vector__11_back(std_vector_Vector__11 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__11 std_vector_Vector__11_iter(std_vector_Vector__11 *this) {
@@ -5565,11 +5568,11 @@ std_vector_Iterator__11 std_vector_Vector__11_iter(std_vector_Vector__11 *this) 
 }
 
 ast_nodes_Structure *std_vector_Iterator__11_cur(std_vector_Iterator__11 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__11_next(std_vector_Iterator__11 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__11_has_value(std_vector_Iterator__11 *this) {
@@ -5581,7 +5584,7 @@ std_vector_Iterator__11 std_vector_Iterator__11_make(std_vector_Vector__11 *vec)
 }
 
 ast_nodes_AST *std_vector_Vector__12_at(std_vector_Vector__12 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__12_free(std_vector_Vector__12 *this) {
@@ -5643,8 +5646,8 @@ void std_vector_Vector__12_clear(std_vector_Vector__12 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_AST *std_vector_Vector__12_back(std_vector_Vector__12 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_AST *std_vector_Vector__12_back(std_vector_Vector__12 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__12 std_vector_Vector__12_iter(std_vector_Vector__12 *this) {
@@ -5652,11 +5655,11 @@ std_vector_Iterator__12 std_vector_Vector__12_iter(std_vector_Vector__12 *this) 
 }
 
 ast_nodes_AST *std_vector_Iterator__12_cur(std_vector_Iterator__12 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__12_next(std_vector_Iterator__12 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__12_has_value(std_vector_Iterator__12 *this) {
@@ -5668,7 +5671,7 @@ std_vector_Iterator__12 std_vector_Iterator__12_make(std_vector_Vector__12 *vec)
 }
 
 ast_nodes_Enum *std_vector_Vector__13_at(std_vector_Vector__13 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__13_free(std_vector_Vector__13 *this) {
@@ -5730,8 +5733,8 @@ void std_vector_Vector__13_clear(std_vector_Vector__13 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_Enum *std_vector_Vector__13_back(std_vector_Vector__13 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_Enum *std_vector_Vector__13_back(std_vector_Vector__13 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__13 std_vector_Vector__13_iter(std_vector_Vector__13 *this) {
@@ -5739,11 +5742,11 @@ std_vector_Iterator__13 std_vector_Vector__13_iter(std_vector_Vector__13 *this) 
 }
 
 ast_nodes_Enum *std_vector_Iterator__13_cur(std_vector_Iterator__13 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__13_next(std_vector_Iterator__13 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__13_has_value(std_vector_Iterator__13 *this) {
@@ -5755,7 +5758,7 @@ std_vector_Iterator__13 std_vector_Iterator__13_make(std_vector_Vector__13 *vec)
 }
 
 errors_Error *std_vector_Vector__14_at(std_vector_Vector__14 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__14_free(std_vector_Vector__14 *this) {
@@ -5817,8 +5820,8 @@ void std_vector_Vector__14_clear(std_vector_Vector__14 *this) {
   this->size=((u32)0);
 }
 
-errors_Error *std_vector_Vector__14_back(std_vector_Vector__14 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+errors_Error *std_vector_Vector__14_back(std_vector_Vector__14 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__14 std_vector_Vector__14_iter(std_vector_Vector__14 *this) {
@@ -5826,11 +5829,11 @@ std_vector_Iterator__14 std_vector_Vector__14_iter(std_vector_Vector__14 *this) 
 }
 
 errors_Error *std_vector_Iterator__14_cur(std_vector_Iterator__14 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__14_next(std_vector_Iterator__14 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__14_has_value(std_vector_Iterator__14 *this) {
@@ -5842,7 +5845,7 @@ std_vector_Iterator__14 std_vector_Iterator__14_make(std_vector_Vector__14 *vec)
 }
 
 ast_nodes_Argument *std_vector_Vector__15_at(std_vector_Vector__15 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__15_free(std_vector_Vector__15 *this) {
@@ -5904,8 +5907,8 @@ void std_vector_Vector__15_clear(std_vector_Vector__15 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_Argument *std_vector_Vector__15_back(std_vector_Vector__15 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_Argument *std_vector_Vector__15_back(std_vector_Vector__15 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__15 std_vector_Vector__15_iter(std_vector_Vector__15 *this) {
@@ -5913,11 +5916,11 @@ std_vector_Iterator__15 std_vector_Vector__15_iter(std_vector_Vector__15 *this) 
 }
 
 ast_nodes_Argument *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__15_next(std_vector_Iterator__15 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__15_has_value(std_vector_Iterator__15 *this) {
@@ -5929,7 +5932,7 @@ std_vector_Iterator__15 std_vector_Iterator__15_make(std_vector_Vector__15 *vec)
 }
 
 std_vector_Vector__4 *std_vector_Vector__16_at(std_vector_Vector__16 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__16_free(std_vector_Vector__16 *this) {
@@ -5991,8 +5994,8 @@ void std_vector_Vector__16_clear(std_vector_Vector__16 *this) {
   this->size=((u32)0);
 }
 
-std_vector_Vector__4 *std_vector_Vector__16_back(std_vector_Vector__16 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+std_vector_Vector__4 *std_vector_Vector__16_back(std_vector_Vector__16 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__16 std_vector_Vector__16_iter(std_vector_Vector__16 *this) {
@@ -6000,11 +6003,11 @@ std_vector_Iterator__16 std_vector_Vector__16_iter(std_vector_Vector__16 *this) 
 }
 
 std_vector_Vector__4 *std_vector_Iterator__16_cur(std_vector_Iterator__16 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__16_next(std_vector_Iterator__16 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__16_has_value(std_vector_Iterator__16 *this) {
@@ -6016,7 +6019,7 @@ std_vector_Iterator__16 std_vector_Iterator__16_make(std_vector_Vector__16 *vec)
 }
 
 ast_nodes_MatchCase *std_vector_Vector__17_at(std_vector_Vector__17 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__17_free(std_vector_Vector__17 *this) {
@@ -6078,8 +6081,8 @@ void std_vector_Vector__17_clear(std_vector_Vector__17 *this) {
   this->size=((u32)0);
 }
 
-ast_nodes_MatchCase *std_vector_Vector__17_back(std_vector_Vector__17 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+ast_nodes_MatchCase *std_vector_Vector__17_back(std_vector_Vector__17 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__17 std_vector_Vector__17_iter(std_vector_Vector__17 *this) {
@@ -6087,11 +6090,11 @@ std_vector_Iterator__17 std_vector_Vector__17_iter(std_vector_Vector__17 *this) 
 }
 
 ast_nodes_MatchCase *std_vector_Iterator__17_cur(std_vector_Iterator__17 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__17_next(std_vector_Iterator__17 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__17_has_value(std_vector_Iterator__17 *this) {
@@ -6103,7 +6106,7 @@ std_vector_Iterator__17 std_vector_Iterator__17_make(std_vector_Vector__17 *vec)
 }
 
 u32 std_vector_Vector__18_at(std_vector_Vector__18 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:70:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+  ae_assert((i < this->size), "std/vector.oc:71:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
 }
 
 void std_vector_Vector__18_free(std_vector_Vector__18 *this) {
@@ -6165,8 +6168,8 @@ void std_vector_Vector__18_clear(std_vector_Vector__18 *this) {
   this->size=((u32)0);
 }
 
-u32 std_vector_Vector__18_back(std_vector_Vector__18 *this) {
-  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  return this->data[(this->size - ((u32)1))];
+u32 std_vector_Vector__18_back(std_vector_Vector__18 *this, u32 i) {
+  ae_assert((this->size > ((u32)0)), "std/vector.oc:64:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");  ae_assert((i < this->size), "std/vector.oc:65:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");  return this->data[((this->size - i) - ((u32)1))];
 }
 
 std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this) {
@@ -6174,11 +6177,11 @@ std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this) 
 }
 
 u32 std_vector_Iterator__18_cur(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:105:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
+  ae_assert((this->index < this->vec->size), "std/vector.oc:106:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");  return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__18_next(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:100:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
+  ae_assert((this->index < this->vec->size), "std/vector.oc:101:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");  this->index+=((u32)1);
 }
 
 bool std_vector_Iterator__18_has_value(std_vector_Iterator__18 *this) {
@@ -8419,6 +8422,9 @@ void parser_Parser_try_load_mod_for_namespace(parser_Parser *this, ast_program_N
 
 ast_program_Namespace *parser_Parser_load_single_import_part(parser_Parser *this, ast_program_Namespace *base, char *name, std_span_Span span) {
   ast_scopes_Symbol *sym = ast_program_Namespace_find_importable_symbol(base, name);
+  if (str_eq(name, "this")) 
+  return base;
+  
   if ((((bool)sym) && (sym->type != ast_scopes_SymbolType_Namespace))) 
   return base;
   
@@ -8500,7 +8506,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__4 *parts = path->parts;
-        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1663:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__4_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1664:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__4_at(parts, ((u32)0))->u.single;
+        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1667:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__4_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1668:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__4_at(parts, ((u32)0))->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
           ast_program_Namespace *lib = parser_Parser_find_external_library(this, lib_name);
@@ -9231,7 +9237,7 @@ void passes_code_generator_CodeGenerator_gen_format_string_variadic(passes_code_
       } break;
     }
   }
-  char *part = std_vector_Vector__5_back(parts);
+  char *part = std_vector_Vector__5_back(parts, ((u32)0));
   passes_code_generator_CodeGenerator_gen_format_string_part(this, part);
   if (newline_after) 
   std_buffer_Buffer_puts(&this->out, "\\n");
@@ -9253,7 +9259,7 @@ void passes_code_generator_CodeGenerator_gen_format_string(passes_code_generator
 }
 
 void passes_code_generator_CodeGenerator_gen_yield_expression(passes_code_generator_CodeGenerator *this, ast_nodes_AST *expr) {
-  char *yield_var = std_vector_Vector__5_back(this->yield_vars);
+  char *yield_var = std_vector_Vector__5_back(this->yield_vars, ((u32)0));
   passes_code_generator_CodeGenerator_gen_indent(this);
   std_buffer_Buffer_puts(&this->out, yield_var);
   std_buffer_Buffer_puts(&this->out, " = ");
@@ -9944,7 +9950,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
       acc=passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.func.return_type, acc, false);
     } break;
     case types_BaseType_Pointer: {
-      bool needs_parens = (((bool)cur->u.ptr) && (cur->u.ptr->base==types_BaseType_Function || cur->u.ptr->base==types_BaseType_Array));
+      bool needs_parens = (((bool)cur->u.ptr) && cur->u.ptr->base==types_BaseType_Array);
       if (cur->u.ptr->base==types_BaseType_Function) {
       }  else       if (needs_parens) {
         str_replace(&acc, format_string("(*%s)", acc));
@@ -9971,7 +9977,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:892:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:890:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
 }
@@ -10021,7 +10027,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__8_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:936:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:934:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
         }
@@ -10057,7 +10063,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__8_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:963:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:961:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function_decl(this, func);
             if (func->exits) 
             std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
