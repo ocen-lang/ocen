@@ -60,9 +60,10 @@ def Vector::extend(&this, other: &Vector<T>) {
 }
 
 //* Returns the last element of the vector
-def Vector::back(&this): T {
+def Vector::back(&this, i: u32 = 0): T {
     assert .size > 0, "Empty vector in Vector::back"
-    return .data[.size - 1]
+    assert i < .size, "Out of bounds in Vector::back"
+    return .data[.size - i - 1]
 }
 
 //* Returns the element at the given index
