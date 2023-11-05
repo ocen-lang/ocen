@@ -1,0 +1,13 @@
+@compiler c_include "SDL2/SDL_ttf.h"
+@compiler c_flag "-lSDL2_ttf"
+
+struct Font extern("TTF_Font")
+
+def Font::load(path: str, size: i32): &Font extern("TTF_OpenFont")
+def Font::render_solid(&this, text: str, color: Color): &Surface extern("TTF_RenderText_Solid")
+def Font::get_text_size(&this, text: str, w: &i32, h: &i32) extern("TTF_SizeText")
+def Font::close(&this) extern("TTF_CloseFont")
+
+def init(): i32 extern("TTF_Init")
+def quit(): i32 extern("TTF_Quit")
+def get_error(): str extern("TTF_GetError")
