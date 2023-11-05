@@ -7,9 +7,11 @@ struct SDLContext {
     renderer: &sdl::Renderer
     buffer: &sdl::Texture
     orig_width: u32
+    orig_height: u32
 
     frame_time: u32
     last_frame: i32
+    paused: bool
 }
 
 def SDLContext::create(width: u32, height: u32, fps: u32): &SDLContext {
@@ -24,6 +26,7 @@ def SDLContext::create(width: u32, height: u32, fps: u32): &SDLContext {
     ctx.renderer.present()
 
     ctx.orig_width = width
+    ctx.orig_height = height
     ctx.buffer = ctx.renderer.create_texture(
         sdl::PIXELFORMAT_ABGR8888,
         sdl::TEXTUREACCESS_STREAMING,
@@ -34,6 +37,7 @@ def SDLContext::create(width: u32, height: u32, fps: u32): &SDLContext {
 
     ctx.frame_time = 1000 / fps
     ctx.last_frame = sdl::get_ticks()
+    ctx.paused = false
     return ctx
 }
 
@@ -47,16 +51,22 @@ def SDLContext::finish(&this) {
 def SDLContext::send_frame(&this, img: &Image) {
     let e: sdl::Event
     let quit = false
-    while sdl::poll_event(&e) {
-        match e.type {
-            Quit => quit = true
-            KeyDown => {
-                match e.key.keysym.scancode {
-                    Q | Escape => quit = true
-                    else => {}
+
+    let first = true
+    while (.paused or first) and not quit {
+        first = false
+        while sdl::poll_event(&e) {
+            match e.type {
+                Quit => quit = true
+                KeyDown => {
+                    match e.key.keysym.scancode {
+                        Q | Escape => quit = true
+                        Space => .paused = not .paused
+                        else => {}
+                    }
                 }
+                else => {}
             }
-            else => {}
         }
     }
     if quit then .finish()
@@ -74,12 +84,20 @@ def SDLContext::send_frame(&this, img: &Image) {
     assert i_pitch > 0
     let pitch = i_pitch as u32
 
-    let padding = .orig_width - img.width;
+    let x_padding = .orig_width - img.width;
+    let y_padding = .orig_height - img.height;
+    for let y = 0; y < y_padding/2; ++y {
+        let off = y * pitch
+        for let x = 0; x < .orig_width; ++x {
+            data[off + 3] = 255 as u8
+            off += 4
+        }
+    }
     for let y = 0; y < img.height; ++y  {
-        let out_x = padding/2
+        let out_x = x_padding/2
         for let x = 0; x < img.width; ++x {
             let col = img.get(x, y);
-            let off = y * pitch + out_x * 4
+            let off = (y+y_padding/2) * pitch + out_x * 4
             data[off + 0] = col.r
             data[off + 1] = col.g
             data[off + 2] = col.b

@@ -12,6 +12,7 @@ struct FFMPEGContext {
     pipe: i32
     pid: i32
     width: u32
+    height: u32
 }
 
 def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verbose: bool = false): &FFMPEGContext {
@@ -44,13 +45,14 @@ def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verb
         args.push("-f"); args.push("rawvideo")
         args.push("-pix_fmt"); args.push("rgba")
         args.push("-s"); args.push(`{width}x{height}`)
-        args.push("-r"); args.push(`{fps}`)
+        args.push("-framerate"); args.push(`{fps}`)
         args.push("-i"); args.push("-")
         args.push("-c:v"); args.push("libx264")
         args.push("-vb"); args.push("2500k")
         args.push("-c:a"); args.push("aac")
         args.push("-ab"); args.push("200k")
         args.push("-pix_fmt"); args.push("yuv420p")
+        args.push("-r"); args.push("60")
         args.push(out_name)
         args.push(null)
 
@@ -70,6 +72,7 @@ def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verb
     ffmpeg.pid = child;
     ffmpeg.pipe = pipefd[WRITE_END];
     ffmpeg.width = width;
+    ffmpeg.height = height;
     return ffmpeg;
 }
 
@@ -111,21 +114,22 @@ def FFMPEGContext::finish(&this): bool {
 
 def FFMPEGContext::send_frame(&this, img: &Image): bool {
     let data = std::new<u32>(.width * img.height);
-    let padding = .width - img.width;
+    let x_padding = .width - img.width;
+    let y_padding = .height - img.height;
     for let y = 0; y < img.height; ++y  {
         let out_x = 0
-        for let x = 0; x < padding/2; ++x {
-            data[y * .width + out_x] = 0;
+        for let x = 0; x < x_padding/2; ++x {
+            data[(y+y_padding/2) * .width + out_x] = 0;
             ++out_x;
         }
         for let x = 0; x < img.width; ++x {
             let col = img.get(x, y);
             let c = (255 << 24) | (col.b as u32 << 16) | (col.g as u32 << 8) | (col.r as u32);
-            data[y * .width + out_x] = c;
+            data[(y+y_padding/2) * .width + out_x] = c;
             ++out_x;
         }
-        for let x = padding/2; x < padding; ++x {
-            data[y * .width + out_x] = 0;
+        for let x = x_padding/2; x < x_padding; ++x {
+            data[(y+y_padding/2) * .width + out_x] = 0;
             ++out_x;
         }
     }
