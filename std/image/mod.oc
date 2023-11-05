@@ -118,7 +118,32 @@ def Image::resize(&this, new_width: u32, new_height: u32): &Image {
     return resized
 }
 
+enum RotationDirection {
+    Clockwise
+    CounterClockwise
+}
+
+def Image::rotate(&this, dir: RotationDirection = RotationDirection::Clockwise): &Image {
+    let rotated = Image::new(.height, .width)
+    for let y = 0; y < .height; ++y {
+        for let x = 0; x < .width; ++x {
+            let col = if dir == RotationDirection::CounterClockwise {
+                yield .get(.width - x - 1, y)
+            } else {
+                yield .get(x, .height - y - 1)
+            }
+            rotated.set(y, x, col)
+        }
+    }
+    return rotated
+}
 
 def Image::clear(&this) {
     std::libc::memset(.data, 0, .width * .height * sizeof(Color))
+}
+
+def Image::copy(&this): &Image {
+    let copy = Image::new(.width, .height)
+    std::libc::memcpy(copy.data, .data, .width * .height * sizeof(Color))
+    return copy
 }
