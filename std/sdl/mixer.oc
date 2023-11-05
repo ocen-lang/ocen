@@ -1,0 +1,20 @@
+@compiler c_include "SDL2/SDL_mixer.h"
+@compiler c_flag "-lSDL2_mixer"
+
+const DEFAULT_FORMAT: u16 extern("MIX_DEFAULT_FORMAT")
+def open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32 extern("Mix_OpenAudio")
+
+struct Sound extern("Mix_Chunk")
+
+def load_wav(path: str): &Sound extern("Mix_LoadWAV")
+def play_channel(channel: i32, chunk: &Sound, loops: i32): i32 extern("Mix_PlayChannel")
+def allocate_channels(num: i32): i32 extern("Mix_AllocateChannels")
+
+def pause(channel: i32) extern("Mix_Pause")
+def resume(channel: i32) extern("Mix_Resume")
+
+def free_chunk(chunk: &Sound) extern("Mix_FreeChunk")
+def quit() extern("Mix_Quit")
+
+def get_error(): str extern("Mix_GetError")
+def volume(channel: i32, volume: i32) extern("Mix_Volume")
