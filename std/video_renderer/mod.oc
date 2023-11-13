@@ -44,3 +44,11 @@ def VideoRenderer::finish(&this) {
     }
 }
 
+def VideoRenderer::wait_and_finish(&this) {
+    match .type {
+        SDL => .u.sdl.wait_for_quit()
+        FFMPEG => {}
+    }
+    .finish()
+}
+

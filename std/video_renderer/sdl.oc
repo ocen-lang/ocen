@@ -111,3 +111,22 @@ def SDLContext::send_frame(&this, img: &Image) {
     .renderer.present()
     .last_frame = sdl::get_ticks()
 }
+
+def SDLContext::wait_for_quit(&this) {
+    let quit = false
+    while not quit {
+        let e: sdl::Event
+        while sdl::poll_event(&e) {
+            match e.type {
+                Quit => quit = true
+                KeyDown => {
+                    match e.key.keysym.scancode {
+                        Q | Escape => quit = true
+                        else => {}
+                    }
+                }
+                else => {}
+            }
+        }
+    }
+}
