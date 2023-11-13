@@ -31,7 +31,7 @@ else
 fi
 
 echo "[+] Compiling examples"
-if ./meta/compile_examples.sh; then
+if ./meta/compile_examples.sh ./build/stage3; then
     echo
 else
     echo
