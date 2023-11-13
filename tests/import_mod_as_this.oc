@@ -1,5 +1,5 @@
 /// compile
 
-import std::sdl::{this, image, gfx }
+import std::image::{ this, ppm, qoi }
 
 def main() {}
