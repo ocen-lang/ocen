@@ -2,6 +2,12 @@
 
 set -xe
 
-ocen examples/jpegify.oc -o build/jpegify -n
-ocen examples/raytrace.oc -o build/raytrace -n
-ocen examples/sdl_raytrace.oc -o build/sdl_raytrace -n
+if [ -z $1 ]; then
+    OCEN=ocen
+else
+    OCEN=$1
+fi
+
+$OCEN examples/jpegify.oc -o build/jpegify -n
+$OCEN examples/raytrace.oc -o build/raytrace -n
+$OCEN examples/sdl_raytrace.oc -o build/sdl_raytrace -n
