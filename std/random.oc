@@ -9,7 +9,7 @@ struct RandomState {
 let global_random_state: RandomState = RandomState(123456789, 362436069, 521288629, 88675123)
 
 def RandomState::seed(&this, s: u32) {
-    this.x = s
+    this.x = (s * 0xf00ba7) ^ 0xdeafbeef
     this.y = s ^ 0x49616E42
     this.z = s ^ 0x6C078965
     this.w = s ^ 0x8F1BBCDC
