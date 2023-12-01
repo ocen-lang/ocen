@@ -1226,6 +1226,11 @@ def Parser::parse_function(&this): &Function {
     if .token_is(TokenType::FatArrow) {
         let arrow = .consume(TokenType::FatArrow)
 
+        if .token_is(TokenType::OpenCurly) {
+            .error(Error::new(.token().span, "Expected an expression for an arrow function"))
+            return null
+        }
+
         let expr = .parse_expression(end_type: TokenType::Newline)
         let ret = AST::new(ASTType::Return, expr.span)
         ret.u.unary = expr
