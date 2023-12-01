@@ -1533,6 +1533,7 @@ bool char_is_digit(char this);
 bool char_is_alpha(char this);
 bool char_is_alnum(char this);
 bool char_is_print(char this);
+bool char_is_space(char this);
 i32 i32_min(i32 this, i32 b);
 i32 i32_max(i32 this, i32 b);
 i8 i8_min(i8 this, i8 b);
@@ -2540,6 +2541,10 @@ bool char_is_alnum(char this) {
 
 bool char_is_print(char this) {
   return isprint(this);
+}
+
+bool char_is_space(char this) {
+  return isspace(this);
 }
 
 i32 i32_min(i32 this, i32 b) {
@@ -8094,6 +8099,10 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   this->curr_func=func;
   if (parser_Parser_token_is(this, tokens_TokenType_FatArrow)) {
     tokens_Token *arrow = parser_Parser_consume(this, tokens_TokenType_FatArrow);
+    if (parser_Parser_token_is(this, tokens_TokenType_OpenCurly)) {
+      parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, "Expected an expression for an arrow function"));
+      return NULL;
+    } 
     ast_nodes_AST *expr = parser_Parser_parse_expression(this, tokens_TokenType_Newline);
     ast_nodes_AST *ret = ast_nodes_AST_new(ast_nodes_ASTType_Return, expr->span);
     ret->u.unary=expr;
@@ -8506,7 +8515,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__4 *parts = path->parts;
-        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1667:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__4_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1668:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__4_at(parts, ((u32)0))->u.single;
+        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1672:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__4_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1673:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__4_at(parts, ((u32)0))->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
           ast_program_Namespace *lib = parser_Parser_find_external_library(this, lib_name);

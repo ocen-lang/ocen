@@ -109,6 +109,7 @@ def char::is_digit(this): bool => libc::isdigit(this)
 def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
 def char::is_print(this): bool => libc::isprint(this)
+def char::is_space(this): bool => libc::isspace(this)
 
 def i32::min(this, b: i32): i32 => if this < b then this else b
 def i32::max(this, b: i32): i32 => if this > b then this else b

@@ -57,7 +57,10 @@ def SDLContext::send_frame(&this, img: &Image) {
         first = false
         while sdl::poll_event(&e) {
             match e.type {
-                Quit => quit = true
+                Quit => {
+                    println("[+] Got a quit event in SDL, exiting...")
+                    quit = true
+                }
                 KeyDown => {
                     match e.key.keysym.scancode {
                         Q | Escape => quit = true
