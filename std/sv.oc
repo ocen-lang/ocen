@@ -1,0 +1,329 @@
+//! String Views and Parsing Utilities
+//!
+//! This module provides a string view type, which is a reference to a string without owning it.
+//! It also provides a number of parsing utilities for string views.
+//!
+//! Inspired by https://github.com/tsoding/sv
+
+import std::buffer::{ Buffer }
+import std::libc::{ memcmp, strtoul, strtoll }
+
+struct SV {
+    data: str
+    len: u32
+}
+
+def SV::is_empty(&this): bool => .len == 0
+
+def SV::from_buf(buf: Buffer): SV => SV(buf.data as str, buf.size)
+def SV::from_str(s: str): SV => SV(s, s.len())
+def SV::from_file(path: str): SV => SV::from_buf(Buffer::from_file(path))
+
+//! Get the first n characters of the string
+def SV::get(this, n: u32): SV => SV(this.data, n)
+
+//! Get the n-th character of the string
+def SV::at(this, n: u32): char {
+    assert n < .len, "Index out of bounds in SV::at"
+    return .data[n]
+}
+
+//! Remove the first n characters of the string and return them
+def SV::chop_left(&this, n: u32 = 1): SV {
+    let res = .get(n)
+    .data = .data + n
+    .len -= n
+    return res
+}
+
+//! Remove the last n characters of the string and return them
+def SV::chop_right(&this, n: u32 = 1): SV {
+    let res = SV(.data + .len - n, n)
+    .len -= n
+    return res
+}
+
+//! Trim whitespace from the left of the string
+def SV::trim_left(&this) {
+    while .len > 0 and .data[0].is_space() {
+        .data = .data + 1
+        .len -= 1
+    }
+}
+
+//! Trim whitespace from the right of the string
+def SV::trim_right(&this) {
+    while .len > 0 and .data[.len - 1].is_space() {
+        .len -= 1
+    }
+}
+
+//! Trim whitespace from both sides of the string
+def SV::trim(&this) {
+    .trim_left()
+    .trim_right()
+}
+
+//! Chop the string by a delimiter and return the first part
+def SV::chop_by_delim(&this, delim: char): SV {
+    let i = 0
+    while i < .len and .data[i] != delim {
+        i += 1
+    }
+    let res = .get(i)
+    if i == .len {
+        .data = .data + i
+        .len -= i
+    } else {
+        .data = .data + i + 1
+        .len -= i + 1
+    }
+    return res
+}
+
+//! Chop the string by a delimiter and return the first part
+def SV::chop_by_sv(&this, delim: SV): SV {
+    let i = 0
+    while i < .len and .data[i] != delim.data[0] {
+        i += 1
+    }
+    if i == .len {
+        return .chop_left(.len)
+    }
+    let j = i
+    while j < .len and j - i < delim.len and .data[j] == delim.data[j - i] {
+        j += 1
+    }
+    if j - i == delim.len {
+        let res = .get(i)
+        .data = .data + j
+        .len -= j
+        return res
+    }
+    return .chop_left(.len)
+}
+
+//! Chop the string by a delimiter and return the first part
+def SV::chop_by_str(&this, delim: str): SV => .chop_by_sv(SV::from_str(delim))
+
+//! Chop the string till the next whitespace and return the first part
+def SV::chop_word(&this): SV {
+    let i = 0
+    while i < .len and not .data[i].is_space() {
+        i += 1
+    }
+    let res = .get(i)
+    if i == .len {
+        .data = .data + i
+        .len -= i
+    } else {
+        .data = .data + i + 1
+        .len -= i + 1
+    }
+    .trim_left()
+    return res
+}
+
+//! Helper function for parsing unsigned numbers
+def SV::chop_unsigned(&this, fn_name: str): u64 {
+    let endptr = ""
+    let res = strtoul(.data, &endptr)
+    assert endptr != .data, `Failed to parse number in {fn_name}`
+    .only_chop_left((endptr - .data) as u32)
+    return res   
+}
+
+//! Chop off a u64 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_u64(&this): u32 => .chop_unsigned("SV::chop_u64") as u32
+//! Chop off a u32 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_u32(&this): u32 => .chop_unsigned("SV::chop_u32") as u32
+//! Chop off a u16 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_u16(&this): u16 => .chop_unsigned("SV::chop_u16") as u16
+//! Chop off a u8 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_u8(&this): u8 => .chop_unsigned("SV::chop_u8") as u8
+
+//! Helper function for parsing signed numbers
+def SV::chop_signed(&this, fn_name: str): i64 {
+    let endptr = ""
+    let res = strtoll(.data, &endptr)
+    assert endptr != .data, `Failed to parse number in {fn_name}`
+    .only_chop_left((endptr - .data) as u32)
+    return res   
+}
+
+//! Chop off a i64 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_i64(&this): i64 => .chop_signed("SV::chop_i64") as i64
+//! Chop off a i32 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_i32(&this): i32 => .chop_signed("SV::chop_i32") as i32
+//! Chop off a i16 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_i16(&this): i16 => .chop_signed("SV::chop_i16") as i16
+//! Chop off a i8 from the beginning of the string and return it. Fails if there is no number
+def SV::chop_i8(&this): i8 => .chop_signed("SV::chop_i8") as i8
+
+//! Chop off a line from the beginning of the string and return it
+def SV::chop_line(&this): SV => .chop_by_delim('\n')
+
+//! Print the string view
+def SV::print(&this, msg: str=null) {
+    if msg? {
+        println("%s: '%.*s'", msg, .len, .data)
+    } else {
+        println("%.*s", .len, .data)
+    }
+}
+
+//! Compare two string views
+def SV::eq(this, other: SV): bool => .len == other.len and memcmp(.data, other.data, .len) == 0
+
+//! Hash a string view
+def SV::hash(this): u32 {
+    let hash = 5381
+    for let i = 0; i < .len; i += 1 {
+        hash = hash * 33 ^ .data[i] as u32
+    }
+    return hash
+}
+
+//! Only chop off n characters from the beginning of the string, without returning them
+def SV::only_chop_left(&this, n: u32 = 1) {
+    .data = .data + n
+    .len -= n
+}
+
+//! Does the string view start with another string view?
+def SV::starts_with_sv(this, other: SV): bool {
+    if .len < other.len {
+        return false
+    }
+    for let i = 0; i < other.len; i += 1 {
+        if .data[i] != other.data[i] {
+            return false
+        }
+    }
+    return true
+}
+//! Does the string view start with another string?
+def SV::starts_with_str(this, other: str): bool => .starts_with_sv(SV::from_str(other))
+
+//! Does the string view end with another string view?
+def SV::ends_with_sv(this, other: SV): bool {
+    if .len < other.len {
+        return false
+    }
+    for let i = 0; i < other.len; i += 1 {
+        if .data[.len - other.len + i] != other.data[i] {
+            return false
+        }
+    }
+    return true
+}
+//! Does the string view end with another string?
+def SV::ends_with_str(this, other: str): bool => .ends_with_sv(SV::from_str(other))
+
+//! Iterator over the lines of a string view
+def SV::lines(this): SVLineIterator => SVLineIterator(this)
+//! Iterator over the string view split by a delimiter
+def SV::split_sv(this, delim: SV): SVSplitIterator => SVSplitIterator(this, delim)
+//! Iterator over the string view split by a delimiter
+def SV::split_str(this, delim: str): SVSplitIterator => SVSplitIterator(this, SV::from_str(delim))
+//! Iterator over the words of a string view
+def SV::split_words(this): SVWordIterator => SVWordIterator::make(this)
+
+//! Iterator over the numbers of a string view
+def SV::iter_nums(this): SVNumberIterator => SVNumberIterator::make(this)
+//! Iterator over the string view based on a predicate
+def SV::iter_pred(this, pred: fn(SV): u32): SVPredicateIterator => SVPredicateIterator::make(this, pred)
+
+//! Iterator over the lines of a string view
+struct SVLineIterator {
+    sv: SV
+}
+def SVLineIterator::has_value(&this): bool => not .sv.is_empty()
+def SVLineIterator::cur(&this): SV => .sv.chop_line()
+def SVLineIterator::next(&this) {}
+
+//! Iterator over the string view split by a delimiter
+struct SVSplitIterator {
+    sv: SV
+    delim: SV
+}
+def SVSplitIterator::has_value(&this): bool => not .sv.is_empty()
+def SVSplitIterator::cur(&this): SV => .sv.chop_by_sv(.delim)
+def SVSplitIterator::next(&this) {}
+
+//! Iterator over the words of a string view
+struct SVWordIterator {
+    sv: SV
+}
+
+def SVWordIterator::make(sv: SV): SVWordIterator {
+    sv.trim()
+    return SVWordIterator(sv)
+}
+def SVWordIterator::has_value(&this): bool => not .sv.is_empty()
+def SVWordIterator::cur(&this): SV {
+    let res = .sv.chop_word()
+    .sv.trim_left()
+    return res
+}
+def SVWordIterator::next(&this) {}
+
+//! Iterator over the numbers of a string view
+struct SVNumberIterator {
+    sv: SV
+    cur_num: u64
+    found: bool
+}
+
+def SVNumberIterator::make(sv: SV): SVNumberIterator {
+    let it = SVNumberIterator(sv, 0, false)
+    it.next()
+    return it
+}
+def SVNumberIterator::has_value(&this): bool => .found
+def SVNumberIterator::cur(&this): u64 => .cur_num
+def SVNumberIterator::next(&this) {
+    .found = false
+    while .sv.len > 0 {
+        let endptr = ""
+        let res = strtoul(.sv.data, &endptr)
+        if endptr == .sv.data {
+            .sv.chop_left(1)
+        } else {
+            .cur_num = res
+            .sv.only_chop_left((endptr - .sv.data) as u32)
+            .found = true
+            break
+        }
+    }
+}
+
+//! Iterator over the string view based on a predicate
+struct SVPredicateIterator {
+    sv: SV
+    pred: fn(SV): u32
+    found: bool
+    res: SV
+}
+
+def SVPredicateIterator::make(sv: SV, pred: fn(SV): u32): SVPredicateIterator {
+    let it = SVPredicateIterator(sv, pred, false, SV::from_str(""))
+    it.next()
+    return it
+}
+def SVPredicateIterator::has_value(&this): bool => .found
+def SVPredicateIterator::cur(&this): SV => .res
+def SVPredicateIterator::next(&this) {
+    .found = false
+    while .sv.len > 0 {
+        let res_len = .pred(.sv)
+        if res_len > 0 {
+            .found = true
+            .res = .sv.chop_left(res_len)
+            break
+        } else {
+            .sv.chop_left(1)
+        }
+    }
+}
+
