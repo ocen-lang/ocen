@@ -216,9 +216,9 @@ def Lexer::lex_comment(&this) {
     // Skip leading slashes
     while .cur() == '/' { .inc() }
 
-    // We only save comments that have a leading asterisk or dot
+    // We only save comments that have a leading asterisk, dot or exclamation mark
     let save_comment = false
-    if .cur() == '*' or .cur() == '.' {
+    if .cur() == '*' or .cur() == '.' or .cur() == '!' {
         .inc()
         save_comment = true
         if .comment.size == 0 {
