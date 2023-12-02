@@ -108,6 +108,8 @@ def SV::chop_by_str(&this, delim: str): SV => .chop_by_sv(SV::from_str(delim))
 
 //* Chop the string till the next whitespace and return the first part
 def SV::chop_word(&this): SV {
+    .trim_left()
+
     let i = 0
     while i < .len and not .data[i].is_space() {
         i += 1
@@ -174,6 +176,7 @@ def SV::print(&this, msg: str=null) {
 
 //* Compare two string views
 def SV::eq(this, other: SV): bool => .len == other.len and memcmp(.data, other.data, .len) == 0
+def SV::eq_str(this, other: str): bool => .eq(SV::from_str(other))
 
 //* Hash a string view
 def SV::hash(this): u32 {
@@ -227,7 +230,7 @@ def SV::split_sv(this, delim: SV): SVSplitIterator => SVSplitIterator(this, deli
 //* Iterator over the string view split by a delimiter
 def SV::split_str(this, delim: str): SVSplitIterator => SVSplitIterator(this, SV::from_str(delim))
 //* Iterator over the words of a string view
-def SV::split_words(this): SVWordIterator => SVWordIterator::make(this)
+def SV::split_words(this): SVWordIterator => SVWordIterator(this)
 
 //* Iterator over the numbers of a string view
 def SV::iter_nums(this): SVNumberIterator => SVNumberIterator::make(this)
@@ -256,16 +259,8 @@ struct SVWordIterator {
     sv: SV
 }
 
-def SVWordIterator::make(sv: SV): SVWordIterator {
-    sv.trim()
-    return SVWordIterator(sv)
-}
 def SVWordIterator::has_value(&this): bool => not .sv.is_empty()
-def SVWordIterator::cur(&this): SV {
-    let res = .sv.chop_word()
-    .sv.trim_left()
-    return res
-}
+def SVWordIterator::cur(&this): SV => .sv.chop_word()
 def SVWordIterator::next(&this) {}
 
 //* Iterator over the numbers of a string view
