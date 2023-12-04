@@ -25,6 +25,10 @@ def Set::size(&this): u32 {
     return .map.num_items
 }
 
+def Set::clear(&this) {
+    .map.clear()
+}
+
 def Set::extend(&this, other: &Set<T>) {
     .map.extend(other.map)
 }
