@@ -916,6 +916,7 @@ def CodeGenerator::gen_function(&this, func: &Function) {
         if struc.sym.is_templated() then return
     }
     if func.sym.is_templated() then return
+    if func.is_dead then return
 
     .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
@@ -968,6 +969,8 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
                 let sym = instance.resolved
                 assert sym.type == Function
                 let func = sym.u.func
+                if func.is_dead then continue
+
                 .gen_function_decl(func)
                 if func.exits then .out.puts(" __attribute__((noreturn))")
                 .out.puts(";\n")
@@ -975,6 +978,7 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
             continue
         }
 
+        if func.is_dead then continue
         .gen_function_decl(func)
         if func.exits then .out.puts(" __attribute__((noreturn))")
         .out.puts(";\n")

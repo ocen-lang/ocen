@@ -1,0 +1,197 @@
+//* Mark Dead Code
+//*
+//* This pass marks all functions / structs / enums that are not used as dead, so 
+//* that they can be removed and not compiled into the final binary.
+
+import @passes::generic_pass::GenericPass
+import std::vector::Vector
+import std::map::Map
+import std::set::{ Set }
+import @ast::program::{ Program, Namespace }
+import @ast::nodes::{ Structure, Variable, Function, AST }
+import @ast::scopes::{ TemplateInstance, Symbol }
+import @types::{ Type }
+import std::libc::{ calloc, free }
+import @errors::{ Error }
+
+struct MarkDeadCode {
+    o: &GenericPass
+    done: &Set<u64>
+}
+
+def MarkDeadCode::new(program: &Program): &MarkDeadCode {
+    let pass = std::new<MarkDeadCode>()
+    *pass = MarkDeadCode(
+        o: GenericPass::new(program),
+        done: Set<u64>::new(),
+    )
+    return pass
+}
+
+def MarkDeadCode::free(&this) {
+    .done.free()
+    free(.o)
+    free(this)
+}
+
+def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
+    if not sym? return
+
+    match sym.type {
+        Function => .mark_function(sym.u.func)
+        else => {}
+    }
+}
+
+def MarkDeadCode::mark(&this, node: &AST) {
+    if not node? return
+    .mark_sym(node.resolved_symbol)
+
+    match node.type {
+        Import | Break | Continue | SizeOf | IntLiteral | FloatLiteral |
+        BoolLiteral | StringLiteral | CharLiteral | Null => {}
+
+        Return | Yield | Defer | Address | Dereference | Negate |
+        BitwiseNot | Not | IsNotNull | Cast | PreIncrement | 
+        PreDecrement | PostIncrement | PostDecrement=> .mark(node.u.unary)
+
+        VarDeclaration => .mark(node.u.var_decl.init)
+        Block => {
+            for statement : node.u.block.statements.iter() {
+                .mark(statement)
+            }
+        }
+        If => {
+            .mark(node.u.if_stmt.cond)
+            .mark(node.u.if_stmt.body)
+            .mark(node.u.if_stmt.els)
+        }
+        Match => {
+            .mark(node.u.match_stmt.expr)
+            for c : node.u.match_stmt.cases.iter() {
+                .mark(c.cond)
+                .mark(c.body)
+            }
+            .mark(node.u.match_stmt.defolt)
+        }
+        While | For => {
+            .mark(node.u.loop.init)
+            .mark(node.u.loop.cond)
+            .mark(node.u.loop.step)
+            .mark(node.u.loop.body)
+        }
+        Assert => {
+            .mark(node.u.assertion.expr)
+            .mark(node.u.assertion.msg)
+        }
+        FormatStringLiteral => {
+            for expr : node.u.fmt_str.exprs.iter() {
+                .mark(expr)
+            }
+        }
+        Member => {
+            .mark(node.u.member.lhs)
+        }
+        Identifier | NSLookup | Specialization => {}
+        Call => {
+            .mark(node.u.call.callee)
+            for arg : node.u.call.args.iter() {
+                .mark(arg.expr)
+            }
+        }
+
+        And |
+        BitwiseAnd |
+        BitwiseOr |
+        BitwiseXor |
+        Divide |
+        GreaterThan |
+        GreaterThanEquals |
+        LeftShift |
+        LessThan |
+        LessThanEquals |
+        Minus |
+        Modulus |
+        Multiply |
+        NotEquals |
+        Or |
+        Plus |
+        RightShift |
+        Index |
+        Equals |
+        Assignment |
+        PlusEquals |
+        MinusEquals |
+        DivideEquals |
+        MultiplyEquals => {
+            .mark(node.u.binary.lhs)
+            .mark(node.u.binary.rhs)
+        }
+
+        else => .o.error(Error::new(node.span, `Unhandled expression type in MarkDeadCode: {node.type}`))
+    }
+}
+
+def MarkDeadCode::mark_function(&this, f: &Function) {
+    if not f? or .done.contains(f as u64) return
+
+    .done.add(f as u64)
+    f.is_dead = false
+    .mark(f.body)
+}
+
+def MarkDeadCode::find_main_function(&this, program: &Program): &Function {
+    for ns : program.iter_namespaces() {
+        for f : ns.functions.iter() {
+            if f.sym.display.eq("main") {
+                return f
+            }
+        }
+    }
+    return null
+}
+
+def MarkDeadCode::mark_methods_dead_by_default(&this, typ: &Type) {
+    if not typ? return
+    for method : typ.methods.iter_values() {
+        method.is_dead = true
+    }
+}
+
+def MarkDeadCode::run(program: &Program) {
+    let pass = MarkDeadCode::new(program)
+    defer pass.free()
+
+    let main = pass.find_main_function(program)
+    if not main? {
+        println("[+] No main function found, not marking any functions as dead.")
+        return
+    }
+
+    // Mark all functions as dead by default
+    for ns : program.iter_namespaces() {
+        for f : ns.functions.iter() {
+            f.is_dead = true
+            if f.sym.template? {
+                for instance : f.sym.template.instances.iter() {
+                    let sym = instance.resolved
+                    sym.u.func.is_dead = true
+                }
+            }
+        }
+        for s : ns.structs.iter() {
+            pass.mark_methods_dead_by_default(s.type)
+            if s.sym.template? {
+                for instance : s.sym.template.instances.iter() {
+                    let sym = instance.resolved
+                    pass.mark_methods_dead_by_default(sym.u.struc.type)
+                }
+            }
+        }
+        for e : ns.enums.iter() {
+            pass.mark_methods_dead_by_default(e.type)
+        }
+    }
+
+    pass.mark_function(main)
+}

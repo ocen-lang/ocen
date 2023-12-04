@@ -189,6 +189,8 @@ struct Function {
     is_method: bool
     is_static: bool
     parent_type: &Type
+
+    is_dead: bool
 }
 
 def Function::new(): &Function {

@@ -4,6 +4,7 @@ import @passes::namespace_dump::NamespaceDump
 import @passes::typechecker::TypeChecker
 import @passes::reorder_structs::ReorderStructs
 import @passes::code_generator::CodeGenerator
+import @passes::mark_dead_code::MarkDeadCode
 
 //* Typechecks the program
 def run_typecheck_passes(program: &Program) {
@@ -18,6 +19,7 @@ def run_typecheck_passes(program: &Program) {
 //* Generates code for the program and returns it
 def run_codegen_passes(program: &Program): str {
     ReorderStructs::run(program)
+    MarkDeadCode::run(program)
     let code = CodeGenerator::run(program)
 
     if not program.errors.is_empty() then program.exit_with_errors()
