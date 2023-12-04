@@ -9255,8 +9255,15 @@ void passes_code_generator_CodeGenerator_gen_format_string_variadic(passes_code_
   for (std_vector_Iterator__12 __iter = std_vector_Vector__12_iter(exprs); std_vector_Iterator__12_has_value(&__iter); std_vector_Iterator__12_next(&__iter)) {
     ast_nodes_AST *expr = std_vector_Iterator__12_cur(&__iter);
     {
+      types_Type *expr_type = types_Type_unaliased(expr->etype);
       std_buffer_Buffer_puts(&this->out, ", ");
-      passes_code_generator_CodeGenerator_gen_expression(this, expr);
+      if (expr_type->base==types_BaseType_Bool) {
+        std_buffer_Buffer_puts(&this->out, "((");
+        passes_code_generator_CodeGenerator_gen_expression(this, expr);
+        std_buffer_Buffer_puts(&this->out, ") ? \"true\" : \"false\")");
+      }  else {
+        passes_code_generator_CodeGenerator_gen_expression(this, expr);
+      } 
     }
   }
 }
@@ -9986,7 +9993,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:890:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:898:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
 }
@@ -10036,7 +10043,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__8_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:934:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:942:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
         }
@@ -10072,7 +10079,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__8_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:961:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:969:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function_decl(this, func);
             if (func->exits) 
             std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
@@ -12977,7 +12984,7 @@ void lexer_Lexer_lex_comment(lexer_Lexer *this) {
     lexer_Lexer_inc(this);
   }
   bool save_comment = false;
-  if ((lexer_Lexer_cur(this)=='*' || lexer_Lexer_cur(this)=='.')) {
+  if (((lexer_Lexer_cur(this)=='*' || lexer_Lexer_cur(this)=='.') || lexer_Lexer_cur(this)=='!')) {
     lexer_Lexer_inc(this);
     save_comment=true;
     if (this->comment.size==((u32)0)) {
