@@ -166,8 +166,16 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
     .out.putc('"')
 
     for expr : exprs.iter() {
+        let expr_type = expr.etype.unaliased()
         .out.puts(", ")
-        .gen_expression(expr)
+        if expr_type.base == Bool {
+            .out.puts("((")
+            .gen_expression(expr)
+            .out.puts(") ? \"true\" : \"false\")")
+
+        } else {
+            .gen_expression(expr)
+        }
     }
 }
 
