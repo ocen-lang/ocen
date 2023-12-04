@@ -1,2 +1,12 @@
+def i8::eq(this, other: i8): bool => this == other
+def u8::eq(this, other: u8): bool => this == other
+def i16::eq(this, other: i16): bool => this == other
+def u16::eq(this, other: u16): bool => this == other
 def i32::eq(this, other: i32): bool => this == other
 def u32::eq(this, other: u32): bool => this == other
+def i64::eq(this, other: i64): bool => this == other
+def u64::eq(this, other: u64): bool => this == other
+def f32::eq(this, other: f32): bool => this == other
+def f64::eq(this, other: f64): bool => this == other
+def bool::eq(this, other: bool): bool => this == other
+def char::eq(this, other: char): bool => this == other
