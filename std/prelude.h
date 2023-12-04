@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
+#include <inttypes.h>
 
 typedef int8_t i8;
 typedef int16_t i16;

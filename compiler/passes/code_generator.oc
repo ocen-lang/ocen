@@ -142,8 +142,8 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
         match expr_type.base {
             I8 | I16 | I32 => .out.puts("%d")
             U8 | U16 | U32 => .out.puts("%u")
-            I64 => .out.puts("%lld")
-            U64 => .out.puts("%llu")
+            I64 => .out.puts("%\" PRId64 \"")
+            U64 => .out.puts("%\" PRIu64 \"")
             Bool => .out.puts("%s")
             F32 | F64 => .out.puts("%f")
             Char => .out.puts("%c")
