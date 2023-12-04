@@ -227,13 +227,10 @@ def Program::get_type_by_name(&this, name: str, span: Span): &Type {
 }
 
 def Program::iter_namespaces(&this): NSIterator {
-    let iter = NSIterator(
+    return NSIterator(
         stack: Vector<&Namespace>::new(),
-        curr: null
+        curr: .global
     )
-    iter.stack.push(.global)
-    iter.next()
-    return iter
 }
 
 struct NSIterator {
@@ -241,19 +238,18 @@ struct NSIterator {
     curr: &Namespace
 }
 
-def NSIterator::has_value(&this): bool => .stack? and not .stack.is_empty()
+def NSIterator::has_value(&this): bool => .curr?
 
 def NSIterator::next(&this) {
-    assert not .stack.is_empty()
-    .curr = .stack.pop()
     for ns : .curr.namespaces.iter_values() {
         .stack.push(ns)
     }
-    // Done iterating over this namespace, so free the stack
+
     if .stack.is_empty() {
         .curr = null
         .stack.free()
-        .stack = null
+    } else {
+        .curr = .stack.pop()
     }
 }
 
