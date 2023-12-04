@@ -1028,6 +1028,7 @@ def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
 }
 
 def CodeGenerator::gen_enum(&this, enum_: &Enum) {
+    if enum_.is_dead return
     let enum_name = enum_.sym.out_name()
 
     if not enum_.sym.is_extern {
@@ -1043,6 +1044,8 @@ def CodeGenerator::gen_enum(&this, enum_: &Enum) {
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
+    if struc.is_dead then return
+
     let strufull_name = struc.sym.out_name()
     if struc.is_union {
         .out.putsf(`union {strufull_name} \{\n`)
@@ -1066,6 +1069,7 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     .out.puts("/* Struct typedefs */\n")
     for struc : structs.iter() {
         if struc.sym.is_extern then continue
+        if struc.is_dead then continue
 
         let strufull_name = struc.sym.out_name()
         if struc.is_union {

@@ -137,6 +137,7 @@ struct Structure {
     type: &Type
     is_union: bool
     span: Span
+    is_dead: bool
 }
 
 def Structure::new(): &Structure {
@@ -159,6 +160,7 @@ struct Enum {
     span: Span
     fields: &Vector<&Variable>
     type: &Type
+    is_dead: bool
 }
 
 def Enum::new(): &Enum {

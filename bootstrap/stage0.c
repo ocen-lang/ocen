@@ -527,12 +527,8 @@ char *types_BaseType_dbg(types_BaseType this) {
 typedef struct std_compact_map_Item__0 std_compact_map_Item__0;
 typedef struct std_compact_map_Map__0 std_compact_map_Map__0;
 typedef struct std_vector_Iterator__2 std_vector_Iterator__2;
-typedef struct std_compact_map_KeyIterator__0 std_compact_map_KeyIterator__0;
-typedef struct std_compact_map_ValueIterator__0 std_compact_map_ValueIterator__0;
 typedef struct std_buffer_Buffer std_buffer_Buffer;
 typedef struct std_set_Set__0 std_set_Set__0;
-typedef struct std_map_Iterator__0 std_map_Iterator__0;
-typedef struct std_set_Iterator__0 std_set_Iterator__0;
 typedef struct std_map_Node__0 std_map_Node__0;
 typedef struct std_map_Node__1 std_map_Node__1;
 typedef struct std_map_Node__2 std_map_Node__2;
@@ -549,29 +545,12 @@ typedef struct std_map_Map__4 std_map_Map__4;
 typedef struct std_map_Map__5 std_map_Map__5;
 typedef struct std_map_Map__6 std_map_Map__6;
 typedef struct std_map_Map__7 std_map_Map__7;
-typedef struct std_map_Iterator__1 std_map_Iterator__1;
-typedef struct std_map_Iterator__2 std_map_Iterator__2;
 typedef struct std_map_Iterator__3 std_map_Iterator__3;
 typedef struct std_map_Iterator__4 std_map_Iterator__4;
 typedef struct std_map_Iterator__5 std_map_Iterator__5;
 typedef struct std_map_Iterator__6 std_map_Iterator__6;
-typedef struct std_map_Iterator__7 std_map_Iterator__7;
-typedef struct std_map_KeyIterator__0 std_map_KeyIterator__0;
-typedef struct std_map_KeyIterator__1 std_map_KeyIterator__1;
-typedef struct std_map_KeyIterator__2 std_map_KeyIterator__2;
-typedef struct std_map_KeyIterator__3 std_map_KeyIterator__3;
-typedef struct std_map_KeyIterator__4 std_map_KeyIterator__4;
-typedef struct std_map_KeyIterator__5 std_map_KeyIterator__5;
-typedef struct std_map_KeyIterator__6 std_map_KeyIterator__6;
-typedef struct std_map_KeyIterator__7 std_map_KeyIterator__7;
-typedef struct std_map_ValueIterator__0 std_map_ValueIterator__0;
-typedef struct std_map_ValueIterator__1 std_map_ValueIterator__1;
-typedef struct std_map_ValueIterator__2 std_map_ValueIterator__2;
-typedef struct std_map_ValueIterator__3 std_map_ValueIterator__3;
 typedef struct std_map_ValueIterator__4 std_map_ValueIterator__4;
-typedef struct std_map_ValueIterator__5 std_map_ValueIterator__5;
 typedef struct std_map_ValueIterator__6 std_map_ValueIterator__6;
-typedef struct std_map_ValueIterator__7 std_map_ValueIterator__7;
 typedef struct std_span_Location std_span_Location;
 typedef struct std_span_Span std_span_Span;
 typedef struct std_vector_Vector__0 std_vector_Vector__0;
@@ -580,7 +559,6 @@ typedef struct std_vector_Vector__2 std_vector_Vector__2;
 typedef struct std_vector_Vector__3 std_vector_Vector__3;
 typedef struct std_vector_Vector__4 std_vector_Vector__4;
 typedef struct std_vector_Vector__5 std_vector_Vector__5;
-typedef struct std_vector_Vector__6 std_vector_Vector__6;
 typedef struct std_vector_Vector__7 std_vector_Vector__7;
 typedef struct std_vector_Vector__8 std_vector_Vector__8;
 typedef struct std_vector_Vector__9 std_vector_Vector__9;
@@ -594,14 +572,8 @@ typedef struct std_vector_Vector__16 std_vector_Vector__16;
 typedef struct std_vector_Vector__17 std_vector_Vector__17;
 typedef struct std_vector_Vector__18 std_vector_Vector__18;
 typedef struct std_vector_Vector__19 std_vector_Vector__19;
-typedef struct std_vector_Iterator__0 std_vector_Iterator__0;
-typedef struct std_vector_Iterator__1 std_vector_Iterator__1;
 typedef struct std_vector_Iterator__3 std_vector_Iterator__3;
-typedef struct std_vector_Iterator__4 std_vector_Iterator__4;
 typedef struct std_vector_Iterator__5 std_vector_Iterator__5;
-typedef struct std_vector_Iterator__6 std_vector_Iterator__6;
-typedef struct std_vector_Iterator__7 std_vector_Iterator__7;
-typedef struct std_vector_Iterator__8 std_vector_Iterator__8;
 typedef struct std_vector_Iterator__9 std_vector_Iterator__9;
 typedef struct std_vector_Iterator__10 std_vector_Iterator__10;
 typedef struct std_vector_Iterator__11 std_vector_Iterator__11;
@@ -612,8 +584,6 @@ typedef struct std_vector_Iterator__15 std_vector_Iterator__15;
 typedef struct std_vector_Iterator__16 std_vector_Iterator__16;
 typedef struct std_vector_Iterator__17 std_vector_Iterator__17;
 typedef struct std_vector_Iterator__18 std_vector_Iterator__18;
-typedef struct std_vector_Iterator__19 std_vector_Iterator__19;
-typedef struct std_json_Parser std_json_Parser;
 typedef union std_value_ValueUnion std_value_ValueUnion;
 typedef struct std_value_Value std_value_Value;
 typedef struct docgen_DocGenerator docgen_DocGenerator;
@@ -623,7 +593,6 @@ typedef struct passes_mark_dead_code_MarkDeadCode passes_mark_dead_code_MarkDead
 typedef struct passes_generic_pass_GenericPass passes_generic_pass_GenericPass;
 typedef struct passes_code_generator_CodeGenerator passes_code_generator_CodeGenerator;
 typedef struct passes_typechecker_TypeChecker passes_typechecker_TypeChecker;
-typedef struct passes_namespace_dump_NamespaceDump passes_namespace_dump_NamespaceDump;
 typedef struct passes_reorder_structs_ReorderStructs passes_reorder_structs_ReorderStructs;
 typedef struct ast_scopes_TemplateInstance ast_scopes_TemplateInstance;
 typedef struct ast_scopes_Template ast_scopes_Template;
@@ -687,14 +656,6 @@ struct std_vector_Iterator__2 {
   u32 index;
 };
 
-struct std_compact_map_KeyIterator__0 {
-  std_vector_Iterator__2 iter;
-};
-
-struct std_compact_map_ValueIterator__0 {
-  std_vector_Iterator__2 iter;
-};
-
 struct std_buffer_Buffer {
   u8 *data;
   u32 size;
@@ -703,16 +664,6 @@ struct std_buffer_Buffer {
 
 struct std_set_Set__0 {
   std_map_Map__0 *map;
-};
-
-struct std_map_Iterator__0 {
-  i32 idx;
-  std_map_Node__0 *node;
-  std_map_Map__0 *map;
-};
-
-struct std_set_Iterator__0 {
-  std_map_Iterator__0 map_iter;
 };
 
 struct std_map_Node__0 {
@@ -819,18 +770,6 @@ struct std_map_Map__7 {
   u32 num_collisions;
 };
 
-struct std_map_Iterator__1 {
-  i32 idx;
-  std_map_Node__1 *node;
-  std_map_Map__1 *map;
-};
-
-struct std_map_Iterator__2 {
-  i32 idx;
-  std_map_Node__2 *node;
-  std_map_Map__2 *map;
-};
-
 struct std_map_Iterator__3 {
   i32 idx;
   std_map_Node__3 *node;
@@ -855,74 +794,12 @@ struct std_map_Iterator__6 {
   std_map_Map__6 *map;
 };
 
-struct std_map_Iterator__7 {
-  i32 idx;
-  std_map_Node__7 *node;
-  std_map_Map__7 *map;
-};
-
-struct std_map_KeyIterator__0 {
-  std_map_Iterator__0 map_iter;
-};
-
-struct std_map_KeyIterator__1 {
-  std_map_Iterator__1 map_iter;
-};
-
-struct std_map_KeyIterator__2 {
-  std_map_Iterator__2 map_iter;
-};
-
-struct std_map_KeyIterator__3 {
-  std_map_Iterator__3 map_iter;
-};
-
-struct std_map_KeyIterator__4 {
-  std_map_Iterator__4 map_iter;
-};
-
-struct std_map_KeyIterator__5 {
-  std_map_Iterator__5 map_iter;
-};
-
-struct std_map_KeyIterator__6 {
-  std_map_Iterator__6 map_iter;
-};
-
-struct std_map_KeyIterator__7 {
-  std_map_Iterator__7 map_iter;
-};
-
-struct std_map_ValueIterator__0 {
-  std_map_Iterator__0 map_iter;
-};
-
-struct std_map_ValueIterator__1 {
-  std_map_Iterator__1 map_iter;
-};
-
-struct std_map_ValueIterator__2 {
-  std_map_Iterator__2 map_iter;
-};
-
-struct std_map_ValueIterator__3 {
-  std_map_Iterator__3 map_iter;
-};
-
 struct std_map_ValueIterator__4 {
   std_map_Iterator__4 map_iter;
 };
 
-struct std_map_ValueIterator__5 {
-  std_map_Iterator__5 map_iter;
-};
-
 struct std_map_ValueIterator__6 {
   std_map_Iterator__6 map_iter;
-};
-
-struct std_map_ValueIterator__7 {
-  std_map_Iterator__7 map_iter;
 };
 
 struct std_span_Location {
@@ -969,12 +846,6 @@ struct std_vector_Vector__4 {
 
 struct std_vector_Vector__5 {
   char **data;
-  u32 size;
-  u32 capacity;
-};
-
-struct std_vector_Vector__6 {
-  u64 *data;
   u32 size;
   u32 capacity;
 };
@@ -1057,43 +928,13 @@ struct std_vector_Vector__19 {
   u32 capacity;
 };
 
-struct std_vector_Iterator__0 {
-  std_vector_Vector__0 *vec;
-  u32 index;
-};
-
-struct std_vector_Iterator__1 {
-  std_vector_Vector__1 *vec;
-  u32 index;
-};
-
 struct std_vector_Iterator__3 {
   std_vector_Vector__3 *vec;
   u32 index;
 };
 
-struct std_vector_Iterator__4 {
-  std_vector_Vector__4 *vec;
-  u32 index;
-};
-
 struct std_vector_Iterator__5 {
   std_vector_Vector__5 *vec;
-  u32 index;
-};
-
-struct std_vector_Iterator__6 {
-  std_vector_Vector__6 *vec;
-  u32 index;
-};
-
-struct std_vector_Iterator__7 {
-  std_vector_Vector__7 *vec;
-  u32 index;
-};
-
-struct std_vector_Iterator__8 {
-  std_vector_Vector__8 *vec;
   u32 index;
 };
 
@@ -1147,16 +988,6 @@ struct std_vector_Iterator__18 {
   u32 index;
 };
 
-struct std_vector_Iterator__19 {
-  std_vector_Vector__19 *vec;
-  u32 index;
-};
-
-struct std_json_Parser {
-  std_vector_Vector__0 *tokens;
-  u32 curr;
-};
-
 union std_value_ValueUnion {
   bool as_bool;
   i64 as_num;
@@ -1208,10 +1039,6 @@ struct passes_code_generator_CodeGenerator {
 struct passes_typechecker_TypeChecker {
   passes_generic_pass_GenericPass *o;
   std_vector_Vector__11 *unchecked_functions;
-};
-
-struct passes_namespace_dump_NamespaceDump {
-  u32 indent;
 };
 
 struct passes_reorder_structs_ReorderStructs {
@@ -1321,6 +1148,7 @@ struct ast_nodes_Structure {
   types_Type *type;
   bool is_union;
   std_span_Span span;
+  bool is_dead;
 };
 
 struct ast_nodes_Enum {
@@ -1328,6 +1156,7 @@ struct ast_nodes_Enum {
   std_span_Span span;
   std_vector_Vector__10 *fields;
   types_Type *type;
+  bool is_dead;
 };
 
 struct ast_nodes_Function {
@@ -1979,10 +1808,12 @@ void passes_register_types_RegisterTypes_run(ast_program_Program *program);
 passes_mark_dead_code_MarkDeadCode *passes_mark_dead_code_MarkDeadCode_new(ast_program_Program *program);
 void passes_mark_dead_code_MarkDeadCode_free(passes_mark_dead_code_MarkDeadCode *this);
 void passes_mark_dead_code_MarkDeadCode_mark_sym(passes_mark_dead_code_MarkDeadCode *this, ast_scopes_Symbol *sym);
-void passes_mark_dead_code_MarkDeadCode_mark(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_AST *node);
 void passes_mark_dead_code_MarkDeadCode_mark_function(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Function *f);
+void passes_mark_dead_code_MarkDeadCode_mark_type(passes_mark_dead_code_MarkDeadCode *this, types_Type *typ);
+void passes_mark_dead_code_MarkDeadCode_mark_struct(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Structure *s);
+void passes_mark_dead_code_MarkDeadCode_mark(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_AST *node);
 ast_nodes_Function *passes_mark_dead_code_MarkDeadCode_find_main_function(passes_mark_dead_code_MarkDeadCode *this, ast_program_Program *program);
-void passes_mark_dead_code_MarkDeadCode_mark_methods_dead_by_default(passes_mark_dead_code_MarkDeadCode *this, types_Type *typ);
+void passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(passes_mark_dead_code_MarkDeadCode *this, ast_scopes_Symbol *sym);
 void passes_mark_dead_code_MarkDeadCode_run(ast_program_Program *program);
 passes_generic_pass_GenericPass *passes_generic_pass_GenericPass_new(ast_program_Program *program);
 void passes_generic_pass_GenericPass_push_scope(passes_generic_pass_GenericPass *this, ast_scopes_Scope *scope);
@@ -6699,8 +6530,53 @@ void passes_mark_dead_code_MarkDeadCode_mark_sym(passes_mark_dead_code_MarkDeadC
     case ast_scopes_SymbolType_Function: {
       passes_mark_dead_code_MarkDeadCode_mark_function(this, sym->u.func);
     } break;
+    case ast_scopes_SymbolType_Structure: {
+      passes_mark_dead_code_MarkDeadCode_mark_struct(this, sym->u.struc);
+    } break;
+    case ast_scopes_SymbolType_Enum: {
+      sym->u.enum_->is_dead=false;
+    } break;
+    case ast_scopes_SymbolType_Constant:
+    case ast_scopes_SymbolType_Variable: {
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, sym->u.var->type);
+    } break;
     default: {
     } break;
+  }
+}
+
+void passes_mark_dead_code_MarkDeadCode_mark_function(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Function *f) {
+  if ((!((bool)f) || std_set_Set__0_contains(this->done, ((u64)f)))) 
+  return ;
+  
+  std_set_Set__0_add(this->done, ((u64)f));
+  f->is_dead=false;
+  passes_mark_dead_code_MarkDeadCode_mark(this, f->body);
+  for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(f->params); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
+    ast_nodes_Variable *param = std_vector_Iterator__10_cur(&__iter);
+    {
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, param->type);
+    }
+  }
+}
+
+void passes_mark_dead_code_MarkDeadCode_mark_type(passes_mark_dead_code_MarkDeadCode *this, types_Type *typ) {
+  if (((bool)typ)) 
+  passes_mark_dead_code_MarkDeadCode_mark_sym(this, typ->sym);
+  
+}
+
+void passes_mark_dead_code_MarkDeadCode_mark_struct(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Structure *s) {
+  if ((!((bool)s) || std_set_Set__0_contains(this->done, ((u64)s)))) 
+  return ;
+  
+  std_set_Set__0_add(this->done, ((u64)s));
+  s->is_dead=false;
+  for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(s->fields); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
+    ast_nodes_Variable *field = std_vector_Iterator__10_cur(&__iter);
+    {
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, field->type);
+    }
   }
 }
 
@@ -6713,7 +6589,6 @@ void passes_mark_dead_code_MarkDeadCode_mark(passes_mark_dead_code_MarkDeadCode 
     case ast_nodes_ASTType_Import:
     case ast_nodes_ASTType_Break:
     case ast_nodes_ASTType_Continue:
-    case ast_nodes_ASTType_SizeOf:
     case ast_nodes_ASTType_IntLiteral:
     case ast_nodes_ASTType_FloatLiteral:
     case ast_nodes_ASTType_BoolLiteral:
@@ -6737,8 +6612,12 @@ void passes_mark_dead_code_MarkDeadCode_mark(passes_mark_dead_code_MarkDeadCode 
     case ast_nodes_ASTType_PostDecrement: {
       passes_mark_dead_code_MarkDeadCode_mark(this, node->u.unary);
     } break;
+    case ast_nodes_ASTType_SizeOf: {
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, node->u.size_of_type);
+    } break;
     case ast_nodes_ASTType_VarDeclaration: {
       passes_mark_dead_code_MarkDeadCode_mark(this, node->u.var_decl.init);
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, node->u.var_decl.var->type);
     } break;
     case ast_nodes_ASTType_Block: {
       for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(node->u.block.statements); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
@@ -6832,15 +6711,6 @@ void passes_mark_dead_code_MarkDeadCode_mark(passes_mark_dead_code_MarkDeadCode 
   }
 }
 
-void passes_mark_dead_code_MarkDeadCode_mark_function(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Function *f) {
-  if ((!((bool)f) || std_set_Set__0_contains(this->done, ((u64)f)))) 
-  return ;
-  
-  std_set_Set__0_add(this->done, ((u64)f));
-  f->is_dead=false;
-  passes_mark_dead_code_MarkDeadCode_mark(this, f->body);
-}
-
 ast_nodes_Function *passes_mark_dead_code_MarkDeadCode_find_main_function(passes_mark_dead_code_MarkDeadCode *this, ast_program_Program *program) {
   for (ast_program_NSIterator __iter = ast_program_Program_iter_namespaces(program); ast_program_NSIterator_has_value(&__iter); ast_program_NSIterator_next(&__iter)) {
     ast_program_Namespace *ns = ast_program_NSIterator_cur(&__iter);
@@ -6858,16 +6728,31 @@ ast_nodes_Function *passes_mark_dead_code_MarkDeadCode_find_main_function(passes
   return NULL;
 }
 
-void passes_mark_dead_code_MarkDeadCode_mark_methods_dead_by_default(passes_mark_dead_code_MarkDeadCode *this, types_Type *typ) {
-  if (!((bool)typ)) 
+void passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(passes_mark_dead_code_MarkDeadCode *this, ast_scopes_Symbol *sym) {
+  if (!((bool)sym)) 
   return ;
   
-  for (std_map_ValueIterator__6 __iter = std_map_Map__6_iter_values(typ->methods); std_map_ValueIterator__6_has_value(&__iter); std_map_ValueIterator__6_next(&__iter)) {
-    ast_nodes_Function *method = std_map_ValueIterator__6_cur(&__iter);
-    {
-      method->is_dead=true;
-    }
+  switch (sym->type) {
+    case ast_scopes_SymbolType_Function: {
+      sym->u.func->is_dead=true;
+    } break;
+    case ast_scopes_SymbolType_Structure: {
+      sym->u.struc->is_dead=true;
+    } break;
+    case ast_scopes_SymbolType_Enum: {
+      sym->u.enum_->is_dead=true;
+    } break;
+    default: {
+    } break;
   }
+  if (((bool)sym->template)) {
+    for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(sym->template->instances); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
+      ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
+      {
+        passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(this, instance->resolved);
+      }
+    }
+  } 
 }
 
 void passes_mark_dead_code_MarkDeadCode_run(ast_program_Program *program) {
@@ -6885,37 +6770,19 @@ void passes_mark_dead_code_MarkDeadCode_run(ast_program_Program *program) {
       for (std_vector_Iterator__11 __iter = std_vector_Vector__11_iter(ns->functions); std_vector_Iterator__11_has_value(&__iter); std_vector_Iterator__11_next(&__iter)) {
         ast_nodes_Function *f = std_vector_Iterator__11_cur(&__iter);
         {
-          f->is_dead=true;
-          if (((bool)f->sym->template)) {
-            for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(f->sym->template->instances); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
-              ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
-              {
-                ast_scopes_Symbol *sym = instance->resolved;
-                sym->u.func->is_dead=true;
-              }
-            }
-          } 
+          passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(pass, f->sym);
         }
       }
       for (std_vector_Iterator__12 __iter = std_vector_Vector__12_iter(ns->structs); std_vector_Iterator__12_has_value(&__iter); std_vector_Iterator__12_next(&__iter)) {
         ast_nodes_Structure *s = std_vector_Iterator__12_cur(&__iter);
         {
-          passes_mark_dead_code_MarkDeadCode_mark_methods_dead_by_default(pass, s->type);
-          if (((bool)s->sym->template)) {
-            for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(s->sym->template->instances); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
-              ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
-              {
-                ast_scopes_Symbol *sym = instance->resolved;
-                passes_mark_dead_code_MarkDeadCode_mark_methods_dead_by_default(pass, sym->u.struc->type);
-              }
-            }
-          } 
+          passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(pass, s->sym);
         }
       }
       for (std_vector_Iterator__14 __iter = std_vector_Vector__14_iter(ns->enums); std_vector_Iterator__14_has_value(&__iter); std_vector_Iterator__14_next(&__iter)) {
         ast_nodes_Enum *e = std_vector_Iterator__14_cur(&__iter);
         {
-          passes_mark_dead_code_MarkDeadCode_mark_methods_dead_by_default(pass, e->type);
+          passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(pass, e->sym);
         }
       }
     }
@@ -8257,6 +8124,9 @@ void passes_code_generator_CodeGenerator_gen_enum_dbg_method(passes_code_generat
 }
 
 void passes_code_generator_CodeGenerator_gen_enum(passes_code_generator_CodeGenerator *this, ast_nodes_Enum *enum_) {
+  if (enum_->is_dead) 
+  return ;
+  
   char *enum_name = ast_scopes_Symbol_out_name(enum_->sym);
   if (!enum_->sym->is_extern) {
     std_buffer_Buffer_putsf(&this->out, format_string("typedef enum %s {\n", enum_name));
@@ -8274,6 +8144,9 @@ void passes_code_generator_CodeGenerator_gen_enum(passes_code_generator_CodeGene
 }
 
 void passes_code_generator_CodeGenerator_gen_struct(passes_code_generator_CodeGenerator *this, ast_nodes_Structure *struc) {
+  if (struc->is_dead) 
+  return ;
+  
   char *strufull_name = ast_scopes_Symbol_out_name(struc->sym);
   if (struc->is_union) {
     std_buffer_Buffer_putsf(&this->out, format_string("union %s {\n", strufull_name));
@@ -8301,6 +8174,9 @@ void passes_code_generator_CodeGenerator_gen_structs_and_typedefs(passes_code_ge
     ast_nodes_Structure *struc = std_vector_Iterator__12_cur(&__iter);
     {
       if (struc->sym->is_extern) 
+      continue;
+      
+      if (struc->is_dead) 
       continue;
       
       char *strufull_name = ast_scopes_Symbol_out_name(struc->sym);
