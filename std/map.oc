@@ -199,6 +199,17 @@ def Map::free(&this) {
         .buckets[i].free_list()
     }
     free(.buckets)
+    free(this)
+}
+
+//* Clears the map
+def Map::clear(&this) {
+    for let i = 0; i < .num_buckets; i += 1 {
+        .buckets[i].free_list()
+        .buckets[i] = null
+    }
+    .num_items = 0
+    .num_collisions = 0
 }
 
 //* Returns an iterator over the map

@@ -154,6 +154,19 @@ def Map::at(&this, key: K): V {
     return item.value
 }
 
+def Map::contains(&this, key: K): bool {
+    let hash = key.hash()
+    let index = .get_index(key, hash)
+    return .indices[index] != INDEX_FREE
+}
+
+def Map::clear(&this) {
+    .items.clear()
+    for let i = 0; i < .capacity; i++ {
+        .indices[i] = INDEX_FREE
+    }
+}
+
 def Map::is_empty(&this): bool => .items.size == 0
 
 def Map::iter(&this): Iterator<Item<K, V>> => .items.iter()
