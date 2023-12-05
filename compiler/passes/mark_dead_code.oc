@@ -59,7 +59,14 @@ def MarkDeadCode::mark_function(&this, f: &Function) {
 }
 
 def MarkDeadCode::mark_type(&this, typ: &Type) {
-    if typ? then .mark_sym(typ.sym)
+    if typ? {
+        .mark_sym(typ.sym)
+        if typ.template_instance? {
+            for arg : typ.template_instance.args.iter() {
+                .mark_type(arg)
+            }
+        }
+    }
 }
 
 def MarkDeadCode::mark_struct(&this, s: &Structure) {

@@ -6561,9 +6561,17 @@ void passes_mark_dead_code_MarkDeadCode_mark_function(passes_mark_dead_code_Mark
 }
 
 void passes_mark_dead_code_MarkDeadCode_mark_type(passes_mark_dead_code_MarkDeadCode *this, types_Type *typ) {
-  if (((bool)typ)) 
-  passes_mark_dead_code_MarkDeadCode_mark_sym(this, typ->sym);
-  
+  if (((bool)typ)) {
+    passes_mark_dead_code_MarkDeadCode_mark_sym(this, typ->sym);
+    if (((bool)typ->template_instance)) {
+      for (std_vector_Iterator__3 __iter = std_vector_Vector__3_iter(typ->template_instance->args); std_vector_Iterator__3_has_value(&__iter); std_vector_Iterator__3_next(&__iter)) {
+        types_Type *arg = std_vector_Iterator__3_cur(&__iter);
+        {
+          passes_mark_dead_code_MarkDeadCode_mark_type(this, arg);
+        }
+      }
+    } 
+  } 
 }
 
 void passes_mark_dead_code_MarkDeadCode_mark_struct(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Structure *s) {

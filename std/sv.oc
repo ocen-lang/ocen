@@ -83,24 +83,18 @@ def SV::chop_by_delim(&this, delim: char): SV {
 
 //* Chop the string by a delimiter and return the first part
 def SV::chop_by_sv(&this, delim: SV): SV {
-    let i = 0
-    while i < .len and .data[i] != delim.data[0] {
-        i += 1
+    for let i = 0; i < .len - delim.len + 1; i++ {
+        if std::libc::memcmp(.data + i, delim.data, delim.len) == 0 {
+            let res = .get(i)
+            .data = .data + i + delim.len
+            .len -= i + delim.len
+            return res
+        }
     }
-    if i == .len {
-        return .chop_left(.len)
-    }
-    let j = i
-    while j < .len and j - i < delim.len and .data[j] == delim.data[j - i] {
-        j += 1
-    }
-    if j - i == delim.len {
-        let res = .get(i)
-        .data = .data + j
-        .len -= j
-        return res
-    }
-    return .chop_left(.len)
+    let res = .get(.len)
+    .data = .data + .len
+    .len = 0
+    return res
 }
 
 //* Chop the string by a delimiter and return the first part
@@ -136,7 +130,7 @@ def SV::chop_unsigned(&this, fn_name: str): u64 {
 }
 
 //* Chop off a u64 from the beginning of the string and return it. Fails if there is no number
-def SV::chop_u64(&this): u32 => .chop_unsigned("SV::chop_u64") as u32
+def SV::chop_u64(&this): u64 => .chop_unsigned("SV::chop_u64") as u64
 //* Chop off a u32 from the beginning of the string and return it. Fails if there is no number
 def SV::chop_u32(&this): u32 => .chop_unsigned("SV::chop_u32") as u32
 //* Chop off a u16 from the beginning of the string and return it. Fails if there is no number
