@@ -116,6 +116,8 @@ def i32::max(this, b: i32): i32 => if this > b then this else b
 def i8::min(this, b: i8): i8 => if this < b then this else b
 def i8::max(this, b: i8): i8 => if this > b then this else b
 
+def u64::min(this, other: u64): u64 => if this < other then this else other
+def u64::max(this, other: u64): u64 => if this > other then this else other
 def u32::min(this, other: u32): u32 => if this < other then this else other
 def u32::max(this, other: u32): u32 => if this > other then this else other
 def u8::min(this, other: u8): u8 => if this < other then this else other
