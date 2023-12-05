@@ -1404,6 +1404,7 @@ bool debug = false;
 u32 error_level = ((u32)2);
 char *docs_path = NULL;
 bool include_stdlib = true;
+std_vector_Vector__5 *extra_c_flags;
 /* function declarations */
 FILE *std_File_open(char *path, char *mode);
 i32 std_File_write(FILE *this, void *buf, u32 size);
@@ -11769,6 +11770,7 @@ void usage(i32 code) {
   printf("    -d             Emit debug information (default: false)""\n");
   printf("    -l path        Directory to search for libraries (can be used multiple times)""\n");
   printf("    --docs path    Output documentation JSON (default: none)""\n");
+  printf("    --cflags flags Additional C flags (can be used multiple times)""\n");
   printf("                   (Default: working directory)""\n");
   printf("--------------------------------------------------------""\n");
   exit(code);
@@ -11793,6 +11795,13 @@ void save_and_compile_code(ast_program_Program *program, char *code) {
       strcat(cmdbuf, flag);
     }
   }
+  for (std_vector_Iterator__5 __iter = std_vector_Vector__5_iter(extra_c_flags); std_vector_Iterator__5_has_value(&__iter); std_vector_Iterator__5_next(&__iter)) {
+    char *flag = std_vector_Iterator__5_cur(&__iter);
+    {
+      strcat(cmdbuf, " ");
+      strcat(cmdbuf, flag);
+    }
+  }
   if (debug) {
     strcat(cmdbuf, " -ggdb3");
   } 
@@ -11807,6 +11816,7 @@ void save_and_compile_code(ast_program_Program *program, char *code) {
 }
 
 void parse_args(i32 argc, char **argv, ast_program_Program *program) {
+  extra_c_flags=std_vector_Vector__5_new(((u32)16));
   for (u32 i = ((u32)1); (i < ((u32)argc)); i+=((u32)1)) {
     {
       char *__match_str = argv[i];
@@ -11839,6 +11849,8 @@ void parse_args(i32 argc, char **argv, ast_program_Program *program) {
         program->check_doc_links=true;
       } else if (!strcmp(__match_str, "--no-stdlib")) {
         include_stdlib=false;
+      } else if (!strcmp(__match_str, "--cflags") || !strcmp(__match_str, "-cf")) {
+        std_vector_Vector__5_push(extra_c_flags, argv[++i]);
       } else  {
         if (argv[i][((u32)0)]=='-') {
           printf("Unknown option: %s""\n", argv[i]);
