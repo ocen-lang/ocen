@@ -3280,7 +3280,7 @@ std_map_Map__7 *std_map_Map__7_new(void) {
 }
 
 std_span_Location std_span_Location_default(void) {
-  std_span_Location loc;
+  std_span_Location loc = {0};
   loc.filename="<default>";
   loc.line=((u32)0);
   loc.col=((u32)0);
@@ -3297,7 +3297,7 @@ bool std_span_Location_is_valid(std_span_Location *this) {
 }
 
 std_span_Span std_span_Span_default(void) {
-  std_span_Span span;
+  std_span_Span span = {0};
   span.start=(std_span_Location){.filename="<default>", .line=((u32)0), .col=((u32)0), .index=((u32)0)};
   span.end=(std_span_Location){.filename="<default>", .line=((u32)0), .col=((u32)0), .index=((u32)0)};
   return span;
@@ -3308,7 +3308,7 @@ bool std_span_Span_is_valid(std_span_Span this) {
 }
 
 std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other) {
-  std_span_Span span;
+  std_span_Span span = {0};
   span.start=this.start;
   span.end=other.end;
   return span;
@@ -7598,6 +7598,15 @@ void passes_code_generator_CodeGenerator_gen_var_declaration(passes_code_generat
   if (((bool)node->u.var_decl.init)) {
     std_buffer_Buffer_puts(&this->out, " = ");
     passes_code_generator_CodeGenerator_gen_expression(this, node->u.var_decl.init);
+  }  else {
+    switch (var->type->base) {
+      case types_BaseType_Array:
+      case types_BaseType_Structure: {
+        std_buffer_Buffer_puts(&this->out, " = {0}");
+      } break;
+      default: {
+      } break;
+    }
   } 
 }
 
@@ -7971,7 +7980,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:898:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:903:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
 }
@@ -8024,7 +8033,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:943:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:948:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
         }
@@ -8060,7 +8069,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:970:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:975:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             if (func->is_dead) 
             continue;
             
