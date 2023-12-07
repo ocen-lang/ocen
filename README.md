@@ -1,7 +1,19 @@
 # ocen
 
-`ocen` aims to provide you the same level of control over your code as C, but with some modern features like
-type inference, namespaces, stricter types and a module system. It transpiles to C, and can easily bind to C libraries.
+`ocen` is intended for people who enjoy the do-it-yourself nature of C, and the level of control it gives you - but don't want to deal with the syntactical nuances of C. `ocen` fundamentally behaves and programs very much like C, but offers some quality-of-life features such as:
+
+- Proper namespaces, modules and import system (say goodbye to header files, and order-dependent definitions)
+- Stronger types (almost no implicit casting), and type inference for variables
+- Ability to attach methods to structs, enums, builtins
+- Rich standard library, with maps, lists, binary IO, image IO, graphics bindings (SDL, GLUT), etc
+- Format strings, with JS (`` `hello {name}` ``) and Python (`f"val = {x:0.3f}"`) syntaxes supported (but they allocate)
+- Better enums: all values are namespaced, can be automatically debug-printed in format strings
+- Ability to easily bind C libraries, and to be able to use external functions as methods
+- Syntactic sugar for `for-each` loops, as long as the object has necessary iterator methods
+- Automatically generate `json` for documentation with all definitions in code, and extracted comments
+- Relatively small and hackable code-base
+
+`ocen` transpiles to C, and the _only_ dependency for this compiler is a C compiler on your system (`gcc` by default, but can be specified with `CC` environment variable). For now `ocen` is only tested/supported on linux and macOS, but contributions to help get this running on Windows are welcome if anyone is interested.
 
 ## Usage
 
