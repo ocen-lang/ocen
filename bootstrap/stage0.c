@@ -2170,8 +2170,8 @@ void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_
       std_compact_map_Map__0_resize(this, (this->capacity * ((u32)2)));
     } 
   }  else {
-    std_compact_map_Item__0 item = std_vector_Vector__2_at(this->items, ((u32)this->indices[index]));
-    item.value=value;
+    u32 item_index = ((u32)this->indices[index]);
+    this->items->data[item_index].value=value;
   } 
 }
 
