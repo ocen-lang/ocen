@@ -530,6 +530,11 @@ def CodeGenerator::gen_var_declaration(&this, node: &AST) {
     if node.u.var_decl.init? {
         .out.puts(" = ")
         .gen_expression(node.u.var_decl.init)
+    } else {
+        match var.type.base {
+            Array | Structure => .out.puts(" = {0}")
+            else => {}
+        }
     }
 }
 
