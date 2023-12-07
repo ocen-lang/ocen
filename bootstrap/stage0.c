@@ -11796,7 +11796,11 @@ void save_and_compile_code(ast_program_Program *program, char *code) {
   return ;
   
   char *cmdbuf = ((char *)calloc(((u32)1), ((u32)1024)));
-  strcat(cmdbuf, format_string("gcc -o %s %s", exec_path, c_path));
+  char *c_compiler = getenv("CC");
+  if (!((bool)c_compiler)) 
+  c_compiler="gcc";
+  
+  strcat(cmdbuf, format_string("%s -o %s %s", c_compiler, exec_path, c_path));
   for (std_vector_Iterator__5 __iter = std_vector_Vector__5_iter(program->c_flags); std_vector_Iterator__5_has_value(&__iter); std_vector_Iterator__5_next(&__iter)) {
     char *flag = std_vector_Iterator__5_cur(&__iter);
     {

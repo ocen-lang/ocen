@@ -52,7 +52,9 @@ def save_and_compile_code(program: &Program, code: str) {
     if not compile_c then return
 
     let cmdbuf = calloc(1, 1024) as str
-    cmdbuf.concat(`gcc -o {exec_path} {c_path}`)
+    let c_compiler = std::libc::getenv("CC")
+    if not c_compiler? then c_compiler = "gcc"
+    cmdbuf.concat(`{c_compiler} -o {exec_path} {c_path}`)
     for flag : program.c_flags.iter() {
         cmdbuf.concat(" ")
         cmdbuf.concat(flag)
