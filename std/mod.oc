@@ -106,6 +106,8 @@ def str::replace_with(&this, other: str) {
 }
 
 def char::is_digit(this): bool => libc::isdigit(this)
+def char::get_digit(this): u32 => this as u32 - '0' as u32
+
 def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
 def char::is_print(this): bool => libc::isprint(this)
