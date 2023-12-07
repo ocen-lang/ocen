@@ -125,8 +125,8 @@ def Map::insert(&this, key: K, value: V) {
             .resize(.capacity * 2)
         }
     } else {
-        let item = .items.at(.indices[index] as u32) // Should be safe
-        item.value = value
+        let item_index = .indices[index] as u32
+        .items.data[item_index].value = value   // Should be safe
     }
 }
 

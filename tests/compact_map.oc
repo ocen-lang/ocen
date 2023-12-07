@@ -12,6 +12,9 @@ def main() {
     map.insert(6, 7)
     map.insert(7, 8)
     map.insert(8, 9)
+
+    // Test out updating a value
+    map.insert(9, 20)
     map.insert(9, 10)
 
     for let i = 1; i < 10; i += 1 {
