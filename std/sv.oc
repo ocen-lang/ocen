@@ -217,6 +217,8 @@ def SV::ends_with_sv(this, other: SV): bool {
 //* Does the string view end with another string?
 def SV::ends_with_str(this, other: str): bool => .ends_with_sv(SV::from_str(other))
 
+def SV::chars(this, start: u32 = 0): std::CharIterator => std::CharIterator(.data, .len, start)
+
 //* Iterator over the lines of a string view
 def SV::lines(this): SVLineIterator => SVLineIterator(this)
 //* Iterator over the string view split by a delimiter

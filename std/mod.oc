@@ -105,6 +105,18 @@ def str::replace_with(&this, other: str) {
     *this = other
 }
 
+def str::chars(this, start: u32 = 0): CharIterator => CharIterator(this, this.len(), start)
+
+struct CharIterator {
+    data: str
+    len: u32
+    pos: u32
+}
+
+def CharIterator::has_value(&this): bool => .pos < .len
+def CharIterator::next(&this): u32 => .pos++
+def CharIterator::cur(&this): char => .data[.pos]
+
 def char::is_digit(this): bool => libc::isdigit(this)
 def char::get_digit(this): u32 => this as u32 - '0' as u32
 
