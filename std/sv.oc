@@ -229,7 +229,10 @@ def SV::split_str(this, delim: str): SVSplitIterator => SVSplitIterator(this, SV
 def SV::split_words(this): SVWordIterator => SVWordIterator(this)
 
 //* Iterator over the numbers of a string view
-def SV::iter_nums(this): SVNumberIterator => SVNumberIterator::make(this)
+def SV::iter_nums(this): SVNumberIterator<u64> => SVNumberIterator<u64>::make(this)
+def SV::iter_u64(this): SVNumberIterator<u64> => SVNumberIterator<u64>::make(this)
+def SV::iter_i64(this): SVNumberIterator<i64> => SVNumberIterator<i64>::make(this)
+
 //* Iterator over the string view based on a predicate
 def SV::iter_pred(this, pred: fn(SV): u32): SVPredicateIterator => SVPredicateIterator::make(this, pred)
 
@@ -260,19 +263,21 @@ def SVWordIterator::cur(&this): SV => .sv.chop_word()
 def SVWordIterator::next(&this) {}
 
 //* Iterator over the numbers of a string view
-struct SVNumberIterator {
+struct SVNumberIterator<T> {
     sv: SV
-    cur_num: u64
+    cur_num: T
     found: bool
 }
 
-def SVNumberIterator::make(sv: SV): SVNumberIterator {
-    let it = SVNumberIterator(sv, 0, false)
+def SVNumberIterator::make(sv: SV): SVNumberIterator<T> {
+    let it: SVNumberIterator<T>
+    it.sv = sv
+    it.found = false
     it.next()
     return it
 }
 def SVNumberIterator::has_value(&this): bool => .found
-def SVNumberIterator::cur(&this): u64 => .cur_num
+def SVNumberIterator::cur(&this): T => .cur_num
 def SVNumberIterator::next(&this) {
     .found = false
     while .sv.len > 0 {
@@ -281,7 +286,7 @@ def SVNumberIterator::next(&this) {
         if endptr == .sv.data {
             .sv.chop_left(1)
         } else {
-            .cur_num = res
+            .cur_num = res as T
             .sv.only_chop_left((endptr - .sv.data) as u32)
             .found = true
             break
