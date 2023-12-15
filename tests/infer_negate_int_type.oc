@@ -1,0 +1,6 @@
+/// compile
+
+def main() {
+    let i = -1
+    i = 2i32
+}

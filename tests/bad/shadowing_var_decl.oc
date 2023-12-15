@@ -1,0 +1,8 @@
+/// fail: Cannot call a non-function type: Unresolved
+
+
+def hash(s: str): u32 => 0
+
+def main() {
+    let hash = hash("hello")
+}

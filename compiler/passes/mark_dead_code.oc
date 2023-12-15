@@ -223,5 +223,17 @@ def MarkDeadCode::run(program: &Program) {
         }
     }
 
+    // For constants and variables, mark their types as used
+    for ns : program.iter_namespaces() {
+        for node : ns.constants.iter() {
+            let var = node.u.var_decl.var
+            pass.mark_type(var.type)
+        }
+        for node : ns.variables.iter() {
+            let var = node.u.var_decl.var
+            pass.mark_type(var.type)
+        }
+    }
+
     pass.mark_function(main)
 }
