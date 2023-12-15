@@ -217,6 +217,21 @@ def SV::ends_with_sv(this, other: SV): bool {
 //* Does the string view end with another string?
 def SV::ends_with_str(this, other: str): bool => .ends_with_sv(SV::from_str(other))
 
+def SV::slice(this, off: u32, end: u32 = 0): SV {
+    if end == 0 then end = .len
+    if end > .len then end = .len
+    if off >= end then off = end
+    return SV(.data + off, end - off)
+}
+
+def SV::count(this, c: char): u64 {
+    let total = 0u64
+    for let i = 0; i < .len; i++ {
+        if .data[i] == c then total += 1
+    }
+    return total
+}
+
 def SV::chars(this, start: u32 = 0): std::CharIterator => std::CharIterator(.data, .len, start)
 
 //* Iterator over the lines of a string view
