@@ -421,8 +421,9 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         }
         Dereference => {
             let expr = node.u.unary
-            .out.puts("*")
+            .out.puts("(*")
             .gen_expression(expr)
+            .out.puts(")")
         }
         Negate => {
             let expr = node.u.unary
