@@ -130,27 +130,29 @@ def Map::insert(&this, key: K, value: V) {
     }
 }
 
-def Map::get(&this, key: K, defolt: V): V {
+def Map::get_item(&this, key: K): &Item<K, V> {
     let hash = key.hash()
     let index = .get_index(key, hash)
     if .indices[index] == INDEX_FREE {
-        return defolt
+        return null
     }
 
     assert index >= 0
-    let item = .items.at(.indices[index] as u32) // Should be safe
+    let idx = .indices[index] as u32
+    return &.items.data[idx] // Should be safe
+}
+
+def Map::get(&this, key: K, defolt: V): V {
+    let item = .get_item(key)
+    if not item? return defolt
     return item.value
 }
 
 def Map::at(&this, key: K): V {
-    let hash = key.hash()
-    let index = .get_index(key, hash)
-    if .indices[index] == INDEX_FREE {
+    let item = .get_item(key)
+    if not item? {
         assert false, "Key not found in Map::at()"
     }
-
-    assert index >= 0
-    let item = .items.at(.indices[index] as u32) // Should be safe
     return item.value
 }
 
