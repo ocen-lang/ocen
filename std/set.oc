@@ -1,6 +1,6 @@
 //* A hash-set
 
-import std::map::{ Map, Node, Iterator as MapIterator }
+import std::map::{ Map, Item, Iterator as MapIterator }
 import std::libc::{ calloc, free }
 
 struct Set<T> {

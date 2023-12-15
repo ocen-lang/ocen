@@ -529,14 +529,14 @@ typedef struct std_compact_map_Map__0 std_compact_map_Map__0;
 typedef struct std_vector_Iterator__2 std_vector_Iterator__2;
 typedef struct std_buffer_Buffer std_buffer_Buffer;
 typedef struct std_set_Set__0 std_set_Set__0;
-typedef struct std_map_Node__0 std_map_Node__0;
-typedef struct std_map_Node__1 std_map_Node__1;
-typedef struct std_map_Node__2 std_map_Node__2;
-typedef struct std_map_Node__3 std_map_Node__3;
-typedef struct std_map_Node__4 std_map_Node__4;
-typedef struct std_map_Node__5 std_map_Node__5;
-typedef struct std_map_Node__6 std_map_Node__6;
-typedef struct std_map_Node__7 std_map_Node__7;
+typedef struct std_map_Item__0 std_map_Item__0;
+typedef struct std_map_Item__1 std_map_Item__1;
+typedef struct std_map_Item__2 std_map_Item__2;
+typedef struct std_map_Item__3 std_map_Item__3;
+typedef struct std_map_Item__4 std_map_Item__4;
+typedef struct std_map_Item__5 std_map_Item__5;
+typedef struct std_map_Item__6 std_map_Item__6;
+typedef struct std_map_Item__7 std_map_Item__7;
 typedef struct std_map_Map__0 std_map_Map__0;
 typedef struct std_map_Map__1 std_map_Map__1;
 typedef struct std_map_Map__2 std_map_Map__2;
@@ -666,105 +666,105 @@ struct std_set_Set__0 {
   std_map_Map__0 *map;
 };
 
-struct std_map_Node__0 {
+struct std_map_Item__0 {
   u64 key;
   bool value;
-  std_map_Node__0 *next;
+  std_map_Item__0 *next;
 };
 
-struct std_map_Node__1 {
+struct std_map_Item__1 {
   char *key;
   ast_nodes_Structure *value;
-  std_map_Node__1 *next;
+  std_map_Item__1 *next;
 };
 
-struct std_map_Node__2 {
+struct std_map_Item__2 {
   char *key;
   ast_scopes_Symbol *value;
-  std_map_Node__2 *next;
+  std_map_Item__2 *next;
 };
 
-struct std_map_Node__3 {
+struct std_map_Item__3 {
   char *key;
   types_Type *value;
-  std_map_Node__3 *next;
+  std_map_Item__3 *next;
 };
 
-struct std_map_Node__4 {
+struct std_map_Item__4 {
   char *key;
   ast_program_Namespace *value;
-  std_map_Node__4 *next;
+  std_map_Item__4 *next;
 };
 
-struct std_map_Node__5 {
+struct std_map_Item__5 {
   char *key;
   char *value;
-  std_map_Node__5 *next;
+  std_map_Item__5 *next;
 };
 
-struct std_map_Node__6 {
+struct std_map_Item__6 {
   char *key;
   ast_nodes_Function *value;
-  std_map_Node__6 *next;
+  std_map_Item__6 *next;
 };
 
-struct std_map_Node__7 {
+struct std_map_Item__7 {
   char *key;
   ast_nodes_MatchCase *value;
-  std_map_Node__7 *next;
+  std_map_Item__7 *next;
 };
 
 struct std_map_Map__0 {
-  std_map_Node__0 **buckets;
+  std_map_Item__0 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__1 {
-  std_map_Node__1 **buckets;
+  std_map_Item__1 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__2 {
-  std_map_Node__2 **buckets;
+  std_map_Item__2 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__3 {
-  std_map_Node__3 **buckets;
+  std_map_Item__3 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__4 {
-  std_map_Node__4 **buckets;
+  std_map_Item__4 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__5 {
-  std_map_Node__5 **buckets;
+  std_map_Item__5 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__6 {
-  std_map_Node__6 **buckets;
+  std_map_Item__6 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
 };
 
 struct std_map_Map__7 {
-  std_map_Node__7 **buckets;
+  std_map_Item__7 **buckets;
   u32 num_items;
   u32 num_buckets;
   u32 num_collisions;
@@ -772,25 +772,25 @@ struct std_map_Map__7 {
 
 struct std_map_Iterator__3 {
   i32 idx;
-  std_map_Node__3 *node;
+  std_map_Item__3 *node;
   std_map_Map__3 *map;
 };
 
 struct std_map_Iterator__4 {
   i32 idx;
-  std_map_Node__4 *node;
+  std_map_Item__4 *node;
   std_map_Map__4 *map;
 };
 
 struct std_map_Iterator__5 {
   i32 idx;
-  std_map_Node__5 *node;
+  std_map_Item__5 *node;
   std_map_Map__5 *map;
 };
 
 struct std_map_Iterator__6 {
   i32 idx;
-  std_map_Node__6 *node;
+  std_map_Item__6 *node;
   std_map_Map__6 *map;
 };
 
@@ -1427,7 +1427,7 @@ bool char_is_print(char this);
 i32 i32_max(i32 this, i32 b);
 u32 u32_min(u32 this, u32 other);
 u32 u32_max(u32 this, u32 other);
-passes_mark_dead_code_MarkDeadCode *std_new__0(u32 count);
+passes_mark_dead_code_MarkDeadCode *std_new__1(u32 count);
 u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u32 hash);
 void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value);
 bool std_compact_map_Map__0_is_empty(std_compact_map_Map__0 *this);
@@ -1448,57 +1448,56 @@ void std_set_Set__0_free(std_set_Set__0 *this);
 void std_set_Set__0_add(std_set_Set__0 *this, u64 key);
 bool std_set_Set__0_contains(std_set_Set__0 *this, u64 key);
 std_set_Set__0 *std_set_Set__0_new(void);
-void std_map_Node__0_free_list(std_map_Node__0 *this);
-std_map_Node__0 *std_map_Node__0_new(u64 key, bool value, std_map_Node__0 *next);
+void std_map_Item__0_free_list(std_map_Item__0 *this);
+std_map_Item__0 *std_map_Item__0_new(u64 key, bool value, std_map_Item__0 *next);
 bool std_map_Map__0_contains(std_map_Map__0 *this, u64 key);
-std_map_Node__0 *std_map_Map__0_get_node(std_map_Map__0 *this, u64 key);
 void std_map_Map__0_free(std_map_Map__0 *this);
 void std_map_Map__0_insert(std_map_Map__0 *this, u64 key, bool value);
 u32 std_map_Map__0_hash(std_map_Map__0 *this, u64 key);
 void std_map_Map__0_resize(std_map_Map__0 *this);
 std_map_Map__0 *std_map_Map__0_new(void);
-void std_map_Node__1_free_list(std_map_Node__1 *this);
-std_map_Node__1 *std_map_Node__1_new(char *key, ast_nodes_Structure *value, std_map_Node__1 *next);
-std_map_Node__1 *std_map_Map__1_get_node(std_map_Map__1 *this, char *key);
+std_map_Item__0 *std_map_Map__0_get_item(std_map_Map__0 *this, u64 key);
+void std_map_Item__1_free_list(std_map_Item__1 *this);
+std_map_Item__1 *std_map_Item__1_new(char *key, ast_nodes_Structure *value, std_map_Item__1 *next);
 void std_map_Map__1_free(std_map_Map__1 *this);
 void std_map_Map__1_insert(std_map_Map__1 *this, char *key, ast_nodes_Structure *value);
 ast_nodes_Structure *std_map_Map__1_get(std_map_Map__1 *this, char *key, ast_nodes_Structure *defolt);
 u32 std_map_Map__1_hash(std_map_Map__1 *this, char *key);
 void std_map_Map__1_resize(std_map_Map__1 *this);
 std_map_Map__1 *std_map_Map__1_new(void);
-void std_map_Node__2_free_list(std_map_Node__2 *this);
-std_map_Node__2 *std_map_Node__2_new(char *key, ast_scopes_Symbol *value, std_map_Node__2 *next);
-std_map_Node__2 *std_map_Map__2_get_node(std_map_Map__2 *this, char *key);
+std_map_Item__1 *std_map_Map__1_get_item(std_map_Map__1 *this, char *key);
+void std_map_Item__2_free_list(std_map_Item__2 *this);
+std_map_Item__2 *std_map_Item__2_new(char *key, ast_scopes_Symbol *value, std_map_Item__2 *next);
 void std_map_Map__2_insert(std_map_Map__2 *this, char *key, ast_scopes_Symbol *value);
 ast_scopes_Symbol *std_map_Map__2_get(std_map_Map__2 *this, char *key, ast_scopes_Symbol *defolt);
 u32 std_map_Map__2_hash(std_map_Map__2 *this, char *key);
 void std_map_Map__2_resize(std_map_Map__2 *this);
 std_map_Map__2 *std_map_Map__2_new(void);
-void std_map_Node__3_free_list(std_map_Node__3 *this);
-std_map_Node__3 *std_map_Node__3_new(char *key, types_Type *value, std_map_Node__3 *next);
-std_map_Node__3 *std_map_Iterator__3_cur(std_map_Iterator__3 *this);
+std_map_Item__2 *std_map_Map__2_get_item(std_map_Map__2 *this, char *key);
+void std_map_Item__3_free_list(std_map_Item__3 *this);
+std_map_Item__3 *std_map_Item__3_new(char *key, types_Type *value, std_map_Item__3 *next);
+std_map_Item__3 *std_map_Iterator__3_cur(std_map_Iterator__3 *this);
 void std_map_Iterator__3_next(std_map_Iterator__3 *this);
 bool std_map_Iterator__3_has_value(std_map_Iterator__3 *this);
 std_map_Iterator__3 std_map_Iterator__3_make(std_map_Map__3 *map);
-std_map_Node__3 *std_map_Map__3_get_node(std_map_Map__3 *this, char *key);
 std_map_Iterator__3 std_map_Map__3_iter(std_map_Map__3 *this);
 void std_map_Map__3_insert(std_map_Map__3 *this, char *key, types_Type *value);
 types_Type *std_map_Map__3_get(std_map_Map__3 *this, char *key, types_Type *defolt);
 u32 std_map_Map__3_hash(std_map_Map__3 *this, char *key);
 void std_map_Map__3_resize(std_map_Map__3 *this);
 std_map_Map__3 *std_map_Map__3_new(void);
-void std_map_Node__4_free_list(std_map_Node__4 *this);
-std_map_Node__4 *std_map_Node__4_new(char *key, ast_program_Namespace *value, std_map_Node__4 *next);
+std_map_Item__3 *std_map_Map__3_get_item(std_map_Map__3 *this, char *key);
+void std_map_Item__4_free_list(std_map_Item__4 *this);
+std_map_Item__4 *std_map_Item__4_new(char *key, ast_program_Namespace *value, std_map_Item__4 *next);
 bool std_map_Map__4_contains(std_map_Map__4 *this, char *key);
 std_map_ValueIterator__4 std_map_Map__4_iter_values(std_map_Map__4 *this);
-std_map_Node__4 *std_map_Iterator__4_cur(std_map_Iterator__4 *this);
+std_map_Item__4 *std_map_Iterator__4_cur(std_map_Iterator__4 *this);
 void std_map_Iterator__4_next(std_map_Iterator__4 *this);
 bool std_map_Iterator__4_has_value(std_map_Iterator__4 *this);
 std_map_Iterator__4 std_map_Iterator__4_make(std_map_Map__4 *map);
 ast_program_Namespace *std_map_ValueIterator__4_cur(std_map_ValueIterator__4 *this);
 void std_map_ValueIterator__4_next(std_map_ValueIterator__4 *this);
 bool std_map_ValueIterator__4_has_value(std_map_ValueIterator__4 *this);
-std_map_Node__4 *std_map_Map__4_get_node(std_map_Map__4 *this, char *key);
 std_map_Iterator__4 std_map_Map__4_iter(std_map_Map__4 *this);
 ast_program_Namespace *std_map_Map__4_at(std_map_Map__4 *this, char *key);
 void std_map_Map__4_insert(std_map_Map__4 *this, char *key, ast_program_Namespace *value);
@@ -1507,30 +1506,30 @@ bool std_map_Map__4_is_empty(std_map_Map__4 *this);
 u32 std_map_Map__4_hash(std_map_Map__4 *this, char *key);
 void std_map_Map__4_resize(std_map_Map__4 *this);
 std_map_Map__4 *std_map_Map__4_new(void);
-void std_map_Node__5_free_list(std_map_Node__5 *this);
-std_map_Node__5 *std_map_Node__5_new(char *key, char *value, std_map_Node__5 *next);
-std_map_Node__5 *std_map_Iterator__5_cur(std_map_Iterator__5 *this);
+std_map_Item__4 *std_map_Map__4_get_item(std_map_Map__4 *this, char *key);
+void std_map_Item__5_free_list(std_map_Item__5 *this);
+std_map_Item__5 *std_map_Item__5_new(char *key, char *value, std_map_Item__5 *next);
+std_map_Item__5 *std_map_Iterator__5_cur(std_map_Iterator__5 *this);
 void std_map_Iterator__5_next(std_map_Iterator__5 *this);
 bool std_map_Iterator__5_has_value(std_map_Iterator__5 *this);
 std_map_Iterator__5 std_map_Iterator__5_make(std_map_Map__5 *map);
-std_map_Node__5 *std_map_Map__5_get_node(std_map_Map__5 *this, char *key);
 std_map_Iterator__5 std_map_Map__5_iter(std_map_Map__5 *this);
 void std_map_Map__5_insert(std_map_Map__5 *this, char *key, char *value);
 char *std_map_Map__5_get(std_map_Map__5 *this, char *key, char *defolt);
 u32 std_map_Map__5_hash(std_map_Map__5 *this, char *key);
 void std_map_Map__5_resize(std_map_Map__5 *this);
 std_map_Map__5 *std_map_Map__5_new(void);
-void std_map_Node__6_free_list(std_map_Node__6 *this);
-std_map_Node__6 *std_map_Node__6_new(char *key, ast_nodes_Function *value, std_map_Node__6 *next);
+std_map_Item__5 *std_map_Map__5_get_item(std_map_Map__5 *this, char *key);
+void std_map_Item__6_free_list(std_map_Item__6 *this);
+std_map_Item__6 *std_map_Item__6_new(char *key, ast_nodes_Function *value, std_map_Item__6 *next);
 std_map_ValueIterator__6 std_map_Map__6_iter_values(std_map_Map__6 *this);
-std_map_Node__6 *std_map_Iterator__6_cur(std_map_Iterator__6 *this);
+std_map_Item__6 *std_map_Iterator__6_cur(std_map_Iterator__6 *this);
 void std_map_Iterator__6_next(std_map_Iterator__6 *this);
 bool std_map_Iterator__6_has_value(std_map_Iterator__6 *this);
 std_map_Iterator__6 std_map_Iterator__6_make(std_map_Map__6 *map);
 ast_nodes_Function *std_map_ValueIterator__6_cur(std_map_ValueIterator__6 *this);
 void std_map_ValueIterator__6_next(std_map_ValueIterator__6 *this);
 bool std_map_ValueIterator__6_has_value(std_map_ValueIterator__6 *this);
-std_map_Node__6 *std_map_Map__6_get_node(std_map_Map__6 *this, char *key);
 std_map_Iterator__6 std_map_Map__6_iter(std_map_Map__6 *this);
 ast_nodes_Function *std_map_Map__6_at(std_map_Map__6 *this, char *key);
 void std_map_Map__6_insert(std_map_Map__6 *this, char *key, ast_nodes_Function *value);
@@ -1538,15 +1537,16 @@ ast_nodes_Function *std_map_Map__6_get(std_map_Map__6 *this, char *key, ast_node
 u32 std_map_Map__6_hash(std_map_Map__6 *this, char *key);
 void std_map_Map__6_resize(std_map_Map__6 *this);
 std_map_Map__6 *std_map_Map__6_new(void);
-void std_map_Node__7_free_list(std_map_Node__7 *this);
-std_map_Node__7 *std_map_Node__7_new(char *key, ast_nodes_MatchCase *value, std_map_Node__7 *next);
-std_map_Node__7 *std_map_Map__7_get_node(std_map_Map__7 *this, char *key);
+std_map_Item__6 *std_map_Map__6_get_item(std_map_Map__6 *this, char *key);
+void std_map_Item__7_free_list(std_map_Item__7 *this);
+std_map_Item__7 *std_map_Item__7_new(char *key, ast_nodes_MatchCase *value, std_map_Item__7 *next);
 void std_map_Map__7_free(std_map_Map__7 *this);
 void std_map_Map__7_insert(std_map_Map__7 *this, char *key, ast_nodes_MatchCase *value);
 ast_nodes_MatchCase *std_map_Map__7_get(std_map_Map__7 *this, char *key, ast_nodes_MatchCase *defolt);
 u32 std_map_Map__7_hash(std_map_Map__7 *this, char *key);
 void std_map_Map__7_resize(std_map_Map__7 *this);
 std_map_Map__7 *std_map_Map__7_new(void);
+std_map_Item__7 *std_map_Map__7_get_item(std_map_Map__7 *this, char *key);
 std_span_Location std_span_Location_default(void);
 char *std_span_Location_str(std_span_Location *this);
 bool std_span_Location_is_valid(std_span_Location *this);
@@ -2127,7 +2127,7 @@ u32 u32_max(u32 this, u32 other) {
   return ((this > other) ? this : other);
 }
 
-passes_mark_dead_code_MarkDeadCode *std_new__0(u32 count) {
+passes_mark_dead_code_MarkDeadCode *std_new__1(u32 count) {
   return ((passes_mark_dead_code_MarkDeadCode *)calloc(count, ((u32)sizeof(passes_mark_dead_code_MarkDeadCode))));
 }
 
@@ -2224,7 +2224,7 @@ void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size
   if ((new_size >= this->capacity)) {
     i32 new_capacity = i32_max((((i32)this->capacity) * 2), ((i32)new_size));
     this->data=((u8 *)realloc(this->data, ((u32)new_capacity)));
-    ae_assert(((bool)this->data), "std/buffer.oc:57:16: Assertion failed: `.data?`", "Out of memory!");  } 
+    ae_assert(((bool)this->data), "std/buffer.oc:69:16: Assertion failed: `.data?`", "Out of memory!");  } 
 }
 
 void std_buffer_Buffer_puts(std_buffer_Buffer *this, char *s) {
@@ -2281,17 +2281,17 @@ std_set_Set__0 *std_set_Set__0_new(void) {
   return set;
 }
 
-void std_map_Node__0_free_list(std_map_Node__0 *this) {
-  std_map_Node__0 *cur = this;
+void std_map_Item__0_free_list(std_map_Item__0 *this) {
+  std_map_Item__0 *cur = this;
   while (((bool)cur)) {
-    std_map_Node__0 *next = cur->next;
+    std_map_Item__0 *next = cur->next;
     free(cur);
     cur=next;
   }
 }
 
-std_map_Node__0 *std_map_Node__0_new(u64 key, bool value, std_map_Node__0 *next) {
-  std_map_Node__0 *node = ((std_map_Node__0 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__0))));
+std_map_Item__0 *std_map_Item__0_new(u64 key, bool value, std_map_Item__0 *next) {
+  std_map_Item__0 *node = ((std_map_Item__0 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__0))));
   node->key=key;
   node->value=value;
   node->next=next;
@@ -2299,36 +2299,24 @@ std_map_Node__0 *std_map_Node__0_new(u64 key, bool value, std_map_Node__0 *next)
 }
 
 bool std_map_Map__0_contains(std_map_Map__0 *this, u64 key) {
-  return ((bool)std_map_Map__0_get_node(this, key));
-}
-
-std_map_Node__0 *std_map_Map__0_get_node(std_map_Map__0 *this, u64 key) {
-  u32 hash = std_map_Map__0_hash(this, key);
-  std_map_Node__0 *node = this->buckets[hash];
-  while (((bool)node)) {
-    if (u64_eq(node->key, key)) {
-      return node;
-    } 
-    node=node->next;
-  }
-  return NULL;
+  return ((bool)std_map_Map__0_get_item(this, key));
 }
 
 void std_map_Map__0_free(std_map_Map__0 *this) {
   for (u32 i = ((u32)0); (i < this->num_buckets); i+=((u32)1)) {
-    std_map_Node__0_free_list(this->buckets[i]);
+    std_map_Item__0_free_list(this->buckets[i]);
   }
   free(this->buckets);
   free(this);
 }
 
 void std_map_Map__0_insert(std_map_Map__0 *this, u64 key, bool value) {
-  std_map_Node__0 *node = std_map_Map__0_get_node(this, key);
+  std_map_Item__0 *node = std_map_Map__0_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__0_hash(this, key);
-    std_map_Node__0 *new_node = std_map_Node__0_new(key, value, this->buckets[hash]);
+    std_map_Item__0 *new_node = std_map_Item__0_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -2350,17 +2338,17 @@ u32 std_map_Map__0_hash(std_map_Map__0 *this, u64 key) {
 }
 
 void std_map_Map__0_resize(std_map_Map__0 *this) {
-  std_map_Node__0 **old_buckets = this->buckets;
+  std_map_Item__0 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__0 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__0 *))));
+  this->buckets=((std_map_Item__0 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__0 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__0 *node = old_buckets[i];
+    std_map_Item__0 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__0_hash(this, node->key);
-      std_map_Node__0 *new_node = std_map_Node__0_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__0 *new_node = std_map_Item__0_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -2369,7 +2357,7 @@ void std_map_Map__0_resize(std_map_Map__0 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__0_free_list(old_buckets[i]);
+    std_map_Item__0_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -2377,32 +2365,15 @@ void std_map_Map__0_resize(std_map_Map__0 *this) {
 std_map_Map__0 *std_map_Map__0_new(void) {
   std_map_Map__0 *map = ((std_map_Map__0 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__0))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__0 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__0 *))));
+  map->buckets=((std_map_Item__0 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__0 *))));
   return map;
 }
 
-void std_map_Node__1_free_list(std_map_Node__1 *this) {
-  std_map_Node__1 *cur = this;
-  while (((bool)cur)) {
-    std_map_Node__1 *next = cur->next;
-    free(cur);
-    cur=next;
-  }
-}
-
-std_map_Node__1 *std_map_Node__1_new(char *key, ast_nodes_Structure *value, std_map_Node__1 *next) {
-  std_map_Node__1 *node = ((std_map_Node__1 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__1))));
-  node->key=key;
-  node->value=value;
-  node->next=next;
-  return node;
-}
-
-std_map_Node__1 *std_map_Map__1_get_node(std_map_Map__1 *this, char *key) {
-  u32 hash = std_map_Map__1_hash(this, key);
-  std_map_Node__1 *node = this->buckets[hash];
+std_map_Item__0 *std_map_Map__0_get_item(std_map_Map__0 *this, u64 key) {
+  u32 hash = std_map_Map__0_hash(this, key);
+  std_map_Item__0 *node = this->buckets[hash];
   while (((bool)node)) {
-    if (str_eq(node->key, key)) {
+    if (u64_eq(node->key, key)) {
       return node;
     } 
     node=node->next;
@@ -2410,21 +2381,38 @@ std_map_Node__1 *std_map_Map__1_get_node(std_map_Map__1 *this, char *key) {
   return NULL;
 }
 
+void std_map_Item__1_free_list(std_map_Item__1 *this) {
+  std_map_Item__1 *cur = this;
+  while (((bool)cur)) {
+    std_map_Item__1 *next = cur->next;
+    free(cur);
+    cur=next;
+  }
+}
+
+std_map_Item__1 *std_map_Item__1_new(char *key, ast_nodes_Structure *value, std_map_Item__1 *next) {
+  std_map_Item__1 *node = ((std_map_Item__1 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__1))));
+  node->key=key;
+  node->value=value;
+  node->next=next;
+  return node;
+}
+
 void std_map_Map__1_free(std_map_Map__1 *this) {
   for (u32 i = ((u32)0); (i < this->num_buckets); i+=((u32)1)) {
-    std_map_Node__1_free_list(this->buckets[i]);
+    std_map_Item__1_free_list(this->buckets[i]);
   }
   free(this->buckets);
   free(this);
 }
 
 void std_map_Map__1_insert(std_map_Map__1 *this, char *key, ast_nodes_Structure *value) {
-  std_map_Node__1 *node = std_map_Map__1_get_node(this, key);
+  std_map_Item__1 *node = std_map_Map__1_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__1_hash(this, key);
-    std_map_Node__1 *new_node = std_map_Node__1_new(key, value, this->buckets[hash]);
+    std_map_Item__1 *new_node = std_map_Item__1_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -2437,7 +2425,7 @@ void std_map_Map__1_insert(std_map_Map__1 *this, char *key, ast_nodes_Structure 
 }
 
 ast_nodes_Structure *std_map_Map__1_get(std_map_Map__1 *this, char *key, ast_nodes_Structure *defolt) {
-  std_map_Node__1 *node = std_map_Map__1_get_node(this, key);
+  std_map_Item__1 *node = std_map_Map__1_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -2454,17 +2442,17 @@ u32 std_map_Map__1_hash(std_map_Map__1 *this, char *key) {
 }
 
 void std_map_Map__1_resize(std_map_Map__1 *this) {
-  std_map_Node__1 **old_buckets = this->buckets;
+  std_map_Item__1 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__1 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__1 *))));
+  this->buckets=((std_map_Item__1 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__1 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__1 *node = old_buckets[i];
+    std_map_Item__1 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__1_hash(this, node->key);
-      std_map_Node__1 *new_node = std_map_Node__1_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__1 *new_node = std_map_Item__1_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -2473,7 +2461,7 @@ void std_map_Map__1_resize(std_map_Map__1 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__1_free_list(old_buckets[i]);
+    std_map_Item__1_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -2481,30 +2469,13 @@ void std_map_Map__1_resize(std_map_Map__1 *this) {
 std_map_Map__1 *std_map_Map__1_new(void) {
   std_map_Map__1 *map = ((std_map_Map__1 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__1))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__1 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__1 *))));
+  map->buckets=((std_map_Item__1 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__1 *))));
   return map;
 }
 
-void std_map_Node__2_free_list(std_map_Node__2 *this) {
-  std_map_Node__2 *cur = this;
-  while (((bool)cur)) {
-    std_map_Node__2 *next = cur->next;
-    free(cur);
-    cur=next;
-  }
-}
-
-std_map_Node__2 *std_map_Node__2_new(char *key, ast_scopes_Symbol *value, std_map_Node__2 *next) {
-  std_map_Node__2 *node = ((std_map_Node__2 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__2))));
-  node->key=key;
-  node->value=value;
-  node->next=next;
-  return node;
-}
-
-std_map_Node__2 *std_map_Map__2_get_node(std_map_Map__2 *this, char *key) {
-  u32 hash = std_map_Map__2_hash(this, key);
-  std_map_Node__2 *node = this->buckets[hash];
+std_map_Item__1 *std_map_Map__1_get_item(std_map_Map__1 *this, char *key) {
+  u32 hash = std_map_Map__1_hash(this, key);
+  std_map_Item__1 *node = this->buckets[hash];
   while (((bool)node)) {
     if (str_eq(node->key, key)) {
       return node;
@@ -2514,13 +2485,30 @@ std_map_Node__2 *std_map_Map__2_get_node(std_map_Map__2 *this, char *key) {
   return NULL;
 }
 
+void std_map_Item__2_free_list(std_map_Item__2 *this) {
+  std_map_Item__2 *cur = this;
+  while (((bool)cur)) {
+    std_map_Item__2 *next = cur->next;
+    free(cur);
+    cur=next;
+  }
+}
+
+std_map_Item__2 *std_map_Item__2_new(char *key, ast_scopes_Symbol *value, std_map_Item__2 *next) {
+  std_map_Item__2 *node = ((std_map_Item__2 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__2))));
+  node->key=key;
+  node->value=value;
+  node->next=next;
+  return node;
+}
+
 void std_map_Map__2_insert(std_map_Map__2 *this, char *key, ast_scopes_Symbol *value) {
-  std_map_Node__2 *node = std_map_Map__2_get_node(this, key);
+  std_map_Item__2 *node = std_map_Map__2_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__2_hash(this, key);
-    std_map_Node__2 *new_node = std_map_Node__2_new(key, value, this->buckets[hash]);
+    std_map_Item__2 *new_node = std_map_Item__2_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -2533,7 +2521,7 @@ void std_map_Map__2_insert(std_map_Map__2 *this, char *key, ast_scopes_Symbol *v
 }
 
 ast_scopes_Symbol *std_map_Map__2_get(std_map_Map__2 *this, char *key, ast_scopes_Symbol *defolt) {
-  std_map_Node__2 *node = std_map_Map__2_get_node(this, key);
+  std_map_Item__2 *node = std_map_Map__2_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -2550,17 +2538,17 @@ u32 std_map_Map__2_hash(std_map_Map__2 *this, char *key) {
 }
 
 void std_map_Map__2_resize(std_map_Map__2 *this) {
-  std_map_Node__2 **old_buckets = this->buckets;
+  std_map_Item__2 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__2 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__2 *))));
+  this->buckets=((std_map_Item__2 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__2 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__2 *node = old_buckets[i];
+    std_map_Item__2 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__2_hash(this, node->key);
-      std_map_Node__2 *new_node = std_map_Node__2_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__2 *new_node = std_map_Item__2_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -2569,7 +2557,7 @@ void std_map_Map__2_resize(std_map_Map__2 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__2_free_list(old_buckets[i]);
+    std_map_Item__2_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -2577,28 +2565,40 @@ void std_map_Map__2_resize(std_map_Map__2 *this) {
 std_map_Map__2 *std_map_Map__2_new(void) {
   std_map_Map__2 *map = ((std_map_Map__2 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__2))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__2 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__2 *))));
+  map->buckets=((std_map_Item__2 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__2 *))));
   return map;
 }
 
-void std_map_Node__3_free_list(std_map_Node__3 *this) {
-  std_map_Node__3 *cur = this;
+std_map_Item__2 *std_map_Map__2_get_item(std_map_Map__2 *this, char *key) {
+  u32 hash = std_map_Map__2_hash(this, key);
+  std_map_Item__2 *node = this->buckets[hash];
+  while (((bool)node)) {
+    if (str_eq(node->key, key)) {
+      return node;
+    } 
+    node=node->next;
+  }
+  return NULL;
+}
+
+void std_map_Item__3_free_list(std_map_Item__3 *this) {
+  std_map_Item__3 *cur = this;
   while (((bool)cur)) {
-    std_map_Node__3 *next = cur->next;
+    std_map_Item__3 *next = cur->next;
     free(cur);
     cur=next;
   }
 }
 
-std_map_Node__3 *std_map_Node__3_new(char *key, types_Type *value, std_map_Node__3 *next) {
-  std_map_Node__3 *node = ((std_map_Node__3 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__3))));
+std_map_Item__3 *std_map_Item__3_new(char *key, types_Type *value, std_map_Item__3 *next) {
+  std_map_Item__3 *node = ((std_map_Item__3 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__3))));
   node->key=key;
   node->value=value;
   node->next=next;
   return node;
 }
 
-std_map_Node__3 *std_map_Iterator__3_cur(std_map_Iterator__3 *this) {
+std_map_Item__3 *std_map_Iterator__3_cur(std_map_Iterator__3 *this) {
   return this->node;
 }
 
@@ -2611,7 +2611,7 @@ void std_map_Iterator__3_next(std_map_Iterator__3 *this) {
       
     }
     this->idx+=1;
-    this->node=({ std_map_Node__3 *__yield_0;
+    this->node=({ std_map_Item__3 *__yield_0;
       if ((this->idx < ((i32)this->map->num_buckets))) {
         __yield_0 = this->map->buckets[this->idx];
       }  else {
@@ -2634,29 +2634,17 @@ std_map_Iterator__3 std_map_Iterator__3_make(std_map_Map__3 *map) {
   return it;
 }
 
-std_map_Node__3 *std_map_Map__3_get_node(std_map_Map__3 *this, char *key) {
-  u32 hash = std_map_Map__3_hash(this, key);
-  std_map_Node__3 *node = this->buckets[hash];
-  while (((bool)node)) {
-    if (str_eq(node->key, key)) {
-      return node;
-    } 
-    node=node->next;
-  }
-  return NULL;
-}
-
 std_map_Iterator__3 std_map_Map__3_iter(std_map_Map__3 *this) {
   return std_map_Iterator__3_make(this);
 }
 
 void std_map_Map__3_insert(std_map_Map__3 *this, char *key, types_Type *value) {
-  std_map_Node__3 *node = std_map_Map__3_get_node(this, key);
+  std_map_Item__3 *node = std_map_Map__3_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__3_hash(this, key);
-    std_map_Node__3 *new_node = std_map_Node__3_new(key, value, this->buckets[hash]);
+    std_map_Item__3 *new_node = std_map_Item__3_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -2669,7 +2657,7 @@ void std_map_Map__3_insert(std_map_Map__3 *this, char *key, types_Type *value) {
 }
 
 types_Type *std_map_Map__3_get(std_map_Map__3 *this, char *key, types_Type *defolt) {
-  std_map_Node__3 *node = std_map_Map__3_get_node(this, key);
+  std_map_Item__3 *node = std_map_Map__3_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -2686,17 +2674,17 @@ u32 std_map_Map__3_hash(std_map_Map__3 *this, char *key) {
 }
 
 void std_map_Map__3_resize(std_map_Map__3 *this) {
-  std_map_Node__3 **old_buckets = this->buckets;
+  std_map_Item__3 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__3 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__3 *))));
+  this->buckets=((std_map_Item__3 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__3 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__3 *node = old_buckets[i];
+    std_map_Item__3 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__3_hash(this, node->key);
-      std_map_Node__3 *new_node = std_map_Node__3_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__3 *new_node = std_map_Item__3_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -2705,7 +2693,7 @@ void std_map_Map__3_resize(std_map_Map__3 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__3_free_list(old_buckets[i]);
+    std_map_Item__3_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -2713,21 +2701,33 @@ void std_map_Map__3_resize(std_map_Map__3 *this) {
 std_map_Map__3 *std_map_Map__3_new(void) {
   std_map_Map__3 *map = ((std_map_Map__3 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__3))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__3 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__3 *))));
+  map->buckets=((std_map_Item__3 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__3 *))));
   return map;
 }
 
-void std_map_Node__4_free_list(std_map_Node__4 *this) {
-  std_map_Node__4 *cur = this;
+std_map_Item__3 *std_map_Map__3_get_item(std_map_Map__3 *this, char *key) {
+  u32 hash = std_map_Map__3_hash(this, key);
+  std_map_Item__3 *node = this->buckets[hash];
+  while (((bool)node)) {
+    if (str_eq(node->key, key)) {
+      return node;
+    } 
+    node=node->next;
+  }
+  return NULL;
+}
+
+void std_map_Item__4_free_list(std_map_Item__4 *this) {
+  std_map_Item__4 *cur = this;
   while (((bool)cur)) {
-    std_map_Node__4 *next = cur->next;
+    std_map_Item__4 *next = cur->next;
     free(cur);
     cur=next;
   }
 }
 
-std_map_Node__4 *std_map_Node__4_new(char *key, ast_program_Namespace *value, std_map_Node__4 *next) {
-  std_map_Node__4 *node = ((std_map_Node__4 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__4))));
+std_map_Item__4 *std_map_Item__4_new(char *key, ast_program_Namespace *value, std_map_Item__4 *next) {
+  std_map_Item__4 *node = ((std_map_Item__4 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__4))));
   node->key=key;
   node->value=value;
   node->next=next;
@@ -2735,14 +2735,14 @@ std_map_Node__4 *std_map_Node__4_new(char *key, ast_program_Namespace *value, st
 }
 
 bool std_map_Map__4_contains(std_map_Map__4 *this, char *key) {
-  return ((bool)std_map_Map__4_get_node(this, key));
+  return ((bool)std_map_Map__4_get_item(this, key));
 }
 
 std_map_ValueIterator__4 std_map_Map__4_iter_values(std_map_Map__4 *this) {
   return (std_map_ValueIterator__4){.map_iter=std_map_Map__4_iter(this)};
 }
 
-std_map_Node__4 *std_map_Iterator__4_cur(std_map_Iterator__4 *this) {
+std_map_Item__4 *std_map_Iterator__4_cur(std_map_Iterator__4 *this) {
   return this->node;
 }
 
@@ -2755,7 +2755,7 @@ void std_map_Iterator__4_next(std_map_Iterator__4 *this) {
       
     }
     this->idx+=1;
-    this->node=({ std_map_Node__4 *__yield_0;
+    this->node=({ std_map_Item__4 *__yield_0;
       if ((this->idx < ((i32)this->map->num_buckets))) {
         __yield_0 = this->map->buckets[this->idx];
       }  else {
@@ -2790,34 +2790,22 @@ bool std_map_ValueIterator__4_has_value(std_map_ValueIterator__4 *this) {
   return std_map_Iterator__4_has_value(&this->map_iter);
 }
 
-std_map_Node__4 *std_map_Map__4_get_node(std_map_Map__4 *this, char *key) {
-  u32 hash = std_map_Map__4_hash(this, key);
-  std_map_Node__4 *node = this->buckets[hash];
-  while (((bool)node)) {
-    if (str_eq(node->key, key)) {
-      return node;
-    } 
-    node=node->next;
-  }
-  return NULL;
-}
-
 std_map_Iterator__4 std_map_Map__4_iter(std_map_Map__4 *this) {
   return std_map_Iterator__4_make(this);
 }
 
 ast_program_Namespace *std_map_Map__4_at(std_map_Map__4 *this, char *key) {
-  std_map_Node__4 *node = std_map_Map__4_get_node(this, key);
+  std_map_Item__4 *node = std_map_Map__4_get_item(this, key);
   ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");  return node->value;
 }
 
 void std_map_Map__4_insert(std_map_Map__4 *this, char *key, ast_program_Namespace *value) {
-  std_map_Node__4 *node = std_map_Map__4_get_node(this, key);
+  std_map_Item__4 *node = std_map_Map__4_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__4_hash(this, key);
-    std_map_Node__4 *new_node = std_map_Node__4_new(key, value, this->buckets[hash]);
+    std_map_Item__4 *new_node = std_map_Item__4_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -2830,7 +2818,7 @@ void std_map_Map__4_insert(std_map_Map__4 *this, char *key, ast_program_Namespac
 }
 
 ast_program_Namespace *std_map_Map__4_get(std_map_Map__4 *this, char *key, ast_program_Namespace *defolt) {
-  std_map_Node__4 *node = std_map_Map__4_get_node(this, key);
+  std_map_Item__4 *node = std_map_Map__4_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -2851,17 +2839,17 @@ u32 std_map_Map__4_hash(std_map_Map__4 *this, char *key) {
 }
 
 void std_map_Map__4_resize(std_map_Map__4 *this) {
-  std_map_Node__4 **old_buckets = this->buckets;
+  std_map_Item__4 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__4 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__4 *))));
+  this->buckets=((std_map_Item__4 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__4 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__4 *node = old_buckets[i];
+    std_map_Item__4 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__4_hash(this, node->key);
-      std_map_Node__4 *new_node = std_map_Node__4_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__4 *new_node = std_map_Item__4_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -2870,7 +2858,7 @@ void std_map_Map__4_resize(std_map_Map__4 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__4_free_list(old_buckets[i]);
+    std_map_Item__4_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -2878,28 +2866,40 @@ void std_map_Map__4_resize(std_map_Map__4 *this) {
 std_map_Map__4 *std_map_Map__4_new(void) {
   std_map_Map__4 *map = ((std_map_Map__4 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__4))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__4 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__4 *))));
+  map->buckets=((std_map_Item__4 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__4 *))));
   return map;
 }
 
-void std_map_Node__5_free_list(std_map_Node__5 *this) {
-  std_map_Node__5 *cur = this;
+std_map_Item__4 *std_map_Map__4_get_item(std_map_Map__4 *this, char *key) {
+  u32 hash = std_map_Map__4_hash(this, key);
+  std_map_Item__4 *node = this->buckets[hash];
+  while (((bool)node)) {
+    if (str_eq(node->key, key)) {
+      return node;
+    } 
+    node=node->next;
+  }
+  return NULL;
+}
+
+void std_map_Item__5_free_list(std_map_Item__5 *this) {
+  std_map_Item__5 *cur = this;
   while (((bool)cur)) {
-    std_map_Node__5 *next = cur->next;
+    std_map_Item__5 *next = cur->next;
     free(cur);
     cur=next;
   }
 }
 
-std_map_Node__5 *std_map_Node__5_new(char *key, char *value, std_map_Node__5 *next) {
-  std_map_Node__5 *node = ((std_map_Node__5 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__5))));
+std_map_Item__5 *std_map_Item__5_new(char *key, char *value, std_map_Item__5 *next) {
+  std_map_Item__5 *node = ((std_map_Item__5 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__5))));
   node->key=key;
   node->value=value;
   node->next=next;
   return node;
 }
 
-std_map_Node__5 *std_map_Iterator__5_cur(std_map_Iterator__5 *this) {
+std_map_Item__5 *std_map_Iterator__5_cur(std_map_Iterator__5 *this) {
   return this->node;
 }
 
@@ -2912,7 +2912,7 @@ void std_map_Iterator__5_next(std_map_Iterator__5 *this) {
       
     }
     this->idx+=1;
-    this->node=({ std_map_Node__5 *__yield_0;
+    this->node=({ std_map_Item__5 *__yield_0;
       if ((this->idx < ((i32)this->map->num_buckets))) {
         __yield_0 = this->map->buckets[this->idx];
       }  else {
@@ -2935,29 +2935,17 @@ std_map_Iterator__5 std_map_Iterator__5_make(std_map_Map__5 *map) {
   return it;
 }
 
-std_map_Node__5 *std_map_Map__5_get_node(std_map_Map__5 *this, char *key) {
-  u32 hash = std_map_Map__5_hash(this, key);
-  std_map_Node__5 *node = this->buckets[hash];
-  while (((bool)node)) {
-    if (str_eq(node->key, key)) {
-      return node;
-    } 
-    node=node->next;
-  }
-  return NULL;
-}
-
 std_map_Iterator__5 std_map_Map__5_iter(std_map_Map__5 *this) {
   return std_map_Iterator__5_make(this);
 }
 
 void std_map_Map__5_insert(std_map_Map__5 *this, char *key, char *value) {
-  std_map_Node__5 *node = std_map_Map__5_get_node(this, key);
+  std_map_Item__5 *node = std_map_Map__5_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__5_hash(this, key);
-    std_map_Node__5 *new_node = std_map_Node__5_new(key, value, this->buckets[hash]);
+    std_map_Item__5 *new_node = std_map_Item__5_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -2970,7 +2958,7 @@ void std_map_Map__5_insert(std_map_Map__5 *this, char *key, char *value) {
 }
 
 char *std_map_Map__5_get(std_map_Map__5 *this, char *key, char *defolt) {
-  std_map_Node__5 *node = std_map_Map__5_get_node(this, key);
+  std_map_Item__5 *node = std_map_Map__5_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -2987,17 +2975,17 @@ u32 std_map_Map__5_hash(std_map_Map__5 *this, char *key) {
 }
 
 void std_map_Map__5_resize(std_map_Map__5 *this) {
-  std_map_Node__5 **old_buckets = this->buckets;
+  std_map_Item__5 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__5 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__5 *))));
+  this->buckets=((std_map_Item__5 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__5 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__5 *node = old_buckets[i];
+    std_map_Item__5 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__5_hash(this, node->key);
-      std_map_Node__5 *new_node = std_map_Node__5_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__5 *new_node = std_map_Item__5_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -3006,7 +2994,7 @@ void std_map_Map__5_resize(std_map_Map__5 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__5_free_list(old_buckets[i]);
+    std_map_Item__5_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -3014,21 +3002,33 @@ void std_map_Map__5_resize(std_map_Map__5 *this) {
 std_map_Map__5 *std_map_Map__5_new(void) {
   std_map_Map__5 *map = ((std_map_Map__5 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__5))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__5 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__5 *))));
+  map->buckets=((std_map_Item__5 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__5 *))));
   return map;
 }
 
-void std_map_Node__6_free_list(std_map_Node__6 *this) {
-  std_map_Node__6 *cur = this;
+std_map_Item__5 *std_map_Map__5_get_item(std_map_Map__5 *this, char *key) {
+  u32 hash = std_map_Map__5_hash(this, key);
+  std_map_Item__5 *node = this->buckets[hash];
+  while (((bool)node)) {
+    if (str_eq(node->key, key)) {
+      return node;
+    } 
+    node=node->next;
+  }
+  return NULL;
+}
+
+void std_map_Item__6_free_list(std_map_Item__6 *this) {
+  std_map_Item__6 *cur = this;
   while (((bool)cur)) {
-    std_map_Node__6 *next = cur->next;
+    std_map_Item__6 *next = cur->next;
     free(cur);
     cur=next;
   }
 }
 
-std_map_Node__6 *std_map_Node__6_new(char *key, ast_nodes_Function *value, std_map_Node__6 *next) {
-  std_map_Node__6 *node = ((std_map_Node__6 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__6))));
+std_map_Item__6 *std_map_Item__6_new(char *key, ast_nodes_Function *value, std_map_Item__6 *next) {
+  std_map_Item__6 *node = ((std_map_Item__6 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__6))));
   node->key=key;
   node->value=value;
   node->next=next;
@@ -3039,7 +3039,7 @@ std_map_ValueIterator__6 std_map_Map__6_iter_values(std_map_Map__6 *this) {
   return (std_map_ValueIterator__6){.map_iter=std_map_Map__6_iter(this)};
 }
 
-std_map_Node__6 *std_map_Iterator__6_cur(std_map_Iterator__6 *this) {
+std_map_Item__6 *std_map_Iterator__6_cur(std_map_Iterator__6 *this) {
   return this->node;
 }
 
@@ -3052,7 +3052,7 @@ void std_map_Iterator__6_next(std_map_Iterator__6 *this) {
       
     }
     this->idx+=1;
-    this->node=({ std_map_Node__6 *__yield_0;
+    this->node=({ std_map_Item__6 *__yield_0;
       if ((this->idx < ((i32)this->map->num_buckets))) {
         __yield_0 = this->map->buckets[this->idx];
       }  else {
@@ -3087,34 +3087,22 @@ bool std_map_ValueIterator__6_has_value(std_map_ValueIterator__6 *this) {
   return std_map_Iterator__6_has_value(&this->map_iter);
 }
 
-std_map_Node__6 *std_map_Map__6_get_node(std_map_Map__6 *this, char *key) {
-  u32 hash = std_map_Map__6_hash(this, key);
-  std_map_Node__6 *node = this->buckets[hash];
-  while (((bool)node)) {
-    if (str_eq(node->key, key)) {
-      return node;
-    } 
-    node=node->next;
-  }
-  return NULL;
-}
-
 std_map_Iterator__6 std_map_Map__6_iter(std_map_Map__6 *this) {
   return std_map_Iterator__6_make(this);
 }
 
 ast_nodes_Function *std_map_Map__6_at(std_map_Map__6 *this, char *key) {
-  std_map_Node__6 *node = std_map_Map__6_get_node(this, key);
+  std_map_Item__6 *node = std_map_Map__6_get_item(this, key);
   ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");  return node->value;
 }
 
 void std_map_Map__6_insert(std_map_Map__6 *this, char *key, ast_nodes_Function *value) {
-  std_map_Node__6 *node = std_map_Map__6_get_node(this, key);
+  std_map_Item__6 *node = std_map_Map__6_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__6_hash(this, key);
-    std_map_Node__6 *new_node = std_map_Node__6_new(key, value, this->buckets[hash]);
+    std_map_Item__6 *new_node = std_map_Item__6_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -3127,7 +3115,7 @@ void std_map_Map__6_insert(std_map_Map__6 *this, char *key, ast_nodes_Function *
 }
 
 ast_nodes_Function *std_map_Map__6_get(std_map_Map__6 *this, char *key, ast_nodes_Function *defolt) {
-  std_map_Node__6 *node = std_map_Map__6_get_node(this, key);
+  std_map_Item__6 *node = std_map_Map__6_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -3144,17 +3132,17 @@ u32 std_map_Map__6_hash(std_map_Map__6 *this, char *key) {
 }
 
 void std_map_Map__6_resize(std_map_Map__6 *this) {
-  std_map_Node__6 **old_buckets = this->buckets;
+  std_map_Item__6 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__6 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__6 *))));
+  this->buckets=((std_map_Item__6 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__6 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__6 *node = old_buckets[i];
+    std_map_Item__6 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__6_hash(this, node->key);
-      std_map_Node__6 *new_node = std_map_Node__6_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__6 *new_node = std_map_Item__6_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -3163,7 +3151,7 @@ void std_map_Map__6_resize(std_map_Map__6 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__6_free_list(old_buckets[i]);
+    std_map_Item__6_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -3171,30 +3159,13 @@ void std_map_Map__6_resize(std_map_Map__6 *this) {
 std_map_Map__6 *std_map_Map__6_new(void) {
   std_map_Map__6 *map = ((std_map_Map__6 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__6))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__6 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__6 *))));
+  map->buckets=((std_map_Item__6 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__6 *))));
   return map;
 }
 
-void std_map_Node__7_free_list(std_map_Node__7 *this) {
-  std_map_Node__7 *cur = this;
-  while (((bool)cur)) {
-    std_map_Node__7 *next = cur->next;
-    free(cur);
-    cur=next;
-  }
-}
-
-std_map_Node__7 *std_map_Node__7_new(char *key, ast_nodes_MatchCase *value, std_map_Node__7 *next) {
-  std_map_Node__7 *node = ((std_map_Node__7 *)calloc(((u32)1), ((u32)sizeof(std_map_Node__7))));
-  node->key=key;
-  node->value=value;
-  node->next=next;
-  return node;
-}
-
-std_map_Node__7 *std_map_Map__7_get_node(std_map_Map__7 *this, char *key) {
-  u32 hash = std_map_Map__7_hash(this, key);
-  std_map_Node__7 *node = this->buckets[hash];
+std_map_Item__6 *std_map_Map__6_get_item(std_map_Map__6 *this, char *key) {
+  u32 hash = std_map_Map__6_hash(this, key);
+  std_map_Item__6 *node = this->buckets[hash];
   while (((bool)node)) {
     if (str_eq(node->key, key)) {
       return node;
@@ -3204,21 +3175,38 @@ std_map_Node__7 *std_map_Map__7_get_node(std_map_Map__7 *this, char *key) {
   return NULL;
 }
 
+void std_map_Item__7_free_list(std_map_Item__7 *this) {
+  std_map_Item__7 *cur = this;
+  while (((bool)cur)) {
+    std_map_Item__7 *next = cur->next;
+    free(cur);
+    cur=next;
+  }
+}
+
+std_map_Item__7 *std_map_Item__7_new(char *key, ast_nodes_MatchCase *value, std_map_Item__7 *next) {
+  std_map_Item__7 *node = ((std_map_Item__7 *)calloc(((u32)1), ((u32)sizeof(std_map_Item__7))));
+  node->key=key;
+  node->value=value;
+  node->next=next;
+  return node;
+}
+
 void std_map_Map__7_free(std_map_Map__7 *this) {
   for (u32 i = ((u32)0); (i < this->num_buckets); i+=((u32)1)) {
-    std_map_Node__7_free_list(this->buckets[i]);
+    std_map_Item__7_free_list(this->buckets[i]);
   }
   free(this->buckets);
   free(this);
 }
 
 void std_map_Map__7_insert(std_map_Map__7 *this, char *key, ast_nodes_MatchCase *value) {
-  std_map_Node__7 *node = std_map_Map__7_get_node(this, key);
+  std_map_Item__7 *node = std_map_Map__7_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
   }  else {
     u32 hash = std_map_Map__7_hash(this, key);
-    std_map_Node__7 *new_node = std_map_Node__7_new(key, value, this->buckets[hash]);
+    std_map_Item__7 *new_node = std_map_Item__7_new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions+=((u32)1);
     } 
@@ -3231,7 +3219,7 @@ void std_map_Map__7_insert(std_map_Map__7 *this, char *key, ast_nodes_MatchCase 
 }
 
 ast_nodes_MatchCase *std_map_Map__7_get(std_map_Map__7 *this, char *key, ast_nodes_MatchCase *defolt) {
-  std_map_Node__7 *node = std_map_Map__7_get_node(this, key);
+  std_map_Item__7 *node = std_map_Map__7_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
   
@@ -3248,17 +3236,17 @@ u32 std_map_Map__7_hash(std_map_Map__7 *this, char *key) {
 }
 
 void std_map_Map__7_resize(std_map_Map__7 *this) {
-  std_map_Node__7 **old_buckets = this->buckets;
+  std_map_Item__7 **old_buckets = this->buckets;
   u32 old_num_buckets = this->num_buckets;
   u32 old_num_items = this->num_items;
   this->num_collisions=((u32)0);
   this->num_buckets*=((u32)2);
-  this->buckets=((std_map_Node__7 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Node__7 *))));
+  this->buckets=((std_map_Item__7 **)calloc(this->num_buckets, ((u32)sizeof(std_map_Item__7 *))));
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__7 *node = old_buckets[i];
+    std_map_Item__7 *node = old_buckets[i];
     while (((bool)node)) {
       u32 new_hash = std_map_Map__7_hash(this, node->key);
-      std_map_Node__7 *new_node = std_map_Node__7_new(node->key, node->value, this->buckets[new_hash]);
+      std_map_Item__7 *new_node = std_map_Item__7_new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions+=((u32)1);
       } 
@@ -3267,7 +3255,7 @@ void std_map_Map__7_resize(std_map_Map__7 *this) {
     }
   }
   for (u32 i = ((u32)0); (i < old_num_buckets); i+=((u32)1)) {
-    std_map_Node__7_free_list(old_buckets[i]);
+    std_map_Item__7_free_list(old_buckets[i]);
   }
   free(old_buckets);
 }
@@ -3275,8 +3263,20 @@ void std_map_Map__7_resize(std_map_Map__7 *this) {
 std_map_Map__7 *std_map_Map__7_new(void) {
   std_map_Map__7 *map = ((std_map_Map__7 *)calloc(((u32)1), ((u32)sizeof(std_map_Map__7))));
   map->num_buckets=((u32)4);
-  map->buckets=((std_map_Node__7 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Node__7 *))));
+  map->buckets=((std_map_Item__7 **)calloc(map->num_buckets, ((u32)sizeof(std_map_Item__7 *))));
   return map;
+}
+
+std_map_Item__7 *std_map_Map__7_get_item(std_map_Map__7 *this, char *key) {
+  u32 hash = std_map_Map__7_hash(this, key);
+  std_map_Item__7 *node = this->buckets[hash];
+  while (((bool)node)) {
+    if (str_eq(node->key, key)) {
+      return node;
+    } 
+    node=node->next;
+  }
+  return NULL;
 }
 
 std_span_Location std_span_Location_default(void) {
@@ -4469,7 +4469,7 @@ std_value_Value *docgen_DocGenerator_gen_typename(docgen_DocGenerator *this, typ
 std_value_Value *docgen_DocGenerator_gen_methods(docgen_DocGenerator *this, types_Type *type) {
   ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:150:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");  std_value_Value *methods_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   for (std_map_Iterator__6 __iter = std_map_Map__6_iter(type->methods); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
-    std_map_Node__6 *it = std_map_Iterator__6_cur(&__iter);
+    std_map_Item__6 *it = std_map_Iterator__6_cur(&__iter);
     {
       ast_nodes_Function *method = it->value;
       std_value_Value *method_doc = docgen_DocGenerator_gen_function(this, method);
@@ -4675,7 +4675,7 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
   if (!std_map_Map__4_is_empty(ns->namespaces)) {
     std_value_Value *namespaces_doc = std_value_Value_new(std_value_ValueType_Dictionary);
     for (std_map_Iterator__4 __iter = std_map_Map__4_iter(ns->namespaces); std_map_Iterator__4_has_value(&__iter); std_map_Iterator__4_next(&__iter)) {
-      std_map_Node__4 *it = std_map_Iterator__4_cur(&__iter);
+      std_map_Item__4 *it = std_map_Iterator__4_cur(&__iter);
       {
         std_value_Value *ns_doc = docgen_DocGenerator_gen_ns(this, it->value);
         std_value_Value_insert(namespaces_doc, it->key, ns_doc);
@@ -6448,7 +6448,7 @@ void passes_register_types_RegisterTypes_register_namespace(passes_register_type
     }
   }
   for (std_map_Iterator__3 __iter = std_map_Map__3_iter(ns->typedefs); std_map_Iterator__3_has_value(&__iter); std_map_Iterator__3_next(&__iter)) {
-    std_map_Node__3 *it = std_map_Iterator__3_cur(&__iter);
+    std_map_Item__3 *it = std_map_Iterator__3_cur(&__iter);
     {
       passes_register_types_RegisterTypes_register_alias(this, it->key, NULL);
     }
@@ -6512,7 +6512,7 @@ void passes_register_types_RegisterTypes_run(ast_program_Program *program) {
 }
 
 passes_mark_dead_code_MarkDeadCode *passes_mark_dead_code_MarkDeadCode_new(ast_program_Program *program) {
-  passes_mark_dead_code_MarkDeadCode *pass = std_new__0(((u32)1));
+  passes_mark_dead_code_MarkDeadCode *pass = std_new__1(((u32)1));
   *pass=(passes_mark_dead_code_MarkDeadCode){.o=passes_generic_pass_GenericPass_new(program), .done=std_set_Set__0_new()};
   return pass;
 }
@@ -6957,7 +6957,7 @@ void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pa
     }
   }
   for (std_map_Iterator__3 __iter = std_map_Map__3_iter(ns->typedefs); std_map_Iterator__3_has_value(&__iter); std_map_Iterator__3_next(&__iter)) {
-    std_map_Node__3 *it = std_map_Iterator__3_cur(&__iter);
+    std_map_Item__3 *it = std_map_Iterator__3_cur(&__iter);
     {
       passes_generic_pass_GenericPass_insert_into_scope_checked(this, it->value->sym, it->key);
     }
@@ -8227,7 +8227,7 @@ char *passes_code_generator_CodeGenerator_generate(passes_code_generator_CodeGen
   }
   std_buffer_Buffer_puts(&this->out, "\n");
   for (std_map_Iterator__5 __iter = std_map_Map__5_iter(this->o->program->c_embeds); std_map_Iterator__5_has_value(&__iter); std_map_Iterator__5_next(&__iter)) {
-    std_map_Node__5 *it = std_map_Iterator__5_cur(&__iter);
+    std_map_Item__5 *it = std_map_Iterator__5_cur(&__iter);
     {
       std_buffer_Buffer_putsf(&this->out, format_string("/* Embed: %s */\n", it->key));
       std_buffer_Buffer_puts(&this->out, it->value);
@@ -8410,7 +8410,7 @@ void passes_typechecker_TypeChecker_resolve_templated_struct_methods(passes_type
   std_map_Map__6 *cur_methods = cur_type->methods;
   ast_program_Namespace *parent_ns = old->sym->ns;
   for (std_map_Iterator__6 __iter = std_map_Map__6_iter(old_methods); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
-    std_map_Node__6 *iter = std_map_Iterator__6_cur(&__iter);
+    std_map_Item__6 *iter = std_map_Iterator__6_cur(&__iter);
     {
       char *name = iter->key;
       ast_nodes_Function *method = iter->value;
@@ -10118,7 +10118,7 @@ void passes_typechecker_TypeChecker_check_pre_import(passes_typechecker_TypeChec
     }
   }
   for (std_map_Iterator__3 __iter = std_map_Map__3_iter(ns->typedefs); std_map_Iterator__3_has_value(&__iter); std_map_Iterator__3_next(&__iter)) {
-    std_map_Node__3 *it = std_map_Iterator__3_cur(&__iter);
+    std_map_Item__3 *it = std_map_Iterator__3_cur(&__iter);
     {
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
       ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1881:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1882:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
