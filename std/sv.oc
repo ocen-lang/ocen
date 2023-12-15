@@ -232,6 +232,8 @@ def SV::count(this, c: char): u64 {
     return total
 }
 
+def SV::contains(this, c: char): bool => .count(c) > 0
+
 def SV::chars(this, start: u32 = 0): std::CharIterator => std::CharIterator(.data, .len, start)
 
 //* Iterator over the lines of a string view
