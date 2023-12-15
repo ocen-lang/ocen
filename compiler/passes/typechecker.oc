@@ -802,7 +802,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return .get_base_type(BaseType::Bool, node.span)
         }
         ASTType::Negate => {
-            if not hint? {
+            if not (hint? and hint.is_numeric()) {
                 hint = .get_base_type(BaseType::I32, node.span)
             }
             let typ = .check_expression(node.u.unary, hint)
@@ -1321,7 +1321,11 @@ def TypeChecker::check_statement(&this, node: &AST) {
             let sym = var.sym
             .scope().insert(var.sym.name, sym)
 
-            if var.type? {
+            let is_inferred = (var.type == null)
+            if is_inferred {
+                var.type = Type::new_unresolved("<inferred>", node.span)
+
+            } else {
                 var.type = .resolve_type(var.type)
                 if not var.type? return
             }
@@ -1331,12 +1335,12 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 let res = .check_expression(init, hint: var.type)
                 if not res? return
 
-                if res? and var.type? and not res.eq(var.type) {
-                    .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {res.str()}`))
-                } else if not var.type? {
+                if is_inferred {
                     var.type = res
+                } else if not res.eq(var.type) {
+                    .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {res.str()}`))
                 }
-            } else if not var.type? {
+            } else if is_inferred {
                 .error(Error::new(node.span, `Variable {var.sym.name} has no type and no initializer`))
             }
         }
@@ -1583,7 +1587,7 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
             yield .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
         }
         Negate => {
-            if not hint? {
+            if not hint? or not hint.is_numeric() {
                 hint = .get_base_type(BaseType::I32, node.span)
             }
             let typ = .check_const_expression(node.u.unary, hint)

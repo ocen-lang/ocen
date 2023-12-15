@@ -1436,6 +1436,8 @@ std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity);
 std_vector_Iterator__2 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this);
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s);
+std_buffer_Buffer std_buffer_Buffer_from_file(char *path);
+std_buffer_Buffer std_buffer_Buffer_from_sized_str(char *s, u32 size);
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size);
 void std_buffer_Buffer_puts(std_buffer_Buffer *this, char *s);
 void std_buffer_Buffer_putc(std_buffer_Buffer *this, char c);
@@ -1789,10 +1791,13 @@ void parser_Parser_parse_compiler_option(parser_Parser *this);
 void parser_Parser_try_load_mod_for_namespace(parser_Parser *this, ast_program_Namespace *ns);
 ast_program_Namespace *parser_Parser_load_single_import_part(parser_Parser *this, ast_program_Namespace *base, char *name, std_span_Span span);
 bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Vector__4 *parts, ast_program_Namespace *base);
+char *parser_Parser_find_external_library_path(parser_Parser *this, char *name);
 ast_program_Namespace *parser_Parser_find_external_library(parser_Parser *this, char *name);
 bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_stmt);
 void parser_Parser_load_file(parser_Parser *this, char *filename);
+void parser_couldnt_find_stdlib(void);
 void parser_Parser_find_and_import_stdlib(parser_Parser *this);
+void parser_Parser_include_prelude_only(parser_Parser *this);
 void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, bool include_stdlib);
 bool utils_directory_exists(char *path);
 void passes_run_typecheck_passes(ast_program_Program *program);
@@ -2218,6 +2223,18 @@ std_buffer_Buffer std_buffer_Buffer_make(u32 capacity) {
 
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s) {
   return (std_buffer_Buffer){.data=((u8 *)s), .size=((u32)str_len(s)), .capacity=((u32)str_len(s))};
+}
+
+std_buffer_Buffer std_buffer_Buffer_from_file(char *path) {
+  FILE *file = std_File_open(path, "rb");
+  ae_assert(((bool)file), "std/buffer.oc:47:12: Assertion failed: `file?`", format_string("Could not open file: %s", path));  u32 size = std_File_size(file);
+  char *data = std_File_slurp(file);
+  ae_assert(((bool)data), "std/buffer.oc:51:12: Assertion failed: `data?`", format_string("Could not read file: %s", path));  fclose(file);
+  return std_buffer_Buffer_from_sized_str(data, size);
+}
+
+std_buffer_Buffer std_buffer_Buffer_from_sized_str(char *s, u32 size) {
+  return (std_buffer_Buffer){.data=((u8 *)s), .size=((u32)size), .capacity=((u32)size)};
 }
 
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size) {
@@ -4729,7 +4746,7 @@ parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Names
 
 tokens_Token *parser_Parser_peek(parser_Parser *this, i32 off) {
   i32 idx = (((i32)this->curr) + off);
-  ae_assert(((0 <= idx) && (idx < ((i32)this->tokens->size))), "compiler/parser.oc:41:12: Assertion failed: `0i32 <= idx < (.tokens.size as i32`", NULL);  return std_vector_Vector__0_at(this->tokens, ((u32)idx));
+  ae_assert(((0 <= idx) && (idx < ((i32)this->tokens->size))), "compiler/parser.oc:42:12: Assertion failed: `0i32 <= idx < (.tokens.size as i32`", NULL);  return std_vector_Vector__0_at(this->tokens, ((u32)idx));
 }
 
 errors_Error *parser_Parser_error_msg(parser_Parser *this, char *msg) {
@@ -6236,23 +6253,31 @@ bool parser_Parser_load_import_path_from_base(parser_Parser *this, std_vector_Ve
   return true;
 }
 
-ast_program_Namespace *parser_Parser_find_external_library(parser_Parser *this, char *name) {
+char *parser_Parser_find_external_library_path(parser_Parser *this, char *name) {
   for (std_vector_Iterator__5 __iter = std_vector_Vector__5_iter(this->program->library_paths); std_vector_Iterator__5_has_value(&__iter); std_vector_Iterator__5_next(&__iter)) {
     char *lib_path = std_vector_Iterator__5_cur(&__iter);
     {
       char *path = ((str_len(lib_path) > ((u32)0)) ? format_string("%s/%s", lib_path, name) : strdup(name));
       if (utils_directory_exists(path)) {
-        ast_program_Namespace *ns = ast_program_Namespace_new(this->program->global, path);
-        ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, this->program->global, this->program->global->sym, name, std_span_Span_default());
-        ns->sym->u.ns=ns;
-        ns->always_add_to_scope=true;
-        parser_Parser_try_load_mod_for_namespace(this, ns);
-        return ns;
+        return path;
       } 
       free(path);
     }
   }
   return NULL;
+}
+
+ast_program_Namespace *parser_Parser_find_external_library(parser_Parser *this, char *name) {
+  char *path = parser_Parser_find_external_library_path(this, name);
+  if (!((bool)path)) 
+  return NULL;
+  
+  ast_program_Namespace *ns = ast_program_Namespace_new(this->program->global, path);
+  ns->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Namespace, this->program->global, this->program->global->sym, name, std_span_Span_default());
+  ns->sym->u.ns=ns;
+  ns->always_add_to_scope=true;
+  parser_Parser_try_load_mod_for_namespace(this, ns);
+  return ns;
 }
 
 bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_stmt) {
@@ -6262,7 +6287,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__4 *parts = path->parts;
-        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1672:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__4_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1673:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__4_at(parts, ((u32)0))->u.single;
+        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1680:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__4_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1681:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__4_at(parts, ((u32)0))->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__4_contains(this->program->global->namespaces, lib_name)) {
           ast_program_Namespace *lib = parser_Parser_find_external_library(this, lib_name);
@@ -6314,9 +6339,30 @@ void parser_Parser_load_file(parser_Parser *this, char *filename) {
   this->ns->span=std_span_Span_join(start, end);
 }
 
+void parser_couldnt_find_stdlib(void) {
+  printf("--------------------------------------------------------------------------------""\n");
+  printf("    Could not find standard library. Set OCEN_ROOT environment variable.""\n");
+  printf("      Alternatively, compile from the root of `ocen` repository.""\n");
+  printf("--------------------------------------------------------------------------------""\n");
+  exit(1);
+}
+
 void parser_Parser_find_and_import_stdlib(parser_Parser *this) {
   ast_program_Namespace *std_ns = parser_Parser_find_external_library(this, "std");
   std_map_Map__4_insert(this->program->global->namespaces, "std", std_ns);
+}
+
+void parser_Parser_include_prelude_only(parser_Parser *this) {
+  char *std_path = parser_Parser_find_external_library_path(this, "std");
+  if (!((bool)std_path)) {
+    parser_couldnt_find_stdlib();
+  } 
+  char *prelude_path = format_string("%s/prelude.h", std_path);
+  if (!std_File_exists(prelude_path)) {
+    parser_couldnt_find_stdlib();
+  } 
+  std_buffer_Buffer content = std_buffer_Buffer_from_file(prelude_path);
+  std_map_Map__5_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(&content));
 }
 
 void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, bool include_stdlib) {
@@ -6342,6 +6388,8 @@ void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, 
   parser_Parser parser = parser_Parser_make(program, ns);
   if (include_stdlib) {
     parser_Parser_find_and_import_stdlib(&parser);
+  }  else {
+    parser_Parser_include_prelude_only(&parser);
   } 
   parser_Parser_load_file(&parser, filename);
 }
@@ -6792,6 +6840,25 @@ void passes_mark_dead_code_MarkDeadCode_run(ast_program_Program *program) {
         ast_nodes_Enum *e = std_vector_Iterator__14_cur(&__iter);
         {
           passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(pass, e->sym);
+        }
+      }
+    }
+  }
+  for (ast_program_NSIterator __iter = ast_program_Program_iter_namespaces(program); ast_program_NSIterator_has_value(&__iter); ast_program_NSIterator_next(&__iter)) {
+    ast_program_Namespace *ns = ast_program_NSIterator_cur(&__iter);
+    {
+      for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->constants); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
+        ast_nodes_AST *node = std_vector_Iterator__13_cur(&__iter);
+        {
+          ast_nodes_Variable *var = node->u.var_decl.var;
+          passes_mark_dead_code_MarkDeadCode_mark_type(pass, var->type);
+        }
+      }
+      for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->variables); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
+        ast_nodes_AST *node = std_vector_Iterator__13_cur(&__iter);
+        {
+          ast_nodes_Variable *var = node->u.var_decl.var;
+          passes_mark_dead_code_MarkDeadCode_mark_type(pass, var->type);
         }
       }
     }
@@ -9024,7 +9091,7 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
       return passes_typechecker_TypeChecker_get_base_type(this, types_BaseType_Bool, node->span);
     } break;
     case ast_nodes_ASTType_Negate: {
-      if (!((bool)hint)) {
+      if (!(((bool)hint) && types_Type_is_numeric(hint))) {
         hint=passes_typechecker_TypeChecker_get_base_type(this, types_BaseType_I32, node->span);
       } 
       types_Type *typ = passes_typechecker_TypeChecker_check_expression(this, node->u.unary, hint);
@@ -9542,7 +9609,10 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
       } 
       ast_scopes_Symbol *sym = var->sym;
       ast_scopes_Scope_insert(passes_typechecker_TypeChecker_scope(this), var->sym->name, sym);
-      if (((bool)var->type)) {
+      bool is_inferred = var->type==NULL;
+      if (is_inferred) {
+        var->type=types_Type_new_unresolved("<inferred>", node->span);
+      }  else {
         var->type=passes_typechecker_TypeChecker_resolve_type(this, var->type, false, true, true);
         if (!((bool)var->type)) 
         return ;
@@ -9554,13 +9624,13 @@ void passes_typechecker_TypeChecker_check_statement(passes_typechecker_TypeCheck
         if (!((bool)res)) 
         return ;
         
-        if (((((bool)res) && ((bool)var->type)) && !types_Type_eq(res, var->type, false))) {
-          passes_typechecker_TypeChecker_error(this, errors_Error_new(init->span, format_string("Variable %s has type %s but initializer has type %s", var->sym->name, types_Type_str(var->type), types_Type_str(res))));
-        }  else         if (!((bool)var->type)) {
+        if (is_inferred) {
           var->type=res;
+        }  else         if (!types_Type_eq(res, var->type, false)) {
+          passes_typechecker_TypeChecker_error(this, errors_Error_new(init->span, format_string("Variable %s has type %s but initializer has type %s", var->sym->name, types_Type_str(var->type), types_Type_str(res))));
         } 
         
-      }  else       if (!((bool)var->type)) {
+      }  else       if (is_inferred) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Variable %s has no type and no initializer", var->sym->name)));
       } 
       
@@ -9841,7 +9911,7 @@ types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typeche
         __yield_0 = passes_typechecker_TypeChecker_check_binary_op(this, node, types_Type_unaliased(lhs), types_Type_unaliased(rhs));
       } break;
       case ast_nodes_ASTType_Negate: {
-        if (!((bool)hint)) {
+        if ((!((bool)hint) || !types_Type_is_numeric(hint))) {
           hint=passes_typechecker_TypeChecker_get_base_type(this, types_BaseType_I32, node->span);
         } 
         types_Type *typ = passes_typechecker_TypeChecker_check_const_expression(this, node->u.unary, hint);
@@ -10122,7 +10192,7 @@ void passes_typechecker_TypeChecker_check_pre_import(passes_typechecker_TypeChec
     std_map_Item__3 *it = std_map_Iterator__3_cur(&__iter);
     {
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1881:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1882:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1885:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1886:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
       sym->u.type_def=res;
       it->value=res;
     }

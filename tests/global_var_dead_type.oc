@@ -1,0 +1,11 @@
+/// compile
+
+struct Foo {
+    x: u32
+}
+
+let foo: Foo
+
+def main() {
+    // foo.x = 42
+}

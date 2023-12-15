@@ -4,8 +4,12 @@ mkdir -p build
 
 set -e
 
+echo "[+] Building bootstrap compiler"
+gcc -o build/stage0 bootstrap/stage0.c -lm
+
+echo "[+] Testing 3-stage bootstrap for validity"
 echo "[+] Building stage 1 compiler"
-gcc -o build/stage1 bootstrap/stage0.c -lm
+./build/stage0 compiler/main.oc -o build/stage1
 echo "[+] Building stage 2 compiler"
 ./build/stage1 compiler/main.oc -o build/stage2
 echo "[+] Building stage 3 compiler"

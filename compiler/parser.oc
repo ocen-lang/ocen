@@ -7,6 +7,7 @@ import @types::{ Type, BaseType, FunctionType, ArrayType }
 import std::span::Span
 import std::map::Map
 import std::vector::Vector
+import std::buffer::Buffer
 import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType, Template }
 import @errors::Error
@@ -1638,27 +1639,34 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
     return true
 }
 
-//* Finds the library with the name provided
-def Parser::find_external_library(&this, name: str): &Namespace {
+def Parser::find_external_library_path(&this, name: str): str {
     for lib_path : .program.library_paths.iter() {
         let path = if lib_path.len() > 0 then  f"{lib_path}/{name}" else name.copy()
         if directory_exists(path) {
-            let ns = Namespace::new(parent: .program.global, path: path)
-            ns.sym = Symbol::new_with_parent(
-                Namespace,
-                ns: .program.global,
-                parent: .program.global.sym,
-                name: name,
-                Span::default()
-            )
-            ns.sym.u.ns = ns
-            ns.always_add_to_scope = true
-            .try_load_mod_for_namespace(ns)
-            return ns
+            return path
         }
         free(path)
     }
     return null
+}
+
+//* Finds the library with the name provided
+def Parser::find_external_library(&this, name: str): &Namespace {
+    let path = .find_external_library_path(name)
+    if not path? return null
+
+    let ns = Namespace::new(parent: .program.global, path: path)
+    ns.sym = Symbol::new_with_parent(
+        Namespace,
+        ns: .program.global,
+        parent: .program.global.sym,
+        name: name,
+        Span::default()
+    )
+    ns.sym.u.ns = ns
+    ns.always_add_to_scope = true
+    .try_load_mod_for_namespace(ns)
+    return ns
 }
 
 def Parser::load_import_path(&this, import_stmt: &AST): bool {
@@ -1743,6 +1751,20 @@ def Parser::find_and_import_stdlib(&this) {
     .program.global.namespaces.insert("std", std_ns)
 }
 
+def Parser::include_prelude_only(&this) {
+    // Want to manually include the prelude
+    let std_path = .find_external_library_path("std")
+    if not std_path? {
+        couldnt_find_stdlib()
+    }
+    let prelude_path = f"{std_path}/prelude.h"
+    if not std::File::exists(prelude_path) {
+        couldnt_find_stdlib()
+    }
+    let content = Buffer::from_file(prelude_path)
+    .program.c_embeds.insert(prelude_path, content.str())
+}
+
 def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool) {
     // Path to the directory of the file
     let t1 = filename.copy()
@@ -1791,6 +1813,8 @@ def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: boo
     let parser = Parser::make(program, ns)
     if include_stdlib {
         parser.find_and_import_stdlib()
+    } else {
+        parser.include_prelude_only()
     }
     parser.load_file(filename)
 }
