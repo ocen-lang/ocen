@@ -21,15 +21,15 @@ import std::libc::{ calloc, realloc, free }
 import std::traits::{ hash, eq }
 
 //* Linked list node for the hash map
-struct Node<K, V> {
+struct Item<K, V> {
     key: K
     value: V
-    next: &Node<K, V>
+    next: &Item<K, V>
 }
 
 //* Creates a new node
-def Node::new(key: K, value: V, next: &Node<K, V> = null): &Node<K, V> {
-    let node = calloc(1, sizeof(Node<K, V>)) as &Node<K, V>
+def Item::new(key: K, value: V, next: &Item<K, V> = null): &Item<K, V> {
+    let node = calloc(1, sizeof(Item<K, V>)) as &Item<K, V>
     node.key = key
     node.value = value
     node.next = next
@@ -37,7 +37,7 @@ def Node::new(key: K, value: V, next: &Node<K, V> = null): &Node<K, V> {
 }
 
 //* Free the linked list starting at this node
-def Node::free_list(&this) {
+def Item::free_list(&this) {
     let cur = this
     while cur? {
         let next = cur.next
@@ -52,7 +52,7 @@ def Node::free_list(&this) {
 //*  - `K` type must implement the `hash` method: `K::hash(this): u32`
 //*  - `K` type must implement the `eq` method: `K::eq(this, b: K): bool`
 struct Map<K, V> {
-    buckets: &&Node<K, V>
+    buckets: &&Item<K, V>
     num_items: u32
     num_buckets: u32
     num_collisions: u32
@@ -62,7 +62,7 @@ struct Map<K, V> {
 def Map::new(): &Map<K, V> {
     let map = calloc(1, sizeof(Map<K, V>)) as &Map<K, V>
     map.num_buckets = 4
-    map.buckets = calloc(map.num_buckets, sizeof(&Node<K, V>)) as &&Node<K, V>
+    map.buckets = calloc(map.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
     return map
 }
 
@@ -77,7 +77,7 @@ def Map::hash(&this, key: K): u32 {
 }
 
 //* Returns the node with the given key, or null
-def Map::get_node(&this, key: K): &Node<K, V> {
+def Map::get_item(&this, key: K): &Item<K, V> {
     let hash = .hash(key)
     let node = .buckets[hash]
     while node? {
@@ -91,31 +91,31 @@ def Map::get_node(&this, key: K): &Node<K, V> {
 
 //* Returns the value for the given key, or fails
 def Map::at(&this, key: K): V {
-    let node = .get_node(key)
+    let node = .get_item(key)
     assert node?, "Key not found"
     return node.value
 }
 
 //* Returns the value for the given key, or the default value
 def Map::get(&this, key: K, defolt: V): V {
-    let node = .get_node(key)
+    let node = .get_item(key)
     if not node? then return defolt
     return node.value
 }
 
 //* Checks if the map contains the given key
 def Map::contains(&this, key: K): bool {
-    return .get_node(key)?
+    return .get_item(key)?
 }
 
 //* Inserts / updates the given key-value pair
 def Map::insert(&this, key: K, value: V) {
-    let node = .get_node(key)
+    let node = .get_item(key)
     if node? {
         node.value = value
     } else {
         let hash = .hash(key)
-        let new_node = Node<K, V>::new(key, value, .buckets[hash])
+        let new_node = Item<K, V>::new(key, value, .buckets[hash])
         if .buckets[hash]? {
             .num_collisions += 1
         }
@@ -136,7 +136,7 @@ def Map::extend(&this, other: &Map<K, V>) {
 
 //* Removes the given key from the map
 def Map::remove(&this, key: K) {
-    let node = .get_node(key)
+    let node = .get_item(key)
     if node? {
         let hash = .hash(key)
         if .buckets[hash] == node {
@@ -160,12 +160,12 @@ def Map::resize(&this) {
     let old_num_items = .num_items
     .num_collisions = 0
     .num_buckets *= 2
-    .buckets = calloc(.num_buckets, sizeof(&Node<K, V>)) as &&Node<K, V>
+    .buckets = calloc(.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
     for let i = 0; i < old_num_buckets; i += 1 {
         let node = old_buckets[i]
         while node? {
             let new_hash = .hash(node.key)
-            let new_node = Node<K, V>::new(node.key, node.value, .buckets[new_hash])
+            let new_node = Item<K, V>::new(node.key, node.value, .buckets[new_hash])
             if .buckets[new_hash]? {
                 .num_collisions += 1
             }
@@ -226,7 +226,7 @@ def Map::iter_values(&this): ValueIterator<K, V> => ValueIterator<K, V>(.iter())
 //* Iterator over the items of a map
 struct Iterator<K, V> {
     idx: i32
-    node: &Node<K, V>
+    node: &Item<K, V>
     map: &Map<K, V>
 }
 
@@ -246,7 +246,7 @@ def Iterator::make(map: &Map<K, V>): Iterator<K, V> {
 
 def Iterator::has_value(&this): bool => .node?
 
-def Iterator::cur(&this): &Node<K, V> => .node
+def Iterator::cur(&this): &Item<K, V> => .node
 
 def Iterator::next(&this) {
     while .idx < .map.num_buckets as i32 {
