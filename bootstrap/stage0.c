@@ -2095,8 +2095,8 @@ void str_remove_last_n(char *this, u32 n) {
 }
 
 void str_replace_with(char **this, char *other) {
-  free(*this);
-  *this=other;
+  free((*this));
+  (*this)=other;
 }
 
 bool char_is_digit(char this) {
@@ -5736,7 +5736,7 @@ void parser_Parser_parse_template_params(parser_Parser *this, ast_scopes_Symbol 
   }
   std_span_Span end = parser_Parser_consume(this, tokens_TokenType_GreaterThan)->span;
   if (((bool)out_span)) {
-    *out_span=std_span_Span_join(start, end);
+    (*out_span)=std_span_Span_join(start, end);
   } 
   sym->template=ast_scopes_Template_new(params);
 }
@@ -5885,7 +5885,7 @@ std_vector_Vector__4 *parser_Parser_parse_import_path(parser_Parser *this) {
   std_vector_Vector__4 *parts = std_vector_Vector__4_new(((u32)16));
   while (true) {
     bool done = false;
-    if (tokens_Token_is_word(*parser_Parser_token(this))) {
+    if (tokens_Token_is_word((*parser_Parser_token(this)))) {
       tokens_Token *word = parser_Parser_token(this);
       this->curr+=((u32)1);
       ast_nodes_ImportPart *part = ast_nodes_ImportPart_new(ast_nodes_ImportPartType_Single, word->span);
@@ -6513,7 +6513,7 @@ void passes_register_types_RegisterTypes_run(ast_program_Program *program) {
 
 passes_mark_dead_code_MarkDeadCode *passes_mark_dead_code_MarkDeadCode_new(ast_program_Program *program) {
   passes_mark_dead_code_MarkDeadCode *pass = std_new__1(((u32)1));
-  *pass=(passes_mark_dead_code_MarkDeadCode){.o=passes_generic_pass_GenericPass_new(program), .done=std_set_Set__0_new()};
+  (*pass)=(passes_mark_dead_code_MarkDeadCode){.o=passes_generic_pass_GenericPass_new(program), .done=std_set_Set__0_new()};
   return pass;
 }
 
@@ -7006,9 +7006,9 @@ void passes_code_generator_CodeGenerator_gen_indent(passes_code_generator_CodeGe
 }
 
 void str_replace(char **this, char *other) {
-  char *s = *this;
+  char *s = (*this);
   free(s);
-  *this=other;
+  (*this)=other;
 }
 
 errors_Error *passes_code_generator_CodeGenerator_error(passes_code_generator_CodeGenerator *this, errors_Error *err) {
@@ -7490,8 +7490,9 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
     } break;
     case ast_nodes_ASTType_Dereference: {
       ast_nodes_AST *expr = node->u.unary;
-      std_buffer_Buffer_puts(&this->out, "*");
+      std_buffer_Buffer_puts(&this->out, "(*");
       passes_code_generator_CodeGenerator_gen_expression(this, expr);
+      std_buffer_Buffer_puts(&this->out, ")");
     } break;
     case ast_nodes_ASTType_Negate: {
       ast_nodes_AST *expr = node->u.unary;
@@ -7980,7 +7981,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:903:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:904:12: Assertion failed: `type != null`", NULL);  char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
 }
@@ -8033,7 +8034,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:948:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:949:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
         }
@@ -8069,7 +8070,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__9_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:975:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:976:24: Assertion failed: `sym.type == Function`", NULL);            ast_nodes_Function *func = sym->u.func;
             if (func->is_dead) 
             continue;
             
@@ -9251,7 +9252,7 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
 }
 
 types_Type *passes_typechecker_TypeChecker_call_dbg_on_enum_value(passes_typechecker_TypeChecker *this, ast_nodes_AST **node_ptr) {
-  ast_nodes_AST *node = *node_ptr;
+  ast_nodes_AST *node = (*node_ptr);
   if (!((bool)node->etype)) 
   return NULL;
   
@@ -9265,7 +9266,7 @@ types_Type *passes_typechecker_TypeChecker_call_dbg_on_enum_value(passes_typeche
   ast_nodes_AST *call = ast_nodes_AST_new(ast_nodes_ASTType_Call, node->span);
   call->u.call.callee=member;
   call->u.call.args=std_vector_Vector__16_new(((u32)16));
-  *node_ptr=call;
+  (*node_ptr)=call;
   return passes_typechecker_TypeChecker_check_expression(this, call, NULL);
 }
 
@@ -10149,7 +10150,7 @@ void passes_typechecker_TypeChecker_run(ast_program_Program *program) {
 
 passes_reorder_structs_ReorderStructs *passes_reorder_structs_ReorderStructs_new(ast_program_Program *program) {
   passes_reorder_structs_ReorderStructs *pass = ((passes_reorder_structs_ReorderStructs *)calloc(((u32)1), ((u32)sizeof(passes_reorder_structs_ReorderStructs))));
-  *pass=(passes_reorder_structs_ReorderStructs){.o=passes_generic_pass_GenericPass_new(program), .all_structs=std_vector_Vector__12_new(((u32)16)), .done=std_map_Map__1_new()};
+  (*pass)=(passes_reorder_structs_ReorderStructs){.o=passes_generic_pass_GenericPass_new(program), .all_structs=std_vector_Vector__12_new(((u32)16)), .done=std_map_Map__1_new()};
   return pass;
 }
 
@@ -11125,7 +11126,7 @@ std_vector_Vector__0 *lexer_Lexer_lex(lexer_Lexer *this) {
 
 tokens_Token *tokens_Token_new(tokens_TokenType type, std_span_Span span, char *text) {
   tokens_Token *tok = ((tokens_Token *)calloc(((u32)1), ((u32)sizeof(tokens_Token))));
-  *tok=(tokens_Token){.type=type, .span=span, .text=text, .suffix=NULL, .seen_newline=false, .comment=NULL, .comment_loc=std_span_Location_default()};
+  (*tok)=(tokens_Token){.type=type, .span=span, .text=text, .suffix=NULL, .seen_newline=false, .comment=NULL, .comment_loc=std_span_Location_default()};
   return tok;
 }
 
@@ -11547,7 +11548,7 @@ char *types_BaseType_str(types_BaseType this) {
 
 types_Type *types_Type_shallow_copy(types_Type *old) {
   types_Type *new = ((types_Type *)calloc(((u32)1), ((u32)sizeof(types_Type))));
-  *new=*old;
+  (*new)=(*old);
   return new;
 }
 
