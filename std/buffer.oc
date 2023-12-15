@@ -5,6 +5,7 @@
 //* to hold binary data.
 
 import std::libc::{ realloc, calloc, memcpy, free, exit }
+import std::sv::{ SV }
 
 // Maybe abstract away the resizing with a `Buffer` type, 
 // and share this with `OldVector`
@@ -27,6 +28,17 @@ def Buffer::from_str(s: str): Buffer {
         data: s as &u8,
         size: s.len() as u32,
         capacity: s.len() as u32,
+    )
+}
+
+def Buffer::from_sv(sv: SV): Buffer {
+    let data = std::new<u8>(sv.len + 1)
+    memcpy(data, sv.data, sv.len)
+    data[sv.len] = '\0' as u8
+    return Buffer(
+        data: data,
+        size: sv.len,
+        capacity: sv.len,
     )
 }
 
@@ -99,8 +111,16 @@ def Buffer::putsf(&this, s: str) {
     free(s)
 }
 
+def Buffer::putsv(&this, sv: SV) {
+    .resize_if_necessary(new_size: .size + sv.len + 1)
+    memcpy(.data + .size, sv.data, sv.len)
+    .size += sv.len
+    .data[.size] = '\0' as u8
+}
+
 def Buffer::str(&this): str => .data as str
 def Buffer::new_str(&this): str => (.data as str).copy()
+def Buffer::sv(&this): SV => SV(.data as str, .size)
 
 def Buffer::clear(&this) {
     .size = 0
