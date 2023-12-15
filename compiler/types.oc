@@ -3,6 +3,7 @@
 import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
 import @ast::scopes::{ Symbol, TemplateInstance }
 import @ast::program::Namespace
+import std::buffer::Buffer
 import std::vector::Vector
 import std::map::Map
 import std::span::Span
@@ -224,7 +225,20 @@ def Type::decay_array(&this): &Type {
 
 def Type::str(&this): str => match .base {
     Pointer => `&{.u.ptr.str()}`
-    Function => "<function>"
+    Function => {
+        let buf = Buffer::make()
+        buf.puts("fn(")
+        for let i = 0; i < .u.func.params.size; i += 1 {
+            let param = .u.func.params.at(i)
+            buf.puts(param.type.str())
+            if i < .u.func.params.size - 1 {
+                buf.puts(", ")
+            }
+        }
+        buf.puts("): ")
+        buf.puts(.u.func.return_type.str())
+        return buf.str()
+    }
     Structure => .u.struc.sym.display
     Enum => .u.enum_.sym.display
     Alias => .name

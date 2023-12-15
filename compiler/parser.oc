@@ -1203,7 +1203,7 @@ def Parser::parse_function(&this): &Function {
 
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
-    } else if name.eq("main") {
+    } else if func.sym.display.eq("main") {
         func.return_type = Type::new_unresolved_base(BaseType::I32, name_span)
     } else {
         func.return_type = Type::new_unresolved_base(BaseType::Void, name_span)

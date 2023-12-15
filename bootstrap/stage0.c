@@ -5826,7 +5826,7 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   parser_Parser_consume(this, tokens_TokenType_CloseParen);
   if (parser_Parser_consume_if(this, tokens_TokenType_Colon)) {
     func->return_type=parser_Parser_parse_type(this);
-  }  else   if (str_eq(name, "main")) {
+  }  else   if (str_eq(func->sym->display, "main")) {
     func->return_type=types_Type_new_unresolved_base(types_BaseType_I32, name_span);
   }  else {
     func->return_type=types_Type_new_unresolved_base(types_BaseType_Void, name_span);
@@ -9606,7 +9606,7 @@ void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecke
   
   passes_generic_pass_GenericPass_push_scope(this->o, new_scope);
   passes_typechecker_TypeChecker_check_statement(this, func->body);
-  if (((!func->body->returns && (func->return_type->base != types_BaseType_Void)) && !str_eq(func->sym->name, "main"))) {
+  if (((!func->body->returns && (func->return_type->base != types_BaseType_Void)) && !str_eq(func->sym->display, "main"))) {
     passes_typechecker_TypeChecker_error(this, errors_Error_new(func->sym->span, "Function does not always return"));
   } 
   passes_generic_pass_GenericPass_pop_scope(this->o);
@@ -11716,7 +11716,7 @@ bool types_Type_eq(types_Type *this, types_Type *other, bool strict) {
       if ((((u32)this->base) < ((u32)types_BaseType_NUM_BASE_TYPES))) {
         return true;
       } 
-      ae_assert(false, "compiler/types.oc:204:20: Assertion failed: `false`", format_string("Unhandled case in Type::eq(), base = %s", types_BaseType_dbg(this->base))); exit(1);    } break;
+      ae_assert(false, "compiler/types.oc:205:20: Assertion failed: `false`", format_string("Unhandled case in Type::eq(), base = %s", types_BaseType_dbg(this->base))); exit(1);    } break;
   }
 }
 
@@ -11747,7 +11747,18 @@ char *types_Type_str(types_Type *this) {
         __yield_0 = format_string("&%s", types_Type_str(this->u.ptr));
       } break;
       case types_BaseType_Function: {
-        __yield_0 = "<function>";
+        std_buffer_Buffer buf = std_buffer_Buffer_make(((u32)16));
+        std_buffer_Buffer_puts(&buf, "fn(");
+        for (u32 i = ((u32)0); (i < this->u.func.params->size); i+=((u32)1)) {
+          ast_nodes_Variable *param = std_vector_Vector__10_at(this->u.func.params, i);
+          std_buffer_Buffer_puts(&buf, types_Type_str(param->type));
+          if ((i < (this->u.func.params->size - ((u32)1)))) {
+            std_buffer_Buffer_puts(&buf, ", ");
+          } 
+        }
+        std_buffer_Buffer_puts(&buf, "): ");
+        std_buffer_Buffer_puts(&buf, types_Type_str(this->u.func.return_type));
+        return std_buffer_Buffer_str(&buf);
       } break;
       case types_BaseType_Structure: {
         __yield_0 = this->u.struc->sym->display;

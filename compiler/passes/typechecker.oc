@@ -1382,7 +1382,7 @@ def TypeChecker::check_function(&this, func: &Function) {
 
     .o.push_scope(new_scope)
     .check_statement(func.body)
-    if not func.body.returns and func.return_type.base != BaseType::Void and not func.sym.name.eq("main") {
+    if not func.body.returns and func.return_type.base != BaseType::Void and not func.sym.display.eq("main") {
         .error(Error::new(func.sym.span, "Function does not always return"))
     }
     .o.pop_scope()
