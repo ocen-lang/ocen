@@ -190,6 +190,8 @@ def Map::push_keys(&this, vec: &Vector<K>) {
     }
 }
 
+def Map::size(&this): u32 => .num_items
+
 //* Checks if the map is empty
 def Map::is_empty(&this): bool => .num_items == 0
 
