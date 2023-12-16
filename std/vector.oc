@@ -52,6 +52,19 @@ def Vector::pop(&this): T {
     return .data[.size]
 }
 
+//* Pops an element from the given index and returns it - O(n)
+def Vector::pop_at(&this, i: u32): T {
+    assert .size > 0, "Empty vector in Vector::pop_at"
+    assert i < .size, "Out of bounds in Vector::pop_at"
+
+    let val = .data[i]
+    for let j = i; j < .size - 1; j += 1 {
+        .data[j] = .data[j + 1]
+    }
+    .size -= 1
+    return val
+}
+
 //* Appends the contents of another vector to this one
 def Vector::extend(&this, other: &Vector<T>) {
     for val : other.iter() {
