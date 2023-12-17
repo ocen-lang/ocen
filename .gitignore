@@ -3,6 +3,7 @@ build
 .idea
 *.dSYM
 .DS_Store
+Dockerfile
 
 # We will ignore this by default, add files manually
 bootstrap/*
