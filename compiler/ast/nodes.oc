@@ -25,6 +25,7 @@ enum ASTType {
     Member
     NSLookup
     Return
+    ArrowReturn
     Yield
     StringLiteral
     SizeOf

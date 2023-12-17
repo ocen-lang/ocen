@@ -672,7 +672,7 @@ def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
 def CodeGenerator::gen_statement(&this, node: &AST) {
     .gen_debug_info(node.span)
     match node.type {
-        ASTType::Return => {
+        ASTType::Return | ASTType::ArrowReturn => {
             let upto = .scope()
             for let cur = .scope(); cur? and cur.cur_func?; cur = cur.parent {
                 upto = cur
@@ -680,7 +680,12 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .gen_defers_upto(upto)
 
             .gen_indent()
-            .out.puts("return ")
+
+            let return_type = upto.cur_func.return_type
+            if node.type != ArrowReturn or return_type.base != Void {
+                .out.puts("return ")
+            }
+
             if node.u.unary? {
                 .gen_expression(node.u.unary)
             }

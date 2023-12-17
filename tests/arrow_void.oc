@@ -1,0 +1,8 @@
+/// compile
+
+def foo() => println("foo")
+def bar() => foo()
+
+def main() {
+    bar()
+}
