@@ -59,9 +59,9 @@ struct Map<K, V> {
 }
 
 //* Creates a new hash map
-def Map::new(): &Map<K, V> {
+def Map::new(capacity: u32 = 32): &Map<K, V> {
     let map = calloc(1, sizeof(Map<K, V>)) as &Map<K, V>
-    map.num_buckets = 4
+    map.num_buckets = capacity
     map.buckets = calloc(map.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
     return map
 }
