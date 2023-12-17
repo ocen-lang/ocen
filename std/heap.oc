@@ -15,10 +15,10 @@ struct Heap<T> {
     min_heap: bool
 }
 
-def Heap::new(mode: Mode): &Heap<T> {
+def Heap::new(mode: Mode, capacity: u32 = 32): &Heap<T> {
     let heap = calloc(1, sizeof(Heap<T>)) as &Heap<T>
     heap.min_heap = mode == Mode::Min
-    heap.vec = Vector<T>::new()
+    heap.vec = Vector<T>::new(capacity)
     return heap
 }
 
@@ -63,6 +63,7 @@ def Heap::sort(&this) {
 
 def Heap::from_vec(mode: Mode, data: &Vector<T>): &Heap<T> {
     let heap = Heap<T>::new(mode)
+    heap.vec.free()
     heap.vec = data
 
     let i = heap.size() - 1
