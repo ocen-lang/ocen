@@ -21,9 +21,7 @@ def Set::remove(&this, key: T) {
     .map.remove(key)
 }
 
-def Set::size(&this): u32 {
-    return .map.num_items
-}
+def Set::size(&this): u32 => .map.size()
 
 def Set::clear(&this) {
     .map.clear()
@@ -52,7 +50,7 @@ struct Iterator<T> {
     map_iter: MapIterator<T, bool>
 }
 
-def Iterator::make(set: &Set<T>): Iterator<T> => Iterator<T>(MapIterator<T, bool>::make(set.map))
+def Iterator::make(set: &Set<T>): Iterator<T> => Iterator<T>(set.map.iter())
 def Iterator::has_value(&this): bool => .map_iter.has_value()
 def Iterator::cur(&this): T => .map_iter.cur().key
 def Iterator::next(&this) {

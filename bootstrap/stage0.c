@@ -527,6 +527,7 @@ char *types_BaseType_dbg(types_BaseType this) {
 typedef struct std_compact_map_Item__0 std_compact_map_Item__0;
 typedef struct std_compact_map_Map__0 std_compact_map_Map__0;
 typedef struct std_vector_Iterator__2 std_vector_Iterator__2;
+typedef struct std_compact_map_Iterator__0 std_compact_map_Iterator__0;
 typedef struct std_buffer_Buffer std_buffer_Buffer;
 typedef struct std_set_Set__0 std_set_Set__0;
 typedef struct std_map_Item__0 std_map_Item__0;
@@ -654,6 +655,10 @@ struct std_compact_map_Map__0 {
 struct std_vector_Iterator__2 {
   std_vector_Vector__2 *vec;
   u32 index;
+};
+
+struct std_compact_map_Iterator__0 {
+  std_vector_Iterator__2 iter;
 };
 
 struct std_buffer_Buffer {
@@ -1428,12 +1433,15 @@ i32 i32_max(i32 this, i32 b);
 u32 u32_min(u32 this, u32 other);
 u32 u32_max(u32 this, u32 other);
 passes_mark_dead_code_MarkDeadCode *std_new__1(u32 count);
-u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u32 hash);
+std_compact_map_Iterator__0 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this);
+std_compact_map_Item__0 std_compact_map_Iterator__0_cur(std_compact_map_Iterator__0 *this);
+void std_compact_map_Iterator__0_next(std_compact_map_Iterator__0 *this);
+bool std_compact_map_Iterator__0_has_value(std_compact_map_Iterator__0 *this);
 void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value);
+u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u32 hash);
 bool std_compact_map_Map__0_is_empty(std_compact_map_Map__0 *this);
 void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacity);
 std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity);
-std_vector_Iterator__2 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this);
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s);
 std_buffer_Buffer std_buffer_Buffer_from_file(char *path);
@@ -1542,6 +1550,7 @@ std_map_Map__6 *std_map_Map__6_new(void);
 std_map_Item__6 *std_map_Map__6_get_item(std_map_Map__6 *this, char *key);
 void std_map_Item__7_free_list(std_map_Item__7 *this);
 std_map_Item__7 *std_map_Item__7_new(char *key, ast_nodes_MatchCase *value, std_map_Item__7 *next);
+u32 std_map_Map__7_size(std_map_Map__7 *this);
 void std_map_Map__7_free(std_map_Map__7 *this);
 void std_map_Map__7_insert(std_map_Map__7 *this, char *key, ast_nodes_MatchCase *value);
 ast_nodes_MatchCase *std_map_Map__7_get(std_map_Map__7 *this, char *key, ast_nodes_MatchCase *defolt);
@@ -1805,7 +1814,7 @@ char *passes_run_codegen_passes(ast_program_Program *program);
 void passes_register_types_RegisterTypes_register_struct(passes_register_types_RegisterTypes *this, ast_program_Namespace *ns, ast_nodes_Structure *struc);
 void passes_register_types_RegisterTypes_register_enum(passes_register_types_RegisterTypes *this, ast_program_Namespace *ns, ast_nodes_Enum *enum_);
 void passes_register_types_RegisterTypes_register_globals(passes_register_types_RegisterTypes *this, ast_nodes_AST *node);
-void passes_register_types_RegisterTypes_add_dbg_method_for_type(passes_register_types_RegisterTypes *this, types_Type *type);
+void passes_register_types_RegisterTypes_add_dbg_method_for_enum(passes_register_types_RegisterTypes *this, ast_nodes_Enum *enum_);
 void passes_register_types_RegisterTypes_register_namespace(passes_register_types_RegisterTypes *this, ast_program_Namespace *ns);
 void passes_register_types_RegisterTypes_register_base_type(passes_register_types_RegisterTypes *this, types_BaseType base);
 void passes_register_types_RegisterTypes_register_alias(passes_register_types_RegisterTypes *this, char *name, types_Type *orig);
@@ -2136,6 +2145,37 @@ passes_mark_dead_code_MarkDeadCode *std_new__1(u32 count) {
   return ((passes_mark_dead_code_MarkDeadCode *)calloc(count, ((u32)sizeof(passes_mark_dead_code_MarkDeadCode))));
 }
 
+std_compact_map_Iterator__0 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this) {
+  return (std_compact_map_Iterator__0){.iter=std_vector_Vector__2_iter(this->items)};
+}
+
+std_compact_map_Item__0 std_compact_map_Iterator__0_cur(std_compact_map_Iterator__0 *this) {
+  return std_vector_Iterator__2_cur(&this->iter);
+}
+
+void std_compact_map_Iterator__0_next(std_compact_map_Iterator__0 *this) {
+  std_vector_Iterator__2_next(&this->iter);
+}
+
+bool std_compact_map_Iterator__0_has_value(std_compact_map_Iterator__0 *this) {
+  return std_vector_Iterator__2_has_value(&this->iter);
+}
+
+void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value) {
+  u32 hash = str_hash(key);
+  u32 index = std_compact_map_Map__0_get_index(this, key, hash);
+  if (this->indices[index]==std_compact_map_INDEX_FREE) {
+    this->indices[index]=((i32)this->items->size);
+    std_vector_Vector__2_push(this->items, (std_compact_map_Item__0){.hash=hash, .key=key, .value=value});
+    if ((((u32)this->items->size) >= this->capacity)) {
+      std_compact_map_Map__0_resize(this, (this->capacity * ((u32)2)));
+    } 
+  }  else {
+    u32 item_index = ((u32)this->indices[index]);
+    this->items->data[item_index].value=value;
+  } 
+}
+
 u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u32 hash) {
   u32 perturb = hash;
   u32 j = (hash % this->capacity);
@@ -2165,21 +2205,6 @@ u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u3
   return ((u32)first_deleted);
 }
 
-void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value) {
-  u32 hash = str_hash(key);
-  u32 index = std_compact_map_Map__0_get_index(this, key, hash);
-  if (this->indices[index]==std_compact_map_INDEX_FREE) {
-    this->indices[index]=((i32)this->items->size);
-    std_vector_Vector__2_push(this->items, (std_compact_map_Item__0){.hash=hash, .key=key, .value=value});
-    if ((((u32)this->items->size) >= this->capacity)) {
-      std_compact_map_Map__0_resize(this, (this->capacity * ((u32)2)));
-    } 
-  }  else {
-    u32 item_index = ((u32)this->indices[index]);
-    this->items->data[item_index].value=value;
-  } 
-}
-
 bool std_compact_map_Map__0_is_empty(std_compact_map_Map__0 *this) {
   return this->items->size==((u32)0);
 }
@@ -2201,7 +2226,7 @@ void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacit
 }
 
 std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity) {
-  std_vector_Vector__2 *items = std_vector_Vector__2_new(((u32)16));
+  std_vector_Vector__2 *items = std_vector_Vector__2_new(capacity);
   i32 *indices = ((i32 *)calloc(capacity, ((u32)sizeof(i32))));
   for (u32 i = ((u32)0); (i < capacity); i++) {
     indices[i]=std_compact_map_INDEX_FREE;
@@ -2211,10 +2236,6 @@ std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity) {
   map->indices=indices;
   map->capacity=capacity;
   return map;
-}
-
-std_vector_Iterator__2 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this) {
-  return std_vector_Vector__2_iter(this->items);
 }
 
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity) {
@@ -3207,6 +3228,10 @@ std_map_Item__7 *std_map_Item__7_new(char *key, ast_nodes_MatchCase *value, std_
   node->value=value;
   node->next=next;
   return node;
+}
+
+u32 std_map_Map__7_size(std_map_Map__7 *this) {
+  return this->num_items;
 }
 
 void std_map_Map__7_free(std_map_Map__7 *this) {
@@ -4247,8 +4272,8 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
     case std_value_ValueType_Dictionary: {
       std_buffer_Buffer_puts(sb, "{");
       bool first = true;
-      for (std_vector_Iterator__2 __iter = std_compact_map_Map__0_iter(val->u.as_dict); std_vector_Iterator__2_has_value(&__iter); std_vector_Iterator__2_next(&__iter)) {
-        std_compact_map_Item__0 iter = std_vector_Iterator__2_cur(&__iter);
+      for (std_compact_map_Iterator__0 __iter = std_compact_map_Map__0_iter(val->u.as_dict); std_compact_map_Iterator__0_has_value(&__iter); std_compact_map_Iterator__0_next(&__iter)) {
+        std_compact_map_Item__0 iter = std_compact_map_Iterator__0_cur(&__iter);
         {
           if (!first) {
             std_buffer_Buffer_puts(sb, ",");
@@ -6450,23 +6475,22 @@ void passes_register_types_RegisterTypes_register_globals(passes_register_types_
   passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, var->sym, NULL);
 }
 
-void passes_register_types_RegisterTypes_add_dbg_method_for_type(passes_register_types_RegisterTypes *this, types_Type *type) {
-  ast_scopes_Symbol *sym = type->sym;
-  std_span_Span span = sym->span;
+void passes_register_types_RegisterTypes_add_dbg_method_for_enum(passes_register_types_RegisterTypes *this, ast_nodes_Enum *enum_) {
+  std_span_Span span = enum_->sym->span;
   ast_nodes_Function *func = ast_nodes_Function_new();
   func->span=std_span_Span_default();
-  func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, sym->ns, sym, "dbg", span);
+  func->sym=ast_scopes_Symbol_new_with_parent(ast_scopes_SymbolType_Function, enum_->sym->ns, enum_->sym, "dbg", span);
   func->sym->u.func=func;
-  func->return_type=ast_program_Program_get_type_by_name(this->o->program, "str", sym->span);
+  func->return_type=ast_program_Program_get_type_by_name(this->o->program, "str", span);
   func->is_method=true;
-  func->parent_type=type;
-  ast_nodes_Variable *var = ast_nodes_Variable_new(type);
-  var->sym=ast_scopes_Symbol_from_local_variable("this", var, sym->span);
+  func->parent_type=enum_->type;
+  ast_nodes_Variable *var = ast_nodes_Variable_new(enum_->type);
+  var->sym=ast_scopes_Symbol_from_local_variable("this", var, span);
   std_vector_Vector__10_push(func->params, var);
-  types_Type *func_type = types_Type_new_resolved(types_BaseType_Function, span);
-  func_type->u.func=(types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type};
-  func->type=func_type;
-  std_map_Map__6_insert(type->methods, "dbg", func);
+  types_Type *typ = types_Type_new_resolved(types_BaseType_Function, span);
+  typ->u.func=(types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type};
+  func->type=typ;
+  std_map_Map__6_insert(enum_->type->methods, "dbg", func);
 }
 
 void passes_register_types_RegisterTypes_register_namespace(passes_register_types_RegisterTypes *this, ast_program_Namespace *ns) {
@@ -6481,7 +6505,7 @@ void passes_register_types_RegisterTypes_register_namespace(passes_register_type
     ast_nodes_Enum *enum_ = std_vector_Iterator__14_cur(&__iter);
     {
       passes_register_types_RegisterTypes_register_enum(this, ns, enum_);
-      passes_register_types_RegisterTypes_add_dbg_method_for_type(this, enum_->type);
+      passes_register_types_RegisterTypes_add_dbg_method_for_enum(this, enum_);
     }
   }
   for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->constants); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
@@ -9370,9 +9394,9 @@ void passes_typechecker_TypeChecker_check_match_for_enum(passes_typechecker_Type
     }
   }
   ast_nodes_AST *defolt = node->u.match_stmt.defolt;
-  if ((mapping->num_items != enum_->fields->size)) {
+  if ((std_map_Map__7_size(mapping) != enum_->fields->size)) {
     if (!((bool)defolt)) {
-      passes_typechecker_TypeChecker_error(this, errors_Error_new_note(node->span, "Match does not cover all cases", format_string("Only %u of %u cases are covered", mapping->num_items, enum_->fields->size)));
+      passes_typechecker_TypeChecker_error(this, errors_Error_new_note(node->span, "Match does not cover all cases", format_string("Only %u of %u cases are covered", std_map_Map__7_size(mapping), enum_->fields->size)));
     }  else {
       passes_typechecker_TypeChecker_check_expression_statement(this, node, defolt, is_expr, hint);
     } 
