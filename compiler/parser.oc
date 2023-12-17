@@ -1233,7 +1233,7 @@ def Parser::parse_function(&this): &Function {
         }
 
         let expr = .parse_expression(end_type: TokenType::Newline)
-        let ret = AST::new(ASTType::Return, expr.span)
+        let ret = AST::new(ASTType::ArrowReturn, expr.span)
         ret.u.unary = expr
 
         let body = AST::new(ASTType::Block, ret.span)

@@ -1261,7 +1261,7 @@ def TypeChecker::check_for(&this, node: &AST) {
 
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
-        ASTType::Return => {
+        ASTType::Return | ASTType::ArrowReturn => {
             // todo: make sure in function
             let cur_func = .scope().cur_func
             if not cur_func? {
@@ -1270,12 +1270,16 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
 
             let expected = cur_func.return_type
+
+            let res: &Type = null
+            if node.u.unary? then res = .check_expression(node.u.unary, hint: expected)
+
             if expected.base == BaseType::Void {
-                if node.u.unary? {
+                // We allow using arrow returns in void functions, they just don't return anything.
+                if node.u.unary? and node.type != ASTType::ArrowReturn {
                     .error(Error::new(node.span, "Cannot return a value from a void function"))
                 }
             } else if node.u.unary? {
-                let res = .check_expression(node.u.unary, hint: expected)
                 if res? and not res.eq(expected) {
                     .error(Error::new(node.span, `Return type {res.str()} does not match function return type {expected.str()}`))
                 }

@@ -87,7 +87,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Import | Break | Continue | IntLiteral | FloatLiteral |
         BoolLiteral | StringLiteral | CharLiteral | Null => {}
 
-        Return | Yield | Defer | Address | Dereference | Negate |
+        Return | ArrowReturn | Yield | Defer | Address | Dereference | Negate |
         BitwiseNot | Not | IsNotNull | Cast | PreIncrement | 
         PreDecrement | PostIncrement | PostDecrement => .mark(node.u.unary)
 
