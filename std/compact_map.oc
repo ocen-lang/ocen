@@ -90,11 +90,11 @@ def Map::remove(&this, key: K) {
     let last_item_index = .indices[last_index] as u32
     assert last_item_index == .items.size - 1 // Sanity check
 
+    .indices[last_index] = index as i32
+
     .indices[index] = INDEX_DELETED
     .items.data[item_index] = last_item
     .items.pop()
-
-    .indices[last_index] = index as i32
 }
 
 def Map::resize(&this, new_capacity: u32) {
@@ -133,11 +133,10 @@ def Map::insert(&this, key: K, value: V) {
 def Map::get_item(&this, key: K): &Item<K, V> {
     let hash = key.hash()
     let index = .get_index(key, hash)
-    if .indices[index] == INDEX_FREE {
+    if .indices[index] < 0 {
         return null
     }
 
-    assert index >= 0
     let idx = .indices[index] as u32
     return &.items.data[idx] // Should be safe
 }
@@ -161,7 +160,7 @@ def Map::size(&this): u32 => .items.size
 def Map::contains(&this, key: K): bool {
     let hash = key.hash()
     let index = .get_index(key, hash)
-    return .indices[index] != INDEX_FREE
+    return .indices[index] >= 0
 }
 
 def Map::clear(&this) {

@@ -1,0 +1,11 @@
+/// exit: 0
+
+import std::compact_map::Map
+
+def main() {
+    let map = Map<u32, bool>::new()
+    map.insert(1, true)
+    map.remove(1)
+
+    assert not map.contains(1)
+}
