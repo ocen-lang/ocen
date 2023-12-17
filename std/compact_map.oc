@@ -2,7 +2,7 @@
 //*
 //* Uses open addressing with linear probing. Inspired by Python's dict.
 
-import std::vector::{ Vector, Iterator }
+import std::vector::{ Vector, Iterator as VectorIterator }
 import std::traits::{ hash, eq }
 import std::libc::{ calloc, free, realloc }
 
@@ -22,7 +22,7 @@ struct Map<K, V> {
 }
 
 def Map::new(capacity: u32 = 16): &Map<K, V> {
-    let items = Vector<Item<K, V>>::new()
+    let items = Vector<Item<K, V>>::new(capacity)
     let indices = calloc(capacity, sizeof(i32)) as &i32
     for let i = 0; i < capacity; i++ {
         indices[i] = INDEX_FREE
@@ -165,19 +165,30 @@ def Map::contains(&this, key: K): bool {
 
 def Map::clear(&this) {
     .items.clear()
-    for let i = 0; i < .capacity; i++ {
-        .indices[i] = INDEX_FREE
-    }
+    std::libc::memset(.indices, INDEX_FREE as u8, .capacity * sizeof(i32))
 }
 
 def Map::is_empty(&this): bool => .items.size == 0
 
-def Map::iter(&this): Iterator<Item<K, V>> => .items.iter()
+def Map::extend(&this, other: &Map<K, V>) {
+    for item : other.iter() {
+        .insert(item.key, item.value)
+    }
+}
+
+def Map::iter(&this): Iterator<K, V> => Iterator<K, V>(.items.iter())
 def Map::iter_keys(&this): KeyIterator<K, V> => KeyIterator<K, V>(.items.iter())
 def Map::iter_values(&this): ValueIterator<K, V> => ValueIterator<K, V>(.items.iter())
 
+struct Iterator<K, V> {
+    iter: VectorIterator<Item<K, V>>
+}
+def Iterator::has_value(&this): bool => .iter.has_value()
+def Iterator::next(&this) { .iter.next() }
+def Iterator::cur(&this): Item<K, V> => .iter.cur()
+
 struct KeyIterator<K, V> {
-    iter: Iterator<Item<K, V>>
+    iter: VectorIterator<Item<K, V>>
 }
 def KeyIterator::has_value(&this): bool => .iter.has_value()
 def KeyIterator::next(&this) { .iter.next() }
@@ -185,7 +196,7 @@ def KeyIterator::cur(&this): K => .iter.cur().key
 
 
 struct ValueIterator<K, V> {
-    iter: Iterator<Item<K, V>>
+    iter: VectorIterator<Item<K, V>>
 }
 def ValueIterator::has_value(&this): bool => .iter.has_value()
 def ValueIterator::next(&this) { .iter.next() }

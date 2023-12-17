@@ -33,7 +33,7 @@ def strsep(str: &str, delim: str): str extern
 def strerror(errnum: i32): str extern
 def memcpy(dest: untyped_ptr, src: untyped_ptr, size: u32) extern
 def memcmp(s: str, other: str, n: u32): i32 extern
-def memset(dest: untyped_ptr, c: i32, size: u32) extern
+def memset(dest: untyped_ptr, c: u8, size: u32) extern
 
 // ctype
 @compiler c_include "ctype.h"
