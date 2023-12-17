@@ -658,7 +658,19 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
-        Modulus | BitwiseOr | BitwiseAnd | BitwiseXor | LeftShift | RightShift => {
+        BitwiseXor => {
+            if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            if lhs.base != BaseType::Bool and not lhs.is_integer() {
+                .error(Error::new(node.span, "Operator requires integer types"))
+            }
+            return lhs
+        }
+        Modulus | BitwiseOr | BitwiseAnd | LeftShift | RightShift => {
             if not lhs.is_integer() or not rhs.is_integer() {
                 .error(Error::new_note(
                     node.span, "Operator requires integer types",

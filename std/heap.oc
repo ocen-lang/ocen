@@ -27,6 +27,13 @@ def Heap::push(&this, value: T) {
     .sift_up(.size() - 1)
 }
 
+def Heap::unchecked_pop(&this): T {
+    .swap(0, .vec.size - 1)
+    let value = .vec.unchecked_pop()
+    .sift_down()
+    return value
+}
+
 def Heap::pop(&this): T {
     assert .size() > 0
     .swap(0, .size() - 1)
@@ -111,12 +118,12 @@ def Heap::sift_down(&this, i: u32 = 0) {
 }
 
 def Heap::should_swap(&this, a: u32, b: u32): bool {
-    let eval = .vec.at(a).compare(.vec.at(b))
-    return if .min_heap then eval < 0 else eval > 0
+    let eval = .vec.data[a].compare(.vec.data[b])
+    return .min_heap ^ (eval > 0)
 }
 
 def Heap::swap(&this, a: u32, b: u32) {
-    let tmp = .vec.at(a)
-    .vec.data[a] = .vec.at(b)
+    let tmp = .vec.data[a]
+    .vec.data[a] = .vec.data[b]
     .vec.data[b] = tmp
 }
