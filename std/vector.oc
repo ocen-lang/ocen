@@ -91,6 +91,9 @@ def Vector::at(&this, i: u32): T {
     return .data[i]
 }
 
+//* Returns the element at the given index without checking if it's out of bounds
+def Vector::unchecked_at(&this, i: u32): T => .data[i]
+
 //* Clears the vector
 //* This does not free the memory
 def Vector::clear(&this) {
