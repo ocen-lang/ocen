@@ -46,14 +46,13 @@ def Map::get_index(&this, key: K, hash: u32): u32 {
     let i = j
 
     let first_deleted = -1
-    while true {
-        if .indices[i] == INDEX_FREE break
+    while .indices[i] != INDEX_FREE {
         if .indices[i] == INDEX_DELETED {
             if first_deleted < 0 {
                 first_deleted = i as i32
             }
         } else {
-            let item = .items.at(.indices[i] as u32) // Should be safe
+            let item = .items.data[.indices[i]]  // Should be safe
             if item.hash == hash and item.key.eq(key) {
                 return i
             }
