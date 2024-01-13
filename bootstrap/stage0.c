@@ -1013,6 +1013,7 @@ struct std_vector_Iterator__18 {
 };
 
 struct docgen_DocGenerator {
+  ast_program_Program *program;
 };
 
 struct passes_code_generator_CodeGenerator {
@@ -1510,6 +1511,7 @@ bool std_map_Iterator__2_has_value(std_map_Iterator__2 *this);
 std_map_Iterator__2 std_map_Map__2_iter(std_map_Map__2 *this);
 void std_map_Map__2_insert(std_map_Map__2 *this, char *key, types_Type *value);
 types_Type *std_map_Map__2_get(std_map_Map__2 *this, char *key, types_Type *defolt);
+bool std_map_Map__2_is_empty(std_map_Map__2 *this);
 void std_map_Map__2_resize(std_map_Map__2 *this);
 u32 std_map_Map__2_hash(std_map_Map__2 *this, char *key);
 std_map_Item__2 *std_map_Map__2_get_item(std_map_Map__2 *this, char *key);
@@ -2731,6 +2733,10 @@ types_Type *std_map_Map__2_get(std_map_Map__2 *this, char *key, types_Type *defo
   return defolt;
   
   return node->value;
+}
+
+bool std_map_Map__2_is_empty(std_map_Map__2 *this) {
+  return this->num_items==((u32)0);
 }
 
 void std_map_Map__2_resize(std_map_Map__2 *this) {
@@ -4429,7 +4435,7 @@ char *docgen_DocGenerator_gen_templated_type(docgen_DocGenerator *this, types_Ty
 }
 
 char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(((bool)type), "compiler/docgen.oc:74:12: Assertion failed: `type?`", "gen_typename_str called with null type");  switch (type->base) {
+  ae_assert(((bool)type), "compiler/docgen.oc:76:12: Assertion failed: `type?`", "gen_typename_str called with null type");  switch (type->base) {
     case types_BaseType_Char:
     case types_BaseType_Bool:
     case types_BaseType_Void:
@@ -4454,7 +4460,7 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
         ast_nodes_Structure *struc = type->u.struc;
         ast_scopes_TemplateInstance *instance = type->template_instance;
         ast_scopes_Symbol *parent = instance->parent;
-        ae_assert(parent->type==ast_scopes_SymbolType_Structure, "compiler/docgen.oc:89:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");        ast_nodes_Structure *parent_struc = parent->u.struc;
+        ae_assert(parent->type==ast_scopes_SymbolType_Structure, "compiler/docgen.oc:91:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");        ast_nodes_Structure *parent_struc = parent->u.struc;
         return docgen_DocGenerator_gen_templated_type(this, parent_struc->type, instance->args);
       } 
     } break;
@@ -4499,22 +4505,22 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
           return strdup(node->u.ident.name);
         } break;
         default: {
-          ae_assert(false, "compiler/docgen.oc:132:28: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", ast_nodes_ASTType_dbg(node->type))); exit(1);          return "<unknown>";
+          ae_assert(false, "compiler/docgen.oc:134:28: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", ast_nodes_ASTType_dbg(node->type))); exit(1);          return "<unknown>";
         } break;
       }
     } break;
     default: {
-      ae_assert(false, "compiler/docgen.oc:138:20: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", types_BaseType_dbg(type->base))); exit(1);      return "<unknown>";
+      ae_assert(false, "compiler/docgen.oc:140:20: Assertion failed: `false`", format_string("Unhandled type in gen_typename_str: %s", types_BaseType_dbg(type->base))); exit(1);      return "<unknown>";
     } break;
   }
 }
 
 std_value_Value *docgen_DocGenerator_gen_typename(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(((bool)type), "compiler/docgen.oc:145:12: Assertion failed: `type?`", "gen_typename called with null type");  return std_value_Value_new_str(docgen_DocGenerator_gen_typename_str(this, type));
+  ae_assert(((bool)type), "compiler/docgen.oc:147:12: Assertion failed: `type?`", "gen_typename called with null type");  return std_value_Value_new_str(docgen_DocGenerator_gen_typename_str(this, type));
 }
 
 std_value_Value *docgen_DocGenerator_gen_methods(docgen_DocGenerator *this, types_Type *type) {
-  ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:150:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");  std_value_Value *methods_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+  ae_assert(types_Type_can_have_methods(type), "compiler/docgen.oc:152:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");  std_value_Value *methods_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   for (std_map_Iterator__6 __iter = std_map_Map__6_iter(type->methods); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
     std_map_Item__6 *it = std_map_Iterator__6_cur(&__iter);
     {
@@ -4557,6 +4563,11 @@ std_value_Value *docgen_DocGenerator_gen_function(docgen_DocGenerator *this, ast
         std_value_Value_insert(param_doc, "description", std_value_Value_new_str(param->sym->comment));
       } 
       std_value_Value_insert(param_doc, "type", docgen_DocGenerator_gen_typename(this, param->type));
+      ast_nodes_AST *default_value = param->default_value;
+      if (((bool)default_value)) {
+        std_value_Value *value_str = std_value_Value_new_str(ast_program_Program_get_source_text(this->program, default_value->span));
+        std_value_Value_insert(param_doc, "default_value", value_str);
+      } 
       std_value_Value_push(params_doc, param_doc);
     }
   }
@@ -4719,6 +4730,20 @@ std_value_Value *docgen_DocGenerator_gen_ns(docgen_DocGenerator *this, ast_progr
     }
     std_value_Value_insert(ns_doc, "functions", funcs_doc);
   } 
+  if (!std_map_Map__2_is_empty(ns->typedefs)) {
+    std_value_Value *typedefs_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+    for (std_map_Iterator__2 __iter = std_map_Map__2_iter(ns->typedefs); std_map_Iterator__2_has_value(&__iter); std_map_Iterator__2_next(&__iter)) {
+      std_map_Item__2 *it = std_map_Iterator__2_cur(&__iter);
+      {
+        std_value_Value *typedef_doc = std_value_Value_new(std_value_ValueType_Dictionary);
+        std_value_Value_insert(typedef_doc, "kind", std_value_Value_new_str("typedef"));
+        std_value_Value_insert(typedef_doc, "name", std_value_Value_new_str(strdup(it->key)));
+        std_value_Value_insert(typedef_doc, "type", docgen_DocGenerator_gen_typename(this, it->value));
+        std_value_Value_insert(typedefs_doc, it->key, typedef_doc);
+      }
+    }
+    std_value_Value_insert(ns_doc, "typedefs", typedefs_doc);
+  } 
   if (!std_map_Map__3_is_empty(ns->namespaces)) {
     std_value_Value *namespaces_doc = std_value_Value_new(std_value_ValueType_Dictionary);
     for (std_map_Iterator__3 __iter = std_map_Map__3_iter(ns->namespaces); std_map_Iterator__3_has_value(&__iter); std_map_Iterator__3_next(&__iter)) {
@@ -4761,7 +4786,7 @@ std_value_Value *docgen_DocGenerator_gen_builtins(docgen_DocGenerator *this, ast
 }
 
 void docgen_generate_doc_json(ast_program_Program *program, char *json_path) {
-  docgen_DocGenerator docs_generator = (docgen_DocGenerator){};
+  docgen_DocGenerator docs_generator = (docgen_DocGenerator){.program=program};
   std_value_Value *docs = docgen_DocGenerator_gen_ns(&docs_generator, program->global);
   std_value_Value *builtins = docgen_DocGenerator_gen_builtins(&docs_generator, program);
   std_value_Value_insert(docs, "builtins", builtins);

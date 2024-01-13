@@ -9,7 +9,9 @@ import std::json
 import std::buffer::Buffer
 import std::span::Span
 
-struct DocGenerator {}
+struct DocGenerator {
+    program: &Program
+}
 
 def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
     let enum_doc = Value::new(Dictionary)
@@ -191,6 +193,13 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
             param_doc.insert("description", Value::new_str(param.sym.comment))
         }
         param_doc.insert("type", .gen_typename(param.type))
+
+        let default_value = param.default_value
+        if default_value? {
+            let value_str = Value::new_str(.program.get_source_text(default_value.span))
+            param_doc.insert("default_value", value_str)
+        }
+
         params_doc.push(param_doc)
     }
 
@@ -343,6 +352,18 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         ns_doc.insert("functions", funcs_doc)
     }
 
+    if not ns.typedefs.is_empty() {
+        let typedefs_doc = Value::new(Dictionary)
+        for it : ns.typedefs.iter() {
+            let typedef_doc = Value::new(Dictionary)
+            typedef_doc.insert("kind", Value::new_str("typedef"))
+            typedef_doc.insert("name", Value::new_str(it.key.copy()))
+            typedef_doc.insert("type", .gen_typename(it.value))
+            typedefs_doc.insert(it.key, typedef_doc)
+        }
+        ns_doc.insert("typedefs", typedefs_doc)
+    }
+
     if not ns.namespaces.is_empty() {
         let namespaces_doc = Value::new(Dictionary)
         for it : ns.namespaces.iter() {
@@ -388,7 +409,7 @@ def DocGenerator::gen_builtins(&this, program: &Program): &Value {
 }
 
 def generate_doc_json(program: &Program, json_path: str) {
-    let docs_generator = DocGenerator()
+    let docs_generator = DocGenerator(program)
 
     let docs = docs_generator.gen_ns(program.global)
     let builtins = docs_generator.gen_builtins(program)
