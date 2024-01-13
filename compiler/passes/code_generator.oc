@@ -2,7 +2,6 @@
 
 import std::buffer::Buffer
 import std::vector::Vector
-import std::free
 import std::span::Span
 import @types::{ Type, BaseType }
 import @ast::nodes::*
@@ -26,7 +25,7 @@ def CodeGenerator::gen_indent(&this) {
 
 def str::replace(&this, other: str) {
     let s: str = *this
-    free(s)
+    std::free(s)
     *this = other
 }
 
@@ -866,7 +865,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             } else {
                 acc.replace(`(*{acc})({args_str.str()})`)
             }
-            free(args_str.data)
+            std::free(args_str.data)
             acc = .helper_gen_type(
                 top,
                 cur.u.func.return_type,
@@ -895,7 +894,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             .gen_expression(cur.u.arr.size_expr)
 
             acc.replace(`{acc}[{.out.str()}]`)
-            free(.out.data)
+            std::free(.out.data)
 
             .out = prev_buffer
             acc = .helper_gen_type(top, cur.u.arr.elem_type, acc, is_func_def: false)
