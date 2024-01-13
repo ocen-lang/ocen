@@ -39,5 +39,6 @@ def i64::abs(this): i64 => if this < 0 then -this else this
 
 const PI: f32 extern("M_PI")
 const TAU: f32 = PI * 2.0
+
 def degrees(radians: f32): f32 { return radians * 180.0 / PI; }
 def radians(degrees: f32): f32 { return degrees * PI / 180.0; }

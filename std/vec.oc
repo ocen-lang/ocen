@@ -42,7 +42,7 @@ def Vec2::normalized(this): Vec2f {
     return Vec2f(.x as f32 / len, .y as f32 / len)
 }
 
-//! Only intended for {{Vec2<f32>}}
+//! Only intended for {{Vec2}}<{{f32}}>
 def Vec2::reflect(this, normal: Vec2<T>): Vec2<T> => .sub(normal.mults(2 as T * .dot(normal)))
 
 def Vec2::rotate(&this, angle: f32): Vec2f {
@@ -106,7 +106,7 @@ def Vec3::normalized(this): Vec3f {
     return Vec3f(.x as f32 / len, .y as f32 / len, .z as f32 / len)
 }
 
-//! Only intended for {{Vec3<f32>}}
+//! Only intended for {{Vec3}}<{{f32}}>
 def Vec3::reflect(this, normal: Vec3<T>): Vec3<T> => .sub(normal.mults(2 as T * .dot(normal)))
 
 def Vec3::rotateX(&this, angle: f32): Vec3f {

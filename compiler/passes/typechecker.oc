@@ -1546,6 +1546,12 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
                 return
             }
 
+            // FIXME: Handle the case where the symbol is templated, for instance `Vec2<f32>`
+            if sym.template? {
+                .error(Error::new(span, `Cannot link to templated symbol '{part}'`))
+                return
+            }
+
             let linked_part = match sym.type {
                 Structure => `{sym.u.struc.type:x}`
                 Function => `{sym.u.func:x}`
