@@ -18,7 +18,7 @@ struct Image {
 }
 
 def Image::new(width: u32, height: u32): &Image {
-    let img = calloc(1, sizeof(Image)) as &Image
+    let img = std::new<Image>()
     *img = Image(width, height, calloc(width * height, sizeof(Color)))
     return img
 }

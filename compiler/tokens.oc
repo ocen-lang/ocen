@@ -16,7 +16,7 @@ struct Token {
 }
 
 def Token::new(type: TokenType, span: Span, text: str): &Token {
-    let tok = calloc(1, sizeof(Token)) as &Token
+    let tok = std::new<Token>()
     *tok = Token(type, span, text, suffix: null, seen_newline: false, comment: null, comment_loc: Location::default())
     return tok
 }

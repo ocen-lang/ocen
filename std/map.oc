@@ -29,7 +29,7 @@ struct Item<K, V> {
 
 //* Creates a new node
 def Item::new(key: K, value: V, next: &Item<K, V> = null): &Item<K, V> {
-    let node = calloc(1, sizeof(Item<K, V>)) as &Item<K, V>
+    let node = std::new<Item<K, V>>()
     node.key = key
     node.value = value
     node.next = next
@@ -60,7 +60,7 @@ struct Map<K, V> {
 
 //* Creates a new hash map
 def Map::new(capacity: u32 = 32): &Map<K, V> {
-    let map = calloc(1, sizeof(Map<K, V>)) as &Map<K, V>
+    let map = std::new<Map<K, V>>()
     map.num_buckets = capacity
     map.buckets = calloc(map.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
     return map

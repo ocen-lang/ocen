@@ -25,7 +25,7 @@ struct TemplateInstance {
 }
 
 def TemplateInstance::new(args: &Vector<&Type>, parent: &Symbol, resolved: &Symbol): &TemplateInstance {
-    let instance = calloc(1, sizeof(TemplateInstance)) as &TemplateInstance
+    let instance = std::new<TemplateInstance>()
     instance.args = args
     instance.parent = parent
     instance.resolved = resolved
@@ -48,7 +48,7 @@ struct Template {
 }
 
 def Template::new(params: &Vector<&Variable>): &Template {
-    let templ = calloc(1, sizeof(Template)) as &Template
+    let templ = std::new<Template>()
     templ.params = params
     templ.instances = Vector<&TemplateInstance>::new()
     return templ
@@ -94,7 +94,7 @@ def Symbol::out_name(&this): str {
 }
 
 def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_name: str, span: Span): &Symbol {
-    let item = calloc(1, sizeof(Symbol)) as &Symbol
+    let item = std::new<Symbol>()
     item.name = name
     item.display = display
     item.full_name = full_name
@@ -157,7 +157,7 @@ struct Scope {
 }
 
 def Scope::new(parent: &Scope): &Scope {
-    let scope = calloc(1, sizeof(Scope)) as &Scope
+    let scope = std::new<Scope>()
     scope.items = Map<str, &Symbol>::new()
     scope.defers = Vector<&AST>::new()
     if parent? {

@@ -2,7 +2,7 @@
 
 import std::vector::Vector
 import std::span::Span
-import std::libc::{free, strsep, exit, calloc, getenv as get_environment_variable}
+import std::libc::{free, strsep, exit, getenv as get_environment_variable}
 
 enum ErrorType {
     Standard
@@ -125,7 +125,7 @@ def Error::panic(&this) exits {
 }
 
 def Error::new(span: Span, msg: str): &Error {
-    let err = calloc(1, sizeof(Error)) as &Error
+    let err = std::new<Error>()
     err.type = ErrorType::Standard
     err.msg1 = msg
     err.span1 = span
@@ -133,7 +133,7 @@ def Error::new(span: Span, msg: str): &Error {
 }
 
 def Error::new_note(span: Span, msg: str, note: str): &Error {
-    let err = calloc(1, sizeof(Error)) as &Error
+    let err = std::new<Error>()
     err.type = ErrorType::WithNote
     err.msg1 = msg
     err.span1 = span
@@ -142,7 +142,7 @@ def Error::new_note(span: Span, msg: str, note: str): &Error {
 }
 
 def Error::new_hint(span: Span, msg: str, span2: Span, hint: str): &Error {
-    let err = calloc(1, sizeof(Error)) as &Error
+    let err = std::new<Error>()
     err.type = ErrorType::WithHint
     err.msg1 = msg
     err.span1 = span

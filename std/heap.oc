@@ -16,7 +16,7 @@ struct Heap<T> {
 }
 
 def Heap::new(mode: Mode, capacity: u32 = 32): &Heap<T> {
-    let heap = calloc(1, sizeof(Heap<T>)) as &Heap<T>
+    let heap = std::new<Heap<T>>()
     heap.min_heap = mode == Mode::Min
     heap.vec = Vector<T>::new(capacity)
     return heap

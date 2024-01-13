@@ -27,7 +27,7 @@ def Map::new(capacity: u32 = 16): &Map<K, V> {
     for let i = 0; i < capacity; i++ {
         indices[i] = INDEX_FREE
     }
-    let map = calloc(1, sizeof(Map<K, V>)) as &Map<K, V>
+    let map = std::new<Map<K, V>>()
     map.items = items
     map.indices = indices
     map.capacity = capacity

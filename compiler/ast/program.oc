@@ -47,7 +47,7 @@ struct Namespace {
 }
 
 def Namespace::new(parent: &Namespace, path: str): &Namespace {
-    let ns = calloc(1, sizeof(Namespace)) as &Namespace
+    let ns = std::new<Namespace>()
     ns.parent = parent
     let parent_scope = if parent? then parent.scope else null
     ns.scope = Scope::new(parent_scope)
@@ -121,7 +121,7 @@ struct Program {
 }
 
 def Program::new(): &Program {
-    let prog = calloc(1, sizeof(Program)) as &Program
+    let prog = std::new<Program>()
     prog.global = Namespace::new(null, "")
     prog.ordered_structs = Vector<&Structure>::new()
     prog.global.sym = Symbol::new(

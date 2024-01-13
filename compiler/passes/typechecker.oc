@@ -1565,7 +1565,7 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
             buffer.puts("{{")
             buffer.putsf(linked_part)
             buffer.puts("}}")
-            std::libc::free(part)
+            std::free(part)
 
             prev = i + 2
             i++
