@@ -82,7 +82,13 @@ def Parser::parse_value(&this): &Value => match .token().type {
     IntLiteral => {
         let json = Value::new(ValueType::Integer)
         let tok = .consume(TokenType::IntLiteral)
-        json.u.as_num = tok.text.to_i32() as i64
+        json.u.as_int = tok.text.to_i32() as i64
+        yield json
+    }
+    FloatLiteral => {
+        let json = Value::new(ValueType::Float)
+        let tok = .consume(TokenType::FloatLiteral)
+        json.u.as_float = std::libc::strtod(tok.text, null)
         yield json
     }
     StringLiteral => {
@@ -92,6 +98,23 @@ def Parser::parse_value(&this): &Value => match .token().type {
     }
     OpenCurly => .parse_object()
     OpenSquare => .parse_array()
+    Minus => {
+        .consume(TokenType::Minus)
+        let next = .parse_value()
+        match next.type {
+            Integer => {
+                next.u.as_int = -next.u.as_int
+            }
+            Float => {
+                next.u.as_float = -next.u.as_float
+            }
+            else => {
+                println("Unexpected token in json::Parser::parse_value: %s", next.type.str())
+                exit(1)
+            }
+        }
+        yield next
+    }
     else => {
         println("Unexpected token in json::Parser::parse_value: %s", .token().type.str())
         exit(1)
@@ -130,7 +153,8 @@ def serialize_into(val: &Value, sb: &Buffer) {
     match val.type {
         Null => sb.puts("null")
         Bool => sb.puts(if val.u.as_bool "true" else "false")
-        Integer => sb.putsf(`{val.u.as_num}`)
+        Integer => sb.putsf(`{val.u.as_int}`)
+        Float => sb.putsf(`{val.u.as_float}`)
         String => {
             sb.puts("\"")
             let buf = val.u.as_str

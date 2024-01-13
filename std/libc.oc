@@ -45,6 +45,8 @@ def isspace(c: char): bool extern
 
 def strtoll(s: str, endptr: &str, base: i32 = 10): i64 extern
 def strtoul(s: str, endptr: &str, base: i32 = 10): u64 extern
+def strtof(s: str, endptr: &str): f32 extern
+def strtod(s: str, endptr: &str): f64 extern
 
 // unistd.h
 @compiler c_include "sys/types.h"
