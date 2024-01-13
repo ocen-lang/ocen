@@ -1,8 +1,7 @@
-import std::buffer::Buffer
-import std::bufferio::BufferIO
-import std::libc::memset
-import std::image::Image
-import std::vec::Vec
+import std::buffer::{ Buffer }
+import std::bufferio::{ BufferIO }
+import std::libc::{ memset }
+import std::image::{ Image }
 
 struct RGBA {
     r: u8,

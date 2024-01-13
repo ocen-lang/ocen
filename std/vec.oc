@@ -1,69 +1,137 @@
-//* Mathematical vector library
-
 import std::math
+import std::traits::hash::pair_hash
 
-//* A type representing a 3D vector
-struct Vec {
-    x: f32
-    y: f32
-    z: f32
+struct Vec2<T> {
+    x: T
+    y: T
 }
 
-def Vec::print(this) {
+typedef Vec2f = Vec2<f32>
+typedef Vec2i = Vec2<i32>
+typedef Vec2u = Vec2<u32>
+typedef Vec2f64 = Vec2<f64>
+typedef Vec2i64 = Vec2<i64>
+typedef Vec2u64 = Vec2<u64>
+
+def Vec2::print(this) {
+    println(f"{.x} {.y}")
+}
+
+def Vec2::add(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x + other.x, .y + other.y)
+def Vec2::adds(this, val: T): Vec2<T> => Vec2<T>(.x + val, .y + val)
+
+def Vec2::sub(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x - other.x, .y - other.y)
+def Vec2::subs(this, val: T): Vec2<T> => Vec2<T>(.x - val, .y - val)
+
+def Vec2::mult(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x * other.x, .y * other.y)
+def Vec2::mults(this, val: T): Vec2<T> => Vec2<T>(.x * val, .y * val)
+
+def Vec2::div(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x / other.x, .y / other.y)
+def Vec2::divs(this, val: T): Vec2<T> => Vec2<T>(.x / val, .y / val)
+
+def Vec2::dot(this, other: Vec2<T>): T => .x * other.x + .y * other.y
+
+def Vec2::cross(this, other: Vec2<T>): T {
+    return .x * other.y - .y * other.x
+}
+
+def Vec2::length_sq(this): T => .x * .x + .y * .y
+def Vec2::length(this): f32 => ((.x * .x + .y * .y) as f32).sqrt()
+def Vec2::normalized(this): Vec2f {
+    let len = .length()
+    return Vec2f(.x as f32 / len, .y as f32 / len)
+}
+
+//! Only intended for {{Vec2<f32>}}
+def Vec2::reflect(this, normal: Vec2<T>): Vec2<T> => .sub(normal.mults(2 as T * .dot(normal)))
+
+def Vec2::rotate(&this, angle: f32): Vec2f {
+    let c = angle.cos()
+    let s = angle.sin()
+    return Vec2f(
+        .x as f32 * c - .y as f32 * s,
+        .x as f32 * s + .y as f32 * c,
+    )
+}
+
+def Vec2::hash(this): u32 => pair_hash(.x.hash(), .y.hash())
+def Vec2::eq(this, other: Vec2<T>): bool => .x == other.x and .y == other.y
+
+
+/////////// Vec3
+
+struct Vec3<T> {
+    x: T
+    y: T
+    z: T
+}
+
+typedef Vec3f = Vec3<f32>
+typedef Vec3i = Vec3<i32>
+typedef Vec3u = Vec3<u32>
+typedef Vec3f64 = Vec3<f64>
+typedef Vec3i64 = Vec3<i64>
+typedef Vec3u64 = Vec3<u64>
+
+def Vec3::print(this) {
     println("%f %f %f\n", .x, .y, .z)
 }
 
-def Vec::add(this, other: Vec): Vec => Vec(.x + other.x, .y + other.y, .z + other.z)
-def Vec::addf(this, val: f32): Vec => Vec(.x + val, .y + val, .z + val)
+def Vec3::add(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x + other.x, .y + other.y, .z + other.z)
+def Vec3::adds(this, val: T): Vec3<T> => Vec3<T>(.x + val, .y + val, .z + val)
 
-def Vec::sub(this, other: Vec): Vec => Vec(.x - other.x, .y - other.y, .z - other.z)
-def Vec::subf(this, val: f32): Vec => Vec(.x - val, .y - val, .z - val)
+def Vec3::sub(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x - other.x, .y - other.y, .z - other.z)
+def Vec3::subs(this, val: T): Vec3<T> => Vec3<T>(.x - val, .y - val, .z - val)
 
-def Vec::mult(this, other: Vec): Vec => Vec(.x * other.x, .y * other.y, .z * other.z)
-def Vec::multf(this, val: f32): Vec => Vec(.x * val, .y * val, .z * val)
+def Vec3::mult(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x * other.x, .y * other.y, .z * other.z)
+def Vec3::mults(this, val: T): Vec3<T> => Vec3<T>(.x * val, .y * val, .z * val)
 
-def Vec::div(this, other: Vec): Vec => Vec(.x / other.x, .y / other.y, .z / other.z)
-def Vec::divf(this, val: f32): Vec => Vec(.x / val, .y / val, .z / val)
+def Vec3::div(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x / other.x, .y / other.y, .z / other.z)
+def Vec3::divs(this, val: T): Vec3<T> => Vec3<T>(.x / val, .y / val, .z / val)
 
-def Vec::dot(this, other: Vec): f32 => .x * other.x + .y * other.y + .z * other.z
+def Vec3::dot(this, other: Vec3<T>): T => .x * other.x + .y * other.y + .z * other.z
 
-def Vec::cross(this, other: Vec): Vec {
-    return Vec(
+def Vec3::cross(this, other: Vec3<T>): Vec3<T> {
+    return Vec3<T>(
         .y * other.z - .z * other.y,
         .z * other.x - .x * other.z,
         .x * other.y - .y * other.x,
     )
 }
 
-
-def Vec::length(this): f32 => (.x * .x + .y * .y + .z * .z).sqrt()
-def Vec::length_sq(this): f32 => .x * .x + .y * .y + .z * .z
-def Vec::normalized(this): Vec => .divf(.length())
-
-def Vec::reflect(this, normal: Vec): Vec {
-    return .sub(normal.multf(2.0 * .dot(normal)));
+def Vec3::length_sq(this): T => .x * .x + .y * .y + .z * .z
+def Vec3::length(this): f32 => ((.x * .x + .y * .y + .z * .z) as f32).sqrt()
+def Vec3::normalized(this): Vec3f {
+    let len = .length()
+    return Vec3f(.x as f32 / len, .y as f32 / len, .z as f32 / len)
 }
 
-def Vec::rotateX(&this, angle: f32): Vec {
+//! Only intended for {{Vec3<f32>}}
+def Vec3::reflect(this, normal: Vec3<T>): Vec3<T> => .sub(normal.mults(2 as T * .dot(normal)))
+
+def Vec3::rotateX(&this, angle: f32): Vec3f {
     let c = angle.cos()
     let s = angle.sin()
-    let y = .y * c - .z * s
-    let z = .y * s + .z * c
-    return Vec(.x, y, z)
+    let y = .y as f32 * c - .z as f32 * s
+    let z = .y as f32 * s + .z as f32 * c
+    return Vec3f(.x as f32, y, z)
 }
 
-def Vec::rotateY(&this, angle: f32): Vec {
+def Vec3::rotateY(&this, angle: f32): Vec3f {
     let c = angle.cos()
     let s = angle.sin()
-    let z = .z * c - .x * s
-    let x = .z * s + .x * c
-    return Vec(x, .y, z)
+    let z = .z as f32 * c - .x as f32 * s
+    let x = .z as f32 * s + .x as f32 * c
+    return Vec3f(x, .y as f32, z)
 }
 
-def Vec::rotateZ(&this, angle: f32): Vec {
+def Vec3::rotateZ(&this, angle: f32): Vec3f {
     let c = angle.cos()
     let s = angle.sin()
-    let x = .x * c - .y * s
-    let y = .x * s + .y * c
-    return Vec(x, y, .z)
+    let x = .x as f32 * c - .y as f32 * s
+    let y = .x as f32 * s + .y as f32 * c
+    return Vec3f(x, y, .z as f32)
 }
+
+def Vec3::hash(this): u32 => pair_hash(.x.hash(), pair_hash(.y.hash(), .z.hash()))
+def Vec3::eq(this, other: Vec3<T>): bool => .x == other.x and .y == other.y and .z == other.z

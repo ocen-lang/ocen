@@ -1,7 +1,7 @@
 // Make raytracer go brrr
 @compiler c_flag "-O3"
 
-import std::vec::Vec
+import std::vec::{ Vec3f as Vec }
 import std::vector::Vector
 import std::image::{ Image, Color }
 import std::math::{ rand01 }
@@ -10,7 +10,7 @@ import std::libc::malloc
 const TOL: f32 = 0.00001;
 
 def random_vec(): Vec {
-    return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
+    return Vec(rand01(), rand01(), rand01()).mults(2.0).subs(1.0);
 }
 
 def random_vec_unit(): Vec {
@@ -29,7 +29,7 @@ struct Ray {
 }
 
 def Ray::at(&this, t: f32): Vec {
-    return .dir.multf(t).add(.ori);
+    return .dir.mults(t).add(.ori);
 }
 
 struct Sphere {
@@ -71,10 +71,10 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec, col: &Vec): bool {
 
 def background_color(ray: &Ray): Vec {
     let t = 0.5 * (ray.dir.y + 1.0)
-    let col2 = Vec(1.0, 1.0, 1.0).multf(1.0-t)
+    let col2 = Vec(1.0, 1.0, 1.0).mults(1.0-t)
 
     let res = Vec(0.5, 0.7, 1.0)
-    return res.multf(t).add(col2)
+    return res.mults(t).add(col2)
 }
 
 def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, obj_col: &Vec): i32 {
@@ -138,8 +138,8 @@ def main() {
     let vertical = Vec(0.0, viewport_height, 0.0)
 
     let ll_corner = (origin
-        .sub(horizontal.divf(2.0))
-        .sub(vertical.divf(2.0))
+        .sub(horizontal.divs(2.0))
+        .sub(vertical.divs(2.0))
         .sub(Vec(0.0, 0.0, focal_length)))
 
     let img = Image::new(image_width, image_height);
@@ -157,14 +157,14 @@ def main() {
                 let ray: Ray
                 ray.ori = origin
                 ray.dir = (ll_corner
-                    .add(horizontal.multf(u))
-                    .add(vertical.multf(v))
+                    .add(horizontal.mults(u))
+                    .add(vertical.mults(v))
                     .sub(origin)
                     .normalized())
                 let color = raytrace(&ray, objs, 5)
                 total_col = total_col.add(color)
             }
-            total_col = total_col.multf(div_factor * 255.0)
+            total_col = total_col.mults(div_factor * 255.0)
             let u8col = Color(
                 total_col.x as u8,
                 total_col.y as u8,
