@@ -1,0 +1,64 @@
+import std::image::Image
+
+def line_f(img: &Image, x1: f32, y1: f32, x2: f32, y2: f32, color: Color) {
+    // line algorithm
+    let dx = x2 - x1
+    let dy = y2 - y1
+
+    let xt: f32
+    let yt: f32
+
+    if dx.abs() >= dy.abs() {
+        if x2 < x1 {
+            xt = x1; x1 = x2; x2 = xt
+            yt = y1; y1 = y2; y2 = yt
+        }
+
+        let y = y1
+        let inc = (y2 - y1) / (x2 - x1)
+
+        for let x = x1; x <= x2; x += 1.0 {
+            if 0 <= x as u32 < img.width and 0 <= y as u32 < img.height {
+                img.set(x as u32, y as u32, color)
+            }
+
+            y += inc
+        }
+
+    } else {
+        if y2 < y1 {
+            xt = x1; x1 = x2; x2 = xt
+            yt = y1; y1 = y2; y2 = yt
+        }
+
+        let x = x1
+        let inc = (x2 - x1) / (y2 - y1)
+
+        for let y = y1; y <= y2; y += 1.0 {
+            if 0 <= x as u32 < img.width and 0 <= y as u32 < img.height {
+                img.set(x as u32, y as u32, color)
+            }
+
+            x += inc
+        }
+    }
+}
+
+def line(img: &Image, x1: i32, y1: i32, x2: i32, y2: i32, color: Color) {
+    line_f(img, x1 as f32, y1 as f32, x2 as f32, y2 as f32, color)
+}
+
+def circle_f(img: &Image, x: f32, y: f32, radius: f32, color: Color, segments: u32 = 100) {
+    let dt = 6.2831852 / segments as f32
+    for let i = 0; i < segments; i += 1 {
+        let x0 = x + radius * (i as f32 * dt).cos()
+        let y0 = y + radius * (i as f32 * dt).sin()
+        let x1 = x + radius * ((i + 1) as f32 * dt).cos()
+        let y1 = y + radius * ((i + 1) as f32 * dt).sin()
+        line_f(img, x0, y0, x1, y1, color)
+    }
+}
+
+def circle(img: &Image, x: i32, y: i32, radius: i32, color: Color, segments: u32 = 100) {
+    circle_f(img, x as f32, y as f32, radius as f32, color, segments)
+}

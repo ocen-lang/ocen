@@ -43,11 +43,22 @@ def TypeChecker::resolve_type(
 
     let resolved = old
     match old.base {
-        Pointer | Alias => {
+        Pointer => {
             let ptr = .resolve_type(old.u.ptr, p_a, p_e, p_r)
             if not ptr? return null
             resolved = Type::shallow_copy(old)
             resolved.u.ptr = ptr
+        }
+        Alias => {
+            if not old.u.ptr? {
+                println(f"Got unresolved type: {old:p}")
+                .error(Error::new_note(
+                    old.span, "This type does not point to anything",
+                    "Cannot use a typedef for a type when defining any of it's members.\nUse fully qualified type for all field / method definitions."
+                ))
+                return null
+            }
+            return .resolve_type(old.u.ptr, p_a, p_e, p_r)
         }
         Function => {
             let checked_params = Vector<&Variable>::new()
@@ -454,7 +465,10 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
     node.u.call.is_constructor = true
 
     let callee = node.u.call.callee
-    let struc = callee.resolved_symbol.u.struc
+    let type_sym = callee.resolved_symbol.remove_alias()
+
+    assert type_sym.type == Structure, `Got non-struct type in check_constructor: {type_sym.type}`
+    let struc = type_sym.u.struc
 
     let params = struc.fields
 
@@ -525,7 +539,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             callee.resolved_symbol = sym
 
             yield match sym.type {
-                Structure => {
+                Structure | TypeDef => {
                     return .check_constructor(node)
                 }
                 else => .check_expression(callee)
@@ -1904,6 +1918,7 @@ def TypeChecker::check_pre_import(&this, ns: &Namespace) {
         // FIXME: Why is there a `typedef` and `alias` at symbol/type level? Only one
         // should really be sufficient.
         let res = .resolve_type(it.value)
+        sym.u.type_def.u.ptr = res
         sym.u.type_def = res
         it.value = res
     }

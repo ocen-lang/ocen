@@ -1,7 +1,6 @@
 import std::fft::{ fft2, ifft2 }
 import std::math::{ TAU }
 import std::image::{ Image, Color }
-import std::vec::Vec
 import std::complex::Complex
 import std::libc::{ free, memcpy }
 import std::sort::sort

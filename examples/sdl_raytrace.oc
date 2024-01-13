@@ -1,5 +1,5 @@
 import std::sdl::{this, ttf::{this, Font}}
-import std::vec::Vec
+import std::vec::{ Vec3f as Vec }
 import std::vector::Vector
 import std::math::{ rand01 }
 import std::libc::{ calloc, free }
@@ -10,7 +10,7 @@ import std::libc::{ calloc, free }
 let TOL: f32 = 0.00001;
 
 def random_vec(): Vec {
-    return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
+    return Vec(rand01(), rand01(), rand01()).mults(2.0).subs(1.0);
 }
 
 def random_vec_unit(): Vec {
@@ -29,7 +29,7 @@ struct Ray {
 }
 
 def Ray::at(&this, t: f32): Vec {
-    return .dir.multf(t).add(.ori);
+    return .dir.mults(t).add(.ori);
 }
 
 enum Material {
@@ -77,10 +77,10 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
 
 def background_color(ray: &Ray): Vec {
     let t = 0.5 * (ray.dir.y + 1.0)
-    let col2 = Vec(1.0, 1.0, 1.0).multf(1.0-t)
+    let col2 = Vec(1.0, 1.0, 1.0).mults(1.0-t)
 
     let res = Vec(0.5, 0.7, 1.0)
-    return res.multf(t).add(col2)
+    return res.mults(t).add(col2)
 }
 
 def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
@@ -116,7 +116,7 @@ def raytrace(ray: &Ray, objs: &Vector<&Sphere>, depth: i32): Vec {
     ray.ori = ray.at(t)
     match obj.mat {
         Diffuse => ray.dir = random_vec_unit().add(n).normalized().normalized()
-        Mirror => ray.dir = ray.dir.reflect(n).add(random_vec_unit().multf(obj.fuzz)).normalized()
+        Mirror => ray.dir = ray.dir.reflect(n).add(random_vec_unit().mults(obj.fuzz)).normalized()
     }
 
     let rec_col = raytrace(ray, objs, depth - 1)
@@ -157,15 +157,15 @@ def Camera::make(origin: Vec, direction: Vec): Camera {
     cam.origin = origin
     cam.direction = direction.normalized()
 
-    cam.w = cam.direction.multf(-1.0)
+    cam.w = cam.direction.mults(-1.0)
     cam.u = up.cross(cam.w).normalized()
     cam.v = cam.w.cross(cam.u)
 
-    cam.horizontal = cam.u.multf(-viewport_width)
-    cam.vertical = cam.v.multf(viewport_height)
+    cam.horizontal = cam.u.mults(-viewport_width)
+    cam.vertical = cam.v.mults(viewport_height)
     cam.ll_corner = (cam.origin
-        .sub(cam.horizontal.divf(2.0))
-        .sub(cam.vertical.divf(2.0))
+        .sub(cam.horizontal.divs(2.0))
+        .sub(cam.vertical.divs(2.0))
         .sub(cam.w))
 
     return cam
@@ -177,8 +177,8 @@ def Camera::ray(&this, x: u32, y: u32): Ray {
     let ray: Ray
     ray.ori = .origin
     ray.dir = (.ll_corner
-        .add(.horizontal.multf(u))
-        .add(.vertical.multf(v))
+        .add(.horizontal.mults(u))
+        .add(.vertical.mults(v))
         .sub(.origin)
         .normalized())
     return ray
@@ -267,12 +267,12 @@ def main() {
                     let cur_modified = true
                     match e.key.keysym.scancode {
                         Q | Escape => quit = true
-                        W => origin = origin.add(camera.w.multf(-0.1))
-                        S => origin = origin.add(camera.w.multf(0.1))
-                        A => origin = origin.add(camera.u.multf(0.1))
-                        D => origin = origin.add(camera.u.multf(-0.1))
-                        Z => origin = origin.add(camera.v.multf(-0.1))
-                        X => origin = origin.add(camera.v.multf(0.1))
+                        W => origin = origin.add(camera.w.mults(-0.1))
+                        S => origin = origin.add(camera.w.mults(0.1))
+                        A => origin = origin.add(camera.u.mults(0.1))
+                        D => origin = origin.add(camera.u.mults(-0.1))
+                        Z => origin = origin.add(camera.v.mults(-0.1))
+                        X => origin = origin.add(camera.v.mults(0.1))
 
                         Left => direction = direction.rotateY(-0.1)
                         Right => direction = direction.rotateY(0.1)

@@ -59,6 +59,7 @@ typedef enum std_value_ValueType {
   std_value_ValueType_Null,
   std_value_ValueType_Bool,
   std_value_ValueType_Integer,
+  std_value_ValueType_Float,
   std_value_ValueType_String,
   std_value_ValueType_List,
   std_value_ValueType_Dictionary,
@@ -69,6 +70,7 @@ char *std_value_ValueType_dbg(std_value_ValueType this) {
     case std_value_ValueType_Null: return "Null";
     case std_value_ValueType_Bool: return "Bool";
     case std_value_ValueType_Integer: return "Integer";
+    case std_value_ValueType_Float: return "Float";
     case std_value_ValueType_String: return "String";
     case std_value_ValueType_List: return "List";
     case std_value_ValueType_Dictionary: return "Dictionary";
@@ -687,7 +689,8 @@ struct std_span_Span {
 
 union std_value_ValueUnion {
   bool as_bool;
-  i64 as_num;
+  i64 as_int;
+  f64 as_float;
   std_buffer_Buffer as_str;
   std_vector_Vector__0 *as_list;
   std_compact_map_Map__0 *as_dict;
@@ -4271,7 +4274,10 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
       std_buffer_Buffer_puts(sb, (val->u.as_bool ? "true" : "false"));
     } break;
     case std_value_ValueType_Integer: {
-      std_buffer_Buffer_putsf(sb, format_string("%" PRId64 "", val->u.as_num));
+      std_buffer_Buffer_putsf(sb, format_string("%" PRId64 "", val->u.as_int));
+    } break;
+    case std_value_ValueType_Float: {
+      std_buffer_Buffer_putsf(sb, format_string("%f", val->u.as_float));
     } break;
     case std_value_ValueType_String: {
       std_buffer_Buffer_puts(sb, "\"");
@@ -6137,14 +6143,21 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
   bool p_r = resolve_templates;
   types_Type *resolved = old;
   switch (old->base) {
-    case types_BaseType_Pointer:
-    case types_BaseType_Alias: {
+    case types_BaseType_Pointer: {
       types_Type *ptr = passes_typechecker_TypeChecker_resolve_type(this, old->u.ptr, p_a, p_e, p_r);
       if (!((bool)ptr)) 
       return NULL;
       
       resolved=types_Type_shallow_copy(old);
       resolved->u.ptr=ptr;
+    } break;
+    case types_BaseType_Alias: {
+      if (!((bool)old->u.ptr)) {
+        printf("Got unresolved type: %p\n", old);
+        passes_typechecker_TypeChecker_error(this, errors_Error_new_note(old->span, "This type does not point to anything", "Cannot use a typedef for a type when defining any of it's members.\nUse fully qualified type for all field / method definitions."));
+        return NULL;
+      } 
+      return passes_typechecker_TypeChecker_resolve_type(this, old->u.ptr, p_a, p_e, p_r);
     } break;
     case types_BaseType_Function: {
       std_vector_Vector__7 *checked_params = std_vector_Vector__7_new(((u32)16));
@@ -6185,7 +6198,7 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
             } 
             resolved=res->u.struc->type;
             if ((node->type==ast_nodes_ASTType_Specialization && ast_scopes_Symbol_is_templated(res))) {
-              ae_assert(!resolve_templates, "compiler/passes/typechecker.oc:87:36: Assertion failed: `not resolve_templates`", "Should have been errored in resolve_scoped_identifier");              types_Type *type = types_Type_new_resolved(types_BaseType_UnresolvedTemplate, node->span);
+              ae_assert(!resolve_templates, "compiler/passes/typechecker.oc:98:36: Assertion failed: `not resolve_templates`", "Should have been errored in resolve_scoped_identifier");              types_Type *type = types_Type_new_resolved(types_BaseType_UnresolvedTemplate, node->span);
               type->u.unresolved_spec=(types_UnresolvedTemplate){.base=resolved, .args=node->u.spec.template_args};
               resolved=type;
             } 
@@ -6201,7 +6214,7 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
             } 
             resolved=res->u.func->type;
             if ((node->type==ast_nodes_ASTType_Specialization && ast_scopes_Symbol_is_templated(res))) {
-              ae_assert(!resolve_templates, "compiler/passes/typechecker.oc:104:36: Assertion failed: `not resolve_templates`", "Should have been errored in resolve_scoped_identifier");              types_Type *type = types_Type_new_resolved(types_BaseType_UnresolvedTemplate, node->span);
+              ae_assert(!resolve_templates, "compiler/passes/typechecker.oc:115:36: Assertion failed: `not resolve_templates`", "Should have been errored in resolve_scoped_identifier");              types_Type *type = types_Type_new_resolved(types_BaseType_UnresolvedTemplate, node->span);
               type->u.unresolved_spec=(types_UnresolvedTemplate){.base=resolved, .args=node->u.spec.template_args};
               resolved=type;
             } 
@@ -6539,7 +6552,8 @@ types_Type *passes_typechecker_TypeChecker_check_internal_print(passes_typecheck
 types_Type *passes_typechecker_TypeChecker_check_constructor(passes_typechecker_TypeChecker *this, ast_nodes_AST *node) {
   node->u.call.is_constructor=true;
   ast_nodes_AST *callee = node->u.call.callee;
-  ast_nodes_Structure *struc = callee->resolved_symbol->u.struc;
+  ast_scopes_Symbol *type_sym = ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
+  ae_assert(type_sym->type==ast_scopes_SymbolType_Structure, "compiler/passes/typechecker.oc:470:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", ast_scopes_SymbolType_dbg(type_sym->type)));  ast_nodes_Structure *struc = type_sym->u.struc;
   std_vector_Vector__7 *params = struc->fields;
   passes_typechecker_TypeChecker_check_call_args(this, node, params);
   return struc->type;
@@ -6600,7 +6614,8 @@ types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChe
         callee->resolved_symbol=sym;
         __yield_0 = ({ types_Type *__yield_1;
           switch (sym->type) {
-            case ast_scopes_SymbolType_Structure: {
+            case ast_scopes_SymbolType_Structure:
+            case ast_scopes_SymbolType_TypeDef: {
               return passes_typechecker_TypeChecker_check_constructor(this, node);
             } break;
             default: {
@@ -7995,7 +8010,8 @@ void passes_typechecker_TypeChecker_check_pre_import(passes_typechecker_TypeChec
     std_map_Item__2 *it = std_map_Iterator__2_cur(&__iter);
     {
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1901:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1902:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1915:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1916:16: Assertion failed: `sym.type == TypeDef`", NULL);      types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, true, true);
+      sym->u.type_def->u.ptr=res;
       sym->u.type_def=res;
       it->value=res;
     }
@@ -8210,17 +8226,39 @@ void passes_mark_dead_code_MarkDeadCode_mark_function(passes_mark_dead_code_Mark
 }
 
 void passes_mark_dead_code_MarkDeadCode_mark_type(passes_mark_dead_code_MarkDeadCode *this, types_Type *typ) {
-  if (((bool)typ)) {
-    passes_mark_dead_code_MarkDeadCode_mark_sym(this, typ->sym);
-    if (((bool)typ->template_instance)) {
-      for (std_vector_Iterator__3 __iter = std_vector_Vector__3_iter(typ->template_instance->args); std_vector_Iterator__3_has_value(&__iter); std_vector_Iterator__3_next(&__iter)) {
-        types_Type *arg = std_vector_Iterator__3_cur(&__iter);
+  if (!((bool)typ)) 
+  return ;
+  
+  switch (typ->base) {
+    case types_BaseType_Pointer:
+    case types_BaseType_Alias: {
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, typ->u.ptr);
+    } break;
+    case types_BaseType_Array: {
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, typ->u.arr.elem_type);
+    } break;
+    case types_BaseType_Function: {
+      types_FunctionType ft = typ->u.func;
+      passes_mark_dead_code_MarkDeadCode_mark_type(this, ft.return_type);
+      for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(ft.params); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
+        ast_nodes_Variable *param = std_vector_Iterator__7_cur(&__iter);
         {
-          passes_mark_dead_code_MarkDeadCode_mark_type(this, arg);
+          passes_mark_dead_code_MarkDeadCode_mark_type(this, param->type);
         }
       }
-    } 
-  } 
+    } break;
+    default: {
+      passes_mark_dead_code_MarkDeadCode_mark_sym(this, typ->sym);
+      if (((bool)typ->template_instance)) {
+        for (std_vector_Iterator__3 __iter = std_vector_Vector__3_iter(typ->template_instance->args); std_vector_Iterator__3_has_value(&__iter); std_vector_Iterator__3_next(&__iter)) {
+          types_Type *arg = std_vector_Iterator__3_cur(&__iter);
+          {
+            passes_mark_dead_code_MarkDeadCode_mark_type(this, arg);
+          }
+        }
+      } 
+    } break;
+  }
 }
 
 void passes_mark_dead_code_MarkDeadCode_mark_struct(passes_mark_dead_code_MarkDeadCode *this, ast_nodes_Structure *s) {
