@@ -59,11 +59,23 @@ def MarkDeadCode::mark_function(&this, f: &Function) {
 }
 
 def MarkDeadCode::mark_type(&this, typ: &Type) {
-    if typ? {
-        .mark_sym(typ.sym)
-        if typ.template_instance? {
-            for arg : typ.template_instance.args.iter() {
-                .mark_type(arg)
+    if not typ? return
+    match typ.base {
+        Pointer | Alias => .mark_type(typ.u.ptr)
+        Array => .mark_type(typ.u.arr.elem_type)
+        Function => {
+            let ft = typ.u.func
+            .mark_type(ft.return_type)
+            for param : ft.params.iter() {
+                .mark_type(param.type)
+            }
+        }
+        else => {
+            .mark_sym(typ.sym)
+            if typ.template_instance? {
+                for arg : typ.template_instance.args.iter() {
+                    .mark_type(arg)
+                }
             }
         }
     }
@@ -71,8 +83,8 @@ def MarkDeadCode::mark_type(&this, typ: &Type) {
 
 def MarkDeadCode::mark_struct(&this, s: &Structure) {
     if not s? or .done.contains(s as u64) return
-
     .done.add(s as u64)
+
     s.is_dead = false
     for field : s.fields.iter() {
         .mark_type(field.type)

@@ -11,6 +11,7 @@ enum ValueType {
     Null
     Bool
     Integer
+    Float
     String
     List
     Dictionary
@@ -20,7 +21,8 @@ def ValueType::str(this): str => .dbg()
 
 union ValueUnion {
     as_bool: bool
-    as_num: i64
+    as_int: i64
+    as_float: f64
     as_str: Buffer
     as_list: &Vector<&Value>
     as_dict: &Map<str, &Value>
@@ -62,9 +64,15 @@ def Value::new_bool(bul: bool): &Value {
     return val
 }
 
-def Value::new_number(num: i64): &Value {
+def Value::new_int(num: i64): &Value {
     let val = Value::new(Integer)
-    val.u.as_num = num
+    val.u.as_int = num
+    return val
+}
+
+def Value::new_float(num: f64): &Value {
+    let val = Value::new(Float)
+    val.u.as_float = num
     return val
 }
 
@@ -121,9 +129,14 @@ def Value::as_bool(&this): bool {
     return .u.as_bool
 }
 
-def Value::as_num(&this): i64 {
+def Value::as_int(&this): i64 {
     .ensure(Integer)
-    return .u.as_num
+    return .u.as_int
+}
+
+def Value::as_float(&this): f64 {
+    .ensure(Float)
+    return .u.as_float
 }
 
 def Value::as_str(&this): Buffer {
