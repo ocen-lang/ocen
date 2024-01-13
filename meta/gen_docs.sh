@@ -27,5 +27,8 @@ import .docgen
 EOF
 
 ./bootstrap/ocen compiler/doc.oc --docs $1
+EXIT_CODE=$?
 
 rm compiler/doc.oc
+
+exit $EXIT_CODE
