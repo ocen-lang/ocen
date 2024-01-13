@@ -8,7 +8,7 @@ struct Set<T> {
 }
 
 def Set::new(): &Set<T> {
-    let set = calloc(1, sizeof(Set<T>)) as &Set<T>
+    let set = std::new<Set<T>>()
     set.map = Map<T, bool>::new()
     return set
 }

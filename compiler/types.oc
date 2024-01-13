@@ -105,13 +105,13 @@ struct Type {
 }
 
 def Type::shallow_copy(old: &Type): &Type {
-    let new = calloc(1, sizeof(Type)) as &Type
+    let new = std::new<Type>()
     *new = *old
     return new
 }
 
 def Type::new_resolved(base: BaseType, span: Span): &Type {
-    let type = calloc(1, sizeof(Type)) as &Type
+    let type = std::new<Type>()
     type.base = base
     type.span = span
     type.name = base.str()

@@ -121,7 +121,7 @@ struct Variable {
 }
 
 def Variable::new(type: &Type): &Variable {
-    let var = calloc(1, sizeof(Variable)) as &Variable
+    let var = std::new<Variable>()
     var.type = type
     var.parsed_type = type
     return var
@@ -142,7 +142,7 @@ struct Structure {
 }
 
 def Structure::new(): &Structure {
-    let struc = calloc(1, sizeof(Structure)) as &Structure
+    let struc = std::new<Structure>()
     struc.fields = Vector<&Variable>::new()
     return struc
 }
@@ -165,7 +165,7 @@ struct Enum {
 }
 
 def Enum::new(): &Enum {
-    let enum_ = calloc(1, sizeof(Enum)) as &Enum
+    let enum_ = std::new<Enum>()
     enum_.fields = Vector<&Variable>::new()
     return enum_
 }
@@ -197,7 +197,7 @@ struct Function {
 }
 
 def Function::new(): &Function {
-    let func = calloc(1, sizeof(Function)) as &Function
+    let func = std::new<Function>()
     func.params = Vector<&Variable>::new()
     return func
 }
@@ -221,7 +221,7 @@ struct Argument {
 }
 
 def Argument::new(label: str, label_span: Span, expr: &AST): &Argument {
-    let arg = calloc(1, sizeof(Argument)) as &Argument
+    let arg = std::new<Argument>()
     arg.expr = expr
     arg.label = label
     arg.label_span = label_span
@@ -262,7 +262,7 @@ struct ImportPart {
 }
 
 def ImportPart::new(type: ImportPartType, span: Span): &ImportPart {
-    let part = calloc(1, sizeof(ImportPart)) as &ImportPart
+    let part = std::new<ImportPart>()
     part.type = type
     part.span = span
     return part
@@ -347,7 +347,7 @@ struct MatchCase {
 }
 
 def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
-    let _case = calloc(1, sizeof(MatchCase)) as &MatchCase
+    let _case = std::new<MatchCase>()
     _case.cond = cond
     _case.body = body
     return _case
@@ -401,7 +401,7 @@ struct AST {
 }
 
 def AST::new(type: ASTType, span: Span): &AST {
-    let ast = calloc(1, sizeof(AST)) as &AST
+    let ast = std::new<AST>()
     ast.type = type
     ast.span = span
     return ast

@@ -79,7 +79,7 @@ def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verb
 def FFMPEGContext::finish(&this): bool {
     let pipe = .pipe;
     let pid = .pid;
-    std::libc::free(this)
+    std::free(this)
 
     if (close(pipe) < 0) {
         println(`FFMPEG: Could not close pipe`);
@@ -135,9 +135,9 @@ def FFMPEGContext::send_frame(&this, img: &Image): bool {
     }
     if write(.pipe, data, .width * img.height * 4) < 0 {
         println(`FFMPEG: Could not write to pipe`)
-        std::libc::free(data)
+        std::free(data)
         return false
     }
-    std::libc::free(data)
+    std::free(data)
     return true
 }

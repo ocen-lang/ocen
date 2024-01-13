@@ -31,7 +31,7 @@ struct GenericPass {
 }
 
 def GenericPass::new(program: &Program): &GenericPass {
-    let pass = calloc(1, sizeof(GenericPass)) as &GenericPass
+    let pass = std::new<GenericPass>()
     pass.scope_stack = Vector<&Scope>::new()
     pass.namespace_stack = Vector<&Namespace>::new()
     pass.program = program

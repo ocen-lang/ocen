@@ -18,7 +18,7 @@ struct ReorderStructs {
 }
 
 def ReorderStructs::new(program: &Program): &ReorderStructs {
-    let pass = calloc(1, sizeof(ReorderStructs)) as &ReorderStructs
+    let pass = std::new<ReorderStructs>()
     *pass = ReorderStructs(
         o: GenericPass::new(program),
         all_structs: Vector<&Structure>::new(),

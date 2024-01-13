@@ -35,7 +35,7 @@ struct Value {
 }
 
 def Value::new(type: ValueType): &Value {
-    let val = calloc(1, sizeof(Value)) as &Value
+    let val = std::new<Value>()
     val.type = type
     match type {
         Dictionary => val.u.as_dict = Map<str, &Value>::new()

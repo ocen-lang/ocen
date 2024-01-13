@@ -9,7 +9,7 @@ struct List<T> {
 }
 
 def List::new(capacity: u32 = 16): &List<T> {
-    let list = calloc(1, sizeof(List<T>)) as &List<T>
+    let list = std::new<List<T>>()
     list.capacity = capacity
     list.data = calloc(capacity, sizeof(T)) as &T
     list.size = 0

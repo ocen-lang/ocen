@@ -2,7 +2,7 @@
 
 import std::buffer::Buffer
 import std::vector::Vector
-import std::libc::free
+import std::free
 import std::span::Span
 import @types::{ Type, BaseType }
 import @ast::nodes::*

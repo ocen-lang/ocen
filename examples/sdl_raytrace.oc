@@ -46,7 +46,7 @@ struct Sphere {
 }
 
 def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &Sphere {
-    let s = calloc(1, sizeof(Sphere)) as &Sphere
+    let s = std::new<Sphere>()
     *s = Sphere(mat, pos, color, radius, fuzz)
     return s
 }

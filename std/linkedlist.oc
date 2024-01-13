@@ -10,7 +10,7 @@ struct Node<T> {
 }
 
 def Node::new(val: T, next: &Node<T> = null, prev: &Node<T> = null): &Node<T> {
-    let node = calloc(1, sizeof(Node<T>)) as &Node<T>
+    let node = std::new<Node<T>>()
     node.value = val
     node.next = next
     node.prev = prev
@@ -24,7 +24,7 @@ struct LinkedList<T> {
 }
 
 def LinkedList::new(): &LinkedList<T> {
-    let ll = calloc(1, sizeof(LinkedList<T>)) as &LinkedList<T>
+    let ll = std::new<LinkedList<T>>()
     ll.head = null
     ll.tail = null
     ll.size = 0
