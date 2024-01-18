@@ -139,3 +139,8 @@ def u8::max(this, other: u8): u8 => if this > other then this else other
 
 def new<T>(count: u32 = 1): &T => libc::calloc(count, sizeof(T)) as &T
 def free(ptr: untyped_ptr) => libc::free(ptr)
+
+enum Endian {
+    Little
+    Big
+}

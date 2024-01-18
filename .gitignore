@@ -24,3 +24,5 @@ out
 *.ppm
 *.png
 *.qoi
+
+tmp/**

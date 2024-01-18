@@ -46,11 +46,11 @@ def QOIDecoder::make(data: &Buffer): QOIDecoder {
 }
 
 def QOIDecoder::decode(&this): &Image {
-    let magic = .io.read_u32_be()
+    let magic = .io.read_u32(endian: Little)
     assert magic == 0x716f6966, "Invalid magic number"
 
-    .width = .io.read_u32_be()
-    .height = .io.read_u32_be()
+    .width = .io.read_u32(endian: Little)
+    .height = .io.read_u32(endian: Little)
 
     .channels = .io.read_u8()
     .colorspace = .io.read_u8()
@@ -185,9 +185,9 @@ def QOIEncoder::make(img: &Image, buffer: &Buffer): QOIEncoder {
 }
 
 def QOIEncoder::encode_header(&this) {
-    .io.write_u32_be(0x716f6966) // Magic
-    .io.write_u32_be(.img.width)
-    .io.write_u32_be(.img.height)
+    .io.write_u32(0x716f6966, endian: Little) // Magic
+    .io.write_u32(.img.width, endian: Little)
+    .io.write_u32(.img.height, endian: Little)
     .io.write_u8(3) // Channels
     .io.write_u8(0) // Colorspace
 }

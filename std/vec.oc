@@ -1,6 +1,9 @@
+//! A simple vector library for 2D and 3D mathematical vectors.
+
 import std::math
 import std::traits::hash::pair_hash
 
+//! Template for a 2D vector
 struct Vec2<T> {
     x: T
     y: T
@@ -57,9 +60,16 @@ def Vec2::rotate(&this, angle: f32): Vec2f {
 def Vec2::hash(this): u32 => pair_hash(.x.hash(), .y.hash())
 def Vec2::eq(this, other: Vec2<T>): bool => .x == other.x and .y == other.y
 
+def Vec2::to_f32(this): Vec2f => Vec2f(.x as f32, .y as f32)
+def Vec2::to_i32(this): Vec2i => Vec2i(.x as i32, .y as i32)
+def Vec2::to_u32(this): Vec2u => Vec2u(.x as u32, .y as u32)
+def Vec2::to_f64(this): Vec2f64 => Vec2f64(.x as f64, .y as f64)
+def Vec2::to_i64(this): Vec2i64 => Vec2i64(.x as i64, .y as i64)
+def Vec2::to_u64(this): Vec2u64 => Vec2u64(.x as u64, .y as u64)
 
 /////////// Vec3
 
+//! Template for a 3D vector
 struct Vec3<T> {
     x: T
     y: T
@@ -135,3 +145,10 @@ def Vec3::rotateZ(&this, angle: f32): Vec3f {
 
 def Vec3::hash(this): u32 => pair_hash(.x.hash(), pair_hash(.y.hash(), .z.hash()))
 def Vec3::eq(this, other: Vec3<T>): bool => .x == other.x and .y == other.y and .z == other.z
+
+def Vec3::to_f32(this): Vec3f => Vec3f(.x as f32, .y as f32, .z as f32)
+def Vec3::to_i32(this): Vec3i => Vec3i(.x as i32, .y as i32, .z as i32)
+def Vec3::to_u32(this): Vec3u => Vec3u(.x as u32, .y as u32, .z as u32)
+def Vec3::to_f64(this): Vec3f64 => Vec3f64(.x as f64, .y as f64, .z as f64)
+def Vec3::to_i64(this): Vec3i64 => Vec3i64(.x as i64, .y as i64, .z as i64)
+def Vec3::to_u64(this): Vec3u64 => Vec3u64(.x as u64, .y as u64, .z as u64)

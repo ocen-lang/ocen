@@ -5,6 +5,7 @@
 //* and bytes of different sizes in different endiannesses.
 
 import std::buffer::Buffer
+import std::Endian
 
 struct BufferIO {
     data: &Buffer
@@ -18,38 +19,45 @@ def BufferIO::make(data: &Buffer): BufferIO {
     )
 }
 
-//* Read a signed 64-bit integer in big-endian format.
-def BufferIO::read_i64_be(&this): i64 { return .read_u64_be() as i64 }
-//* Read an unsigned 64-bit integer in big-endian format.
-def BufferIO::read_u64_be(&this): u64 {
+//* Read a signed 64-bit integer with the given endianness
+def BufferIO::read_i64(&this, endian: Endian = Little): i64 { return .read_u64(endian) as i64 }
+//* Read an unsigned 64-bit integer with the given endianness
+def BufferIO::read_u64(&this, endian: Endian = Little): u64 {
     let value = 0u64
     for let i = 0; i < 8; i += 1 {
-        value = value | .data.data[.index + i] as u64 << (56u64 - (i as u64) * 8)
+        let shift = if endian == Little then i else 7 - i
+        value = value | .data.data[.index + i] as u64 << (56u64 - shift as u64 * 8)
     }
     .index += 8
     return value as u64
 }
 
-//* Read a signed 32-bit integer in big-endian format.
-def BufferIO::read_i32_be(&this): i32 { return .read_u32_be() as i32 }
-//* Read an unsigned 32-bit integer in big-endian format.
-def BufferIO::read_u32_be(&this): u32 {
+//* Read a signed 32-bit integer with the given endianness
+def BufferIO::read_i32(&this, endian: Endian = Little): i32 { return .read_u32(endian) as i32 }
+//* Read an unsigned 32-bit integer with the given endianness
+def BufferIO::read_u32(&this, endian: Endian = Little): u32 {
     let value = 0
     for let i = 0; i < 4; i += 1 {
-        value = value | .data.data[.index + i] as u32 << (24u32 - (i as u32) * 8)
+        let shift = if endian == Little then i else 3 - i
+        value = value | .data.data[.index + i] as u32 << (24u32 - shift * 8)
     }
     .index += 4
     return value
 }
 
-//* Read `count` bytes from the buffer.
-def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
-    let dst = _dst as &u8
-    for let i = 0; i < count; i += 1 {
-        dst[i] = .data.data[.index as u32 + i]
+//* Read a signed 16-bit integer with the given endianness
+def BufferIO::read_i16(&this, endian: Endian = Little): i16 { return .read_u16(endian) as i16 }
+//* Read an unsigned 16-bit integer with the given endianness
+def BufferIO::read_u16(&this, endian: Endian = Little): u16 {
+    let value = 0u16
+    for let i = 0; i < 2; i += 1 {
+        let shift = if endian == Little then i else 1 - i
+        value = value | .data.data[.index + i] as u16 << (8u16 - shift as u16 * 8)
     }
-    .index  += count
+    .index += 2
+    return value as u16
 }
+
 
 //* Read a signed 8-bit integer
 def BufferIO::read_i8(&this): i8 { return .read_u8() as i8 }
@@ -60,54 +68,55 @@ def BufferIO::read_u8(&this): u8 {
     return value
 }
 
-//* Read a signed 16-bit integer in big-endian format.
-def BufferIO::read_i16_be(&this): i16 { return .read_i16_be() as i16 }
-//* Read an unsigned 16-bit integer in big-endian format.
-def BufferIO::read_u16_be(&this): u16 {
-    let value = 0u16
-    for let i = 0; i < 2; i += 1 {
-        value = value | .data.data[.index + i] as u16 << (8u16 - i as u16 * 8)
+
+//* Read `count` bytes from the buffer.
+def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
+    let dst = _dst as &u8
+    for let i = 0; i < count; i += 1 {
+        dst[i] = .data.data[.index as u32 + i]
     }
-    .index += 2
-    return value as u16
+    .index  += count
 }
 
-//* Write a signed 64-bit integer in big-endian format.
-def BufferIO::write_i64_be(&this, value: i64) { .write_u64_be(value as u64) }
-//* Write an unsigned 64-bit integer in big-endian format.
-def BufferIO::write_u64_be(&this, value: u64) {
+//* Write a signed 64-bit integer with the given endianness
+def BufferIO::write_i64(&this, value: i64, endian: Endian = Little) { .write_u64(value as u64, endian) }
+//* Write an unsigned 64-bit integer with the given endianness
+def BufferIO::write_u64(&this, value: u64, endian: Endian = Little) {
     .data.resize_if_necessary(.data.size + 8)
     for let i = 0; i < 8; i += 1 {
-        .data.data[.data.size + i] = ((value >> (56u64 - i as u64 * 8)) & 0xff) as u8
+        let shift = if endian == Little then i else 7 - i
+        .data.data[.data.size + i] = ((value >> (56u64 - shift as u64 * 8)) & 0xff) as u8
     }
     .data.size += 8
 }
 
-//* Write a signed 32-bit integer in big-endian format.
-def BufferIO::write_i32_be(&this, value: i32) { .write_u32_be(value as u32) }
-//* Write an unsigned 32-bit integer in big-endian format.
-def BufferIO::write_u32_be(&this, value: u32) {
+//* Write a signed 32-bit integer with the given endianness
+def BufferIO::write_i32(&this, value: i32, endian: Endian = Little) { .write_u32(value as u32, endian) }
+//* Write an unsigned 32-bit integer with the given endianness
+def BufferIO::write_u32(&this, value: u32, endian: Endian = Little) {
     .data.resize_if_necessary(.data.size + 4)
     for let i = 0; i < 4; i += 1 {
-        .data.data[.data.size + i] = ((value >> (24u32 - i * 8)) & 0xff) as u8
+        let shift = if endian == Little then i else 3 - i
+        .data.data[.data.size + i] = ((value >> (24u32 - shift * 8)) & 0xff) as u8
     }
     .data.size += 4
 }
 
-//* Write a signed 16-bit integer in big-endian format.
-def BufferIO::write_i16_be(&this, value: i16) { .write_u16_be(value as u16) }
-//* Write an unsigned 16-bit integer in big-endian format.
-def BufferIO::write_u16_be(&this, value: u16) {
+//* Write a signed 16-bit integer with the given endianness
+def BufferIO::write_i16(&this, value: i16, endian: Endian = Little) { .write_u16(value as u16, endian) }
+//* Write an unsigned 16-bit integer with the given endianness
+def BufferIO::write_u16(&this, value: u16, endian: Endian = Little) {
     .data.resize_if_necessary(.data.size + 2)
     for let i = 0; i < 2; i += 1 {
-        .data.data[.data.size + i] = ((value >> (8u16 - i as u16 * 8)) & 0xff) as u8
+        let shift = if endian == Little then i else 1 - i
+        .data.data[.data.size + i] = ((value >> (8u16 - shift as u16 * 8)) & 0xff) as u8
     }
     .data.size += 2
 }
 
-//* Write a signed 8-bit integer in big-endian format.
+//* Write a signed 8-bit integer with the given endianness
 def BufferIO::write_i8(&this, value: i8) { .write_u8(value as u8) }
-//* Write an unsigned 8-bit integer in big-endian format.
+//* Write an unsigned 8-bit integer with the given endianness
 def BufferIO::write_u8(&this, value: u8) {
     .data.resize_if_necessary(.data.size + 1)
     .data.data[.data.size] = value
@@ -123,3 +132,6 @@ def BufferIO::write_bytes(&this, _src: untyped_ptr, count: u32) {
     }
     .data.size += count
 }
+
+//* Returns if the buffer is empty.
+def BufferIO::is_empty(&this): bool => .index >= .data.size
