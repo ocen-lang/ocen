@@ -1596,6 +1596,7 @@ std_map_Item__3 *std_map_Map__3_get_item(std_map_Map__3 *this, char *key);
 std_map_Map__3 *std_map_Map__3_new(u32 capacity);
 void std_map_Item__4_free_list(std_map_Item__4 *this);
 std_map_Item__4 *std_map_Item__4_new(char *key, char *value, std_map_Item__4 *next);
+bool std_map_Map__4_contains(std_map_Map__4 *this, char *key);
 std_map_Item__4 *std_map_Iterator__4_cur(std_map_Iterator__4 *this);
 void std_map_Iterator__4_next(std_map_Iterator__4 *this);
 std_map_Iterator__4 std_map_Iterator__4_make(std_map_Map__4 *map);
@@ -3262,6 +3263,10 @@ std_map_Item__4 *std_map_Item__4_new(char *key, char *value, std_map_Item__4 *ne
   node->value=value;
   node->next=next;
   return node;
+}
+
+bool std_map_Map__4_contains(std_map_Map__4 *this, char *key) {
+  return ((bool)std_map_Map__4_get_item(this, key));
 }
 
 std_map_Item__4 *std_map_Iterator__4_cur(std_map_Iterator__4 *this) {
@@ -10611,6 +10616,9 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
 }
 
 void parser_Parser_load_file(parser_Parser *this, char *filename) {
+  if (std_map_Map__4_contains(this->program->sources, filename)) 
+  return ;
+  
   FILE *file = std_File_open(filename, "r");
   char *contents = std_File_slurp(file);
   std_map_Map__4_insert(this->program->sources, filename, contents);

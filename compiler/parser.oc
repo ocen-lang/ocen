@@ -1722,6 +1722,8 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
 }
 
 def Parser::load_file(&this, filename: str) {
+    if .program.sources.contains(filename) return
+
     let file = std::File::open(filename, "r")
     let contents = file.slurp()
     .program.sources.insert(filename, contents)
