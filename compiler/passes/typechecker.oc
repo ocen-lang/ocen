@@ -1394,6 +1394,7 @@ def TypeChecker::check_function(&this, func: &Function) {
 
     .o.push_scope(func.scope)
     for param : params.iter() {
+        if not param.type? then continue  // Error should be reported already
         let default_expr = param.default_value
         if default_expr? {
             // NOTE: This `.check_expression()` call uses the scope _outside_ of the function.
