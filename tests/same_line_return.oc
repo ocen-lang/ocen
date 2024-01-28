@@ -1,0 +1,6 @@
+/// compile
+
+
+def foo() { return }
+
+def main() => 0

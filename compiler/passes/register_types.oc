@@ -83,7 +83,7 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     for it : ns.typedefs.iter() {
         // NOTE: We add a dummy type here, which will be replaced later in the
         // type resolution pass
-        .register_alias(it.key, null)
+        .register_alias(it.key, it.value)
     }
     for child : ns.namespaces.iter_values() {
         if child.always_add_to_scope {

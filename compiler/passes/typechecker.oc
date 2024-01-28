@@ -1875,6 +1875,30 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     func.type = typ
 }
 
+def TypeChecker::try_resolve_typedefs_in_namespace(&this, ns: &Namespace, pre_import: bool) {
+    for it : ns.typedefs.iter() {
+        if it.value.is_resolved() continue
+
+        let sym = .o.scope().lookup_recursive(it.key)
+        assert sym?, "Should have added the symbol into scope already"
+
+        // FIXME: Why is there a `typedef` and `alias` at symbol/type level? Only one
+        // should really be sufficient.
+        assert sym.type == TypeDef
+
+        // We only want to error out if we can't resolve this typedef _after_ importing
+        let res = .resolve_type(
+            it.value,
+            allow_incomplete: false,
+            error: not pre_import
+        )
+        if not res? continue
+        sym.u.type_def.u.ptr = res
+        sym.u.type_def = res
+        it.value = res
+    }
+}
+
 def TypeChecker::check_post_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
@@ -1894,6 +1918,9 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
     for node : ns.variables.iter() {
         .pre_check_globals(node, is_const: false)
     }
+
+    // We try to resolve post-imports so typedefs can use imported types
+    .try_resolve_typedefs_in_namespace(ns, pre_import: false)
 
     for child : ns.namespaces.iter_values() {
         .check_post_import(child)
@@ -1922,18 +1949,10 @@ def TypeChecker::check_pre_import(&this, ns: &Namespace) {
         .pre_check_function(ns, func)
     }
 
-    for it : ns.typedefs.iter() {
-        let sym = .o.scope().lookup_recursive(it.key)
-        assert sym?, "Should have added the symbol into scope already"
-        assert sym.type == TypeDef
-
-        // FIXME: Why is there a `typedef` and `alias` at symbol/type level? Only one
-        // should really be sufficient.
-        let res = .resolve_type(it.value)
-        sym.u.type_def.u.ptr = res
-        sym.u.type_def = res
-        it.value = res
-    }
+    // FIXME: This shouldn't need to be done, only post-imports. there's some issue
+    //        with how typedefs are added to namespaces/scopes that needs to be fixed.
+    //        Removing this line causes `tests/import_typedef.oc` to fail.
+    .try_resolve_typedefs_in_namespace(ns, pre_import: true)
 
     for child : ns.namespaces.iter_values() {
         .check_pre_import(child)
