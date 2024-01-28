@@ -1369,6 +1369,42 @@ def Parser::parse_import(&this): &AST {
     return node
 }
 
+def Parser::parse_struct_field(&this, struc: &Structure) {
+    // To allow `x, y, z: i32` syntax, we need to first parse all the identifiers
+    // before we parse the type. All the identifiers are stored in here.
+    let fields = Vector<&Variable>::new(capacity: 4)
+
+    while true {
+        if not .token_is(Identifier) {
+            .error(Error::new(.token().span, "Expected identifier for field name"))
+            return
+        }
+
+        let name = .consume(TokenType::Identifier)
+        let var = Variable::new(null)
+        var.sym = Symbol::from_local_variable(name.text, var, name.span)
+        .add_doc_comment(var.sym, name)
+
+        fields.push(var)
+
+        if not .consume_if(TokenType::Comma) break
+    }
+
+    if not .consume_if(TokenType::Colon) {
+        .error(Error::new(.token().span, "Expected ':' after struct field names for type"))
+        return
+    }
+
+    let type = .parse_type()
+
+    for var : fields.iter() {
+        var.type = type
+        struc.fields.push(var)
+    }
+
+    fields.free()
+}
+
 def Parser::parse_struct(&this): &Structure {
     let start = .token()
     let is_union = if .token_is(TokenType::Union) {
@@ -1396,15 +1432,7 @@ def Parser::parse_struct(&this): &Structure {
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
         .consume(TokenType::OpenCurly)
         while not .token_is(TokenType::CloseCurly) {
-            let name = .consume(TokenType::Identifier)
-            .consume(TokenType::Colon)
-            let type = .parse_type()
-
-            let var = Variable::new(type)
-            var.sym = Symbol::from_local_variable(name.text, var, name.span)
-            .add_doc_comment(var.sym, name)
-
-            struc.fields.push(var)
+            .parse_struct_field(struc)
             if not .token_is(TokenType::CloseCurly) {
                 .consume_newline_or(TokenType::Comma)
             }

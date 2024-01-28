@@ -804,6 +804,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             if expr.type == BoolLiteral and expr.u.bool_literal == false {
                 .out.puts(" exit(1);")
             }
+            .out.puts("\n")
         }
         else => {
             .gen_indent()

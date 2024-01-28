@@ -1707,6 +1707,7 @@ void std_vector_Iterator__7_next(std_vector_Iterator__7 *this);
 std_vector_Iterator__7 std_vector_Iterator__7_make(std_vector_Vector__7 *vec);
 bool std_vector_Iterator__7_has_value(std_vector_Iterator__7 *this);
 ast_nodes_Variable *std_vector_Vector__7_at(std_vector_Vector__7 *this, u32 i);
+void std_vector_Vector__7_free(std_vector_Vector__7 *this);
 bool std_vector_Vector__7_is_empty(std_vector_Vector__7 *this);
 void std_vector_Vector__7_resize(std_vector_Vector__7 *this, u32 new_capacity);
 std_vector_Vector__7 *std_vector_Vector__7_new(u32 capacity);
@@ -1986,6 +1987,7 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this);
 void parser_Parser_parse_extern_into_symbol(parser_Parser *this, ast_scopes_Symbol *sym);
 std_vector_Vector__8 *parser_Parser_parse_import_path(parser_Parser *this);
 ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this);
+void parser_Parser_parse_struct_field(parser_Parser *this, ast_nodes_Structure *struc);
 ast_nodes_Structure *parser_Parser_parse_struct(parser_Parser *this);
 ast_nodes_Enum *parser_Parser_parse_enum(parser_Parser *this);
 void parser_Parser_parse_namespace_until(parser_Parser *this, tokens_TokenType end_type);
@@ -4066,6 +4068,11 @@ bool std_vector_Iterator__7_has_value(std_vector_Iterator__7 *this) {
 
 ast_nodes_Variable *std_vector_Vector__7_at(std_vector_Vector__7 *this, u32 i) {
   ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");  return this->data[i];
+}
+
+void std_vector_Vector__7_free(std_vector_Vector__7 *this) {
+  free(this->data);
+  free(this);
 }
 
 bool std_vector_Vector__7_is_empty(std_vector_Vector__7 *this) {
@@ -10285,6 +10292,37 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
   return node;
 }
 
+void parser_Parser_parse_struct_field(parser_Parser *this, ast_nodes_Structure *struc) {
+  std_vector_Vector__7 *fields = std_vector_Vector__7_new(((u32)4));
+  while (true) {
+    if (!parser_Parser_token_is(this, tokens_TokenType_Identifier)) {
+      parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, "Expected identifier for field name"));
+      return ;
+    } 
+    tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
+    ast_nodes_Variable *var = ast_nodes_Variable_new(NULL);
+    var->sym=ast_scopes_Symbol_from_local_variable(name->text, var, name->span);
+    parser_Parser_add_doc_comment(this, var->sym, name);
+    std_vector_Vector__7_push(fields, var);
+    if (!parser_Parser_consume_if(this, tokens_TokenType_Comma)) 
+    break;
+    
+  }
+  if (!parser_Parser_consume_if(this, tokens_TokenType_Colon)) {
+    parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, "Expected ':' after struct field names for type"));
+    return ;
+  } 
+  types_Type *type = parser_Parser_parse_type(this);
+  for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(fields); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
+    ast_nodes_Variable *var = std_vector_Iterator__7_cur(&__iter);
+    {
+      var->type=type;
+      std_vector_Vector__7_push(struc->fields, var);
+    }
+  }
+  std_vector_Vector__7_free(fields);
+}
+
 ast_nodes_Structure *parser_Parser_parse_struct(parser_Parser *this) {
   tokens_Token *start = parser_Parser_token(this);
   bool is_union = ({ bool __yield_0;
@@ -10309,13 +10347,7 @@ ast_nodes_Structure *parser_Parser_parse_struct(parser_Parser *this) {
   if ((!struc->sym->is_extern || parser_Parser_token_is(this, tokens_TokenType_OpenCurly))) {
     parser_Parser_consume(this, tokens_TokenType_OpenCurly);
     while (!parser_Parser_token_is(this, tokens_TokenType_CloseCurly)) {
-      tokens_Token *name = parser_Parser_consume(this, tokens_TokenType_Identifier);
-      parser_Parser_consume(this, tokens_TokenType_Colon);
-      types_Type *type = parser_Parser_parse_type(this);
-      ast_nodes_Variable *var = ast_nodes_Variable_new(type);
-      var->sym=ast_scopes_Symbol_from_local_variable(name->text, var, name->span);
-      parser_Parser_add_doc_comment(this, var->sym, name);
-      std_vector_Vector__7_push(struc->fields, var);
+      parser_Parser_parse_struct_field(this, struc);
       if (!parser_Parser_token_is(this, tokens_TokenType_CloseCurly)) {
         parser_Parser_consume_newline_or(this, tokens_TokenType_Comma);
       } 
@@ -10577,7 +10609,7 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__8 *parts = path->parts;
-        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1680:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__8_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1681:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__8_at(parts, ((u32)0))->u.single;
+        ae_assert((parts->size > ((u32)0)), "compiler/parser.oc:1708:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");        ae_assert(std_vector_Vector__8_at(parts, ((u32)0))->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1709:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");        ast_nodes_ImportPartSingle first_part = std_vector_Vector__8_at(parts, ((u32)0))->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
           ast_program_Namespace *lib = parser_Parser_find_external_library(this, lib_name);
