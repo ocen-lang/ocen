@@ -26,7 +26,7 @@ def main() {
     for let iter = map.iter(); iter.has_value(); iter.next() {
         count += 1
     }
-    if count == map.size() {
+    if count == map.size {
         println("PASS")
     } else {
         println("FAIL")

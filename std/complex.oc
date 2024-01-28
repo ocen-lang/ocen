@@ -2,24 +2,24 @@
 @compiler c_include "complex.h"
 import std::math
 
-struct Complex extern("float complex")
+[extern "float complex"] struct Complex
 
-def Complex::new(real: f32, imag: f32): Complex extern("CMPLXF")
-def Complex::real(this): f32 extern("crealf")
-def Complex::imag(this): f32 extern("cimagf")
-def Complex::abs(this): f32 extern("cabsf")
-def Complex::arg(this): f32 extern("cargf")
-def Complex::conj(this): Complex extern("conjf")
-def Complex::exp(this): Complex extern("cexpf")
-def Complex::log(this): Complex extern("clogf")
+[extern "CMPLXF"] def Complex::new(real: f32, imag: f32): Complex
+[extern "crealf"] def Complex::real(this): f32
+[extern "cimagf"] def Complex::imag(this): f32
+[extern "cabsf"] def Complex::abs(this): f32
+[extern "cargf"] def Complex::arg(this): f32
+[extern "conjf"] def Complex::conj(this): Complex
+[extern "cexpf"] def Complex::exp(this): Complex
+[extern "clogf"] def Complex::log(this): Complex
 
-def Complex::sin(this): Complex extern("csinf")
-def Complex::cos(this): Complex extern("ccosf")
-def Complex::tan(this): Complex extern("ctanf")
-def Complex::asin(this): Complex extern("casinf")
-def Complex::acos(this): Complex extern("cacosf")
-def Complex::atan(this): Complex extern("catanf")
-def Complex::atan2(this, other: Complex): Complex extern("catan2f")
+[extern "csinf"] def Complex::sin(this): Complex
+[extern "ccosf"] def Complex::cos(this): Complex
+[extern "ctanf"] def Complex::tan(this): Complex
+[extern "casinf"] def Complex::asin(this): Complex
+[extern "cacosf"] def Complex::acos(this): Complex
+[extern "catanf"] def Complex::atan(this): Complex
+[extern "catan2f"] def Complex::atan2(this, other: Complex): Complex
 
 def Complex::add(this, other: Complex): Complex {
     return Complex::new(this.real() + other.real(), this.imag() + other.imag())

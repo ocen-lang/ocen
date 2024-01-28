@@ -23,4 +23,4 @@ def Thread::join(&this) {
     impl::pthread_join(.tid, null)
 }
 
-def sleep(seconds: u32) extern
+[extern] def sleep(seconds: u32)

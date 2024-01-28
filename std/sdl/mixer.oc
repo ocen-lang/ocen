@@ -1,20 +1,20 @@
 @compiler c_include "SDL2/SDL_mixer.h"
 @compiler c_flag "-lSDL2_mixer"
 
-const DEFAULT_FORMAT: u16 extern("MIX_DEFAULT_FORMAT")
-def open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32 extern("Mix_OpenAudio")
+[extern "MIX_DEFAULT_FORMAT"] const DEFAULT_FORMAT: u16
+[extern "Mix_OpenAudio"] def open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32
 
-struct Sound extern("Mix_Chunk")
+[extern "Mix_Chunk"] struct Sound
 
-def load_wav(path: str): &Sound extern("Mix_LoadWAV")
-def play_channel(channel: i32, chunk: &Sound, loops: i32): i32 extern("Mix_PlayChannel")
-def allocate_channels(num: i32): i32 extern("Mix_AllocateChannels")
+[extern "Mix_LoadWAV"] def load_wav(path: str): &Sound
+[extern "Mix_PlayChannel"] def play_channel(channel: i32, chunk: &Sound, loops: i32): i32
+[extern "Mix_AllocateChannels"] def allocate_channels(num: i32): i32
 
-def pause(channel: i32) extern("Mix_Pause")
-def resume(channel: i32) extern("Mix_Resume")
+[extern "Mix_Pause"] def pause(channel: i32)
+[extern "Mix_Resume"] def resume(channel: i32)
 
-def free_chunk(chunk: &Sound) extern("Mix_FreeChunk")
-def quit() extern("Mix_Quit")
+[extern "Mix_FreeChunk"] def free_chunk(chunk: &Sound)
+[extern "Mix_Quit"] def quit()
 
-def get_error(): str extern("Mix_GetError")
-def volume(channel: i32, volume: i32) extern("Mix_Volume")
+[extern "Mix_GetError"] def get_error(): str
+[extern "Mix_Volume"] def volume(channel: i32, volume: i32)

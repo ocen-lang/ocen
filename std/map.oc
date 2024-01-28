@@ -53,7 +53,7 @@ def Item::free_list(&this) {
 //*  - `K` type must implement the `eq` method: `K::eq(this, b: K): bool`
 struct Map<K, V> {
     buckets: &&Item<K, V>
-    num_items: u32
+    size: u32
     num_buckets: u32
     num_collisions: u32
 }
@@ -120,8 +120,8 @@ def Map::insert(&this, key: K, value: V) {
             .num_collisions += 1
         }
         .buckets[hash] = new_node
-        .num_items += 1
-        if .num_items > .num_buckets {
+        .size += 1
+        if .size > .num_buckets {
             .resize()
         }
     }
@@ -149,7 +149,7 @@ def Map::remove(&this, key: K) {
             prev.next = node.next
         }
         free(node)
-        .num_items -= 1
+        .size -= 1
     }
 }
 
@@ -157,7 +157,7 @@ def Map::remove(&this, key: K) {
 def Map::resize(&this) {
     let old_buckets = .buckets
     let old_num_buckets = .num_buckets
-    let old_num_items = .num_items
+    let old_size = .size
     .num_collisions = 0
     .num_buckets *= 2
     .buckets = calloc(.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
@@ -190,10 +190,8 @@ def Map::push_keys(&this, vec: &Vector<K>) {
     }
 }
 
-def Map::size(&this): u32 => .num_items
-
 //* Checks if the map is empty
-def Map::is_empty(&this): bool => .num_items == 0
+def Map::is_empty(&this): bool => .size == 0
 
 //* Frees the map and all its nodes
 def Map::free(&this) {
@@ -210,7 +208,7 @@ def Map::clear(&this) {
         .buckets[i].free_list()
         .buckets[i] = null
     }
-    .num_items = 0
+    .size = 0
     .num_collisions = 0
 }
 

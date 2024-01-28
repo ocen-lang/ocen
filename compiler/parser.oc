@@ -1,22 +1,24 @@
 //* The parser
 
-import @ast::nodes::*
-import @ast::program::{ Namespace, Program }
-import @lexer::Lexer
-import @types::{ Type, BaseType, FunctionType, ArrayType }
 import std::span::Span
 import std::map::Map
 import std::vector::Vector
 import std::buffer::Buffer
+import std::libc::{ calloc, free }
+
+import @attributes::{ Attribute, AttributeType }
+import @ast::nodes::*
+import @ast::program::{ Namespace, Program }
+import @lexer::Lexer
+import @types::{ Type, BaseType, FunctionType, ArrayType }
 import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType, Template }
 import @errors::Error
-import std::libc::{ calloc, free }
 import @utils::directory_exists
 
 @compiler c_include "libgen.h"
-def dirname(path: str): str extern
-def basename(path: str): str extern
+[extern] def dirname(path: str): str
+[extern] def basename(path: str): str
 
 struct Parser {
     tokens: &Vector<&Token>
@@ -25,6 +27,8 @@ struct Parser {
     curr_func: &Function
     program: &Program
     ns: &Namespace
+
+    attrs: &Map<AttributeType, &Attribute>
 }
 
 def Parser::make(program: &Program, ns: &Namespace): Parser {
@@ -33,7 +37,8 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         curr: 0,
         curr_func: null,
         program: program,
-        ns: ns
+        ns: ns,
+        attrs: Map<AttributeType, &Attribute>::new()
     )
 }
 
@@ -106,6 +111,13 @@ def Parser::is_end_of_statement(&this): bool {
 def Parser::consume_end_of_statement(&this) {
     if .token_is(TokenType::CloseCurly) return
     .consume_newline_or(TokenType::Semicolon)
+}
+
+def Parser::clear_attributes(&this) {
+    for attr : .attrs.iter_values() {
+        std::free(attr)
+    }
+    .attrs.clear()
 }
 
 // NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
@@ -458,6 +470,13 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     }
 
     .parse_extern_into_symbol(var.sym)
+
+    for attr : .attrs.iter_values() {
+        match attr.type {
+            Extern => .get_extern_from_attr(var.sym, attr)
+            else => .error(Error::new(attr.span, "Unexpected attribute for variable"))
+        }
+    }
 
     node.u.var_decl.var = var
 
@@ -1215,6 +1234,8 @@ def Parser::parse_function(&this): &Function {
         func.return_type = Type::new_unresolved_base(BaseType::I32, name_span)
     } else {
         func.return_type = Type::new_unresolved_base(BaseType::Void, name_span)
+
+        // TODO: Deprecate this once we've fully moved to attributes
         if .token_is(TokenType::Identifier) and .token().text.eq("exits") {
             .consume(TokenType::Identifier)
             func.exits = true
@@ -1225,7 +1246,17 @@ def Parser::parse_function(&this): &Function {
 
     func.is_static = is_static
     func.parent_type = parent_type
+
+    // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(func.sym)
+
+    for attr : .attrs.iter_values() {
+        match attr.type {
+            Exits => func.exits = true
+            Extern => .get_extern_from_attr(func.sym, attr)
+            else => .error(Error::new(attr.span, "Invalid attribute for function"))
+        }
+    }
 
     if func.sym.is_extern return func
 
@@ -1268,6 +1299,16 @@ def Parser::parse_extern_into_symbol(&this, sym: &Symbol) {
         let name = .consume(TokenType::StringLiteral)
         .consume(TokenType::CloseParen)
         sym.extern_name = name.text
+    } else {
+        sym.extern_name = sym.name
+    }
+}
+
+def Parser::get_extern_from_attr(&this, sym: &Symbol, attr: &Attribute) {
+    assert attr.type == Extern
+    sym.is_extern = true
+    if attr.args.size > 0 {
+        sym.extern_name = attr.args.at(0)
     } else {
         sym.extern_name = sym.name
     }
@@ -1331,6 +1372,10 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 }
 
 def Parser::parse_import(&this): &AST {
+    if .attrs.size > 0 {
+        .error(Error::new(.token().span, "Attributes are not allowed on import statements"))
+    }
+
     let span = .token().span
     .consume(TokenType::Import)
 
@@ -1433,7 +1478,15 @@ def Parser::parse_struct(&this): &Structure {
         .parse_template_params(struc.sym)
     }
 
+    // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(struc.sym)
+
+    for attr : .attrs.iter_values() {
+        match attr.type {
+            Extern => .get_extern_from_attr(struc.sym, attr)
+            else => .error(Error::new(attr.span, "Invalid attribute for struct"))
+        }
+    }
 
     // Extern structs don't need to have a body.
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
@@ -1461,6 +1514,12 @@ def Parser::parse_enum(&this): &Enum {
     .add_doc_comment(enum_def.sym, start)
 
     .parse_extern_into_symbol(enum_def.sym)
+    for attr : .attrs.iter_values() {
+        match attr.type {
+            Extern => .get_extern_from_attr(enum_def.sym, attr)
+            else => .error(Error::new(attr.span, "Invalid attribute for enum"))
+        }
+    }
 
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
@@ -1485,21 +1544,73 @@ def Parser::parse_enum(&this): &Enum {
     return enum_def
 }
 
+def Parser::parse_attribute(&this) {
+    let start = .consume(TokenType::OpenSquare)
+
+    // FIXME: Should `extern` be a keyword once we have fully moved to attrs?
+    if not (.token_is(Identifier) or .token_is(Extern)) {
+        .error(Error::new(.token().span, "Expected attribute name here"))
+        return
+    }
+
+    let name = .consume(.token().type)
+    let attr_type = AttributeType::from_str(name.text)
+    let attr = Attribute::new(attr_type, name.span)
+
+    while not .token_is(TokenType::CloseSquare) {
+        if not .token_is(StringLiteral) {
+            .error(Error::new(.token().span, "Only string literals supported in attribute arguments"))
+            .curr += 1
+            continue
+        }
+
+        let arg = .consume(TokenType::StringLiteral)
+        attr.args.push(arg.text)
+    }
+    .consume(TokenType::CloseSquare)
+
+    // We don't want to handle invalid attributes, so we just ignore them.
+    if not attr.validate(this) return
+
+    if .attrs.contains(attr_type) {
+        let prev_attr = .attrs.at(attr_type)
+        .error(Error::new_hint(
+            attr.span, "Duplicate attribute",
+            prev_attr.span, "Previously defined here"
+        ))
+        return
+    }
+
+    .attrs.insert(attr_type, attr)
+}
+
 def Parser::parse_namespace_until(&this, end_type: TokenType) {
     .add_doc_comment(.ns.sym, .token())
+
     while not .token_is(end_type) {
+        // NOTE: We always clear the attributes after we are done parsing a statement.
+        //       This variable keeps track of whether we're in a statement or not.
+        //       Clearing the statements is at the end of this loop.
+        let still_parsing_attributes = false
+
         match .token().type {
+            OpenSquare => {
+                .parse_attribute()
+                still_parsing_attributes = true
+            }
             Def => {
                 let func = .parse_function()
                 if func? then .ns.functions.push(func)
             }
             Import => {
                 let import_ = .parse_import()
-                if import_? {
-                    .ns.imports.push(import_)   // For typechecker...
-                }
+                if import_? then .ns.imports.push(import_)   // For typechecker...
             }
             Namespace => {
+                if .attrs.size > 0 {
+                    .error(Error::new(.token().span, "Attributes are not allowed on namespaces"))
+                }
+
                 let start = .consume(TokenType::Namespace).span
                 let name = .consume(TokenType::Identifier)
 
@@ -1524,6 +1635,10 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 if struc? then .ns.structs.push(struc)
             }
             TypeDef => {
+                if .attrs.size > 0 {
+                    .error(Error::new(.token().span, "Attributes are not allowed on typedefs"))
+                }
+
                 let start = .consume(TokenType::TypeDef).span
                 let name = .consume(TokenType::Identifier)
                 .consume(TokenType::Equals)
@@ -1548,14 +1663,22 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
             }
             AtSign => .parse_compiler_option()
             else => {
-                .error(Error::new(.token().span, `Unexpected token '{.token().text}' in Parser`))
+                .error(Error::new(.token().span, `Unexpected token in Parser: {.token().type}`))
                 .curr += 1
             }
+        }
+
+        if not still_parsing_attributes {
+            .clear_attributes()
         }
     }
 }
 
 def Parser::parse_compiler_option(&this) {
+    if .attrs.size > 0 {
+        .error(Error::new(.token().span, "Attributes are not allowed on compiler options"))
+    }
+
     .consume(TokenType::AtSign)
     let compiler = .consume(TokenType::Identifier)
     if not compiler.text.eq("compiler") {

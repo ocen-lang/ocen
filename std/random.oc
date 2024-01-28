@@ -40,3 +40,5 @@ def randi32(state: &RandomState=null): i32 => (randint(state) as i32)
 def randu64(state: &RandomState=null): u64 => (randint(state) as u64) << 32 | randint(state) as u64
 def randf32(state: &RandomState=null): f32 => (randint(state) as f32) / 4294967296.0
 def randf64(state: &RandomState=null): f64 => (randint(state) as f64) / 4294967296.0
+
+[extern] def drand48(): f64

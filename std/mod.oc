@@ -2,7 +2,7 @@ import .libc
 
 @compiler c_embed "./prelude.h"
 
-struct File extern("FILE")
+[extern "FILE"] struct File
 
 def File::open(path: str, mode: str = "r"): &File {
     let file = libc::fopen(path, mode)
@@ -12,7 +12,7 @@ def File::open(path: str, mode: str = "r"): &File {
     return file
 }
 
-def File::close(&this) extern("fclose")
+[extern "fclose"] def File::close(&this)
 
 def File::read(&this, buf: untyped_ptr, size: u32): i32 {
     return libc::fread(buf, 1, size, this)
@@ -52,22 +52,22 @@ def File::puts(&this, s: str) {
     libc::fwrite(s , 1, s.len(), this)
 }
 
-def exit(code: i32 = 0) exits extern
+[extern] [exits] def exit(code: i32 = 0)
 
-def panic(msg: str = "<panic>") exits {
+[exits]
+def panic(msg: str = "<panic>") {
     println("%s", msg)
     exit(1)
 }
 
-def str::to_i32(this): i32 extern("atoi")
+[extern "atoi"] def str::to_i32(this): i32
+[extern "atof"] def str::to_f32(this): f32
 def str::to_u32(this): u32 => this.to_i32() as u32 // FIXME: this doesn't always work
-def str::to_f32(this): f32 extern("atof")
 
+[extern "strlen"] def str::len(this): u32
+[extern "strcat"] def str::concat(this, src: str)
+[extern "strdup"] def str::copy(this): str
 def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
-def str::len(this): u32 => libc::strlen(this)
-def str::concat(this, src: str) extern("strcat")
-
-def str::copy(this): str extern("strdup")
 
 def str::substring(this, start: u32, len: u32): str {
     let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str

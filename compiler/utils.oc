@@ -2,7 +2,7 @@
 
 import std::vector::Vector
 
-def strsep(s: &str, delim: str): str extern
+[extern] def strsep(s: &str, delim: str): str
 
 def edit_distance(str1: str, str2: str): u32 {
     let n = str1.len()
@@ -55,9 +55,9 @@ def find_word_suggestion(s: str, options: &Vector<str>): str {
 
 @compiler c_include "dirent.h"
 
-struct DIR extern("DIR")
-def opendir(path: str): &DIR extern("opendir")
-def closedir(dir: &DIR) extern("closedir")
+[extern] struct DIR
+[extern] def opendir(path: str): &DIR
+[extern] def closedir(dir: &DIR)
 
 def directory_exists(path: str): bool {
     let dir = opendir(path)
