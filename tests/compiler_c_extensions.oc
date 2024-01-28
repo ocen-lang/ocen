@@ -6,7 +6,7 @@
 @compiler c_include "math.h"
 @compiler c_flag "-lm"
 
-def sqrt(x: f32): f32 extern
+[extern] def sqrt(x: f32): f32
 
 def main() {
     let x = sqrt(4.0)

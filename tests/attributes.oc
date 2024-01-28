@@ -1,0 +1,25 @@
+/// out: "246"
+
+[extern] def atoi(s: str): i32
+
+[extern "atoi"]
+// [extern]
+def my_atoi(s: str): i32
+
+[exits]
+def foo() { return }
+
+def bar(): i32 {
+    foo()
+}
+
+[extern "FILE"]
+struct MyFile {}
+
+def main() {
+    let x = atoi("123")
+    let y = my_atoi("123")
+    println(`{x+y}`)
+
+    let mf: &MyFile
+}

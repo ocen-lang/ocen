@@ -21,5 +21,5 @@ def main() {
 
     set.subtract(set_2)
     assert set.contains(2)
-    assert set.size() == 1
+    assert set.size == 1
 }

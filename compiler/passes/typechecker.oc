@@ -1082,11 +1082,11 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
     }
 
     let defolt = node.u.match_stmt.defolt
-    if mapping.size() != enum_.fields.size {
+    if mapping.size != enum_.fields.size {
         if not defolt? {
             .error(Error::new_note(
                 node.span, "Match does not cover all cases",
-                `Only {mapping.size()} of {enum_.fields.size} cases are covered`
+                `Only {mapping.size} of {enum_.fields.size} cases are covered`
             ))
         } else {
             .check_expression_statement(node, defolt, is_expr, hint)

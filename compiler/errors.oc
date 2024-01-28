@@ -119,7 +119,8 @@ def Error::display(&this) {
     }
 }
 
-def Error::panic(&this) exits {
+[exits]
+def Error::panic(&this) {
     .display()
     exit(1)
 }

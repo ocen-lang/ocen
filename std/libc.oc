@@ -3,67 +3,69 @@
 import ::std::File
 
 // stdlib
-def malloc(size: u32): untyped_ptr extern
-def realloc(old: untyped_ptr, size: u32): untyped_ptr extern
-def calloc(size: u32, elem_size: u32): untyped_ptr extern
-def free(ptr: untyped_ptr) extern
-def exit(code: i32) exits extern
-def getenv(name: str): str extern
-def system(cmd: str): i32 extern
+[extern] def malloc(size: u32): untyped_ptr
+[extern] def realloc(old: untyped_ptr, size: u32): untyped_ptr
+[extern] def calloc(size: u32, elem_size: u32): untyped_ptr
+[extern] def free(ptr: untyped_ptr)
+[extern] def getenv(name: str): str
+[extern] def system(cmd: str): i32
+
+[extern] [exits] def exit(code: i32)
+
 
 // stdio
-def fopen(name: str, mode: str): &File extern
-def fclose(file: &File): i32 extern
-def fread(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32 extern
-def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32 extern
-def ftell(file: &File): i32 extern
-def fseek(file: &File, offset: i32, whence: i32): i32 extern
-const SEEK_SET: i32 extern
-const SEEK_CUR: i32 extern
-const SEEK_END: i32 extern
+[extern] def fopen(name: str, mode: str): &File
+[extern] def fclose(file: &File): i32
+[extern] def fread(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32
+[extern] def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32
+[extern] def ftell(file: &File): i32
+[extern] def fseek(file: &File, offset: i32, whence: i32): i32
+[extern] const SEEK_SET: i32
+[extern] const SEEK_CUR: i32
+[extern] const SEEK_END: i32
 
 // string
-def strcmp(a: str, b: str): i32 extern
-def strlen(s: str): u32 extern
-def strcpy(dst: str, src: str): str extern
-def strcat(dst: str, src: str): str extern
-def strstr(haystack: str, needle: str): str extern
-def strchr(s: str, c: i32): str extern
-def strsep(str: &str, delim: str): str extern
-def strerror(errnum: i32): str extern
-def memcpy(dest: untyped_ptr, src: untyped_ptr, size: u32) extern
-def memcmp(s: str, other: str, n: u32): i32 extern
-def memset(dest: untyped_ptr, c: u8, size: u32) extern
+[extern] def strcmp(a: str, b: str): i32
+[extern] def strlen(s: str): u32
+[extern] def strcpy(dst: str, src: str): str
+[extern] def strcat(dst: str, src: str): str
+[extern] def strstr(haystack: str, needle: str): str
+[extern] def strchr(s: str, c: i32): str
+[extern] def strsep(str: &str, delim: str): str
+[extern] def strerror(errnum: i32): str
+[extern] def memcpy(dest: untyped_ptr, src: untyped_ptr, size: u32)
+[extern] def memcmp(s: str, other: str, n: u32): i32
+[extern] def memset(dest: untyped_ptr, c: u8, size: u32)
 
 // ctype
 @compiler c_include "ctype.h"
-def isdigit(c: char): bool extern
-def isalpha(c: char): bool extern
-def isalnum(c: char): bool extern
-def isprint(c: char): bool extern
-def isspace(c: char): bool extern
+[extern] def isdigit(c: char): bool
+[extern] def isalpha(c: char): bool
+[extern] def isalnum(c: char): bool
+[extern] def isprint(c: char): bool
+[extern] def isspace(c: char): bool
 
-def strtoll(s: str, endptr: &str, base: i32 = 10): i64 extern
-def strtoul(s: str, endptr: &str, base: i32 = 10): u64 extern
-def strtof(s: str, endptr: &str): f32 extern
-def strtod(s: str, endptr: &str): f64 extern
+[extern] def strtoll(s: str, endptr: &str, base: i32 = 10): i64
+[extern] def strtoul(s: str, endptr: &str, base: i32 = 10): u64
+[extern] def strtof(s: str, endptr: &str): f32
+[extern] def strtod(s: str, endptr: &str): f64
 
 // unistd.h
 @compiler c_include "sys/types.h"
 @compiler c_include "sys/wait.h"
 @compiler c_include "unistd.h"
 
-def pipe(fds: &i32): i32 extern
-def fork(): i32 extern
-def dup2(a: i32, b: i32): i32 extern
-def close(a: i32): i32 extern
-def execvp(a: str, b: &str): i32 extern
-def waitpid(a: i32, b: &i32, c: i32): i32 extern
-def write(a: i32, b: &u32, c: u32): i32 extern
+[extern] def pipe(fds: &i32): i32
+[extern] def fork(): i32
+[extern] def dup2(a: i32, b: i32): i32
+[extern] def close(a: i32): i32
+[extern] def execvp(a: str, b: &str): i32
+[extern] def waitpid(a: i32, b: &i32, c: i32): i32
+[extern] def write(a: i32, b: &u32, c: u32): i32
 
 // macros
-const STDIN_FILENO: i32 extern
-def WEXITSTATUS(a: i32): i32 extern
-def WTERMSIG(a: i32): i32 extern
-def WIFEXITED(a: i32): bool extern
-def WIFSIGNALED(a: i32): bool extern
+[extern] const STDIN_FILENO: i32
+[extern] def WEXITSTATUS(a: i32): i32
+[extern] def WTERMSIG(a: i32): i32
+[extern] def WIFEXITED(a: i32): bool
+[extern] def WIFSIGNALED(a: i32): bool

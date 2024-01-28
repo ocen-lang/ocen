@@ -5,6 +5,7 @@ import std::libc::{ calloc, free }
 
 struct Set<T> {
     map: &Map<T, bool>
+    size: u32
 }
 
 def Set::new(): &Set<T> {
@@ -15,31 +16,34 @@ def Set::new(): &Set<T> {
 
 def Set::add(&this, key: T) {
     .map.insert(key, true)
+    .size = .map.size
 }
 
 def Set::remove(&this, key: T) {
     .map.remove(key)
+    .size = .map.size
 }
-
-def Set::size(&this): u32 => .map.size()
 
 def Set::clear(&this) {
     .map.clear()
+    .size = 0
 }
 
 def Set::extend(&this, other: &Set<T>) {
     .map.extend(other.map)
+    .size = .map.size
 }
 
 def Set::subtract(&this, other: &Set<T>) {
     for let iter = other.iter(); iter.has_value(); iter.next() {
         .remove(iter.cur())
     }
+    .size = .map.size
 }
 
 def Set::iter(&this): Iterator<T> => Iterator<T>::make(this)
 def Set::contains(&this, key: T): bool => .map.contains(key)
-def Set::is_empty(&this): bool =>.size() == 0
+def Set::is_empty(&this): bool => .map.size == 0
 
 def Set::free(&this) {
     .map.free()

@@ -1,0 +1,73 @@
+//! Types and functions for working with attributes
+
+import std::span::{ Span }
+import std::vector::{ Vector }
+import std::compact_map::{ Map }
+
+import @parser::{ Parser }
+import @errors::{ Error }
+
+enum AttributeType {
+    Extern   // [extern] or [extern "function_name"]
+    Exits    // [exits]
+    Invalid  // used for error reporting
+}
+
+def AttributeType::hash(this): u32 => this as u32
+def AttributeType::eq(this, other: AttributeType): bool => this == other
+
+def AttributeType::from_str(s: str): AttributeType => match s {
+    "extern" => Extern
+    "exits" => Exits
+    else => Invalid
+}
+
+struct Attribute {
+    type: AttributeType
+    args: &Vector<str>
+    span: Span
+}
+
+def Attribute::new(type: AttributeType, span: Span): &Attribute {
+    let attr = std::new<Attribute>()
+    attr.type = type
+    attr.args = Vector<str>::new(capacity: 2)
+    attr.span = span
+    return attr
+}
+
+def Attribute::free(&this) {
+    .args.free()
+    std::free(this)
+}
+
+def Attribute::validate(&this, parser_for_errors: &Parser): bool {
+    match this.type {
+        Extern => {
+            if .args.size > 1 {
+                parser_for_errors.error(Error::new(
+                    this.span,
+                    "Extern attribute takes at most one argument"
+                ))
+                return false
+            }
+        }
+        Exits => {
+            if .args.size > 0 {
+                parser_for_errors.error(Error::new(
+                    this.span,
+                    "Exits attribute takes no arguments"
+                ))
+                return false
+            }
+        }
+        Invalid => {
+            parser_for_errors.error(Error::new(
+                this.span,
+                "Invalid attribute"
+            ))
+            return false
+        }
+    }
+    return true
+}

@@ -1,8 +1,8 @@
 /// out: "a\nb"
 
 
-def printf(s: &char) extern
-def my_print(s: &char) extern("printf")
+[extern] def printf(s: &char)
+[extern "printf"] def my_print(s: &char)
 
 
 def main() {

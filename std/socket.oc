@@ -86,38 +86,44 @@ def Socket::write(&this, buf: &Buffer): u32 => write(this.fd, buf.data, buf.size
 @compiler c_include "time.h"
 @compiler c_include "netdb.h"
 
-struct SockAddr extern("struct sockaddr")
-struct HostEnt extern("struct hostent") {
+[extern "struct sockaddr"] struct SockAddr
+
+[extern "struct hostent"]
+struct HostEnt {
     h_addr: &u8 // this type is a lie
 }
-struct SinAddr extern("struct in_addr") {
+
+[extern "struct in_addr"]
+struct SinAddr {
     s_addr: i32
 }
-struct SockAddrIn extern("struct sockaddr_in") {
+
+[extern "struct sockaddr_in"]
+struct SockAddrIn {
     sin_family: i32
     sin_port: i32
     sin_addr: SinAddr
 }
 
-def htons(val: i32): i32 extern
-def htonl(val: i32): i32 extern
+[extern] def htons(val: i32): i32
+[extern] def htonl(val: i32): i32
 
-let errno: i32 extern
-let AF_INET: i32 extern
-let SOCK_STREAM: i32 extern
-let INADDR_ANY: i32 extern
-let IPPROTO_UDP: i32 extern
-let IPPROTO_TCP: i32 extern
-let SOCK_DGRAM: i32 extern
+[extern] let errno: i32
+[extern] let AF_INET: i32
+[extern] let SOCK_STREAM: i32
+[extern] let INADDR_ANY: i32
+[extern] let IPPROTO_UDP: i32
+[extern] let IPPROTO_TCP: i32
+[extern] let SOCK_DGRAM: i32
 
-def socket(domain: i32, type: i32, protocol: i32): i32 extern
-def bind(sockfd: i32, addr: &SockAddr, addrlen: i32): i32 extern
-def listen(sockfd: i32, backlog: i32): i32 extern
-def accept(sockfd: i32, addr: &SockAddr, addrlen: &i32): i32 extern
-def inet_pton(af: i32, src: str, dst: untyped_ptr): i32 extern
-def connect(sockfd: i32, addr: &SockAddr, addrlen: u32): i32 extern
-def gethostbyname(name: str): &HostEnt extern
+[extern] def socket(domain: i32, type: i32, protocol: i32): i32
+[extern] def bind(sockfd: i32, addr: &SockAddr, addrlen: i32): i32
+[extern] def listen(sockfd: i32, backlog: i32): i32
+[extern] def accept(sockfd: i32, addr: &SockAddr, addrlen: &i32): i32
+[extern] def inet_pton(af: i32, src: str, dst: untyped_ptr): i32
+[extern] def connect(sockfd: i32, addr: &SockAddr, addrlen: u32): i32
+[extern] def gethostbyname(name: str): &HostEnt
 
-def read(fd: i32, buf: untyped_ptr, count: u32): u32 extern
-def write(fd: i32, buf: untyped_ptr, count: u32): u32 extern
-def close(fd: i32): i32 extern
+[extern] def read(fd: i32, buf: untyped_ptr, count: u32): u32
+[extern] def write(fd: i32, buf: untyped_ptr, count: u32): u32
+[extern] def close(fd: i32): i32

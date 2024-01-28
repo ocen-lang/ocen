@@ -3,23 +3,27 @@
 @compiler c_include "SDL2/SDL.h"
 @compiler c_flag "-lSDL2"
 
-struct Window extern("SDL_Window")
-struct Renderer extern("SDL_Renderer")
+[extern "SDL_Window"] struct Window
+[extern "SDL_Renderer"] struct Renderer
 
-struct Texture extern("SDL_Texture")
-def Texture::destroy(&this) extern("SDL_DestroyTexture")
+[extern "SDL_Texture"] struct Texture
+[extern "SDL_DestroyTexture"] def Texture::destroy(&this)
 
-struct Rect extern("SDL_Rect") {
+[extern "SDL_Rect"]
+struct Rect  {
     x: i32
     y: i32
     w: i32
     h: i32
 }
 
-struct Surface extern("SDL_Surface")
-def Surface::destroy(&this) extern("SDL_FreeSurface")
+[extern "SDL_Surface"]
+struct Surface
 
-struct Color extern("SDL_Color") {
+[extern "SDL_FreeSurface"] def Surface::destroy(&this)
+
+[extern "SDL_Color"]
+struct Color  {
     r: i32 // Not really i32, but it's convenient
     g: i32
     b: i32
@@ -70,7 +74,8 @@ enum MouseButton extern("u8") {
     Backward = extern("SDL_BUTTON_X2")
 }
 
-struct Keysym extern("SDL_Keysym") {
+[extern "SDL_Keysym"]
+struct Keysym {
     scancode: Key
     sym: Key
     mod: i32
@@ -87,18 +92,21 @@ enum EventType extern("SDL_EventType") {
     User = extern("SDL_USEREVENT")
 }
 
-struct KeyboardEvent extern("SDL_KeyboardEvent") {
+[extern "SDL_KeyboardEvent"]
+struct KeyboardEvent {
     type: i32
     keysym: Keysym
 }
 
-struct MouseWheelEvent extern("SDL_MouseWheelEvent") {
+[extern "SDL_MouseWheelEvent"]
+struct MouseWheelEvent {
     type: i32
     x: i32
     y: i32
 }
 
-struct MouseButtonEvent extern("SDL_MouseButtonEvent") {
+[extern "SDL_MouseButtonEvent"]
+struct MouseButtonEvent {
     type: i32
     button: MouseButton
     state: i32
@@ -106,14 +114,17 @@ struct MouseButtonEvent extern("SDL_MouseButtonEvent") {
     y: i32
 }
 
-struct Event extern("SDL_Event") {
+[extern "SDL_Event"]
+struct Event {
     type: EventType
     key: KeyboardEvent
     wheel: MouseWheelEvent
     button: MouseButtonEvent
 }
 
-struct Scancode extern("SDL_Scancode")
+[extern "SDL_Scancode"]
+struct Scancode
+
 enum BlendMode extern("SDL_BlendMode") {
     None = extern("SDL_BLENDMODE_NONE")
     Blend = extern("SDL_BLENDMODE_BLEND")
@@ -121,44 +132,43 @@ enum BlendMode extern("SDL_BlendMode") {
     Mod = extern("SDL_BLENDMODE_MOD")
 }
 
-const INIT_EVERYTHING: i32 extern("SDL_INIT_EVERYTHING")
-const PIXELFORMAT_ABGR8888: i32 extern("SDL_PIXELFORMAT_ABGR8888")
-const TEXTUREACCESS_STREAMING: i32 extern("SDL_TEXTUREACCESS_STREAMING")
-const WINDOW_RESIZABLE: i32 extern("SDL_WINDOW_RESIZABLE")
+[extern"SDL_INIT_EVERYTHING"]         const INIT_EVERYTHING: i32
+[extern"SDL_PIXELFORMAT_ABGR8888"]    const PIXELFORMAT_ABGR8888: i32
+[extern"SDL_TEXTUREACCESS_STREAMING"] const TEXTUREACCESS_STREAMING: i32
+[extern"SDL_WINDOW_RESIZABLE"]        const WINDOW_RESIZABLE: i32
+[extern"SDL_WINDOWPOS_CENTERED"]      const WINDOWPOS_CENTERED: i32
+[extern"SDL_WINDOW_RESIZABL"]         const WINDOW_RESIZABL: i32
+[extern"SDL_RENDERER_ACCELERATED"]    const RENDERER_ACCELERATED: i32
+[extern"SDL_NUM_SCANCODES"]           const NUM_SCANCODES: i32
 
-const WINDOWPOS_CENTERED: i32 extern("SDL_WINDOWPOS_CENTERED")
-const WINDOW_RESIZABL: i32 extern("SDL_WINDOW_RESIZABL")
-const RENDERER_ACCELERATED: i32 extern("SDL_RENDERER_ACCELERATED")
-const NUM_SCANCODES: i32 extern("SDL_NUM_SCANCODES")
 
+[extern "SDL_Init"]                    def init(flags: i32): i32
+[extern "SDL_Quit"]                    def quit()
+[extern "SDL_GetError"]                def get_error(): str
+[extern "SDL_Delay"]                   def delay(ms: i32)
+[extern "SDL_GetTicks"]                def get_ticks(): i32
+[extern "SDL_GetMouseState"]           def get_mouse_state(x: &i32, y: &i32): i32
+[extern "SDL_GetRelativeMouseState"]   def get_relative_mouse_state(x: &i32, y: &i32): i32
+[extern "SDL_ShowCursor"]              def show_cursor(toggle: bool)
+[extern "SDL_CreateWindow"]            def create_window(title: str, x: i32, y: i32, w: i32, h: i32, flags: i32): &Window
 
-def init(flags: i32): i32 extern("SDL_Init")
-def quit() extern("SDL_Quit")
-def get_error(): str extern("SDL_GetError")
-def create_window_renderer(width: i32, height: i32, flags: i32, window: &&Window, renderer: &&Renderer) extern("SDL_CreateWindowAndRenderer")
-def delay(ms: i32) extern("SDL_Delay")
-def get_ticks(): i32 extern("SDL_GetTicks")
-def get_mouse_state(x: &i32, y: &i32): i32 extern("SDL_GetMouseState")
-def get_relative_mouse_state(x: &i32, y: &i32): i32 extern("SDL_GetRelativeMouseState")
-def show_cursor(toggle: bool) extern("SDL_ShowCursor")
-def create_window(title: str, x: i32, y: i32, w: i32, h: i32, flags: i32): &Window extern("SDL_CreateWindow")
+[extern "SDL_CreateTextureFromSurface"] def Renderer::create_texture_from_surface(&this, surface: &Surface): &Texture
+[extern "SDL_CreateWindowAndRenderer"]  def create_window_renderer(width: i32, height: i32, flags: i32, window: &&Window, renderer: &&Renderer)
+[extern "SDL_CreateRenderer"]           def Window::create_renderer(&this, index: i32, flags: i32): &Renderer
+[extern "SDL_SetWindowTitle"]           def Window::set_title(&this, title: str)
+[extern "SDL_SetRenderDrawBlendMode"]   def Renderer::set_blend_mode(&this, blend: BlendMode)
+[extern "SDL_SetRenderDrawColor"]       def Renderer::set_draw_color(&this, r: i32, g: i32, b: i32, a: i32)
 
-def Window::create_renderer(&this, index: i32, flags: i32): &Renderer extern("SDL_CreateRenderer")
-def Window::set_title(&this, title: str) extern("SDL_SetWindowTitle")
-
-def Renderer::clear(&this) extern("SDL_RenderClear")
-def Renderer::present(&this) extern("SDL_RenderPresent")
-def Renderer::copy(&this, texture: &Texture, src: &Rect, dst: &Rect) extern("SDL_RenderCopy")
-def Renderer::copy_ex(&this, texture: &Texture, src: &Rect, dst: &Rect, angle: f32, center: untyped_ptr, flip: i32) extern("SDL_RenderCopyEx")
-def Renderer::set_draw_color(&this, r: i32, g: i32, b: i32, a: i32) extern("SDL_SetRenderDrawColor")
-def Renderer::destroy(&this) extern("SDL_DestroyRenderer")
-def Renderer::create_texture_from_surface(&this, surface: &Surface): &Texture extern("SDL_CreateTextureFromSurface")
-def Renderer::create_texture(&this, format: i32, access: i32, w: i32, h: i32): &Texture extern("SDL_CreateTexture")
-def Renderer::set_blend_mode(&this, blend: BlendMode) extern("SDL_SetRenderDrawBlendMode")
-def Renderer::draw_point(&this, x: i32, y: i32) extern("SDL_RenderDrawPoint")
-def Renderer::draw_line(&this, x1: i32, y1: i32, x2: i32, y2: i32) extern("SDL_RenderDrawLine")
-def Renderer::draw_rect(&this, rect: &Rect) extern("SDL_RenderDrawRect")
-def Renderer::fill_rect(&this, rect: &Rect) extern("SDL_RenderFillRect")
+[extern "SDL_RenderClear"]     def Renderer::clear(&this)
+[extern "SDL_RenderPresent"]   def Renderer::present(&this)
+[extern "SDL_RenderCopy"]      def Renderer::copy(&this, texture: &Texture, src: &Rect, dst: &Rect)
+[extern "SDL_RenderCopyEx"]    def Renderer::copy_ex(&this, texture: &Texture, src: &Rect, dst: &Rect, angle: f32, center: untyped_ptr, flip: i32)
+[extern "SDL_DestroyRenderer"] def Renderer::destroy(&this)
+[extern "SDL_CreateTexture"]   def Renderer::create_texture(&this, format: i32, access: i32, w: i32, h: i32): &Texture
+[extern "SDL_RenderDrawPoint"] def Renderer::draw_point(&this, x: i32, y: i32)
+[extern "SDL_RenderDrawLine"]  def Renderer::draw_line(&this, x1: i32, y1: i32, x2: i32, y2: i32)
+[extern "SDL_RenderDrawRect"]  def Renderer::draw_rect(&this, rect: &Rect)
+[extern "SDL_RenderFillRect"]  def Renderer::fill_rect(&this, rect: &Rect)
 
 enum WindowMode extern("int") {
     Windowed = extern("0") // This is a hack to hardcode in '0'
@@ -166,24 +176,23 @@ enum WindowMode extern("int") {
     Borderless = extern("SDL_WINDOW_FULLSCREEN_DESKTOP")
 }
 
-def Window::destroy(&this) extern("SDL_DestroyWindow")
-def Window::set_mode(&this, mode: WindowMode) extern("SDL_SetWindowFullscreen")
-def Window::set_resizable(&this, resizable: bool) extern("SDL_SetWindowResizable")
-def Window::get_flags(&this): i32 extern("SDL_GetWindowFlags")
-def Window::set_size(&this, w: i32, h: i32) extern("SDL_SetWindowSize")
-def Window::get_size(&this, w: &i32, h: &i32) extern("SDL_GetWindowSize")
-def Window::maximize(&this) extern("SDL_MaximizeWindow")
-def Window::restore(&this) extern("SDL_RestoreWindow")
+[extern "SDL_SetWindowFullscreen"] def Window::set_mode(&this, mode: WindowMode)
+[extern "SDL_SetWindowResizable"]  def Window::set_resizable(&this, resizable: bool)
+[extern "SDL_DestroyWindow"]  def Window::destroy(&this)
+[extern "SDL_GetWindowFlags"] def Window::get_flags(&this): i32
+[extern "SDL_SetWindowSize"]  def Window::set_size(&this, w: i32, h: i32)
+[extern "SDL_GetWindowSize"]  def Window::get_size(&this, w: &i32, h: &i32)
+[extern "SDL_MaximizeWindow"] def Window::maximize(&this)
+[extern "SDL_RestoreWindow"]  def Window::restore(&this)
+[extern "SDL_QueryTexture"]   def Texture::query(&this, a: untyped_ptr, b: untyped_ptr, w: &i32, h: &i32)
+[extern "SDL_LockTexture"]    def Texture::lock(&this, rect: &Rect, pixels: &untyped_ptr, pitch: &i32)
+[extern "SDL_UnlockTexture"]  def Texture::unlock(&this)
 
-// FIXME: what's a and b?
-def Texture::query(&this, a: untyped_ptr, b: untyped_ptr, w: &i32, h: &i32) extern("SDL_QueryTexture")
-def Texture::lock(&this, rect: &Rect, pixels: &untyped_ptr, pitch: &i32) extern("SDL_LockTexture")
-def Texture::unlock(&this) extern("SDL_UnlockTexture")
+[extern "SDL_WaitEventTimeout"] def wait_event_timeout(event: &Event, timeout: i32): bool
+[extern "SDL_PollEvent"]        def poll_event(event: &Event): bool
 
-def poll_event(event: &Event): bool extern("SDL_PollEvent")
-def wait_event_timeout(event: &Event, timeout: i32): bool extern("SDL_WaitEventTimeout")
+[extern "SDL_NUM_SYSTEM_CURSORS"] const CURSOR_TYPE_COUNT: i32
 
-const CURSOR_TYPE_COUNT: i32 extern("SDL_NUM_SYSTEM_CURSORS")
 enum CursorType extern("SDL_SystemCursor") {
     Arrow = extern("SDL_SYSTEM_CURSOR_ARROW")
     IBeam = extern("SDL_SYSTEM_CURSOR_IBEAM")
@@ -199,9 +208,9 @@ enum CursorType extern("SDL_SystemCursor") {
     Hand = extern("SDL_SYSTEM_CURSOR_HAND")
 }
 
-struct Cursor extern("SDL_Cursor")
+[extern "SDL_Cursor"]
+struct Cursor
 
-def Cursor::destroy(&this) extern("SDL_FreeCursor")
-
-def create_system_cursor(cursor: CursorType): &Cursor extern("SDL_CreateSystemCursor")
-def set_cursor(cursor: &Cursor) extern("SDL_SetCursor")
+[extern "SDL_FreeCursor"]         def Cursor::destroy(&this)
+[extern "SDL_CreateSystemCursor"] def create_system_cursor(cursor: CursorType): &Cursor
+[extern "SDL_SetCursor"]          def set_cursor(cursor: &Cursor)

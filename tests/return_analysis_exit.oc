@@ -1,8 +1,8 @@
 /// exit: 0
 import std::exit
 
-
-def bar() exits {
+[exits]
+def bar() {
 	exit(0)
 }
 
