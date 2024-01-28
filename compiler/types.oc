@@ -158,6 +158,8 @@ def Type::can_have_methods(&this): bool => match .base {
     else => false
 }
 
+def Type::is_resolved(&this): bool => .base != BaseType::Unresolved
+
 def Type::eq(&this, other: &Type, strict: bool = false): bool {
     if (this == null and other == null) return true
     if (this == null or other == null) return false

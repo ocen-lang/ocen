@@ -1,0 +1,20 @@
+/// compile
+
+import std::vector::{ Vector }
+import std::map::{ Map }
+
+typedef MyVec = Vector<u32>
+
+namespace Bar {
+    struct Foo {}
+    typedef MyVec = Map<u32, Foo>
+}
+
+def main() {
+    let foo = MyVec::new()
+    foo.push(0)
+    println(`foo: {foo.at(0)}`)
+
+    let bar = Bar::MyVec::new()
+    bar.insert(0, Bar::Foo())
+}

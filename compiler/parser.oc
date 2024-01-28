@@ -96,6 +96,13 @@ def Parser::consume(&this, type: TokenType): &Token {
     return tok
 }
 
+def Parser::is_end_of_statement(&this): bool {
+    if .token_is(TokenType::CloseCurly) return true
+    if .token_is(TokenType::Semicolon) return true
+    if .token().seen_newline return true
+    return false
+}
+
 def Parser::consume_end_of_statement(&this) {
     if .token_is(TokenType::CloseCurly) return
     .consume_newline_or(TokenType::Semicolon)
@@ -986,7 +993,7 @@ def Parser::parse_statement(&this): &AST {
         TokenType::Return => {
             .consume(TokenType::Return)
             let expr = null as &AST
-            if not .token().seen_newline {
+            if not .is_end_of_statement() {
                 expr = .parse_expression(end_type: TokenType::Newline)
             }
             node = AST::new_unop(ASTType::Return, start_span.join(.token().span), expr)

@@ -50,6 +50,11 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
         println(`(const) {var.sym.display}`)
     }
 
+    for it : ns.typedefs.iter() {
+        .print_indent()
+        println(`(typedef) {it.key}`)
+    }
+
     .indent -= 1
 }
 
