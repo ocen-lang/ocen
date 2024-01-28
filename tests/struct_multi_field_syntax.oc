@@ -1,0 +1,16 @@
+/// compile
+
+struct Point {
+    x, y, z: u32
+}
+
+def main() {
+    let p = Point(1, 2, 3)
+    let x: u32 = p.x
+    let y: u32 = p.y
+    let z: u32 = p.z
+    assert x == 1
+    assert y == 2
+    assert z == 3
+}
+

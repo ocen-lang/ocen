@@ -5,8 +5,7 @@ import std::traits::hash::pair_hash
 
 //! Template for a 2D vector
 struct Vec2<T> {
-    x: T
-    y: T
+    x, y: T
 }
 
 typedef Vec2f = Vec2<f32>
@@ -71,9 +70,7 @@ def Vec2::to_u64(this): Vec2u64 => Vec2u64(.x as u64, .y as u64)
 
 //! Template for a 3D vector
 struct Vec3<T> {
-    x: T
-    y: T
-    z: T
+    x, y, z: T
 }
 
 typedef Vec3f = Vec3<f32>
