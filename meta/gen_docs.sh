@@ -14,6 +14,7 @@ import std::{ vector, map, compact_map, heap, deque, set, linkedlist }
 import std::{ buffer, bufferio, image, json, math, complex, fft, random }
 import std::{ value, vec, glut, socket, sort, thread, video_renderer, sv }
 import std::traits::{ hash, eq, compare }
+import std::{ image::draw, hash::sha1 }
 
 import std::sdl::{ ttf, image as sdl_img, mixer as sdl_mixer, gfx as sdl_gfx }
 
