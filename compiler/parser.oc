@@ -1,19 +1,18 @@
 //* The parser
 
-import std::span::Span
-import std::map::Map
-import std::vector::Vector
-import std::buffer::Buffer
-import std::libc::{ calloc, free }
+import std::buffer::{ Buffer }
+import std::map::{ Map }
+import std::span::{ Span }
+import std::vector::{ Vector }
 
-import @attributes::{ Attribute, AttributeType }
-import @ast::nodes::*
+import @ast::nodes::{ * }
 import @ast::program::{ Namespace, Program }
-import @lexer::Lexer
-import @types::{ Type, BaseType, FunctionType, ArrayType }
-import @tokens::{ Token, TokenType }
 import @ast::scopes::{ Symbol, SymbolType, Template }
+import @attributes::{ Attribute, AttributeType }
 import @errors::Error
+import @lexer::Lexer
+import @tokens::{ Token, TokenType }
+import @types::{ Type, BaseType, FunctionType, ArrayType }
 import @utils::directory_exists
 
 @compiler c_include "libgen.h"
@@ -63,7 +62,14 @@ def Parser::unhandled_type(&this, func: str) {
     .error_msg(`Unexpected token in {func}: {.token().type.str()}`)
 }
 
-def Parser::token(&this): &Token => .tokens.at(.curr as u32)
+def Parser::token(&this): &Token {
+    if .curr >= .tokens.size {
+        // If we run out of tokens without an error, report one.
+        .error_msg("Unexpected end of file")
+        .program.exit_with_errors()
+    }
+    return .tokens.unchecked_at(.curr as u32)
+}
 
 def Parser::token_is(&this, type: TokenType): bool {
     if type == TokenType::Newline {
@@ -1726,7 +1732,7 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
         let parser = Parser::make(.program, ns)
         parser.load_file(mod_path)
     } else {
-        free(mod_path)
+        std::free(mod_path)
     }
 }
 
@@ -1769,7 +1775,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
         } else {
             .try_load_mod_for_namespace(next)
         }
-        free(path)
+        std::free(path)
     }
     return next
 }
@@ -1803,7 +1809,7 @@ def Parser::find_external_library_path(&this, name: str): str {
         if directory_exists(path) {
             return path
         }
-        free(path)
+        std::free(path)
     }
     return null
 }
@@ -1929,19 +1935,19 @@ def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: boo
     // Path to the directory of the file
     let t1 = filename.copy()
     let dir = dirname(t1).copy()
-    free(t1)
+    std::free(t1)
 
     // Path to the file without the extension
     let t2 = filename.copy()
     let base = basename(t2).copy()
     // FIXME: Actually check and remove extension correctly
     base.remove_last_n(3)
-    free(t2)
+    std::free(t2)
 
     // Just the name of the directory
     let t3 = dir.copy()
     let dir_base = basename(t3).copy()
-    free(t3)
+    std::free(t3)
 
 
     // Namespace for the project directory
