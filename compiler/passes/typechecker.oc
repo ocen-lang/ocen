@@ -3,18 +3,20 @@
 //* This pass actually goes through the AST and checks the types of all the nodes.
 //* Any remaining unresolved types should be resolved after this
 
-import std::vector::Vector
-import std::span::Span
-import std::buffer::Buffer
-import std::map::Map
-import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
+import std::buffer::{ Buffer }
+import std::map::{ Map }
+import std::span::{ Span }
+import std::vector::{ Vector }
+
+import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
+import @ast::nodes::{ ImportPart, Enum, Argument, MatchCase }
 import @ast::program::{ Program, Namespace }
-import @errors::Error
-import @passes::generic_pass::GenericPass
+import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
+import @errors::{ Error }
+import @lexer::{ Lexer }
+import @parser::{ Parser }
+import @passes::generic_pass::{ GenericPass }
 import @types::{ Type, BaseType, FunctionType, UnresolvedTemplate, ArrayType }
-import @lexer::Lexer
-import @parser::Parser
-import @ast::nodes::*
 
 struct TypeChecker {
     o: &GenericPass
