@@ -1,20 +1,18 @@
 import std::buffer::Buffer
 import std::libc::{ memset, memcpy }
-
-def rotate_left(value: u32, bits: u32): u32 {
-    return (((value) << (bits)) | ((value) >> (32 - (bits))))
-}
+import std::hash::utils::{ rotate_left }
 
 def hash(input: &Buffer): Buffer {
     let data = input.data
     let size = input.size as u64
 
-    let H: [u32; 5]
-    H[0] = 0x67452301
-    H[1] = 0xEFCDAB89
-    H[2] = 0x98BADCFE
-    H[3] = 0x10325476
-    H[4] = 0xC3D2E1F0
+    let H: [u32; 5] = [
+        0x67452301,
+        0xEFCDAB89,
+        0x98BADCFE,
+        0x10325476,
+        0xC3D2E1F0
+    ]
 
     let loopcount = (size + 8) / 64 + 1
     let tailbytes = loopcount * 64  - size

@@ -1,0 +1,8 @@
+
+def rotate_left(value: u32, bits: u32): u32 {
+    return (((value) << (bits)) | ((value) >> (32 - (bits))))
+}
+
+def rotate_right(value: u32, bits: u32): u32 {
+    return (((value) >> (bits)) | ((value) << (32 - (bits))))
+}
