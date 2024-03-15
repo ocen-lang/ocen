@@ -67,6 +67,9 @@ struct FunctionType {
 struct ArrayType {
     elem_type: &Type
     size_expr: &AST
+
+    size_known: bool
+    size: u32
 }
 
 //* Stores an unresolved template specialization.
@@ -196,7 +199,10 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
         Enum => return .u.enum_ == other.u.enum_
         Array => {
             if not .u.arr.elem_type.eq(other.u.arr.elem_type, strict: true) return false
-            // FIXME: how do we check the size? It's currently an AST
+            if .u.arr.size_known and other.u.arr.size_known {
+                return .u.arr.size == other.u.arr.size
+            }
+
             return true
         }
         else => {
@@ -239,6 +245,18 @@ def Type::str(&this): str => match .base {
         }
         buf.puts("): ")
         buf.puts(.u.func.return_type.str())
+        return buf.str()
+    }
+    Array => {
+        let buf = Buffer::make()
+        buf.puts(.u.arr.elem_type.str())
+        buf.puts("[")
+        if .u.arr.size_known {
+            buf.putsf(`{.u.arr.size}`)
+        } else {
+            buf.puts(`?{this:p}`)
+        }
+        buf.puts("]")
         return buf.str()
     }
     Structure => .u.struc.sym.display

@@ -1,0 +1,7 @@
+/// fail: Variable foo has type u32[3] but initializer has type u32[6]
+
+def main() {
+    // NOTE: we can only detect errors for hard-coded array sizes
+    //       not if we're using variables/constants
+    let foo: [u32; 3] = [1, 2, 3, 4, 5, 6]
+}

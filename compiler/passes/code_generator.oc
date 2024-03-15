@@ -296,7 +296,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => {
             let num_lit = &node.u.num_literal
-            if node.etype.base != I32 {
+            if node.etype.base != I32 and node.etype.base != U32 {
                 .out.puts("((")
                 .gen_type(node.etype)
                 .out.puts(")")
@@ -312,6 +312,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             if node.etype.base == F32 {
                 .out.puts("f")
             }
+        }
+        ArrayLiteral => {
+            let elements = node.u.array_literal.elements
+            .out.puts("{")
+            for let i = 0; i < elements.size; i += 1 {
+                if i != 0 then .out.puts(", ")
+                let expr = elements.at(i)
+                .gen_expression(expr)
+            }
+            .out.puts("}")
         }
         FormatStringLiteral => .gen_format_string(node)
         StringLiteral => {
@@ -891,7 +901,15 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             let prev_buffer: Buffer = .out
 
             .out = Buffer::make()
-            .gen_expression(cur.u.arr.size_expr)
+
+            let arr_typ = &cur.u.arr
+            if arr_typ.size_expr? {
+                .gen_expression(arr_typ.size_expr)
+            } else if arr_typ.size_known {
+                .out.putsf(`{arr_typ.size}`)
+            } else {
+                .error(Error::new(cur.span, "Array size not known at compile time"))
+            }
 
             acc.replace(`{acc}[{.out.str()}]`)
             std::free(.out.data)

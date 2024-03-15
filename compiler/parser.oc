@@ -182,7 +182,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         let size_expr = .parse_expression(end_type: TokenType::CloseSquare)
         let close = .consume(TokenType::CloseSquare)
         let typ = Type::new_resolved(BaseType::Array, start_span.join(close.span))
-        typ.u.arr = ArrayType(elem_type, size_expr)
+        typ.u.arr = ArrayType(elem_type, size_expr, size_known: false, size: 0)
         yield typ
     }
 
@@ -449,6 +449,52 @@ def Parser::parse_call(&this, callee: &AST): &AST {
     return call
 }
 
+//* We also allow array literals when initializing a variable, so treat them separately.
+def Parser::parse_var_initializer(&this): &AST {
+    if .token_is(TokenType::OpenSquare) {
+        let start = .consume(TokenType::OpenSquare)
+        let elements = Vector<&AST>::new()
+        while not .token_is(TokenType::CloseSquare) {
+            elements.push(.parse_var_initializer())
+            if not .token_is(TokenType::CloseSquare) {
+                .consume(TokenType::Comma)
+            }
+        }
+        let close = .consume(TokenType::CloseSquare)
+        let node = AST::new(ASTType::ArrayLiteral, start.span.join(close.span))
+        node.u.array_literal.elements = elements
+        return node
+    }
+    return .parse_expression(TokenType::Newline)
+}
+
+def Parser::parse_var_declaration(&this): &AST {
+    let start = .consume(TokenType::Let)
+    let name = .consume(TokenType::Identifier)
+    let end_span = name.span
+
+    let type = null as &Type
+    if .consume_if(TokenType::Colon) {
+        type = .parse_type()
+        end_span = type.span
+    }
+    let init = null as &AST
+    if .consume_if(TokenType::Equals) {
+        init = .parse_var_initializer()
+        end_span = init.span
+    }
+    .consume_end_of_statement()
+
+    let node = AST::new(ASTType::VarDeclaration, start.span.join(end_span))
+
+    let var = Variable::new(type)
+    var.sym = Symbol::from_local_variable(name.text, var, name.span)
+
+    node.u.var_decl.var = var
+    node.u.var_decl.init = init
+    return node
+}
+
 def Parser::parse_global_value(&this, is_const: bool): &AST {
     let start_token = if is_const {
         yield .consume(TokenType::Const)
@@ -487,7 +533,11 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     node.u.var_decl.var = var
 
     if .consume_if(TokenType::Equals) {
-        node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
+        if is_const {
+            node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
+        } else {
+            node.u.var_decl.init = .parse_var_initializer()
+        }
     }
     .consume_newline_or(TokenType::Semicolon)
     return node
@@ -1077,29 +1127,7 @@ def Parser::parse_statement(&this): &AST {
         }
         TokenType::For => node = .parse_for()
         TokenType::Let => {
-            .consume(TokenType::Let)
-            let name = .consume(TokenType::Identifier)
-            let end_span = name.span
-
-            let type = null as &Type
-            if .consume_if(TokenType::Colon) {
-                type = .parse_type()
-                end_span = type.span
-            }
-            let init = null as &AST
-            if .consume_if(TokenType::Equals) {
-                init = .parse_expression(end_type: TokenType::Newline)
-                end_span = init.span
-            }
-            .consume_end_of_statement()
-
-            node = AST::new(ASTType::VarDeclaration, start_span.join(end_span))
-
-            let var = Variable::new(type)
-            var.sym = Symbol::from_local_variable(name.text, var, name.span)
-
-            node.u.var_decl.var = var
-            node.u.var_decl.init = init
+            node = .parse_var_declaration()
         }
         else => {
             node = .parse_expression(end_type: TokenType::Newline)
