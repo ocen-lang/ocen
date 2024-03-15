@@ -180,6 +180,12 @@ def MarkDeadCode::mark(&this, node: &AST) {
             .mark(node.u.binary.rhs)
         }
 
+        ArrayLiteral => {
+            for expr : node.u.array_literal.elements.iter() {
+                .mark(expr)
+            }
+        }
+
         else => .o.error(Error::new(node.span, `Unhandled expression type in MarkDeadCode: {node.type}`))
     }
 }

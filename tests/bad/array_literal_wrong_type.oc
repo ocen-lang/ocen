@@ -1,0 +1,5 @@
+/// fail: Variable foo has type u32[2] but initializer has type str[2]
+
+def main() {
+    let foo: [u32; 2] = ["Hello", "World"]
+}

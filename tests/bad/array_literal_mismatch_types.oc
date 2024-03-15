@@ -1,0 +1,5 @@
+/// fail: Expected type str, but got u32
+
+def main() {
+    let foo = ["hello", 3]
+}

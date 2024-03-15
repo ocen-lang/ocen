@@ -46,6 +46,7 @@ enum ASTType {
     PreDecrement
     PostIncrement
     PostDecrement
+    ArrayLiteral
 
     // Unary operators
     Address
@@ -365,6 +366,10 @@ struct Specialization {
     template_args: &Vector<&Type>
 }
 
+struct ArrayLiteral {
+    elements: &Vector<&AST>
+}
+
 union ASTUnion {
     assertion: Assertion
     binary: Binary
@@ -387,6 +392,7 @@ union ASTUnion {
     size_of_type: &Type
     match_stmt: Match
     spec: Specialization
+    array_literal: ArrayLiteral
 }
 
 struct AST {

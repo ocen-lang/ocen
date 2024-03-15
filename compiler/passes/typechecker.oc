@@ -139,11 +139,14 @@ def TypeChecker::resolve_type(
             let arr = old.u.arr
             let elem_type = .resolve_type(arr.elem_type, p_a, p_e, p_r)
             if not elem_type? return null
+
             let res = .check_expression(arr.size_expr)
             if not res? return null
 
             resolved = Type::shallow_copy(old)
-            resolved.u.arr = ArrayType(elem_type, arr.size_expr)
+            resolved.u.arr.elem_type = elem_type
+
+            .try_infer_array_size(&resolved.u.arr)
         }
         Structure | Char | Bool | Void | I8 | I16 |
         I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 |
@@ -157,6 +160,22 @@ def TypeChecker::resolve_type(
         }
     }
     return resolved
+}
+
+def TypeChecker::try_infer_array_size(&this, arr_typ: &ArrayType) {
+    let size_expr = arr_typ.size_expr
+
+    if size_expr.type == ASTType::IntLiteral {
+        if size_expr.u.num_literal.suffix? {
+            .error(Error::new(size_expr.span, "Array size literal cannot have a suffix"))
+        }
+        arr_typ.size_known = true
+        arr_typ.size = size_expr.u.num_literal.text.to_u32()
+    }
+
+    // FIXME: We also want to be able to check based on constant expressions, however
+    // we don't have a way to actually evaluate constant expressions yet since we just
+    // pass that onto the C compiler.
 }
 
 def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &Structure) {
@@ -787,7 +806,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
 // function, and still always assign the type to the node's etype field
 def TypeChecker::check_expression(&this, node: &AST, hint: &Type = null): &Type {
     let typ = .check_expression_helper(node, hint)
-    if typ? then typ = typ.decay_array()
+    if typ? and node.type != ArrayLiteral then typ = typ.decay_array()
     node.etype = typ
     return typ
 }
@@ -1013,6 +1032,43 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 .error(Error::new(node.span, `Can't perform {node.type} on a non-lvalue`))
             }
             return lhs
+        }
+
+        ArrayLiteral => {
+            let hint_elem_type = null as &Type
+            if hint? and hint.base == BaseType::Array {
+                hint_elem_type = hint.u.arr.elem_type
+            }
+
+            let elem_type = null as &Type
+            let first_span = Span::default()
+            for elem : node.u.array_literal.elements.iter() {
+                let typ = .check_expression(elem, hint_elem_type)
+                if not typ? continue
+
+                if not elem_type? {
+                    elem_type = typ
+                    // After the first element, we can use the type of the first element as the hint
+                    hint_elem_type = elem_type
+                    first_span = elem.span
+
+                } else if not elem_type.eq(typ) {
+                    .error(Error::new_hint(
+                        elem.span, `Expected type {elem_type.str()}, but got {typ.str()}`,
+                        first_span, `First element was of type {elem_type.str()}`
+                    ))
+                    return null
+                }
+            }
+            if not elem_type? {
+                .error(Error::new(node.span, "Array literal must have at least one element"))
+                return null
+            }
+            let arr = Type::new_resolved(Array, node.span)
+            arr.u.arr.elem_type = elem_type
+            arr.u.arr.size_known = true
+            arr.u.arr.size = node.u.array_literal.elements.size
+            return arr
         }
 
         else => {

@@ -1,0 +1,10 @@
+/// out: "1 3 2 4 3 5"
+
+let bar: [u32; 3] = [3, 4, 5]
+
+def main() {
+    let foo = [1, 2, 3]
+    for let i = 0; i < 3; i++ {
+        print(`{foo[i]} {bar[i]} `)
+    }
+}
