@@ -1,0 +1,11 @@
+/// fail: Expected a string literal for variadic-format function
+
+[extern "printf"]
+[variadic_format]
+def my_printf(fmt: str, ...): i32
+
+def bar(): str => "foo"
+
+def main() {
+    my_printf(bar())
+}

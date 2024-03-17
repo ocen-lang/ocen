@@ -59,7 +59,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
     func.params.push(var)
 
     let typ = Type::new_resolved(Function, span)
-    typ.u.func = FunctionType(func, func.params, func.return_type)
+    typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
     func.type = typ
 
     enum_.type.methods.insert("dbg", func)

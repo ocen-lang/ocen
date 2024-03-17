@@ -8,9 +8,10 @@ import @parser::{ Parser }
 import @errors::{ Error }
 
 enum AttributeType {
-    Extern   // [extern] or [extern "function_name"]
-    Exits    // [exits]
-    Invalid  // used for error reporting
+    Extern          // [extern] or [extern "function_name"]
+    Exits           // [exits]
+    VariadicFormat  // [variadic_format] (expand format-strings)
+    Invalid         // used for error reporting
 }
 
 def AttributeType::hash(this): u32 => this as u32
@@ -19,6 +20,7 @@ def AttributeType::eq(this, other: AttributeType): bool => this == other
 def AttributeType::from_str(s: str): AttributeType => match s {
     "extern" => Extern
     "exits" => Exits
+    "variadic_format" => VariadicFormat
     else => Invalid
 }
 
@@ -57,6 +59,15 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 parser_for_errors.error(Error::new(
                     this.span,
                     "Exits attribute takes no arguments"
+                ))
+                return false
+            }
+        }
+        VariadicFormat => {
+            if .args.size > 0 {
+                parser_for_errors.error(Error::new(
+                    this.span,
+                    "Variadic Format attribute takes no arguments"
                 ))
                 return false
             }
