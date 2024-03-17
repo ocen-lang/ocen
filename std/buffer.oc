@@ -42,18 +42,6 @@ def Buffer::from_sv(sv: SV): Buffer {
     )
 }
 
-def Buffer::from_file(path: str): Buffer {
-    let file = std::File::open(path, "rb")
-    assert file?, `Could not open file: {path}`
-
-    let size = file.size()
-    let data = file.slurp()
-    assert data?, `Could not read file: {path}`
-    file.close()
-
-    return Buffer::from_sized_str(data, size)
-}
-
 def Buffer::from_sized_str(s: str, size: u32): Buffer {
     return Buffer(
         data: s as &u8,
@@ -64,20 +52,23 @@ def Buffer::from_sized_str(s: str, size: u32): Buffer {
 
 def Buffer::resize_if_necessary(&this, new_size: u32) {
     if new_size >= .capacity {
-        let new_capacity = i32::max(.capacity as i32 * 2, new_size as i32)
+        let new_capacity = u32::max(.capacity, new_size)
         .data = realloc(.data, new_capacity as u32) as &u8
+        .capacity = new_capacity as u32
         assert .data?, "Out of memory!"
     }
 }
 
-def Buffer::hex_dump(&this) {
-    print("(%d bytes): ", .size)
-    for let i = 0; i < .size; i += 1 {
+def hex_dump(data: &u8, size: u32) {
+    print("(%d bytes): ", size)
+    for let i = 0; i < size; i += 1 {
         if (i % 4 == 0 and i > 0) print("_")
-        print("%02x", .data[i])
+        print("%02x", data[i])
     }
     println("")
 }
+
+def Buffer::hex_dump(this) => hex_dump(.data, .size)
 
 def Buffer::putb(&this, buf: &Buffer) {
     .resize_if_necessary(new_size: .size + buf.size + 1)
@@ -111,16 +102,18 @@ def Buffer::putsf(&this, s: str) {
     free(s)
 }
 
-def Buffer::putsv(&this, sv: SV) {
-    .resize_if_necessary(new_size: .size + sv.len + 1)
-    memcpy(.data + .size, sv.data, sv.len)
-    .size += sv.len
+def Buffer::put_bytes(&this, bytes: &u8, size: u32) {
+    .resize_if_necessary(new_size: .size + size + 1)
+    memcpy(.data + .size, bytes, size)
+    .size += size
     .data[.size] = '\0' as u8
 }
 
-def Buffer::str(&this): str => .data as str
-def Buffer::new_str(&this): str => (.data as str).copy()
-def Buffer::sv(&this): SV => SV(.data as str, .size)
+def Buffer::putsv(&this, sv: SV) => .put_bytes(sv.data as &u8, sv.len)
+
+def Buffer::str(this): str => .data as str
+def Buffer::new_str(this): str => (.data as str).copy()
+def Buffer::sv(this): SV => SV(.data as str, .size)
 
 def Buffer::clear(&this) {
     .size = 0

@@ -2,56 +2,6 @@ import .libc
 
 @compiler c_embed "./prelude.h"
 
-[extern "FILE"] struct File
-
-def File::open(path: str, mode: str = "r"): &File {
-    let file = libc::fopen(path, mode)
-    if not file? {
-        panic(`failed to open file: {path}`)
-    }
-    return file
-}
-
-[extern "fclose"] def File::close(&this)
-
-def File::read(&this, buf: untyped_ptr, size: u32): i32 {
-    return libc::fread(buf, 1, size, this)
-}
-
-def File::write(&this, buf: untyped_ptr, size: u32): i32 {
-    return libc::fwrite(buf, 1, size, this)
-}
-
-def File::slurp(&this): str {
-    import .libc::*
-    let size = .size()
-    let buf = calloc((size as u32 + 1), sizeof(char))
-    fread(buf, 1, size, this)
-    return buf as str
-}
-
-def File::size(&this): u32 {
-    import .libc::*
-    let pos = ftell(this)
-    fseek(this, 0, SEEK_END)
-    let size = ftell(this) as u32
-    fseek(this, pos, SEEK_SET)
-    return size
-}
-
-def File::exists(path: str): bool {
-    let file = libc::fopen(path, "r")
-    if not file? {
-        return false
-    }
-    file.close()
-    return true
-}
-
-def File::puts(&this, s: str) {
-    libc::fwrite(s , 1, s.len(), this)
-}
-
 [extern] [exits] def exit(code: i32 = 0)
 
 [exits]
@@ -89,6 +39,20 @@ def str::ends_with(this, suffix: str): bool {
     return true
 }
 
+def str::starts_with(this, prefix: str): bool {
+    let prefix_len = prefix.len()
+    let len = .len()
+    if prefix_len > len {
+        return false
+    }
+    for let i = 0; i < prefix_len; i += 1 {
+        if this[i] != prefix[i] {
+            return false
+        }
+    }
+    return true
+}
+
 def str::strip_trailing_whitespace(this) {
     for let i = .len() - 1; i >= 0; i -= 1 {
         if this[i] != ' ' break
@@ -105,6 +69,11 @@ def str::replace_with(&this, other: str) {
     *this = other
 }
 
+def str::free(&this) {
+    libc::free(*this)
+    *this = null
+}
+
 def str::chars(this, start: u32 = 0): CharIterator => CharIterator(this, this.len(), start)
 
 struct CharIterator {
@@ -118,7 +87,14 @@ def CharIterator::next(&this): u32 => .pos++
 def CharIterator::cur(&this): char => .data[.pos]
 
 def char::is_digit(this): bool => libc::isdigit(this)
+def char::is_hex_digit(this): bool => libc::isxdigit(this)
 def char::get_digit(this): u32 => this as u32 - '0' as u32
+def char::get_hex_digit(this): u8 {
+    if '0' <= this <= '9' return this as u8 - '0' as u8
+    if 'a' <= this <= 'f' return this as u8 - 'a' as u8 + 10
+    if 'A' <= this <= 'F' return this as u8 - 'A' as u8 + 10
+    panic(`[-] Invalid hex digit: '{this}' (0x{this:02x})`)
+}
 
 def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)

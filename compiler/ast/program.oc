@@ -118,6 +118,8 @@ struct Program {
     check_doc_links: bool
     errors: &Vector<&Error>
     error_level: u32
+
+    cached_types: CachedTypes
 }
 
 def Program::new(): &Program {
@@ -224,6 +226,11 @@ def Program::get_type_by_name(&this, name: str, span: Span): &Type {
         .error(Error::new(span, `Internal compiler error, couldn't find type {name}`))
         return null
     }
+}
+
+struct CachedTypes {
+    sv_type: &Type
+    buffer_type: &Type
 }
 
 def Program::iter_namespaces(&this): NSIterator {

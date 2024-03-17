@@ -4,6 +4,7 @@ import std::buffer::{ Buffer }
 import std::map::{ Map }
 import std::span::{ Span }
 import std::vector::{ Vector }
+import std::fs
 
 import @ast::nodes::{ * }
 import @ast::program::{ Namespace, Program }
@@ -1739,15 +1740,13 @@ def Parser::parse_compiler_option(&this) {
             }
 
             let full_path = f"{cur_dir}/{path.text}"
-            if not std::File::exists(full_path) {
+            if not fs::file_exists(full_path) {
                 .error(Error::new(path.span, f"File '{full_path}' does not exist"))
                 return
             }
 
-            let file = std::File::open(full_path)
-            defer file.close()
-            let contents = file.slurp()
-            .program.c_embeds.insert(full_path, contents)
+            let contents = fs::read_file(full_path)
+            .program.c_embeds.insert(full_path, contents.str())
         }
         else => .error(Error::new(name.span, "Unknown compiler option"))
     }
@@ -1755,7 +1754,7 @@ def Parser::parse_compiler_option(&this) {
 
 def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
     let mod_path = f"{ns.path}/mod.oc"
-    if std::File::exists(mod_path) {
+    if fs::file_exists(mod_path) {
         ns.is_top_level = true
         let parser = Parser::make(.program, ns)
         parser.load_file(mod_path)
@@ -1778,7 +1777,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
     if not next? {
         let dir_exists = directory_exists(part_path)
         let path = `{base.path}/{name}.oc`
-        let file_exists = std::File::exists(path)
+        let file_exists = fs::file_exists(path)
 
         if not dir_exists and not file_exists {
             .error(Error::new(span, `Could not find import path {part_path}(.oc)`))
@@ -1916,8 +1915,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
 def Parser::load_file(&this, filename: str) {
     if .program.sources.contains(filename) return
 
-    let file = std::File::open(filename, "r")
-    let contents = file.slurp()
+    let contents = fs::read_file(filename).str()
     .program.sources.insert(filename, contents)
 
     let lexer = Lexer::make(contents, filename)
@@ -1952,10 +1950,10 @@ def Parser::include_prelude_only(&this) {
         couldnt_find_stdlib()
     }
     let prelude_path = f"{std_path}/prelude.h"
-    if not std::File::exists(prelude_path) {
+    if not fs::file_exists(prelude_path) {
         couldnt_find_stdlib()
     }
-    let content = Buffer::from_file(prelude_path)
+    let content = fs::read_file(prelude_path)
     .program.c_embeds.insert(prelude_path, content.str())
 }
 

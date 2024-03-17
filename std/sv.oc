@@ -17,7 +17,6 @@ def SV::is_empty(&this): bool => .len == 0
 
 def SV::from_buf(buf: Buffer): SV => SV(buf.data as str, buf.size)
 def SV::from_str(s: str): SV => SV(s, s.len())
-def SV::from_file(path: str): SV => SV::from_buf(Buffer::from_file(path))
 
 //* Get the first n characters of the string
 def SV::get(this, n: u32): SV => SV(this.data, n)
@@ -62,6 +61,16 @@ def SV::trim_right(&this) {
 def SV::trim(&this) {
     .trim_left()
     .trim_right()
+}
+
+//* Find the index of the first occurrence of a string in the string view
+def SV::find_str(&this, s: str): i32 {
+    for let i = 0; i < .len - s.len(); i += 1 {
+        if memcmp(.data + i, s, s.len()) == 0 {
+            return i as i32
+        }
+    }
+    return -1
 }
 
 //* Chop the string by a delimiter and return the first part

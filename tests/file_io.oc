@@ -1,19 +1,10 @@
 /// out: "Hello, world!"
 
+import std::fs
+
 def main() {
-    {
-        let file = std::File::open("test.txt", "w")
-        file.write("Hello, world!" , 13)
-
-        file.close()
-    }
-    {
-        let file = std::File::open("test.txt", "r")
-
-        let mem = std::libc::malloc(20)
-        file.read(mem, 13)
-        println("%s", mem as str)
-
-        file.close()
-    }
+    fs::write_file_str("hello.txt", "Hello, world!")
+    let s = fs::read_file("hello.txt")
+    println(`{s.str()}`)
+    s.free()
 }

@@ -2,6 +2,7 @@
 
 import std::libc::{ calloc, free }
 import std::buffer::Buffer
+import std::fs
 
 //* A type that holds an Image in 24-bit RGB format
 
@@ -44,9 +45,7 @@ def Image::save(&this, filename: str) {
         assert false, `Unknown file format for image: ${filename}`
     }
 
-    let file = std::File::open(filename, "wb")
-    file.write(buffer.data, buffer.size)
-    file.close()
+    fs::write_file(filename, buffer)
     buffer.free()
 }
 
@@ -54,7 +53,7 @@ def Image::load(filename: str): &Image {
     import .ppm
     import .qoi
 
-    let data = Buffer::from_file(filename)
+    let data = fs::read_file(filename)
 
     let image = null as &Image
     if filename.ends_with(".ppm") {

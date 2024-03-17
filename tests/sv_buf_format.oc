@@ -1,0 +1,14 @@
+/// out: "hello bar!!"
+
+import std::sv::SV
+import std::buffer::Buffer
+
+def main() {
+    let s = SV::from_str("hello foo")
+    let h = s.chop_word()
+    print(`{h} bar`)
+
+    let buf = Buffer::from_str("!!???")
+    buf.size = 2
+    println(`{buf}`)
+}

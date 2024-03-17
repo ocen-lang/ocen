@@ -1,8 +1,8 @@
-import std::buffer::Buffer
-import std::libc::{ memset, memcpy }
+import std::buffer::{ Buffer, hex_dump }
+import std::libc::{ memset, memcpy, memcmp }
 import std::hash::utils::{ rotate_left }
 
-def hash(input: &Buffer): Buffer {
+def hash_into(input: Buffer, output: &u8) {
     let data = input.data
     let size = input.size as u64
 
@@ -80,19 +80,33 @@ def hash(input: &Buffer): Buffer {
         }
     }
 
-    let out = Buffer::make()
-    out.resize_if_necessary(20)
     for let idx = 0; idx < 5; idx += 1 {
-        out.data[idx * 4 + 0] = (H[idx] >> 24) as u8
-        out.data[idx * 4 + 1] = (H[idx] >> 16) as u8
-        out.data[idx * 4 + 2] = (H[idx] >> 8) as u8
-        out.data[idx * 4 + 3] = (H[idx]) as u8
+        output[idx * 4 + 0] = (H[idx] >> 24) as u8
+        output[idx * 4 + 1] = (H[idx] >> 16) as u8
+        output[idx * 4 + 2] = (H[idx] >> 8) as u8
+        output[idx * 4 + 3] = (H[idx]) as u8
     }
+}
+
+def hash(input: Buffer): Buffer {
+    let out = Buffer::make(capacity: 20)
+    hash_into(input, out.data)
     out.size = 20
     return out
 }
 
-def hash_str(data: str): Buffer {
-    let input_data = Buffer::from_str(data)
-    return hash(&input_data)
+def hash_str(data: str): Buffer => hash(Buffer::from_str(data))
+
+//* Allocation-less hash storage, but specific to SHA1
+struct SHA1Hash {
+    data: [u8; 20]
 }
+
+def SHA1Hash::from(data: Buffer): SHA1Hash {
+    let sha: SHA1Hash
+    hash_into(data, sha.data)
+    return sha
+}
+
+def SHA1Hash::hex_dump(this) => hex_dump(.data, 20)
+def SHA1Hash::eq(this, other: SHA1Hash): bool => memcmp(.data, other.data, 20) == 0

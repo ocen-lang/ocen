@@ -1,6 +1,6 @@
 //* Bindings to libc functions
 
-import ::std::File
+// import ::std::File
 
 // stdlib
 [extern] def malloc(size: u32): untyped_ptr
@@ -13,16 +13,16 @@ import ::std::File
 [extern] [exits] def exit(code: i32)
 
 
-// stdio
-[extern] def fopen(name: str, mode: str): &File
-[extern] def fclose(file: &File): i32
-[extern] def fread(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32
-[extern] def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32
-[extern] def ftell(file: &File): i32
-[extern] def fseek(file: &File, offset: i32, whence: i32): i32
-[extern] const SEEK_SET: i32
-[extern] const SEEK_CUR: i32
-[extern] const SEEK_END: i32
+// // stdio
+// [extern] def fopen(name: str, mode: str): &File
+// [extern] def fclose(file: &File): i32
+// [extern] def fread(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32
+// [extern] def fwrite(ptr: untyped_ptr, size: u32, count: u32, file: &File): i32
+// [extern] def ftell(file: &File): i32
+// [extern] def fseek(file: &File, offset: i32, whence: i32): i32
+// [extern] const SEEK_SET: i32
+// [extern] const SEEK_CUR: i32
+// [extern] const SEEK_END: i32
 
 // string
 [extern] def strcmp(a: str, b: str): i32
@@ -34,12 +34,13 @@ import ::std::File
 [extern] def strsep(str: &str, delim: str): str
 [extern] def strerror(errnum: i32): str
 [extern] def memcpy(dest: untyped_ptr, src: untyped_ptr, size: u32)
-[extern] def memcmp(s: str, other: str, n: u32): i32
+[extern] def memcmp(s: untyped_ptr, other: untyped_ptr, n: u32): i32
 [extern] def memset(dest: untyped_ptr, c: u8, size: u32)
 
 // ctype
 @compiler c_include "ctype.h"
 [extern] def isdigit(c: char): bool
+[extern] def isxdigit(c: char): bool
 [extern] def isalpha(c: char): bool
 [extern] def isalnum(c: char): bool
 [extern] def isprint(c: char): bool
@@ -69,3 +70,9 @@ import ::std::File
 [extern] def WTERMSIG(a: i32): i32
 [extern] def WIFEXITED(a: i32): bool
 [extern] def WIFSIGNALED(a: i32): bool
+
+// errno
+@compiler c_include "errno.h"
+
+[extern] const errno: i32
+def get_err(): str => strerror(errno) as str

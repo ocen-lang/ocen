@@ -198,3 +198,23 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
         }
     }
 }
+
+def GenericPass::verify_structure_has_field(&this, type: &Type, field_name: str, span: Span): &Type {
+    if type.base != BaseType::Structure {
+        .error(Error::new_hint(
+            span, `Expected {type.sym.display} to be a structure.`,
+            type.sym.span, `Please update definition / compiler if needed`
+        ))
+        return null
+    }
+    let struc = type.u.struc
+    let field = struc.get_field(field_name)
+    if not field? {
+        .error(Error::new_hint(
+            span, `Expected {type.sym.display} to have a field {field_name}`,
+            struc.sym.span, `Please update structure / compiler if needed`
+        ))
+        return null
+    }
+    return field.type
+}

@@ -3,6 +3,7 @@
 import std::vector::Vector
 import std::span::Span
 import std::libc::{free, strsep, exit, getenv as get_environment_variable}
+import std::fs
 
 enum ErrorType {
     Standard
@@ -59,19 +60,17 @@ def display_message_span(type: MessageType, span: Span, msg: str) {
     display_message(type, span, msg)
 
     let filename = span.start.filename;
-    if not std::File::exists(filename) return
+    if not fs::file_exists(filename) return
 
-    let file = std::File::open(filename, "r")
-    defer file.close()
-
-    let contents = file.slurp()
-    defer free(contents)
+    let contents = fs::read_file(filename)
+    defer contents.free()
 
     let around_offset = 1
     let min_line = (span.start.line - around_offset).max(1)
     let max_line = span.end.line + around_offset
 
-    let lines = contents
+    // TODO: Use SVs here instead of strsep
+    let lines = contents.str()
     let cur = strsep(&lines, "\n")
     let line_no = 1
     while cur? and line_no <= max_line {

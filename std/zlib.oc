@@ -1,0 +1,73 @@
+
+@compiler c_include "zlib.h"
+@compiler c_flag "-lz"
+
+import std::buffer::{ Buffer }
+
+namespace bindings {
+    [extern] struct uLongf {}
+    [extern "compressBound"] def get_compress_bound(size: u64): uLongf
+    [extern] def compress(dest: &u8, dest_len: &uLongf, source: &u8, source_len: u64): i32
+
+    [extern] const Z_OK: i32
+    [extern] const Z_STREAM_END: i32
+    [extern] const Z_NO_FLUSH: i32
+
+    [extern "z_stream"] struct Stream {
+        next_in: &u8
+        avail_in: u32
+        total_out: u32
+        avail_out: u32
+        next_out: &u8
+    }
+
+    [extern "inflateInit"] def Stream::init(&this): i32
+    [extern "inflate"] def Stream::inflate(&this, flush: i32): i32
+    [extern "inflateEnd"] def Stream::end(&this): i32
+}
+
+def compress(data: Buffer): Buffer {
+    let capacity = bindings::get_compress_bound(data.size as u64)
+    let dest = Buffer::make(capacity as u32)
+
+    let dest_len = capacity
+    let result = bindings::compress(dest.data, &dest_len, data.data, data.size as u64)
+    if result != bindings::Z_OK then panic("zlib: failed to compress data")
+    dest.size = dest_len as u32
+    return dest
+}
+
+def compress_str(s: str): Buffer => compress(Buffer::from_str(s))
+
+def decompress(data: Buffer): Buffer {
+    let stream: bindings::Stream
+    stream.avail_in = data.size
+    stream.next_in = data.data
+    if stream.init() != bindings::Z_OK then panic("Failed to initialize zlib stream")
+
+    let res = Buffer::make(capacity: data.size)
+    stream.avail_out = res.capacity
+    stream.next_out = res.data
+
+    let done = false
+    while not done {
+        if stream.avail_out == 0 {
+            res.resize_if_necessary(res.capacity * 2)
+            stream.avail_out = res.capacity - stream.total_out
+            stream.next_out = res.data + stream.total_out
+        }
+
+        let result = stream.inflate(bindings::Z_NO_FLUSH)
+        match result {
+            bindings::Z_OK => {}
+            bindings::Z_STREAM_END => {
+                res.size = stream.total_out
+                done = true
+            }
+            else => panic("zlib: failed to decompress data")
+        }
+    }
+
+    stream.end()
+    return res
+}

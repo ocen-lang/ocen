@@ -4,6 +4,7 @@
 //* It also re-uses the {{Lexer}} from the compiler.
 
 
+import std::fs
 import std::buffer::Buffer
 import std::vector::Vector
 import std::value::{ Value, ValueType }
@@ -142,10 +143,8 @@ def parse(source: str, filename: str = "<anonymous>"): &Value {
 
 //* Open and parse a JSON file into a Value
 def parse_from_file(filename: str): &Value {
-    let file = File::open(filename, "r")
-    let source = file.slurp()
-    file.close()
-    return parse(source, filename)
+    let source = fs::read_file(filename)
+    return parse(source.str(), filename)
 }
 
 //* Serialize a Value into JSON, into a given Buffer
@@ -219,11 +218,9 @@ def serialize(val: &Value): Buffer {
 
 //* Serialize a Value into JSON, writing to a file
 def write_to_file(val: &Value, filename: str) {
-    let file = File::open(filename, "w")
     let sb = serialize(val)
-    file.write(sb.data, sb.size)
+    fs::write_file(filename, sb)
     sb.free()
-    file.close()
 }
 
 

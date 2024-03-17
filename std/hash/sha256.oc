@@ -1,5 +1,5 @@
-import std::buffer::Buffer
-import std::libc::{ memset, memcpy }
+import std::buffer::{ Buffer, hex_dump }
+import std::libc::{ memset, memcpy, memcmp }
 import std::hash::utils::{ rotate_left, rotate_right }
 
 namespace impl {
@@ -142,17 +142,31 @@ def Context::final(&this, hash: &u8) {
     }
 }
 
-def hash(input: &Buffer): Buffer {
+def hash_into(input: Buffer, output: &u8) {
     let ctx = Context::make()
     ctx.update(input.data, input.size as u64)
+    ctx.final(output)
+}
 
+def hash(input: Buffer): Buffer {
     let out = Buffer::make(capacity: 32)
-    ctx.final(out.data)
+    hash_into(input, out.data)
     out.size = 32
     return out
 }
 
-def hash_str(data: str): Buffer {
-    let input_data = Buffer::from_str(data)
-    return hash(&input_data)
+def hash_str(data: str): Buffer => hash(Buffer::from_str(data))
+
+//* Allocation-less hash storage, but specific to SHA256
+struct SHA256Hash {
+    data: [u8; 32]
 }
+
+def SHA256Hash::from(data: Buffer): SHA256Hash {
+    let sha: SHA256Hash
+    hash_into(data, sha.data)
+    return sha
+}
+
+def SHA256Hash::hex_dump(this) => hex_dump(.data, 32)
+def SHA256Hash::eq(this, other: SHA256Hash): bool => memcmp(.data, other.data, 32) == 0

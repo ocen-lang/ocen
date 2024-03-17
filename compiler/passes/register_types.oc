@@ -148,9 +148,40 @@ def RegisterTypes::register_builtin_types(&this) {
     .o.error_type = Type::new_resolved(BaseType::Error, Span::default())
 }
 
+struct Finder {
+    o: &GenericPass
+    sym: &Symbol
+    type: &Type
+}
+
+def Finder::to(this, name: str): Finder {
+    if not .sym? return this
+    .sym = .o.lookup_in_symbol(.sym, name, Span::default(), error: false)
+
+    if .sym? {
+        match .sym.type {
+            TypeDef => .type = .sym.u.type_def
+            Structure => .type = .sym.u.struc.type
+            Enum => .type = .sym.u.enum_.type
+            else => .type = null
+        }
+    }
+    return this
+}
+
+def RegisterTypes::register_cached_types(&this) {
+    let finder = Finder(.o, .o.program.global.sym, null)
+
+    let sv_type = finder.to("std").to("sv").to("SV").type
+    .o.program.cached_types.sv_type = sv_type
+
+    let buffer_type = finder.to("std").to("buffer").to("Buffer").type
+    .o.program.cached_types.buffer_type = buffer_type
+}
 
 def RegisterTypes::run(program: &Program) {
     let pass = RegisterTypes(GenericPass::new(program))
     pass.register_builtin_types()
     pass.register_namespace(program.global)
+    pass.register_cached_types()
 }
