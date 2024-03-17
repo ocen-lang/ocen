@@ -741,13 +741,38 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         exprs.data[i] = expr
 
         if not typ? continue
+        typ = typ.unaliased()
 
-        match typ.unaliased().base {
+        match typ.base {
             Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 |
             U32 | U64 | F32 | F64 | Pointer => {}
-            else => .error(Error::new(
-                expr.span, `Only strings / builtin types can be formatted, got type '{typ.str()}'`
-            ))
+            else => {
+                let can_format = false
+                if typ == .o.program.cached_types.sv_type then can_format = true
+                if typ == .o.program.cached_types.buffer_type then can_format = true
+
+                if can_format {
+                    // These checks are to try to avoid side-effects when formatting our custom types. Eg:
+                    //      println(`{get_sv()}`)
+                    // would end up calling get_sv() twice when we generate:
+                    //      printf("%.*s", get_sv().len, get_sv().data).
+                    // These are just some heuristics to try to avoid that, but it's not perfect.
+                    match expr.type {
+                        Identifier | Member | NSLookup => continue
+                        else => {
+                            .error(Error::new_note(
+                                expr.span, `Can only format {typ.sym.display} in simple expressions`,
+                                "Try moving the expression into a variable and formatting that instead"
+                            ))
+                        }
+                    }
+
+                } else {
+                    .error(Error::new(
+                        expr.span, `Type '{typ.str()}' cannot be formatted automatically`
+                    ))
+                }
+            }
         }
     }
 
@@ -797,7 +822,10 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
         }
     }
 
-    .error(Error::new(node.span, `Type {lhs.str()} has no member named '{node.u.member.rhs_name}'`))
+    .error(Error::new_hint(
+        node.span, `Type {lhs.str()} has no member named '{node.u.member.rhs_name}'`,
+        lhs.span, `Defined here`
+    ))
     return null
 }
 
@@ -830,7 +858,14 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::StringLiteral => {
             return .get_type_by_name("str", node.span)
         }
-        ASTType::Null => return .get_type_by_name("untyped_ptr", node.span)
+        ASTType::Null => {
+            if hint? {
+                if hint.base == BaseType::Pointer return hint
+                if hint.base == BaseType::Function return hint
+            }
+
+            return .get_type_by_name("untyped_ptr", node.span)
+        }
         ASTType::Cast => {
             let typ = .check_expression(node.u.cast.lhs)
             if not typ? return null
@@ -1196,9 +1231,13 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
                 node.u.match_stmt.expr.span, `Match expression is of type '{cond_type.str()}'`
             ))
         }
+
+        let is_constant = _case.cond.resolved_symbol? and _case.cond.resolved_symbol.type == Constant
+
         if _case.cond.type != ASTType::IntLiteral and
             _case.cond.type != ASTType::CharLiteral and
-            _case.cond.type != ASTType::StringLiteral {
+            _case.cond.type != ASTType::StringLiteral and
+            not is_constant {
             .error(Error::new(_case.cond.span, "Match condition must use only literals"))
         }
         if _case.body? {

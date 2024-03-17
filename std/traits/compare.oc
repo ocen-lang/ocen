@@ -8,4 +8,4 @@ def u32::compare(this, b: u32): i8 => (this > b) as i8 - (this < b) as i8
 def u64::compare(this, b: u64): i8 => (this > b) as i8 - (this < b) as i8
 def f32::compare(this, b: f32): i8 => (this > b) as i8 - (this < b) as i8
 def f64::compare(this, b: f64): i8 => (this > b) as i8 - (this < b) as i8
-[extern "strcmp"] def str::compare(this, b: str): i8
+def str::compare(this, b: str): i8 => std::libc::strcmp(this, b) as i8

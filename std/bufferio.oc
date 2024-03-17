@@ -72,10 +72,12 @@ def BufferIO::read_u8(&this): u8 {
 //* Read `count` bytes from the buffer.
 def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
     let dst = _dst as &u8
-    for let i = 0; i < count; i += 1 {
-        dst[i] = .data.data[.index as u32 + i]
+    if dst? {
+        for let i = 0; i < count; i += 1 {
+            dst[i] = .data.data[.index as u32 + i]
+        }
     }
-    .index  += count
+    .index += count
 }
 
 //* Write a signed 64-bit integer with the given endianness

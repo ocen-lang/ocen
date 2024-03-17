@@ -1,5 +1,4 @@
 import std::image::Image
-import std::File
 import std::buffer::Buffer
 import std::bufferio::BufferIO
 

@@ -2,6 +2,11 @@
 #include "sys/types.h"
 #include "sys/wait.h"
 #include "unistd.h"
+#include "errno.h"
+#include "dirent.h"
+#include "unistd.h"
+#include "sys/stat.h"
+#include "sys/types.h"
 #include "dirent.h"
 #include "libgen.h"
 
@@ -617,11 +622,13 @@ typedef struct passes_code_generator_CodeGenerator passes_code_generator_CodeGen
 typedef struct passes_reorder_structs_ReorderStructs passes_reorder_structs_ReorderStructs;
 typedef struct passes_typechecker_TypeChecker passes_typechecker_TypeChecker;
 typedef struct passes_register_types_RegisterTypes passes_register_types_RegisterTypes;
+typedef struct passes_register_types_Finder passes_register_types_Finder;
 typedef struct passes_mark_dead_code_MarkDeadCode passes_mark_dead_code_MarkDeadCode;
 typedef struct passes_generic_pass_GenericPass passes_generic_pass_GenericPass;
 typedef struct parser_Parser parser_Parser;
 typedef struct lexer_Lexer lexer_Lexer;
 typedef struct ast_program_Namespace ast_program_Namespace;
+typedef struct ast_program_CachedTypes ast_program_CachedTypes;
 typedef struct ast_program_Program ast_program_Program;
 typedef struct ast_program_NSIterator ast_program_NSIterator;
 typedef struct ast_nodes_Variable ast_nodes_Variable;
@@ -1085,6 +1092,12 @@ struct passes_register_types_RegisterTypes {
   passes_generic_pass_GenericPass *o;
 };
 
+struct passes_register_types_Finder {
+  passes_generic_pass_GenericPass *o;
+  ast_scopes_Symbol *sym;
+  types_Type *type;
+};
+
 struct passes_mark_dead_code_MarkDeadCode {
   passes_generic_pass_GenericPass *o;
   std_set_Set__0 *done;
@@ -1138,6 +1151,11 @@ struct ast_program_Namespace {
   bool is_top_level;
 };
 
+struct ast_program_CachedTypes {
+  types_Type *sv_type;
+  types_Type *buffer_type;
+};
+
 struct ast_program_Program {
   ast_program_Namespace *global;
   ast_program_Namespace *project_root;
@@ -1151,6 +1169,7 @@ struct ast_program_Program {
   bool check_doc_links;
   std_vector_Vector__14 *errors;
   u32 error_level;
+  ast_program_CachedTypes cached_types;
 };
 
 struct ast_program_NSIterator {
@@ -1478,12 +1497,6 @@ char *docs_path = NULL;
 bool include_stdlib = true;
 std_vector_Vector__4 *extra_c_flags;
 /* function declarations */
-FILE *std_File_open(char *path, char *mode);
-i32 std_File_write(FILE *this, void *buf, u32 size);
-char *std_File_slurp(FILE *this);
-u32 std_File_size(FILE *this);
-bool std_File_exists(char *path);
-void std_File_puts(FILE *this, char *s);
 void std_panic(char *msg) __attribute__((noreturn));
 u32 str_to_u32(char *this);
 bool str_eq(char *this, char *other);
@@ -1495,7 +1508,6 @@ bool char_is_digit(char this);
 bool char_is_alpha(char this);
 bool char_is_alnum(char this);
 bool char_is_print(char this);
-i32 i32_max(i32 this, i32 b);
 u32 u32_min(u32 this, u32 other);
 u32 u32_max(u32 this, u32 other);
 std_compact_map_Map__0 *std_new__0(u32 count);
@@ -1571,14 +1583,12 @@ void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacit
 std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s);
-std_buffer_Buffer std_buffer_Buffer_from_file(char *path);
-std_buffer_Buffer std_buffer_Buffer_from_sized_str(char *s, u32 size);
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size);
 void std_buffer_Buffer_puts(std_buffer_Buffer *this, char *s);
 void std_buffer_Buffer_putc(std_buffer_Buffer *this, char c);
 void std_buffer_Buffer_putsf(std_buffer_Buffer *this, char *s);
-char *std_buffer_Buffer_str(std_buffer_Buffer *this);
-char *std_buffer_Buffer_new_str(std_buffer_Buffer *this);
+char *std_buffer_Buffer_str(std_buffer_Buffer this);
+char *std_buffer_Buffer_new_str(std_buffer_Buffer this);
 void std_buffer_Buffer_clear(std_buffer_Buffer *this);
 void std_buffer_Buffer_free(std_buffer_Buffer *this);
 void std_set_Set__0_add(std_set_Set__0 *this, u64 key);
@@ -1605,6 +1615,11 @@ void std_value_Value_ensure(std_value_Value *this, std_value_ValueType type);
 void std_value_Value_push(std_value_Value *this, std_value_Value *value);
 void std_value_Value_insert(std_value_Value *this, char *key, std_value_Value *value);
 std_compact_map_Map__0 *std_value_Value_as_dict(std_value_Value *this);
+bool std_fs_file_exists(char *path);
+void std_fs_write_file_bytes(char *path, void *data, u32 size);
+void std_fs_write_file_str(char *path, char *data);
+void std_fs_write_file(char *path, std_buffer_Buffer data);
+std_buffer_Buffer std_fs_read_file(char *path);
 void std_map_Item__0_free_list(std_map_Item__0 *this);
 std_map_Item__0 *std_map_Item__0_new(char *key, ast_nodes_Structure *value, std_map_Item__0 *next);
 void std_map_Map__0_free(std_map_Map__0 *this);
@@ -1909,6 +1924,8 @@ void passes_code_generator_CodeGenerator_gen_debug_info(passes_code_generator_Co
 char *passes_code_generator_CodeGenerator_get_op(passes_code_generator_CodeGenerator *this, ast_nodes_ASTType type);
 void passes_code_generator_CodeGenerator_gen_internal_print(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node);
 void passes_code_generator_CodeGenerator_gen_format_string_part(passes_code_generator_CodeGenerator *this, char *part);
+void passes_code_generator_CodeGenerator_format_string_custom_specifier(passes_code_generator_CodeGenerator *this, types_Type *type, ast_nodes_AST *expr);
+void passes_code_generator_CodeGenerator_format_string_custom_argument(passes_code_generator_CodeGenerator *this, types_Type *type, ast_nodes_AST *expr);
 void passes_code_generator_CodeGenerator_gen_format_string_variadic(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node, bool newline_after);
 void passes_code_generator_CodeGenerator_gen_format_string(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node);
 void passes_code_generator_CodeGenerator_gen_yield_expression(passes_code_generator_CodeGenerator *this, ast_nodes_AST *expr);
@@ -2005,6 +2022,8 @@ void passes_register_types_RegisterTypes_register_namespace(passes_register_type
 void passes_register_types_RegisterTypes_register_base_type(passes_register_types_RegisterTypes *this, types_BaseType base);
 void passes_register_types_RegisterTypes_register_alias(passes_register_types_RegisterTypes *this, char *name, types_Type *orig);
 void passes_register_types_RegisterTypes_register_builtin_types(passes_register_types_RegisterTypes *this);
+passes_register_types_Finder passes_register_types_Finder_to(passes_register_types_Finder this, char *name);
+void passes_register_types_RegisterTypes_register_cached_types(passes_register_types_RegisterTypes *this);
 void passes_register_types_RegisterTypes_run(ast_program_Program *program);
 passes_mark_dead_code_MarkDeadCode *passes_mark_dead_code_MarkDeadCode_new(ast_program_Program *program);
 void passes_mark_dead_code_MarkDeadCode_free(passes_mark_dead_code_MarkDeadCode *this);
@@ -2028,6 +2047,7 @@ void passes_generic_pass_GenericPass_insert_into_scope_checked(passes_generic_pa
 ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, char *name, std_span_Span span, bool error);
 void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pass_GenericPass *this, ast_program_Namespace *ns);
 void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym);
+types_Type *passes_generic_pass_GenericPass_verify_structure_has_field(passes_generic_pass_GenericPass *this, types_Type *type, char *field_name, std_span_Span span);
 parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Namespace *ns);
 tokens_Token *parser_Parser_peek(parser_Parser *this, i32 off);
 errors_Error *parser_Parser_error_msg(parser_Parser *this, char *msg);
@@ -2196,46 +2216,6 @@ void parse_args(i32 argc, char **argv, ast_program_Program *program);
 i32 main(i32 argc, char **argv);
 bool utils_directory_exists(char *path);
 /* function implementations */
-FILE *std_File_open(char *path, char *mode) {
-  FILE *file = fopen(path, mode);
-  if (!((bool)file)) {
-    std_panic(format_string("failed to open file: %s", path));
-  } 
-  return file;
-}
-
-i32 std_File_write(FILE *this, void *buf, u32 size) {
-  return fwrite(buf, 1, size, this);
-}
-
-char *std_File_slurp(FILE *this) {
-  u32 size = std_File_size(this);
-  void *buf = calloc((((u32)size) + 1), ((u32)sizeof(char)));
-  fread(buf, 1, size, this);
-  return ((char *)buf);
-}
-
-u32 std_File_size(FILE *this) {
-  i32 pos = ftell(this);
-  fseek(this, 0, SEEK_END);
-  u32 size = ((u32)ftell(this));
-  fseek(this, pos, SEEK_SET);
-  return size;
-}
-
-bool std_File_exists(char *path) {
-  FILE *file = fopen(path, "r");
-  if (!((bool)file)) {
-    return false;
-  } 
-  fclose(file);
-  return true;
-}
-
-void std_File_puts(FILE *this, char *s) {
-  fwrite(s, 1, strlen(s), this);
-}
-
 void std_panic(char *msg) {
   printf("%s""\n", msg);
   exit(1);
@@ -2287,10 +2267,6 @@ bool char_is_alnum(char this) {
 
 bool char_is_print(char this) {
   return isprint(this);
-}
-
-i32 i32_max(i32 this, i32 b) {
-  return ((this > b) ? this : b);
 }
 
 u32 u32_min(u32 this, u32 other) {
@@ -2647,25 +2623,12 @@ std_buffer_Buffer std_buffer_Buffer_from_str(char *s) {
   return (std_buffer_Buffer){.data=((u8 *)s), .size=((u32)strlen(s)), .capacity=((u32)strlen(s))};
 }
 
-std_buffer_Buffer std_buffer_Buffer_from_file(char *path) {
-  FILE *file = std_File_open(path, "rb");
-  ae_assert(((bool)file), "std/buffer.oc:47:12: Assertion failed: `file?`", format_string("Could not open file: %s", path));
-  u32 size = std_File_size(file);
-  char *data = std_File_slurp(file);
-  ae_assert(((bool)data), "std/buffer.oc:51:12: Assertion failed: `data?`", format_string("Could not read file: %s", path));
-  fclose(file);
-  return std_buffer_Buffer_from_sized_str(data, size);
-}
-
-std_buffer_Buffer std_buffer_Buffer_from_sized_str(char *s, u32 size) {
-  return (std_buffer_Buffer){.data=((u8 *)s), .size=((u32)size), .capacity=((u32)size)};
-}
-
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size) {
   if ((new_size >= this->capacity)) {
-    i32 new_capacity = i32_max((((i32)this->capacity) * 2), ((i32)new_size));
+    u32 new_capacity = u32_max(this->capacity, new_size);
     this->data=((u8 *)realloc(this->data, ((u32)new_capacity)));
-    ae_assert(((bool)this->data), "std/buffer.oc:69:16: Assertion failed: `.data?`", "Out of memory!");
+    this->capacity=((u32)new_capacity);
+    ae_assert(((bool)this->data), "std/buffer.oc:58:16: Assertion failed: `.data?`", "Out of memory!");
   } 
 }
 
@@ -2688,12 +2651,12 @@ void std_buffer_Buffer_putsf(std_buffer_Buffer *this, char *s) {
   free(s);
 }
 
-char *std_buffer_Buffer_str(std_buffer_Buffer *this) {
-  return ((char *)this->data);
+char *std_buffer_Buffer_str(std_buffer_Buffer this) {
+  return ((char *)this.data);
 }
 
-char *std_buffer_Buffer_new_str(std_buffer_Buffer *this) {
-  return strdup(((char *)this->data));
+char *std_buffer_Buffer_new_str(std_buffer_Buffer this) {
+  return strdup(((char *)this.data));
 }
 
 void std_buffer_Buffer_clear(std_buffer_Buffer *this) {
@@ -2847,6 +2810,54 @@ void std_value_Value_insert(std_value_Value *this, char *key, std_value_Value *v
 std_compact_map_Map__0 *std_value_Value_as_dict(std_value_Value *this) {
   std_value_Value_ensure(this, std_value_ValueType_Dictionary);
   return this->u.as_dict;
+}
+
+bool std_fs_file_exists(char *path) {
+  FILE *file = fopen(path, "r");
+  if (!((bool)file)) 
+  return false;
+  
+  fclose(file);
+  return true;
+}
+
+void std_fs_write_file_bytes(char *path, void *data, u32 size) {
+  FILE *file = fopen(path, "wb");
+  if (!((bool)file)) 
+  std_panic(format_string("[-] Failed to open file: %s", path));
+  
+  i32 written = fwrite(data, 1, size, file);
+  if ((((u32)written) != size)) {
+    std_panic(format_string("[-] Failed to write to file: %s", path));
+  } 
+  fclose(file);
+}
+
+void std_fs_write_file_str(char *path, char *data) {
+  std_fs_write_file_bytes(path, data, strlen(data));
+}
+
+void std_fs_write_file(char *path, std_buffer_Buffer data) {
+  std_fs_write_file_bytes(path, data.data, data.size);
+}
+
+std_buffer_Buffer std_fs_read_file(char *path) {
+  FILE *file = fopen(path, "r");
+  if (!((bool)file)) 
+  std_panic(format_string("[-] Failed to open file: %s", path));
+  
+  fseek(file, ((i64)0), SEEK_END);
+  u32 size = ((u32)ftell(file));
+  fseek(file, ((i64)0), SEEK_SET);
+  std_buffer_Buffer data = std_buffer_Buffer_make((size + 1));
+  i32 read = fread(data.data, 1, size, file);
+  if ((((u32)read) != size)) {
+    std_panic(format_string("[-] Failed to read from file: %s", path));
+  } 
+  fclose(file);
+  data.size=((u32)size);
+  data.data[size]=((u8)0);
+  return data;
 }
 
 void std_map_Item__0_free_list(std_map_Item__0 *this) {
@@ -4986,11 +4997,9 @@ std_buffer_Buffer std_json_serialize(std_value_Value *val) {
 }
 
 void std_json_write_to_file(std_value_Value *val, char *filename) {
-  FILE *file = std_File_open(filename, "w");
   std_buffer_Buffer sb = std_json_serialize(val);
-  std_File_write(file, sb.data, sb.size);
+  std_fs_write_file(filename, sb);
   std_buffer_Buffer_free(&sb);
-  fclose(file);
 }
 
 std_value_Value *docgen_DocGenerator_gen_enum(docgen_DocGenerator *this, ast_nodes_Enum *enum_) {
@@ -5053,7 +5062,7 @@ char *docgen_DocGenerator_gen_templated_type(docgen_DocGenerator *this, types_Ty
     }
   }
   std_buffer_Buffer_puts(&buf, ">");
-  return std_buffer_Buffer_str(&buf);
+  return std_buffer_Buffer_str(buf);
 }
 
 char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type *type) {
@@ -5120,7 +5129,7 @@ char *docgen_DocGenerator_gen_typename_str(docgen_DocGenerator *this, types_Type
       std_buffer_Buffer_puts(&buf, "): ");
       char *return_name = docgen_DocGenerator_gen_typename_str(this, type->u.func.return_type);
       std_buffer_Buffer_putsf(&buf, return_name);
-      return std_buffer_Buffer_str(&buf);
+      return std_buffer_Buffer_str(buf);
     } break;
     case types_BaseType_Unresolved: {
       ast_nodes_AST *node = type->u.unresolved;
@@ -5607,6 +5616,40 @@ void passes_code_generator_CodeGenerator_gen_format_string_part(passes_code_gene
   }
 }
 
+void passes_code_generator_CodeGenerator_format_string_custom_specifier(passes_code_generator_CodeGenerator *this, types_Type *type, ast_nodes_AST *expr) {
+  if ((type==this->o->program->cached_types.sv_type || type==this->o->program->cached_types.buffer_type)) {
+    std_buffer_Buffer_puts(&this->out, "%.*s");
+    return ;
+  } 
+  passes_code_generator_CodeGenerator_error(this, errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_specifier: '%s'", types_Type_str(type))));
+  std_buffer_Buffer_puts(&this->out, "%s");
+}
+
+void passes_code_generator_CodeGenerator_format_string_custom_argument(passes_code_generator_CodeGenerator *this, types_Type *type, ast_nodes_AST *expr) {
+  if (type==this->o->program->cached_types.sv_type) {
+    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "len", expr->span);
+    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "data", expr->span);
+    std_buffer_Buffer_puts(&this->out, "(");
+    passes_code_generator_CodeGenerator_gen_expression(this, expr);
+    std_buffer_Buffer_puts(&this->out, ").len, (");
+    passes_code_generator_CodeGenerator_gen_expression(this, expr);
+    std_buffer_Buffer_puts(&this->out, ").data");
+    return ;
+  } 
+  if (type==this->o->program->cached_types.buffer_type) {
+    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "size", expr->span);
+    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "data", expr->span);
+    std_buffer_Buffer_puts(&this->out, "(");
+    passes_code_generator_CodeGenerator_gen_expression(this, expr);
+    std_buffer_Buffer_puts(&this->out, ").size, (");
+    passes_code_generator_CodeGenerator_gen_expression(this, expr);
+    std_buffer_Buffer_puts(&this->out, ").data");
+    return ;
+  } 
+  passes_code_generator_CodeGenerator_error(this, errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_argument: '%s'", types_Type_str(type))));
+  passes_code_generator_CodeGenerator_gen_expression(this, expr);
+}
+
 void passes_code_generator_CodeGenerator_gen_format_string_variadic(passes_code_generator_CodeGenerator *this, ast_nodes_AST *node, bool newline_after) {
   std_vector_Vector__4 *parts = node->u.fmt_str.parts;
   std_vector_Vector__16 *exprs = node->u.fmt_str.exprs;
@@ -5661,8 +5704,7 @@ void passes_code_generator_CodeGenerator_gen_format_string_variadic(passes_code_
         }
       } break;
       default: {
-        passes_code_generator_CodeGenerator_error(this, errors_Error_new(expr->span, "Invalid type for format string"));
-        std_buffer_Buffer_puts(&this->out, "%s");
+        passes_code_generator_CodeGenerator_format_string_custom_specifier(this, expr_type, expr);
       } break;
     }
   }
@@ -5677,13 +5719,30 @@ void passes_code_generator_CodeGenerator_gen_format_string_variadic(passes_code_
     {
       types_Type *expr_type = types_Type_unaliased(expr->etype);
       std_buffer_Buffer_puts(&this->out, ", ");
-      if (expr_type->base==types_BaseType_Bool) {
-        std_buffer_Buffer_puts(&this->out, "((");
-        passes_code_generator_CodeGenerator_gen_expression(this, expr);
-        std_buffer_Buffer_puts(&this->out, ") ? \"true\" : \"false\")");
-      }  else {
-        passes_code_generator_CodeGenerator_gen_expression(this, expr);
-      } 
+      switch (expr_type->base) {
+        case types_BaseType_I8:
+        case types_BaseType_I16:
+        case types_BaseType_I32:
+        case types_BaseType_U8:
+        case types_BaseType_U16:
+        case types_BaseType_U32:
+        case types_BaseType_I64:
+        case types_BaseType_U64:
+        case types_BaseType_F32:
+        case types_BaseType_F64:
+        case types_BaseType_Char:
+        case types_BaseType_Pointer: {
+          passes_code_generator_CodeGenerator_gen_expression(this, expr);
+        } break;
+        case types_BaseType_Bool: {
+          std_buffer_Buffer_puts(&this->out, "((");
+          passes_code_generator_CodeGenerator_gen_expression(this, expr);
+          std_buffer_Buffer_puts(&this->out, ") ? \"true\" : \"false\")");
+        } break;
+        default: {
+          passes_code_generator_CodeGenerator_format_string_custom_argument(this, expr_type, expr);
+        } break;
+      }
     }
   }
 }
@@ -6405,9 +6464,9 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
         std_buffer_Buffer_putsf(&args_str, arg_str);
       }
       if ((is_func_def && cur==top)) {
-        str_replace(&acc, format_string("%s(%s)", acc, std_buffer_Buffer_str(&args_str)));
+        str_replace(&acc, format_string("%s(%s)", acc, std_buffer_Buffer_str(args_str)));
       }  else {
-        str_replace(&acc, format_string("(*%s)(%s)", acc, std_buffer_Buffer_str(&args_str)));
+        str_replace(&acc, format_string("(*%s)(%s)", acc, std_buffer_Buffer_str(args_str)));
       } 
       std_free(args_str.data);
       acc=passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.func.return_type, acc, false);
@@ -6435,7 +6494,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
         passes_code_generator_CodeGenerator_error(this, errors_Error_new(cur->span, "Array size not known at compile time"));
       } 
       
-      str_replace(&acc, format_string("%s[%s]", acc, std_buffer_Buffer_str(&this->out)));
+      str_replace(&acc, format_string("%s[%s]", acc, std_buffer_Buffer_str(this->out)));
       std_free(this->out.data);
       this->out=prev_buffer;
       acc=passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.arr.elem_type, acc, false);
@@ -6448,7 +6507,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:926:12: Assertion failed: `type != null`", NULL);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:968:12: Assertion failed: `type != null`", NULL);
   char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
@@ -6502,7 +6561,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__6_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:971:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1013:24: Assertion failed: `sym.type == Function`", NULL);
             ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
@@ -6539,7 +6598,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__6_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:998:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1040:24: Assertion failed: `sym.type == Function`", NULL);
             ast_nodes_Function *func = sym->u.func;
             if (func->is_dead) 
             continue;
@@ -6715,7 +6774,7 @@ char *passes_code_generator_CodeGenerator_generate(passes_code_generator_CodeGen
   passes_code_generator_CodeGenerator_gen_function_decls(this, this->o->program->global);
   std_buffer_Buffer_puts(&this->out, "/* function implementations */\n");
   passes_code_generator_CodeGenerator_gen_functions(this, this->o->program->global);
-  return std_buffer_Buffer_str(&this->out);
+  return std_buffer_Buffer_str(this->out);
 }
 
 passes_code_generator_CodeGenerator passes_code_generator_CodeGenerator_make(ast_program_Program *program) {
@@ -7072,7 +7131,7 @@ ast_scopes_Symbol *passes_typechecker_TypeChecker_resolve_templated_symbol(passe
   std_buffer_Buffer_puts(&new_display_name, ">");
   char *new_out_name = format_string("%s__%u", sym->name, sym->template->instances->size);
   ast_scopes_Symbol *new_sym = ast_scopes_Symbol_new_with_parent(sym->type, parent_ns, parent_ns->sym, new_out_name, sym->span);
-  new_sym->display=std_buffer_Buffer_str(&new_display_name);
+  new_sym->display=std_buffer_Buffer_str(new_display_name);
   ast_scopes_TemplateInstance *instance = ast_scopes_TemplateInstance_new(template_args, sym, new_sym);
   std_vector_Vector__6_push(sym->template->instances, instance);
   switch (sym->type) {
@@ -7477,7 +7536,8 @@ types_Type *passes_typechecker_TypeChecker_check_format_string(passes_typechecke
     if (!((bool)typ)) 
     continue;
     
-    switch (types_Type_unaliased(typ)->base) {
+    typ=types_Type_unaliased(typ);
+    switch (typ->base) {
       case types_BaseType_Bool:
       case types_BaseType_Char:
       case types_BaseType_I8:
@@ -7493,7 +7553,27 @@ types_Type *passes_typechecker_TypeChecker_check_format_string(passes_typechecke
       case types_BaseType_Pointer: {
       } break;
       default: {
-        passes_typechecker_TypeChecker_error(this, errors_Error_new(expr->span, format_string("Only strings / builtin types can be formatted, got type '%s'", types_Type_str(typ))));
+        bool can_format = false;
+        if (typ==this->o->program->cached_types.sv_type) 
+        can_format=true;
+        
+        if (typ==this->o->program->cached_types.buffer_type) 
+        can_format=true;
+        
+        if (can_format) {
+          switch (expr->type) {
+            case ast_nodes_ASTType_Identifier:
+            case ast_nodes_ASTType_Member:
+            case ast_nodes_ASTType_NSLookup: {
+              continue;
+            } break;
+            default: {
+              passes_typechecker_TypeChecker_error(this, errors_Error_new_note(expr->span, format_string("Can only format %s in simple expressions", typ->sym->display), "Try moving the expression into a variable and formatting that instead"));
+            } break;
+          }
+        }  else {
+          passes_typechecker_TypeChecker_error(this, errors_Error_new(expr->span, format_string("Type '%s' cannot be formatted automatically", types_Type_str(typ))));
+        } 
       } break;
     }
   }
@@ -7538,7 +7618,7 @@ types_Type *passes_typechecker_TypeChecker_check_member(passes_typechecker_TypeC
       return method->type;
     } 
   } 
-  passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Type %s has no member named '%s'", types_Type_str(lhs), node->u.member.rhs_name)));
+  passes_typechecker_TypeChecker_error(this, errors_Error_new_hint(node->span, format_string("Type %s has no member named '%s'", types_Type_str(lhs), node->u.member.rhs_name), lhs->span, format_string("Defined here")));
   return NULL;
 }
 
@@ -7575,6 +7655,14 @@ types_Type *passes_typechecker_TypeChecker_check_expression_helper(passes_typech
       return passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span);
     } break;
     case ast_nodes_ASTType_Null: {
+      if (((bool)hint)) {
+        if (hint->base==types_BaseType_Pointer) 
+        return hint;
+        
+        if (hint->base==types_BaseType_Function) 
+        return hint;
+        
+      } 
       return passes_typechecker_TypeChecker_get_type_by_name(this, "untyped_ptr", node->span);
     } break;
     case ast_nodes_ASTType_Cast: {
@@ -7956,7 +8044,8 @@ void passes_typechecker_TypeChecker_check_match(passes_typechecker_TypeChecker *
       if (!types_Type_eq(cond_type, expr_type, false)) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new_hint(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", types_Type_str(cond_type))));
       } 
-      if ((((_case->cond->type != ast_nodes_ASTType_IntLiteral) && (_case->cond->type != ast_nodes_ASTType_CharLiteral)) && (_case->cond->type != ast_nodes_ASTType_StringLiteral))) {
+      bool is_constant = (((bool)_case->cond->resolved_symbol) && _case->cond->resolved_symbol->type==ast_scopes_SymbolType_Constant);
+      if (((((_case->cond->type != ast_nodes_ASTType_IntLiteral) && (_case->cond->type != ast_nodes_ASTType_CharLiteral)) && (_case->cond->type != ast_nodes_ASTType_StringLiteral)) && !is_constant)) {
         passes_typechecker_TypeChecker_error(this, errors_Error_new(_case->cond->span, "Match condition must use only literals"));
       } 
       if (((bool)_case->body)) {
@@ -8402,7 +8491,7 @@ void passes_typechecker_TypeChecker_resolve_doc_links(passes_typechecker_TypeChe
     
   }
   std_buffer_Buffer_putsf(&buffer, str_substring(doc, prev, doc_len));
-  sym->comment=std_buffer_Buffer_str(&buffer);
+  sym->comment=std_buffer_Buffer_str(buffer);
 }
 
 types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, types_Type *hint) {
@@ -8691,8 +8780,8 @@ void passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(passes_typ
       continue;
       
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1941:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1945:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1980:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1984:16: Assertion failed: `sym.type == TypeDef`", NULL);
       types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -8918,10 +9007,43 @@ void passes_register_types_RegisterTypes_register_builtin_types(passes_register_
   this->o->error_type=types_Type_new_resolved(types_BaseType_Error, std_span_Span_default());
 }
 
+passes_register_types_Finder passes_register_types_Finder_to(passes_register_types_Finder this, char *name) {
+  if (!((bool)this.sym)) 
+  return this;
+  
+  this.sym=passes_generic_pass_GenericPass_lookup_in_symbol(this.o, this.sym, name, std_span_Span_default(), false);
+  if (((bool)this.sym)) {
+    switch (this.sym->type) {
+      case ast_scopes_SymbolType_TypeDef: {
+        this.type=this.sym->u.type_def;
+      } break;
+      case ast_scopes_SymbolType_Structure: {
+        this.type=this.sym->u.struc->type;
+      } break;
+      case ast_scopes_SymbolType_Enum: {
+        this.type=this.sym->u.enum_->type;
+      } break;
+      default: {
+        this.type=NULL;
+      } break;
+    }
+  } 
+  return this;
+}
+
+void passes_register_types_RegisterTypes_register_cached_types(passes_register_types_RegisterTypes *this) {
+  passes_register_types_Finder finder = (passes_register_types_Finder){.o=this->o, .sym=this->o->program->global->sym, .type=NULL};
+  types_Type *sv_type = passes_register_types_Finder_to(passes_register_types_Finder_to(passes_register_types_Finder_to(finder, "std"), "sv"), "SV").type;
+  this->o->program->cached_types.sv_type=sv_type;
+  types_Type *buffer_type = passes_register_types_Finder_to(passes_register_types_Finder_to(passes_register_types_Finder_to(finder, "std"), "buffer"), "Buffer").type;
+  this->o->program->cached_types.buffer_type=buffer_type;
+}
+
 void passes_register_types_RegisterTypes_run(ast_program_Program *program) {
   passes_register_types_RegisterTypes pass = (passes_register_types_RegisterTypes){.o=passes_generic_pass_GenericPass_new(program)};
   passes_register_types_RegisterTypes_register_builtin_types(&pass);
   passes_register_types_RegisterTypes_register_namespace(&pass, program->global);
+  passes_register_types_RegisterTypes_register_cached_types(&pass);
 }
 
 passes_mark_dead_code_MarkDeadCode *passes_mark_dead_code_MarkDeadCode_new(ast_program_Program *program) {
@@ -9462,13 +9584,27 @@ void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_
   }
 }
 
+types_Type *passes_generic_pass_GenericPass_verify_structure_has_field(passes_generic_pass_GenericPass *this, types_Type *type, char *field_name, std_span_Span span) {
+  if ((type->base != types_BaseType_Structure)) {
+    passes_generic_pass_GenericPass_error(this, errors_Error_new_hint(span, format_string("Expected %s to be a structure.", type->sym->display), type->sym->span, format_string("Please update definition / compiler if needed")));
+    return NULL;
+  } 
+  ast_nodes_Structure *struc = type->u.struc;
+  ast_nodes_Variable *field = ast_nodes_Structure_get_field(struc, field_name);
+  if (!((bool)field)) {
+    passes_generic_pass_GenericPass_error(this, errors_Error_new_hint(span, format_string("Expected %s to have a field %s", type->sym->display, field_name), struc->sym->span, format_string("Please update structure / compiler if needed")));
+    return NULL;
+  } 
+  return field->type;
+}
+
 parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Namespace *ns) {
   return (parser_Parser){.tokens=NULL, .curr=0, .curr_func=NULL, .program=program, .ns=ns, .attrs=std_map_Map__2_new(32)};
 }
 
 tokens_Token *parser_Parser_peek(parser_Parser *this, i32 off) {
   i32 idx = (((i32)this->curr) + off);
-  ae_assert(((0 <= idx) && (idx < ((i32)this->tokens->size))), "compiler/parser.oc:46:12: Assertion failed: `0i32 <= idx < (.tokens.size as i32`", NULL);
+  ae_assert(((0 <= idx) && (idx < ((i32)this->tokens->size))), "compiler/parser.oc:47:12: Assertion failed: `0i32 <= idx < (.tokens.size as i32`", NULL);
   return std_vector_Vector__2_at(this->tokens, ((u32)idx));
 }
 
@@ -10705,7 +10841,7 @@ void parser_Parser_parse_extern_into_symbol(parser_Parser *this, ast_scopes_Symb
 }
 
 void parser_Parser_get_extern_from_attr(parser_Parser *this, ast_scopes_Symbol *sym, attributes_Attribute *attr) {
-  ae_assert(attr->type==attributes_AttributeType_Extern, "compiler/parser.oc:1342:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==attributes_AttributeType_Extern, "compiler/parser.oc:1343:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if ((attr->args->size > 0)) {
     sym->extern_name=std_vector_Vector__4_at(attr->args, 0);
@@ -11084,15 +11220,12 @@ void parser_Parser_parse_compiler_option(parser_Parser *this) {
         } 
 ;__yield_0; });
       char *full_path = format_string("%s/%s", cur_dir, path->text);
-      if (!std_File_exists(full_path)) {
+      if (!std_fs_file_exists(full_path)) {
         parser_Parser_error(this, errors_Error_new(path->span, format_string("File '%s' does not exist", full_path)));
         return ;
       } 
-      FILE *file = std_File_open(full_path, "r");
-      char *contents = std_File_slurp(file);
-      std_map_Map__5_insert(this->program->c_embeds, full_path, contents);
-      /* defers */
-      fclose(file);
+      std_buffer_Buffer contents = std_fs_read_file(full_path);
+      std_map_Map__5_insert(this->program->c_embeds, full_path, std_buffer_Buffer_str(contents));
     } else  {
       parser_Parser_error(this, errors_Error_new(name->span, "Unknown compiler option"));
     }
@@ -11101,7 +11234,7 @@ void parser_Parser_parse_compiler_option(parser_Parser *this) {
 
 void parser_Parser_try_load_mod_for_namespace(parser_Parser *this, ast_program_Namespace *ns) {
   char *mod_path = format_string("%s/mod.oc", ns->path);
-  if (std_File_exists(mod_path)) {
+  if (std_fs_file_exists(mod_path)) {
     ns->is_top_level=true;
     parser_Parser parser = parser_Parser_make(this->program, ns);
     parser_Parser_load_file(&parser, mod_path);
@@ -11123,7 +11256,7 @@ ast_program_Namespace *parser_Parser_load_single_import_part(parser_Parser *this
   if (!((bool)next)) {
     bool dir_exists = utils_directory_exists(part_path);
     char *path = format_string("%s/%s.oc", base->path, name);
-    bool file_exists = std_File_exists(path);
+    bool file_exists = std_fs_file_exists(path);
     if ((!dir_exists && !file_exists)) {
       parser_Parser_error(this, errors_Error_new(span, format_string("Could not find import path %s(.oc)", part_path)));
       ast_program_Program_exit_with_errors(this->program);
@@ -11204,8 +11337,8 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__8 *parts = path->parts;
-        ae_assert((parts->size > 0), "compiler/parser.oc:1872:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1873:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "compiler/parser.oc:1871:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1872:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         ast_nodes_ImportPartSingle first_part = std_vector_Vector__8_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__4_contains(this->program->global->namespaces, lib_name)) {
@@ -11248,8 +11381,7 @@ void parser_Parser_load_file(parser_Parser *this, char *filename) {
   if (std_map_Map__5_contains(this->program->sources, filename)) 
   return ;
   
-  FILE *file = std_File_open(filename, "r");
-  char *contents = std_File_slurp(file);
+  char *contents = std_buffer_Buffer_str(std_fs_read_file(filename));
   std_map_Map__5_insert(this->program->sources, filename, contents);
   lexer_Lexer lexer = lexer_Lexer_make(contents, filename);
   this->tokens=lexer_Lexer_lex(&lexer);
@@ -11280,11 +11412,11 @@ void parser_Parser_include_prelude_only(parser_Parser *this) {
     parser_couldnt_find_stdlib();
   } 
   char *prelude_path = format_string("%s/prelude.h", std_path);
-  if (!std_File_exists(prelude_path)) {
+  if (!std_fs_file_exists(prelude_path)) {
     parser_couldnt_find_stdlib();
   } 
-  std_buffer_Buffer content = std_buffer_Buffer_from_file(prelude_path);
-  std_map_Map__5_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(&content));
+  std_buffer_Buffer content = std_fs_read_file(prelude_path);
+  std_map_Map__5_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(content));
 }
 
 void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, bool include_stdlib) {
@@ -11337,7 +11469,7 @@ lexer_Lexer lexer_Lexer_make(char *source, char *filename) {
 void lexer_Lexer_push(lexer_Lexer *this, tokens_Token *token) {
   token->seen_newline=this->seen_newline;
   if ((this->comment.size > 0)) {
-    token->comment=std_buffer_Buffer_new_str(&this->comment);
+    token->comment=std_buffer_Buffer_new_str(this->comment);
     token->comment_loc=this->comment_start;
   } 
   std_buffer_Buffer_clear(&this->comment);
@@ -12532,15 +12664,14 @@ void errors_display_message_span(errors_MessageType type, std_span_Span span, ch
   char *reset = "\x1b[0m";
   errors_display_message(type, span, msg);
   char *filename = span.start.filename;
-  if (!std_File_exists(filename)) 
+  if (!std_fs_file_exists(filename)) 
   return ;
   
-  FILE *file = std_File_open(filename, "r");
-  char *contents = std_File_slurp(file);
+  std_buffer_Buffer contents = std_fs_read_file(filename);
   u32 around_offset = 1;
   u32 min_line = u32_max((span.start.line - around_offset), 1);
   u32 max_line = (span.end.line + around_offset);
-  char *lines = contents;
+  char *lines = std_buffer_Buffer_str(contents);
   char *cur = strsep(&lines, "\n");
   u32 line_no = 1;
   while ((((bool)cur) && (line_no <= max_line))) {
@@ -12569,8 +12700,7 @@ void errors_display_message_span(errors_MessageType type, std_span_Span span, ch
     cur=strsep(&lines, "\n");
   }
   /* defers */
-  free(contents);
-  fclose(file);
+  std_buffer_Buffer_free(&contents);
 }
 
 void errors_Error_display(errors_Error *this) {
@@ -12918,7 +13048,7 @@ char *types_Type_str(types_Type *this) {
         }
         std_buffer_Buffer_puts(&buf, "): ");
         std_buffer_Buffer_puts(&buf, types_Type_str(this->u.func.return_type));
-        return std_buffer_Buffer_str(&buf);
+        return std_buffer_Buffer_str(buf);
       } break;
       case types_BaseType_Array: {
         std_buffer_Buffer buf = std_buffer_Buffer_make(16);
@@ -12930,7 +13060,7 @@ char *types_Type_str(types_Type *this) {
           std_buffer_Buffer_puts(&buf, format_string("?%p", this));
         } 
         std_buffer_Buffer_puts(&buf, "]");
-        return std_buffer_Buffer_str(&buf);
+        return std_buffer_Buffer_str(buf);
       } break;
       case types_BaseType_Structure: {
         __yield_0 = this->u.struc->sym->display;
@@ -12973,9 +13103,7 @@ void save_and_compile_code(ast_program_Program *program, char *code) {
   if (!((bool)c_path)) {
     c_path=format_string("%s.c", exec_path);
   } 
-  FILE *out_file = std_File_open(c_path, "w");
-  std_File_puts(out_file, code);
-  fclose(out_file);
+  std_fs_write_file_str(c_path, code);
   if (!compile_c) 
   return ;
   

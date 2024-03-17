@@ -118,6 +118,48 @@ def CodeGenerator::gen_format_string_part(&this, part: str) {
     }
 }
 
+def CodeGenerator::format_string_custom_specifier(&this, type: &Type, expr: &AST) {
+    if type == .o.program.cached_types.sv_type or
+       type == .o.program.cached_types.buffer_type {
+        .out.puts("%.*s")
+        return
+    }
+
+    .error(Error::new(
+        expr.span, `Invalid type in CodeGenerator::format_string_custom_specifier: '{type.str()}'`
+    ))
+    .out.puts("%s") // Placeholder, we'll error out later anyway
+}
+
+def CodeGenerator::format_string_custom_argument(&this, type: &Type, expr: &AST) {
+    if type == .o.program.cached_types.sv_type {
+        .o.verify_structure_has_field(type, "len", expr.span)
+        .o.verify_structure_has_field(type, "data", expr.span)
+        .out.puts("(")
+        .gen_expression(expr)
+        .out.puts(").len, (")
+        .gen_expression(expr)
+        .out.puts(").data")
+        return
+    }
+
+    if type == .o.program.cached_types.buffer_type {
+        .o.verify_structure_has_field(type, "size", expr.span)
+        .o.verify_structure_has_field(type, "data", expr.span)
+        .out.puts("(")
+        .gen_expression(expr)
+        .out.puts(").size, (")
+        .gen_expression(expr)
+        .out.puts(").data")
+        return
+    }
+
+    .error(Error::new(
+        expr.span, `Invalid type in CodeGenerator::format_string_custom_argument: '{type.str()}'`
+    ))
+    .gen_expression(expr) // Placeholder, we'll error out later anyway
+}
+
 def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: bool) {
     let parts = node.u.fmt_str.parts
     let exprs = node.u.fmt_str.exprs
@@ -150,12 +192,7 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
                 Char => .out.puts("%s")
                 else => .out.puts("%p")
             }
-            else => {
-                .error(Error::new(
-                    expr.span, "Invalid type for format string"
-                ))
-                .out.puts("%s")
-            }
+            else => .format_string_custom_specifier(expr_type, expr)
         }
     }
     // Put the last part:
@@ -167,13 +204,18 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
     for expr : exprs.iter() {
         let expr_type = expr.etype.unaliased()
         .out.puts(", ")
-        if expr_type.base == Bool {
-            .out.puts("((")
-            .gen_expression(expr)
-            .out.puts(") ? \"true\" : \"false\")")
 
-        } else {
-            .gen_expression(expr)
+        match expr_type.base {
+            I8 | I16 | I32 | U8 | U16 | U32 | I64 |
+            U64 | F32 | F64 | Char | Pointer => {
+                .gen_expression(expr)
+            }
+            Bool => {
+                .out.puts("((")
+                .gen_expression(expr)
+                .out.puts(") ? \"true\" : \"false\")")
+            }
+            else => .format_string_custom_argument(expr_type, expr)
         }
     }
 }

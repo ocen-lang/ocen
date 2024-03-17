@@ -1,0 +1,231 @@
+
+@compiler c_include "dirent.h"
+@compiler c_include "unistd.h"
+@compiler c_include "sys/stat.h"
+@compiler c_include "sys/types.h"
+
+import std::sv::{ SV }
+import std::buffer::{ Buffer }
+
+
+[extern "FILE"] struct File
+
+namespace bindings {
+    [extern "struct stat"] struct FileStat {
+        st_dev: u64
+        st_ino: u64
+        st_mode: u32
+        st_nlink: u64
+        st_uid: u32
+        st_gid: u32
+        st_rdev: u64
+        st_size: u64
+        st_blksize: u64
+        st_blocks: u64
+        st_atime: u64
+        st_mtime: u64
+        st_ctime: u64
+    }
+
+    [extern] def fopen(path: str, mode: str = "r"): &File
+    [extern] def fclose(file: &File): i32
+    [extern] def fwrite(ptr: untyped_ptr, size: u32, nmemb: u32, file: &File): i32
+    [extern] def fread(ptr: untyped_ptr, size: u32, nmemb: u32, file: &File): i32
+    [extern] def fseek(file: &File, offset: i64, whence: i32): i32
+    [extern] def ftell(file: &File): i64
+    [extern] def stat(path: str, buf: &FileStat): i32
+
+    [extern] const SEEK_SET: i32
+    [extern] const SEEK_CUR: i32
+    [extern] const SEEK_END: i32
+
+    [extern "DIR"] struct Dir
+
+    [extern "struct dirent"] struct dirent {
+        d_name: str
+        d_type: i32
+    }
+
+    [extern] const DT_DIR: i32
+    [extern] const DT_REG: i32
+    [extern] const DT_LNK: i32
+
+    [extern] def opendir(path: str): &Dir
+    [extern] def closedir(dir: &Dir)
+    [extern] def mkdir(path: str, mode: i32 = 0777): i32
+    [extern] def readdir(dir: &Dir): &dirent
+}
+
+struct FileMetadata {
+    size: u64
+    atime: u64
+    mtime: u64
+    ctime: u64
+    uid: u32
+    gid: u32
+    dev: u64
+    mode: u32
+}
+
+
+def File::open(path: str, mode: str = "r"): &File {
+    let file = bindings::fopen(path, mode)
+    if not file? {
+        panic(`failed to open file: '{path}': {libc::get_err()}`)
+    }
+    return file
+}
+
+[extern "fclose"] def File::close(&this)
+
+def File::read(&this, buf: untyped_ptr, size: u32): i32 {
+    return bindings::fread(buf, 1, size, this)
+}
+
+def File::write(&this, buf: untyped_ptr, size: u32): i32 {
+    return bindings::fwrite(buf, 1, size, this)
+}
+
+def File::size(&this): u32 {
+    let pos = bindings::ftell(this)
+    bindings::fseek(this, 0, bindings::SEEK_END)
+    let size = bindings::ftell(this) as u32
+    bindings::fseek(this, pos, bindings::SEEK_SET)
+    return size
+}
+
+def File::puts(&this, s: str) {
+    bindings::fwrite(s , 1, s.len(), this)
+}
+
+def file_info(path: str): FileMetadata {
+    let stat: bindings::FileStat
+    let res = bindings::stat(path, &stat)
+    if res != 0 {
+        panic(`failed to get file info: '{path}': {libc::get_err()}`)
+    }
+    return FileMetadata(
+        size: stat.st_size,
+        atime: stat.st_atime,
+        mtime: stat.st_mtime,
+        ctime: stat.st_ctime,
+        uid: stat.st_uid,
+        gid: stat.st_gid,
+        dev: stat.st_dev,
+        mode: stat.st_mode
+    )
+}
+
+def file_exists(path: str): bool {
+    let file = bindings::fopen(path)
+    if not file? return false
+    bindings::fclose(file)
+    return true
+}
+
+def write_file_bytes(path: str, data: untyped_ptr, size: u32) {
+    let file = bindings::fopen(path, "wb")
+    if not file? panic(`[-] Failed to open file: {path}`)
+    let written = bindings::fwrite(data, 1, size, file)
+    if written as u32 != size {
+        panic(`[-] Failed to write to file: {path}`)
+    }
+    bindings::fclose(file)
+}
+
+def write_file_str(path: str, data: str) {
+    write_file_bytes(path, data, data.len())
+}
+
+def write_file(path: str, data: Buffer) {
+    write_file_bytes(path, data.data, data.size)
+}
+
+def read_file(path: str): Buffer {
+    let file = bindings::fopen(path)
+    if not file? panic(`[-] Failed to open file: {path}`)
+    bindings::fseek(file, 0, bindings::SEEK_END)
+    let size = bindings::ftell(file) as u32
+    bindings::fseek(file, 0, bindings::SEEK_SET)
+    let data = Buffer::make(capacity: size + 1)
+    let read = bindings::fread(data.data, 1, size, file)
+    if read as u32 != size {
+        panic(`[-] Failed to read from file: {path}`)
+    }
+    bindings::fclose(file)
+    data.size = size as u32
+    data.data[size] = 0
+    return data
+}
+
+def directory_exists(path: str): bool {
+    let dir = bindings::opendir(path)
+    if dir == null return false
+    bindings::closedir(dir)
+    return true
+}
+
+def create_directory(path: str, exists_ok: bool = false) {
+    if exists_ok and directory_exists(path) {
+        return
+    }
+    let res = bindings::mkdir(path)
+    if res != 0 {
+        panic(`[-] Failed to create directory: {path}`)
+    }
+}
+
+def iterate_directory(path: str, skip_self_and_parent: bool = true): DirectoryIterator {
+    let dir = bindings::opendir(path)
+    if dir == null {
+        panic(`[-] Failed to open directory: {path}`)
+    }
+
+    let iter: DirectoryIterator
+    iter.dir = dir
+    iter.skip_self_and_parent = skip_self_and_parent
+    iter.next()
+
+    return iter
+}
+
+enum EntryType {
+    File
+    Directory
+    SymbolicLink
+    Unknown
+}
+
+struct DirectoryEntry {
+    type: EntryType
+    name: str
+}
+
+struct DirectoryIterator {
+    dir: &bindings::Dir
+    dp: &bindings::dirent
+    skip_self_and_parent: bool
+}
+
+def DirectoryIterator::has_value(&this): bool => .dp?
+
+def DirectoryIterator::next(&this) {
+    .dp = bindings::readdir(.dir)
+    while .dp? and .skip_self_and_parent {
+        match .dp.d_name {
+            "." | ".." => .dp = bindings::readdir(.dir)
+            else => break
+        }
+    }
+}
+
+def DirectoryIterator::cur(&this): DirectoryEntry {
+    let name = .dp.d_name
+    let type = match .dp.d_type {
+        bindings::DT_DIR => EntryType::Directory
+        bindings::DT_REG => EntryType::File
+        bindings::DT_LNK => EntryType::SymbolicLink
+        else => EntryType::Unknown
+    }
+    return DirectoryEntry(type, name)
+}

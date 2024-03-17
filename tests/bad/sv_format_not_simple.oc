@@ -1,0 +1,8 @@
+/// fail: Can only format std::sv::SV in simple expressions
+
+import std::sv::SV
+
+def main() {
+    let s = SV::from_str("hello foo")
+    println(`{s.chop_word()} bar`)
+}

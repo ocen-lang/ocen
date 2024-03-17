@@ -1,0 +1,8 @@
+@compiler c_include "time.h"
+
+[extern "time_t"] struct Time {}
+[extern "struct tm"] struct TM {}
+
+[extern] def time(t: &Time): Time
+[extern] def localtime(t: &Time): &TM
+[extern] def strftime(s: untyped_ptr, maxsize: u32, format: str, timeptr: &TM): u32

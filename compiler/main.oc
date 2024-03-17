@@ -1,5 +1,6 @@
 //* Entry point for the compiler
 
+import std::fs
 import std::libc::{ exit, calloc, system }
 import std::vector::Vector
 import .ast::program::Program
@@ -45,9 +46,7 @@ def save_and_compile_code(program: &Program, code: str) {
         c_path = `{exec_path}.c`
     }
 
-    let out_file = std::File::open(c_path, "w")
-    out_file.puts(code)
-    out_file.close()
+    fs::write_file_str(c_path, code)
 
     if not compile_c then return
 
