@@ -247,7 +247,6 @@ def Lexer::lex(&this): &Vector<&Token> {
             }
             ';' => .push_type(TokenType::Semicolon, len: 1)
             ',' => .push_type(TokenType::Comma, len: 1)
-            '.' => .push_type(TokenType::Dot, len: 1)
             '(' => .push_type(TokenType::OpenParen, len: 1)
             ')' => .push_type(TokenType::CloseParen, len: 1)
             '[' => .push_type(TokenType::OpenSquare, len: 1)
@@ -261,6 +260,13 @@ def Lexer::lex(&this): &Vector<&Token> {
             '|' => .push_type(TokenType::Line, len: 1)
             '?' => .push_type(TokenType::Question, len: 1)
             '~' => .push_type(TokenType::Tilde, len: 1)
+            '.' => {
+                if .peek(1) == '.' and .peek(2) == '.' {
+                    .push_type(TokenType::Ellipsis, len: 3)
+                } else {
+                    .push_type(TokenType::Dot, len: 1)
+                }
+            }
             '!' => match .peek(1) {
                 '='  => .push_type(TokenType::NotEquals, len: 2)
                 else => .push_type(TokenType::Exclamation, len: 1)

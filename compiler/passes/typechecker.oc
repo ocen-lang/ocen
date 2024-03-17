@@ -77,7 +77,7 @@ def TypeChecker::resolve_type(
             if not return_type? return null
 
             resolved = Type::shallow_copy(old)
-            resolved.u.func = FunctionType(func.orig, checked_params, return_type)
+            resolved.u.func = FunctionType(func.orig, checked_params, return_type, func.is_variadic)
         }
         Unresolved => {
             let node = old.u.unresolved
@@ -498,9 +498,10 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
     return struc.type
 }
 
-def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>) {
+def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
     let args = node.u.call.args
-    if params.size < args.size {
+
+    if params.size < args.size and not is_variadic {
         .error(Error::new(node.span, `Too many arguments, expected {params.size} but got {args.size}`))
     }
 
@@ -532,6 +533,20 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>) 
 
         } else {
             .error(Error::new(node.span, `Missing required argument {param.sym.name}`))
+            return
+        }
+    }
+
+    if is_variadic {
+        if args.size < params.size {
+            assert .o.program.errors.size > 1, "Should have errored already"
+            return
+        }
+
+        for let i = params.size; i < args.size; i += 1 {
+            let arg = args.at(i)
+            let arg_type = .check_expression(arg.expr)
+            if not arg_type? then continue
         }
     }
 }
@@ -586,7 +601,29 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         .check_method_call(func.orig, node)
     }
 
-    .check_call_args(node, params)
+    .check_call_args(node, params, func.is_variadic)
+
+    let is_variadic_format = func.orig? and func.orig.is_variadic_format
+    if is_variadic_format and args.size >= params.size {
+        let args = node.u.call.args
+
+        let param = params.back()
+        let arg = args.at(params.size - 1).expr
+
+        if not param.type.is_str() {
+            .error(Error::new(
+                func.orig.sym.span, "Variadic-format function must have last positional argument of type 'str'"
+            ))
+        }
+        match arg.type {
+            StringLiteral | FormatStringLiteral => {}
+            else => {
+                .error(Error::new(
+                    arg.span, "Expected a string literal for variadic-format function"
+                ))
+            }
+        }
+    }
 
     if func.orig? {
         node.u.call.is_function_pointer = false
@@ -1968,7 +2005,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
     let typ = Type::new_resolved(Function, func.sym.span)
-    typ.u.func = FunctionType(func, func.params, func.return_type)
+    typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
     func.type = typ
 }
 

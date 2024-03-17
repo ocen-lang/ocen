@@ -282,6 +282,7 @@ char *ast_scopes_SymbolType_dbg(ast_scopes_SymbolType this) {
 typedef enum attributes_AttributeType {
   attributes_AttributeType_Extern,
   attributes_AttributeType_Exits,
+  attributes_AttributeType_VariadicFormat,
   attributes_AttributeType_Invalid,
 } attributes_AttributeType;
 
@@ -289,6 +290,7 @@ char *attributes_AttributeType_dbg(attributes_AttributeType this) {
   switch (this) {
     case attributes_AttributeType_Extern: return "Extern";
     case attributes_AttributeType_Exits: return "Exits";
+    case attributes_AttributeType_VariadicFormat: return "VariadicFormat";
     case attributes_AttributeType_Invalid: return "Invalid";
     default: return "<unknown>";
   }
@@ -308,6 +310,7 @@ typedef enum tokens_TokenType {
   tokens_TokenType_Comma,
   tokens_TokenType_Dot,
   tokens_TokenType_EOF,
+  tokens_TokenType_Ellipsis,
   tokens_TokenType_Equals,
   tokens_TokenType_EqualEquals,
   tokens_TokenType_Exclamation,
@@ -391,6 +394,7 @@ char *tokens_TokenType_dbg(tokens_TokenType this) {
     case tokens_TokenType_Comma: return "Comma";
     case tokens_TokenType_Dot: return "Dot";
     case tokens_TokenType_EOF: return "EOF";
+    case tokens_TokenType_Ellipsis: return "Ellipsis";
     case tokens_TokenType_Equals: return "Equals";
     case tokens_TokenType_EqualEquals: return "EqualEquals";
     case tokens_TokenType_Exclamation: return "Exclamation";
@@ -1216,6 +1220,8 @@ struct ast_nodes_Function {
   ast_scopes_Scope *scope;
   types_Type *type;
   bool checked;
+  bool is_variadic;
+  bool is_variadic_format;
   bool is_method;
   bool is_static;
   types_Type *parent_type;
@@ -1451,6 +1457,7 @@ struct types_FunctionType {
   ast_nodes_Function *orig;
   std_vector_Vector__7 *params;
   types_Type *return_type;
+  bool is_variadic;
 };
 
 struct types_ArrayType {
@@ -1798,6 +1805,7 @@ bool std_vector_Iterator__6_has_value(std_vector_Iterator__6 *this);
 void std_vector_Vector__6_resize(std_vector_Vector__6 *this, u32 new_capacity);
 std_vector_Vector__6 *std_vector_Vector__6_new(u32 capacity);
 void std_vector_Vector__6_push(std_vector_Vector__6 *this, ast_scopes_TemplateInstance *value);
+ast_nodes_Variable *std_vector_Vector__7_back(std_vector_Vector__7 *this, u32 i);
 std_vector_Iterator__7 std_vector_Vector__7_iter(std_vector_Vector__7 *this);
 ast_nodes_Variable *std_vector_Iterator__7_cur(std_vector_Iterator__7 *this);
 void std_vector_Iterator__7_next(std_vector_Iterator__7 *this);
@@ -1981,7 +1989,7 @@ void passes_typechecker_TypeChecker_check_block(passes_typechecker_TypeChecker *
 void passes_typechecker_TypeChecker_check_method_call(passes_typechecker_TypeChecker *this, ast_nodes_Function *method, ast_nodes_AST *node);
 types_Type *passes_typechecker_TypeChecker_check_internal_print(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 types_Type *passes_typechecker_TypeChecker_check_constructor(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
-void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, std_vector_Vector__7 *params);
+void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, std_vector_Vector__7 *params, bool is_variadic);
 types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 types_Type *passes_typechecker_TypeChecker_check_pointer_arith(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, types_Type *_lhs, types_Type *_rhs);
 types_Type *passes_typechecker_TypeChecker_check_binary_op(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, types_Type *lhs, types_Type *rhs);
@@ -4348,6 +4356,12 @@ void std_vector_Vector__6_push(std_vector_Vector__6 *this, ast_scopes_TemplateIn
   this->size+=1;
 }
 
+ast_nodes_Variable *std_vector_Vector__7_back(std_vector_Vector__7 *this, u32 i) {
+  ae_assert((this->size > 0), "std/vector.oc:83:12: Assertion failed: `.size > 0`", "Empty vector in Vector::back");
+  ae_assert((i < this->size), "std/vector.oc:84:12: Assertion failed: `i < .size`", "Out of bounds in Vector::back");
+  return this->data[((this->size - i) - 1)];
+}
+
 std_vector_Iterator__7 std_vector_Vector__7_iter(std_vector_Vector__7 *this) {
   return std_vector_Iterator__7_make(this);
 }
@@ -5981,6 +5995,7 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
         return ;
       } 
       passes_code_generator_CodeGenerator_gen_expression(this, callee);
+      bool is_variadic_format = (((((bool)sym) && sym->type==ast_scopes_SymbolType_Function) && ((bool)sym->u.func)) && sym->u.func->is_variadic_format);
       std_buffer_Buffer_puts(&this->out, "(");
       std_vector_Vector__17 *args = node->u.call.args;
       for (u32 i = 0; (i < args->size); i+=1) {
@@ -5988,7 +6003,11 @@ void passes_code_generator_CodeGenerator_gen_expression(passes_code_generator_Co
         std_buffer_Buffer_puts(&this->out, ", ");
         
         ast_nodes_Argument *arg = std_vector_Vector__17_at(args, i);
-        passes_code_generator_CodeGenerator_gen_expression(this, arg->expr);
+        if (((i==(args->size - 1) && is_variadic_format) && arg->expr->type==ast_nodes_ASTType_FormatStringLiteral)) {
+          passes_code_generator_CodeGenerator_gen_format_string_variadic(this, arg->expr, false);
+        }  else {
+          passes_code_generator_CodeGenerator_gen_expression(this, arg->expr);
+        } 
       }
       std_buffer_Buffer_puts(&this->out, ")");
     } break;
@@ -6463,6 +6482,9 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
         char *arg_str = passes_code_generator_CodeGenerator_get_type_name_string(this, var->type, ast_scopes_Symbol_out_name(var->sym), false);
         std_buffer_Buffer_putsf(&args_str, arg_str);
       }
+      if (cur->u.func.is_variadic) 
+      std_buffer_Buffer_puts(&args_str, ", ...");
+      
       if ((is_func_def && cur==top)) {
         str_replace(&acc, format_string("%s(%s)", acc, std_buffer_Buffer_str(args_str)));
       }  else {
@@ -6507,7 +6529,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:968:12: Assertion failed: `type != null`", NULL);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:986:12: Assertion failed: `type != null`", NULL);
   char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
@@ -6561,7 +6583,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__6_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1013:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1031:24: Assertion failed: `sym.type == Function`", NULL);
             ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
@@ -6598,7 +6620,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__6_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1040:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1058:24: Assertion failed: `sym.type == Function`", NULL);
             ast_nodes_Function *func = sym->u.func;
             if (func->is_dead) 
             continue;
@@ -6914,7 +6936,7 @@ types_Type *passes_typechecker_TypeChecker_resolve_type(passes_typechecker_TypeC
       return NULL;
       
       resolved=types_Type_shallow_copy(old);
-      resolved->u.func=(types_FunctionType){.orig=func.orig, .params=checked_params, .return_type=return_type};
+      resolved->u.func=(types_FunctionType){.orig=func.orig, .params=checked_params, .return_type=return_type, .is_variadic=func.is_variadic};
     } break;
     case types_BaseType_Unresolved: {
       ast_nodes_AST *node = old->u.unresolved;
@@ -7307,13 +7329,13 @@ types_Type *passes_typechecker_TypeChecker_check_constructor(passes_typechecker_
   ae_assert(type_sym->type==ast_scopes_SymbolType_Structure, "compiler/passes/typechecker.oc:491:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", ast_scopes_SymbolType_dbg(type_sym->type)));
   ast_nodes_Structure *struc = type_sym->u.struc;
   std_vector_Vector__7 *params = struc->fields;
-  passes_typechecker_TypeChecker_check_call_args(this, node, params);
+  passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
   return struc->type;
 }
 
-void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, std_vector_Vector__7 *params) {
+void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, std_vector_Vector__7 *params, bool is_variadic) {
   std_vector_Vector__17 *args = node->u.call.args;
-  if ((params->size < args->size)) {
+  if (((params->size < args->size) && !is_variadic)) {
     passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Too many arguments, expected %u but got %u", params->size, args->size)));
   } 
   for (u32 i = 0; (i < params->size); i+=1) {
@@ -7335,9 +7357,23 @@ void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeCheck
       std_vector_Vector__17_push(args, new_arg);
     }  else {
       passes_typechecker_TypeChecker_error(this, errors_Error_new(node->span, format_string("Missing required argument %s", param->sym->name)));
+      return ;
     } 
     
   }
+  if (is_variadic) {
+    if ((args->size < params->size)) {
+      ae_assert((this->o->program->errors->size > 1), "compiler/passes/typechecker.oc:542:20: Assertion failed: `.o.program.errors.size > 1`", "Should have errored already");
+      return ;
+    } 
+    for (u32 i = params->size; (i < args->size); i+=1) {
+      ast_nodes_Argument *arg = std_vector_Vector__17_at(args, i);
+      types_Type *arg_type = passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
+      if (!((bool)arg_type)) 
+      continue;
+      
+    }
+  } 
 }
 
 types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChecker *this, ast_nodes_AST *node) {
@@ -7399,7 +7435,24 @@ types_Type *passes_typechecker_TypeChecker_check_call(passes_typechecker_TypeChe
   if (((((bool)func.orig) && func.orig->is_method) && !func.orig->is_static)) {
     passes_typechecker_TypeChecker_check_method_call(this, func.orig, node);
   } 
-  passes_typechecker_TypeChecker_check_call_args(this, node, params);
+  passes_typechecker_TypeChecker_check_call_args(this, node, params, func.is_variadic);
+  bool is_variadic_format = (((bool)func.orig) && func.orig->is_variadic_format);
+  if ((is_variadic_format && (args->size >= params->size))) {
+    std_vector_Vector__17 *args = node->u.call.args;
+    ast_nodes_Variable *param = std_vector_Vector__7_back(params, 0);
+    ast_nodes_AST *arg = std_vector_Vector__17_at(args, (params->size - 1))->expr;
+    if (!types_Type_is_str(param->type)) {
+      passes_typechecker_TypeChecker_error(this, errors_Error_new(func.orig->sym->span, "Variadic-format function must have last positional argument of type 'str'"));
+    } 
+    switch (arg->type) {
+      case ast_nodes_ASTType_StringLiteral:
+      case ast_nodes_ASTType_FormatStringLiteral: {
+      } break;
+      default: {
+        passes_typechecker_TypeChecker_error(this, errors_Error_new(arg->span, "Expected a string literal for variadic-format function"));
+      } break;
+    }
+  } 
   if (((bool)func.orig)) {
     node->u.call.is_function_pointer=false;
     node->u.call.func=func.orig;
@@ -8768,7 +8821,7 @@ void passes_typechecker_TypeChecker_check_function_declaration(passes_typechecke
     }
   }
   types_Type *typ = types_Type_new_resolved(types_BaseType_Function, func->sym->span);
-  typ->u.func=(types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type};
+  typ->u.func=(types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type, .is_variadic=func->is_variadic};
   func->type=typ;
 }
 
@@ -8780,8 +8833,8 @@ void passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(passes_typ
       continue;
       
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:1980:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:1984:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:2017:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:2021:16: Assertion failed: `sym.type == TypeDef`", NULL);
       types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -8917,7 +8970,7 @@ void passes_register_types_RegisterTypes_add_dbg_method_for_enum(passes_register
   var->sym=ast_scopes_Symbol_from_local_variable("this", var, span);
   std_vector_Vector__7_push(func->params, var);
   types_Type *typ = types_Type_new_resolved(types_BaseType_Function, span);
-  typ->u.func=(types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type};
+  typ->u.func=(types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type, .is_variadic=func->is_variadic};
   func->type=typ;
   std_map_Map__7_insert(enum_->type->methods, "dbg", func);
 }
@@ -9719,7 +9772,13 @@ types_Type *parser_Parser_parse_type(parser_Parser *this) {
         parser_Parser_consume(this, tokens_TokenType_Fn);
         parser_Parser_consume(this, tokens_TokenType_OpenParen);
         std_vector_Vector__7 *params = std_vector_Vector__7_new(16);
+        bool is_variadic = false;
         while (!parser_Parser_token_is(this, tokens_TokenType_CloseParen)) {
+          if (parser_Parser_token_is(this, tokens_TokenType_Ellipsis)) {
+            parser_Parser_consume(this, tokens_TokenType_Ellipsis);
+            is_variadic=true;
+            break;
+          } 
           types_Type *param_type = parser_Parser_parse_type(this);
           ast_nodes_Variable *var = ast_nodes_Variable_new(param_type);
           var->sym=ast_scopes_Symbol_from_local_variable("", var, param_type->span);
@@ -9736,7 +9795,7 @@ types_Type *parser_Parser_parse_type(parser_Parser *this) {
           return_type=types_Type_new_unresolved_base(types_BaseType_Void, start_span);
         } 
         types_Type *type = types_Type_new_resolved(types_BaseType_Function, std_span_Span_join(start_span, close->span));
-        type->u.func=(types_FunctionType){.orig=NULL, .params=params, .return_type=return_type};
+        type->u.func=(types_FunctionType){.orig=NULL, .params=params, .return_type=return_type, .is_variadic=is_variadic};
         __yield_0 = type;
       } break;
       case tokens_TokenType_OpenSquare: {
@@ -10729,6 +10788,14 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
   parser_Parser_consume(this, tokens_TokenType_OpenParen);
   bool seen_default = false;
   while (!parser_Parser_token_is(this, tokens_TokenType_CloseParen)) {
+    if (parser_Parser_token_is(this, tokens_TokenType_Ellipsis)) {
+      if (seen_default) {
+        parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, "Cannot have variadic parameters and default parameters"));
+      } 
+      parser_Parser_consume(this, tokens_TokenType_Ellipsis);
+      func->is_variadic=true;
+      break;
+    } 
     bool found_amp = parser_Parser_consume_if(this, tokens_TokenType_Ampersand);
     tokens_Token *var_name = parser_Parser_consume(this, tokens_TokenType_Identifier);
     types_Type *type = ((types_Type *)NULL);
@@ -10793,12 +10860,21 @@ ast_nodes_Function *parser_Parser_parse_function(parser_Parser *this) {
         case attributes_AttributeType_Extern: {
           parser_Parser_get_extern_from_attr(this, func->sym, attr);
         } break;
+        case attributes_AttributeType_VariadicFormat: {
+          if (!func->is_variadic) {
+            parser_Parser_error(this, errors_Error_new(attr->span, "Variadic format attribute can only be used on variadic functions"));
+          } 
+          func->is_variadic_format=true;
+        } break;
         default: {
           parser_Parser_error(this, errors_Error_new(attr->span, "Invalid attribute for function"));
         } break;
       }
     }
   }
+  if ((func->is_variadic && !func->sym->is_extern)) {
+    parser_Parser_error(this, errors_Error_new(func->sym->span, "Only extern functions can be variadic"));
+  } 
   if (func->sym->is_extern) 
   return func;
   
@@ -10841,7 +10917,7 @@ void parser_Parser_parse_extern_into_symbol(parser_Parser *this, ast_scopes_Symb
 }
 
 void parser_Parser_get_extern_from_attr(parser_Parser *this, ast_scopes_Symbol *sym, attributes_Attribute *attr) {
-  ae_assert(attr->type==attributes_AttributeType_Extern, "compiler/parser.oc:1343:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==attributes_AttributeType_Extern, "compiler/parser.oc:1373:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if ((attr->args->size > 0)) {
     sym->extern_name=std_vector_Vector__4_at(attr->args, 0);
@@ -10922,9 +10998,23 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
         parser_Parser_consume(this, tokens_TokenType_ColonColon);
         __yield_0 = ast_nodes_ImportType_CurrentScope;
       } break;
-      case tokens_TokenType_Dot: {
-        while (parser_Parser_consume_if(this, tokens_TokenType_Dot)) {
-          parent_count+=1;
+      case tokens_TokenType_Dot:
+      case tokens_TokenType_Ellipsis: {
+        bool done = false;
+        while (!done) {
+          switch (parser_Parser_token(this)->type) {
+            case tokens_TokenType_Dot: {
+              parser_Parser_consume(this, tokens_TokenType_Dot);
+              parent_count+=1;
+            } break;
+            case tokens_TokenType_Ellipsis: {
+              parser_Parser_consume(this, tokens_TokenType_Ellipsis);
+              parent_count+=3;
+            } break;
+            default: {
+              done=true;
+            } break;
+          }
         }
         __yield_0 = ast_nodes_ImportType_ParentNamespace;
       } break;
@@ -11337,8 +11427,8 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__8 *parts = path->parts;
-        ae_assert((parts->size > 0), "compiler/parser.oc:1871:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1872:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "compiler/parser.oc:1912:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1913:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         ast_nodes_ImportPartSingle first_part = std_vector_Vector__8_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__4_contains(this->program->global->namespaces, lib_name)) {
@@ -11670,9 +11760,6 @@ std_vector_Vector__2 *lexer_Lexer_lex(lexer_Lexer *this) {
       case ',': {
         lexer_Lexer_push_type(this, tokens_TokenType_Comma, 1);
       } break;
-      case '.': {
-        lexer_Lexer_push_type(this, tokens_TokenType_Dot, 1);
-      } break;
       case '(': {
         lexer_Lexer_push_type(this, tokens_TokenType_OpenParen, 1);
       } break;
@@ -11711,6 +11798,13 @@ std_vector_Vector__2 *lexer_Lexer_lex(lexer_Lexer *this) {
       } break;
       case '~': {
         lexer_Lexer_push_type(this, tokens_TokenType_Tilde, 1);
+      } break;
+      case '.': {
+        if ((lexer_Lexer_peek(this, 1)=='.' && lexer_Lexer_peek(this, 2)=='.')) {
+          lexer_Lexer_push_type(this, tokens_TokenType_Ellipsis, 3);
+        }  else {
+          lexer_Lexer_push_type(this, tokens_TokenType_Dot, 1);
+        } 
       } break;
       case '!': {
         switch (lexer_Lexer_peek(this, 1)) {
@@ -12371,6 +12465,8 @@ attributes_AttributeType attributes_AttributeType_from_str(char *s) {
         __yield_0 = attributes_AttributeType_Extern;
       } else if (!strcmp(__match_str, "exits")) {
         __yield_0 = attributes_AttributeType_Exits;
+      } else if (!strcmp(__match_str, "variadic_format")) {
+        __yield_0 = attributes_AttributeType_VariadicFormat;
       } else  {
         __yield_0 = attributes_AttributeType_Invalid;
       }
@@ -12397,6 +12493,12 @@ bool attributes_Attribute_validate(attributes_Attribute *this, parser_Parser *pa
     case attributes_AttributeType_Exits: {
       if ((this->args->size > 0)) {
         parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Exits attribute takes no arguments"));
+        return false;
+      } 
+    } break;
+    case attributes_AttributeType_VariadicFormat: {
+      if ((this->args->size > 0)) {
+        parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Variadic Format attribute takes no arguments"));
         return false;
       } 
     } break;
@@ -13005,7 +13107,7 @@ bool types_Type_eq(types_Type *this, types_Type *other, bool strict) {
       if ((((u32)this->base) < ((u32)types_BaseType_NUM_BASE_TYPES))) {
         return true;
       } 
-      ae_assert(false, "compiler/types.oc:213:20: Assertion failed: `false`", format_string("Unhandled case in Type::eq(), base = %s", types_BaseType_dbg(this->base))); exit(1);
+      ae_assert(false, "compiler/types.oc:214:20: Assertion failed: `false`", format_string("Unhandled case in Type::eq(), base = %s", types_BaseType_dbg(this->base))); exit(1);
     } break;
   }
 }

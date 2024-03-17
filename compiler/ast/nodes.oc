@@ -190,6 +190,9 @@ struct Function {
     type: &Type
     checked: bool
 
+    is_variadic: bool
+    is_variadic_format: bool
+
     is_method: bool
     is_static: bool
     parent_type: &Type

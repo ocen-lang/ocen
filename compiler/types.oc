@@ -62,6 +62,7 @@ struct FunctionType {
     orig: &Function
     params: &Vector<&Variable>
     return_type: &Type
+    is_variadic: bool
 }
 
 struct ArrayType {

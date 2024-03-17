@@ -1,0 +1,9 @@
+/// out: "3 = 56"
+
+[extern "printf"]
+[variadic_format]
+def my_printf(fmt: str, ...): i32
+
+def main() {
+    my_printf(`{1 + 2} = {0x56:02x}`)
+}
