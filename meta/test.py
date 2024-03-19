@@ -30,7 +30,7 @@ class Expected:
 
 
 def get_expected(filename) -> Optional[Expected]:
-    with open(filename) as file:
+    with open(filename, encoding="utf8", errors='ignore') as file:
         for line in file:
             if not line.startswith("///"):
                 break
