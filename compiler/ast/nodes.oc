@@ -140,6 +140,9 @@ struct Structure {
     is_union: bool
     span: Span
     is_dead: bool
+
+    format_spec: str
+    format_args: str
 }
 
 def Structure::new(): &Structure {
@@ -445,5 +448,9 @@ def AST::is_lvalue(&this): bool => match .type {
     Member => true
     Dereference => true
     Index => true
+    NSLookup => {
+        let sym = .resolved_symbol
+        return sym? and sym.type == Variable
+    }
     else => false
 }

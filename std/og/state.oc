@@ -1,0 +1,41 @@
+import std::sdl
+import std::vec::{ Vec2i }
+
+let window: &sdl::Window = null
+let renderer: &sdl::Renderer = null
+let prev_time: u64 = 0
+let frame_time: f32 = 0.0
+let running: bool = true
+let window_size: Vec2i
+
+let cursor_type: sdl::CursorType = Arrow
+let cursor: &sdl::Cursor = null
+
+struct KeyState {
+    keys: [bool; sdl::NUM_SCANCODES] // Hopefully this is enough
+}
+
+def KeyState::get(&this, k: sdl::Key): bool => .keys[k as u32]
+
+let prev_keys: KeyState
+let keys: KeyState
+
+enum MouseWheel {
+    Down
+    Right
+    Up
+    Left
+}
+
+struct MouseState {
+    vec: Vec2i
+    pos: Vec2i
+    buttons: [bool; 16]   // Hopefully enough for all mouse buttons
+    wheel_dirs: [bool; 8] // Hopefully enough for all mouse wheel buttons
+}
+
+def MouseState::get_button(&this, b: sdl::MouseButton): bool => .buttons[b as u32]
+def MouseState::get_wheel(&this, w: MouseWheel): bool => .wheel_dirs[w as u32]
+
+let prev_mouse: MouseState
+let mouse: MouseState

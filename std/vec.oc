@@ -3,6 +3,8 @@
 import std::math
 import std::traits::hash::pair_hash
 
+// TODO: formatting attribute can't work properly for generic types
+[formatting "(%g, %g)" "(f64)$.x, (f64)$.y"]
 //! Template for a 2D vector
 struct Vec2<T> {
     x, y: T
@@ -68,6 +70,8 @@ def Vec2::to_u64(this): Vec2u64 => Vec2u64(.x as u64, .y as u64)
 
 /////////// Vec3
 
+// TODO: formatting attribute can't work properly for generic types
+[formatting "(%g, %g, %g)" "(f64)$.x, (f64)$.y, (f64)$.z"]
 //! Template for a 3D vector
 struct Vec3<T> {
     x, y, z: T

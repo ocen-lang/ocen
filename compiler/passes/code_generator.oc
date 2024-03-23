@@ -119,10 +119,12 @@ def CodeGenerator::gen_format_string_part(&this, part: str) {
 }
 
 def CodeGenerator::format_string_custom_specifier(&this, type: &Type, expr: &AST) {
-    if type == .o.program.cached_types.sv_type or
-       type == .o.program.cached_types.buffer_type {
-        .out.puts("%.*s")
-        return
+    if type.base == Structure {
+        let struc = type.u.struc
+        if struc? and struc.format_spec? {
+            .out.puts(struc.format_spec)
+            return
+        }
     }
 
     .error(Error::new(
@@ -132,26 +134,20 @@ def CodeGenerator::format_string_custom_specifier(&this, type: &Type, expr: &AST
 }
 
 def CodeGenerator::format_string_custom_argument(&this, type: &Type, expr: &AST) {
-    if type == .o.program.cached_types.sv_type {
-        .o.verify_structure_has_field(type, "len", expr.span)
-        .o.verify_structure_has_field(type, "data", expr.span)
-        .out.puts("(")
-        .gen_expression(expr)
-        .out.puts(").len, (")
-        .gen_expression(expr)
-        .out.puts(").data")
-        return
-    }
-
-    if type == .o.program.cached_types.buffer_type {
-        .o.verify_structure_has_field(type, "size", expr.span)
-        .o.verify_structure_has_field(type, "data", expr.span)
-        .out.puts("(")
-        .gen_expression(expr)
-        .out.puts(").size, (")
-        .gen_expression(expr)
-        .out.puts(").data")
-        return
+    if type.base == Structure {
+        let struc = type.u.struc
+        if struc? and struc.format_args? {
+            for c : struc.format_args.chars() {
+                if c == '$' {
+                    .out.puts("(")
+                    .gen_expression(expr)
+                    .out.puts(")")
+                } else {
+                    .out.putc(c)
+                }
+            }
+            return
+        }
     }
 
     .error(Error::new(

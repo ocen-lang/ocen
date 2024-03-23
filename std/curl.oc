@@ -1,0 +1,115 @@
+//* Bindings for libcurl used to talk to the git server
+
+@compiler c_include "curl/curl.h"
+@compiler c_flag "-lcurl"
+
+import std::buffer::{ Buffer }
+
+typedef WriteCallback = fn(untyped_ptr, u64, u64, untyped_ptr): u64
+
+[extern "CURLoption"]
+enum Option {
+    URL = extern("CURLOPT_URL")
+    Username = extern("CURLOPT_USERNAME")
+    Password = extern("CURLOPT_PASSWORD")
+    HTTPAuth = extern("CURLOPT_HTTPAUTH")
+    WriteFunction = extern("CURLOPT_WRITEFUNCTION")
+    WriteData = extern("CURLOPT_WRITEDATA")
+    HTTPHeader = extern("CURLOPT_HTTPHEADER")
+    PostFields = extern("CURLOPT_POSTFIELDS")
+    PostFieldSize = extern("CURLOPT_POSTFIELDSIZE")
+    FollowLocation = extern("CURLOPT_FOLLOWLOCATION")
+    Post = extern("CURLOPT_POST")
+    Verbose = extern("CURLOPT_VERBOSE")
+}
+
+[extern "CURL"] struct Context
+[extern "CURLcode"] enum Status {
+    OK = extern("CURLE_OK")
+}
+[extern "curl_easy_strerror"] def Status::str(this): str
+
+[extern "struct curl_slist"] struct SList
+[extern "curl_slist_append"] def SList::append(&this, string: str): &SList
+[extern "curl_slist_free_all"] def SList::free_all(&this)
+
+[extern "CURL_GLOBAL_DEFAULT"] const GLOBAL_DEFAULT: u64
+
+[extern "curl_global_init"] def global_init(flags: u64): u64
+[extern "curl_easy_init"] def Context::easy_init(): &Context
+
+
+[extern "curl_easy_setopt"]
+def Context::easy_setopt(
+    &this,
+    option: Option,
+    ...     // There's no fixed type for this value
+): Status
+
+
+[extern "curl_easy_perform"] def Context::easy_perform(&this): Status
+[extern "curl_easy_cleanup"] def Context::easy_cleanup(&this)
+[extern "curl_global_cleanup"] def global_cleanup()
+
+
+// -----
+// Convenience API
+// -----
+
+namespace impl {
+    def write_callback(
+        data: untyped_ptr,
+        size: u64,
+        nmemb: u64,
+        user_data: untyped_ptr
+    ): u64 {
+        let buffer = user_data as &Buffer
+        let bytes = size * nmemb
+        buffer.put_bytes(data as &u8, bytes as u32)
+        return bytes
+    }
+}
+
+def http_request_auth(
+    url: str,
+    username: str,
+    password: str,
+    data: &Buffer
+): Buffer {
+
+    global_init(GLOBAL_DEFAULT)
+    let curl = Context::easy_init()
+    if not curl? std::panic(`Failed to initialize libcurl`)
+
+    let headers: &SList = null
+    let out = Buffer::make()
+    curl.easy_setopt(URL, url)
+    if username? then curl.easy_setopt(Username, username)
+    if password? then curl.easy_setopt(Password, password)
+    curl.easy_setopt(WriteFunction, impl::write_callback)
+    curl.easy_setopt(WriteData, &out)
+    curl.easy_setopt(FollowLocation, 1)
+
+    let verbose = std::libc::getenv("CURL_VERBOSE")
+    if verbose? then curl.easy_setopt(Verbose, 1)
+
+    if data? {
+        curl.easy_setopt(PostFields, data.str())
+        curl.easy_setopt(PostFieldSize, data.size)
+    }
+
+    let status = curl.easy_perform()
+    if status != OK {
+        std::panic(`curl::easy_perform() failed:: {status.str()}`)
+    }
+
+    curl.easy_cleanup()
+    if headers? headers.free_all()
+
+    global_cleanup()
+    return out
+}
+
+def http_request(url: str, data: &Buffer = null): Buffer {
+    return http_request_auth(url, null, null, data)
+}

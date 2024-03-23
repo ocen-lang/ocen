@@ -222,6 +222,9 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &T
     resolved_struc.sym.template = null
     resolved_struc.sym = sym
     sym.u.struc = resolved_struc
+    // Copy over formatting information
+    resolved_struc.format_spec = struc.format_spec
+    resolved_struc.format_args = struc.format_args
 
     let typ = Type::new_resolved(Structure, sym.span)
     typ.u.struc = resolved_struc
@@ -785,8 +788,12 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
             U32 | U64 | F32 | F64 | Pointer => {}
             else => {
                 let can_format = false
-                if typ == .o.program.cached_types.sv_type then can_format = true
-                if typ == .o.program.cached_types.buffer_type then can_format = true
+                if typ.base == Structure {
+                    let struc = typ.u.struc
+                    if struc? and struc.format_spec? {
+                        can_format = true
+                    }
+                }
 
                 if can_format {
                     // These checks are to try to avoid side-effects when formatting our custom types. Eg:

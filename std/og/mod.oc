@@ -1,0 +1,92 @@
+//! A simple 2D game engine built on top of SDL2 (WIP)
+
+import std::sdl
+import std::vec::{ Vec2f, Vec2i }
+[export] import std::sdl::{ Color }
+
+import .state
+import .utils
+[export] import .colors::*
+
+struct Rect {
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+}
+
+def Rect::from_v(pos: Vec2i, size: Vec2i): Rect {
+    return Rect(pos.x, pos.y, size.x, size.y)
+}
+
+def Rect::contains(this, pos: Vec2i): bool {
+    if not (.x <= pos.x <= .x + .w) return false
+    if not (.y <= pos.y <= .y + .h) return false
+    return true
+}
+
+def init(width: u32, height: u32, title: str) {
+    sdl::init(sdl::INIT_EVERYTHING)
+    sdl::create_window_renderer(width as i32, height as i32, 0, &state::window, &state::renderer)
+    state::window.set_title(title)
+    state::prev_time = sdl::get_ticks() as u64
+}
+
+def is_running(): bool {
+    state::renderer.present()
+    // sdl::delay(1000i32 / 60)
+    let cur_time = sdl::get_ticks() as u64
+    state::frame_time = (cur_time - state::prev_time) as f32 / 1000.0
+    state::prev_time = cur_time
+
+    utils::handle_sdl_events()
+    return state::running
+}
+
+def clear(col: Color) {
+    state::renderer.set_draw_color(col.r, col.g, col.b, col.a)
+    state::renderer.clear()
+}
+
+def draw_rect(x: i32, y: i32, w: i32, h: i32, col: Color) {
+    state::renderer.set_draw_color(col.r, col.g, col.b, col.a)
+    let rect = sdl::Rect(x, y, w, h)
+    state::renderer.fill_rect(&rect)
+}
+
+def draw_rect_v(pos: Vec2i, size: Vec2i, col: Color) {
+    draw_rect(pos.x, pos.y, size.x, size.y, col)
+}
+
+def get_frame_time(): f32 => state::frame_time
+
+def quit() {
+    sdl::quit()
+}
+
+def is_key_pressed(k: sdl::Key): bool => state::prev_keys.get(k) == false and state::keys.get(k) == true
+def is_key_released(k: sdl::Key): bool => state::prev_keys.get(k) == true and state::keys.get(k) == false
+def is_key_down(k: sdl::Key): bool => state::keys.get(k) == true
+def is_key_up(k: sdl::Key): bool => state::keys.get(k) == false
+
+def is_mouse_pressed(b: sdl::MouseButton): bool
+    => state::prev_mouse.get_button(b) == false and state::mouse.get_button(b) == true
+def is_mouse_released(b: sdl::MouseButton): bool
+    => state::prev_mouse.get_button(b) == true and state::mouse.get_button(b) == false
+def is_mouse_down(b: sdl::MouseButton): bool
+    => state::mouse.get_button(b) == true
+def is_mouse_up(b: sdl::MouseButton): bool
+    => state::mouse.get_button(b) == false
+
+def is_scroll(w: state::MouseWheel): bool => state::mouse.get_wheel(w)
+
+def get_mouse_pos(): Vec2i => state::mouse.pos
+def get_mouse_delta(): Vec2i => state::mouse.pos.sub(state::prev_mouse.pos)
+
+def set_cursor(c: sdl::CursorType) {
+    if c == state::cursor_type return
+    if state::cursor? then state::cursor.destroy()
+    state::cursor = sdl::create_system_cursor(c)
+    state::cursor_type = c
+    sdl::set_cursor(state::cursor)
+}

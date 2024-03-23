@@ -283,8 +283,9 @@ typedef enum attributes_AttributeType {
   attributes_AttributeType_Extern,
   attributes_AttributeType_Exits,
   attributes_AttributeType_VariadicFormat,
-  attributes_AttributeType_Invalid,
   attributes_AttributeType_Export,
+  attributes_AttributeType_Formatting,
+  attributes_AttributeType_Invalid,
 } attributes_AttributeType;
 
 char *attributes_AttributeType_dbg(attributes_AttributeType this) {
@@ -292,8 +293,9 @@ char *attributes_AttributeType_dbg(attributes_AttributeType this) {
     case attributes_AttributeType_Extern: return "Extern";
     case attributes_AttributeType_Exits: return "Exits";
     case attributes_AttributeType_VariadicFormat: return "VariadicFormat";
-    case attributes_AttributeType_Invalid: return "Invalid";
     case attributes_AttributeType_Export: return "Export";
+    case attributes_AttributeType_Formatting: return "Formatting";
+    case attributes_AttributeType_Invalid: return "Invalid";
     default: return "<unknown>";
   }
 }
@@ -556,6 +558,7 @@ char *types_BaseType_dbg(types_BaseType this) {
 #define std_compact_map_INDEX_FREE (-1)
 #define std_compact_map_INDEX_DELETED (-2)
 /* Struct typedefs */
+typedef struct std_CharIterator std_CharIterator;
 typedef struct std_compact_map_Item__0 std_compact_map_Item__0;
 typedef struct std_compact_map_Map__0 std_compact_map_Map__0;
 typedef struct std_vector_Iterator__1 std_vector_Iterator__1;
@@ -681,6 +684,12 @@ typedef struct types_TypeUnion types_TypeUnion;
 typedef struct types_Type types_Type;
 
 /* Struct definitions */
+struct std_CharIterator {
+  char *data;
+  u32 len;
+  u32 pos;
+};
+
 struct std_compact_map_Item__0 {
   u32 hash;
   char *key;
@@ -1210,6 +1219,8 @@ struct ast_nodes_Structure {
   bool is_union;
   std_span_Span span;
   bool is_dead;
+  char *format_spec;
+  char *format_args;
 };
 
 struct ast_nodes_Enum {
@@ -1522,6 +1533,10 @@ char *str_substring(char *this, u32 start, u32 len);
 void str_strip_trailing_whitespace(char *this);
 void str_remove_last_n(char *this, u32 n);
 void str_replace_with(char **this, char *other);
+std_CharIterator str_chars(char *this, u32 start);
+bool std_CharIterator_has_value(std_CharIterator *this);
+u32 std_CharIterator_next(std_CharIterator *this);
+char std_CharIterator_cur(std_CharIterator *this);
 bool char_is_digit(char this);
 bool char_is_alpha(char this);
 bool char_is_alnum(char this);
@@ -2075,7 +2090,6 @@ void passes_generic_pass_GenericPass_insert_into_scope_checked(passes_generic_pa
 ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, char *name, std_span_Span span, bool error);
 void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pass_GenericPass *this, ast_program_Namespace *ns, bool export);
 void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, bool export);
-types_Type *passes_generic_pass_GenericPass_verify_structure_has_field(passes_generic_pass_GenericPass *this, types_Type *type, char *field_name, std_span_Span span);
 parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Namespace *ns);
 tokens_Token *parser_Parser_peek(parser_Parser *this, i32 off);
 errors_Error *parser_Parser_error_msg(parser_Parser *this, char *msg);
@@ -2279,6 +2293,22 @@ void str_remove_last_n(char *this, u32 n) {
 void str_replace_with(char **this, char *other) {
   free((*this));
   (*this)=other;
+}
+
+std_CharIterator str_chars(char *this, u32 start) {
+  return (std_CharIterator){.data=this, .len=strlen(this), .pos=start};
+}
+
+bool std_CharIterator_has_value(std_CharIterator *this) {
+  return (this->pos < this->len);
+}
+
+u32 std_CharIterator_next(std_CharIterator *this) {
+  return this->pos++;
+}
+
+char std_CharIterator_cur(std_CharIterator *this) {
+  return this->data[this->pos];
 }
 
 bool char_is_digit(char this) {
@@ -2656,7 +2686,7 @@ void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size
     u32 new_capacity = u32_max(this->capacity, new_size);
     this->data=((u8 *)realloc(this->data, ((u32)new_capacity)));
     this->capacity=((u32)new_capacity);
-    ae_assert(((bool)this->data), "std/buffer.oc:58:16: Assertion failed: `.data?`", "Out of memory!");
+    ae_assert(((bool)this->data), "std/buffer.oc:59:16: Assertion failed: `.data?`", "Out of memory!");
   } 
 }
 
@@ -5704,34 +5734,35 @@ void passes_code_generator_CodeGenerator_gen_format_string_part(passes_code_gene
 }
 
 void passes_code_generator_CodeGenerator_format_string_custom_specifier(passes_code_generator_CodeGenerator *this, types_Type *type, ast_nodes_AST *expr) {
-  if ((type==this->o->program->cached_types.sv_type || type==this->o->program->cached_types.buffer_type)) {
-    std_buffer_Buffer_puts(&this->out, "%.*s");
-    return ;
+  if (type->base==types_BaseType_Structure) {
+    ast_nodes_Structure *struc = type->u.struc;
+    if ((((bool)struc) && ((bool)struc->format_spec))) {
+      std_buffer_Buffer_puts(&this->out, struc->format_spec);
+      return ;
+    } 
   } 
   passes_code_generator_CodeGenerator_error(this, errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_specifier: '%s'", types_Type_str(type))));
   std_buffer_Buffer_puts(&this->out, "%s");
 }
 
 void passes_code_generator_CodeGenerator_format_string_custom_argument(passes_code_generator_CodeGenerator *this, types_Type *type, ast_nodes_AST *expr) {
-  if (type==this->o->program->cached_types.sv_type) {
-    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "len", expr->span);
-    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "data", expr->span);
-    std_buffer_Buffer_puts(&this->out, "(");
-    passes_code_generator_CodeGenerator_gen_expression(this, expr);
-    std_buffer_Buffer_puts(&this->out, ").len, (");
-    passes_code_generator_CodeGenerator_gen_expression(this, expr);
-    std_buffer_Buffer_puts(&this->out, ").data");
-    return ;
-  } 
-  if (type==this->o->program->cached_types.buffer_type) {
-    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "size", expr->span);
-    passes_generic_pass_GenericPass_verify_structure_has_field(this->o, type, "data", expr->span);
-    std_buffer_Buffer_puts(&this->out, "(");
-    passes_code_generator_CodeGenerator_gen_expression(this, expr);
-    std_buffer_Buffer_puts(&this->out, ").size, (");
-    passes_code_generator_CodeGenerator_gen_expression(this, expr);
-    std_buffer_Buffer_puts(&this->out, ").data");
-    return ;
+  if (type->base==types_BaseType_Structure) {
+    ast_nodes_Structure *struc = type->u.struc;
+    if ((((bool)struc) && ((bool)struc->format_args))) {
+      for (std_CharIterator __iter = str_chars(struc->format_args, 0); std_CharIterator_has_value(&__iter); std_CharIterator_next(&__iter)) {
+        char c = std_CharIterator_cur(&__iter);
+        {
+          if (c=='$') {
+            std_buffer_Buffer_puts(&this->out, "(");
+            passes_code_generator_CodeGenerator_gen_expression(this, expr);
+            std_buffer_Buffer_puts(&this->out, ")");
+          }  else {
+            std_buffer_Buffer_putc(&this->out, c);
+          } 
+        }
+      }
+      return ;
+    } 
   } 
   passes_code_generator_CodeGenerator_error(this, errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_argument: '%s'", types_Type_str(type))));
   passes_code_generator_CodeGenerator_gen_expression(this, expr);
@@ -6602,7 +6633,7 @@ char *passes_code_generator_CodeGenerator_helper_gen_type(passes_code_generator_
 }
 
 char *passes_code_generator_CodeGenerator_get_type_name_string(passes_code_generator_CodeGenerator *this, types_Type *type, char *name, bool is_func_def) {
-  ae_assert((type != NULL), "compiler/passes/code_generator.oc:986:12: Assertion failed: `type != null`", NULL);
+  ae_assert((type != NULL), "compiler/passes/code_generator.oc:982:12: Assertion failed: `type != null`", NULL);
   char *final = passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
@@ -6656,7 +6687,7 @@ void passes_code_generator_CodeGenerator_gen_functions(passes_code_generator_Cod
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__6_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1031:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1027:24: Assertion failed: `sym.type == Function`", NULL);
             ast_nodes_Function *func = sym->u.func;
             passes_code_generator_CodeGenerator_gen_function(this, func);
           }
@@ -6693,7 +6724,7 @@ void passes_code_generator_CodeGenerator_gen_function_decls(passes_code_generato
           ast_scopes_TemplateInstance *instance = std_vector_Iterator__6_cur(&__iter);
           {
             ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1058:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==ast_scopes_SymbolType_Function, "compiler/passes/code_generator.oc:1054:24: Assertion failed: `sym.type == Function`", NULL);
             ast_nodes_Function *func = sym->u.func;
             if (func->is_dead) 
             continue;
@@ -7158,6 +7189,8 @@ void passes_typechecker_TypeChecker_resolve_templated_struct(passes_typechecker_
   resolved_struc->sym->template=NULL;
   resolved_struc->sym=sym;
   sym->u.struc=resolved_struc;
+  resolved_struc->format_spec=struc->format_spec;
+  resolved_struc->format_args=struc->format_args;
   types_Type *typ = types_Type_new_resolved(types_BaseType_Structure, sym->span);
   typ->u.struc=resolved_struc;
   resolved_struc->type=typ;
@@ -7399,7 +7432,7 @@ types_Type *passes_typechecker_TypeChecker_check_constructor(passes_typechecker_
   node->u.call.is_constructor=true;
   ast_nodes_AST *callee = node->u.call.callee;
   ast_scopes_Symbol *type_sym = ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
-  ae_assert(type_sym->type==ast_scopes_SymbolType_Structure, "compiler/passes/typechecker.oc:491:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", ast_scopes_SymbolType_dbg(type_sym->type)));
+  ae_assert(type_sym->type==ast_scopes_SymbolType_Structure, "compiler/passes/typechecker.oc:494:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", ast_scopes_SymbolType_dbg(type_sym->type)));
   ast_nodes_Structure *struc = type_sym->u.struc;
   std_vector_Vector__7 *params = struc->fields;
   passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
@@ -7436,7 +7469,7 @@ void passes_typechecker_TypeChecker_check_call_args(passes_typechecker_TypeCheck
   }
   if (is_variadic) {
     if ((args->size < params->size)) {
-      ae_assert((this->o->program->errors->size > 1), "compiler/passes/typechecker.oc:542:20: Assertion failed: `.o.program.errors.size > 1`", "Should have errored already");
+      ae_assert((this->o->program->errors->size > 1), "compiler/passes/typechecker.oc:545:20: Assertion failed: `.o.program.errors.size > 1`", "Should have errored already");
       return ;
     } 
     for (u32 i = params->size; (i < args->size); i+=1) {
@@ -7680,12 +7713,12 @@ types_Type *passes_typechecker_TypeChecker_check_format_string(passes_typechecke
       } break;
       default: {
         bool can_format = false;
-        if (typ==this->o->program->cached_types.sv_type) 
-        can_format=true;
-        
-        if (typ==this->o->program->cached_types.buffer_type) 
-        can_format=true;
-        
+        if (typ->base==types_BaseType_Structure) {
+          ast_nodes_Structure *struc = typ->u.struc;
+          if ((((bool)struc) && ((bool)struc->format_spec))) {
+            can_format=true;
+          } 
+        } 
         if (can_format) {
           switch (expr->type) {
             case ast_nodes_ASTType_Identifier:
@@ -8909,8 +8942,8 @@ void passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(passes_typ
       continue;
       
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:2020:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:2024:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:2027:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:2031:16: Assertion failed: `sym.type == TypeDef`", NULL);
       types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -9731,20 +9764,6 @@ void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_
       passes_generic_pass_GenericPass_error(this, errors_Error_new(sym->span, format_string("Can't imdo wildcard import from a %s", ast_scopes_SymbolType_dbg(sym->type))));
     } break;
   }
-}
-
-types_Type *passes_generic_pass_GenericPass_verify_structure_has_field(passes_generic_pass_GenericPass *this, types_Type *type, char *field_name, std_span_Span span) {
-  if ((type->base != types_BaseType_Structure)) {
-    passes_generic_pass_GenericPass_error(this, errors_Error_new_hint(span, format_string("Expected %s to be a structure.", type->sym->display), type->sym->span, format_string("Please update definition / compiler if needed")));
-    return NULL;
-  } 
-  ast_nodes_Structure *struc = type->u.struc;
-  ast_nodes_Variable *field = ast_nodes_Structure_get_field(struc, field_name);
-  if (!((bool)field)) {
-    passes_generic_pass_GenericPass_error(this, errors_Error_new_hint(span, format_string("Expected %s to have a field %s", type->sym->display, field_name), struc->sym->span, format_string("Please update structure / compiler if needed")));
-    return NULL;
-  } 
-  return field->type;
 }
 
 parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Namespace *ns) {
@@ -11205,6 +11224,10 @@ ast_nodes_Structure *parser_Parser_parse_struct(parser_Parser *this) {
         case attributes_AttributeType_Extern: {
           parser_Parser_get_extern_from_attr(this, struc->sym, attr);
         } break;
+        case attributes_AttributeType_Formatting: {
+          struc->format_spec=std_vector_Vector__4_at(attr->args, 0);
+          struc->format_args=std_vector_Vector__4_at(attr->args, 1);
+        } break;
         default: {
           parser_Parser_error(this, errors_Error_new(attr->span, "Invalid attribute for struct"));
         } break;
@@ -11274,6 +11297,10 @@ void parser_Parser_parse_attribute(parser_Parser *this) {
   } 
   tokens_Token *name = parser_Parser_consume(this, parser_Parser_token(this)->type);
   attributes_AttributeType attr_type = attributes_AttributeType_from_str(name->text);
+  if (attr_type==attributes_AttributeType_Invalid) {
+    parser_Parser_error(this, errors_Error_new(name->span, "Unknown attribute type"));
+    return ;
+  } 
   attributes_Attribute *attr = attributes_Attribute_new(attr_type, name->span);
   while (!parser_Parser_token_is(this, tokens_TokenType_CloseSquare)) {
     if (!parser_Parser_token_is(this, tokens_TokenType_StringLiteral)) {
@@ -11533,8 +11560,8 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__8 *parts = path->parts;
-        ae_assert((parts->size > 0), "compiler/parser.oc:1917:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1918:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "compiler/parser.oc:1925:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1926:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         ast_nodes_ImportPartSingle first_part = std_vector_Vector__8_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__4_contains(this->program->global->namespaces, lib_name)) {
@@ -12428,6 +12455,10 @@ bool ast_nodes_AST_is_lvalue(ast_nodes_AST *this) {
       case ast_nodes_ASTType_Index: {
         __yield_0 = true;
       } break;
+      case ast_nodes_ASTType_NSLookup: {
+        ast_scopes_Symbol *sym = this->resolved_symbol;
+        return (((bool)sym) && sym->type==ast_scopes_SymbolType_Variable);
+      } break;
       default: {
         __yield_0 = false;
       } break;
@@ -12579,6 +12610,8 @@ attributes_AttributeType attributes_AttributeType_from_str(char *s) {
         __yield_0 = attributes_AttributeType_VariadicFormat;
       } else if (!strcmp(__match_str, "export")) {
         __yield_0 = attributes_AttributeType_Export;
+      } else if (!strcmp(__match_str, "formatting")) {
+        __yield_0 = attributes_AttributeType_Formatting;
       } else  {
         __yield_0 = attributes_AttributeType_Invalid;
       }
@@ -12602,27 +12635,40 @@ bool attributes_Attribute_validate(attributes_Attribute *this, parser_Parser *pa
         return false;
       } 
     } break;
-    case attributes_AttributeType_Exits: {
-      if ((this->args->size > 0)) {
-        parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Exits attribute takes no arguments"));
+    case attributes_AttributeType_Formatting: {
+      if (((this->args->size < 1) || (this->args->size > 2))) {
+        parser_Parser_error(parser_for_errors, errors_Error_new_note(this->span, "Incorrect number of arguments for formatting attribute", "Only one or two arguments are allowed"));
         return false;
       } 
+      if (this->args->size==2) {
+        bool found_dollar = false;
+        for (std_CharIterator __iter = str_chars(std_vector_Vector__4_at(this->args, 1), 0); std_CharIterator_has_value(&__iter); std_CharIterator_next(&__iter)) {
+          char c = std_CharIterator_cur(&__iter);
+          {
+            if (c=='$') 
+            found_dollar=true;
+            
+          }
+        }
+        if (!found_dollar) {
+          parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Second argument of formatting attribute must contain '$'"));
+          return false;
+        } 
+      }  else {
+        std_vector_Vector__4_push(this->args, "$");
+      } 
     } break;
-    case attributes_AttributeType_VariadicFormat: {
+    case attributes_AttributeType_Exits:
+    case attributes_AttributeType_VariadicFormat:
+    case attributes_AttributeType_Export: {
       if ((this->args->size > 0)) {
-        parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Variadic Format attribute takes no arguments"));
+        parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Exits attribute takes no arguments"));
         return false;
       } 
     } break;
     case attributes_AttributeType_Invalid: {
       parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Invalid attribute"));
       return false;
-    } break;
-    case attributes_AttributeType_Export: {
-      if ((this->args->size > 0)) {
-        parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Export attribute takes no arguments"));
-        return false;
-      } 
     } break;
   }
   return true;

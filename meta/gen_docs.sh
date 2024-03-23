@@ -11,7 +11,7 @@ cat > compiler/doc.oc << EOF
 //* Nothing to see here
 
 import std::{ vector, map, compact_map, heap, deque, set, linkedlist }
-import std::{ buffer, bufferio, image, json, math, complex, fft, random }
+import std::{ buffer, bufferio, image, json, math, complex, fft, random, curl, og }
 import std::{ value, vec, glut, socket, sort, thread, video_renderer, sv, fs, zlib, time }
 import std::traits::{ hash, eq, compare }
 import std::{ image::draw, hash::sha1, hash::sha256 }

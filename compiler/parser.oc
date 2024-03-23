@@ -1565,6 +1565,10 @@ def Parser::parse_struct(&this): &Structure {
     for attr : .attrs.iter_values() {
         match attr.type {
             Extern => .get_extern_from_attr(struc.sym, attr)
+            Formatting => {
+                struc.format_spec = attr.args.at(0)
+                struc.format_args = attr.args.at(1)
+            }
             else => .error(Error::new(attr.span, "Invalid attribute for struct"))
         }
     }
@@ -1636,6 +1640,10 @@ def Parser::parse_attribute(&this) {
 
     let name = .consume(.token().type)
     let attr_type = AttributeType::from_str(name.text)
+    if attr_type == Invalid {
+        .error(Error::new(name.span, "Unknown attribute type"))
+        return
+    }
     let attr = Attribute::new(attr_type, name.span)
 
     while not .token_is(TokenType::CloseSquare) {

@@ -10,6 +10,7 @@
 [extern "SDL_DestroyTexture"] def Texture::destroy(&this)
 
 [extern "SDL_Rect"]
+[formatting "Rect(%d, %d, %d, %d)" "$.x, $.y, $.w, $.h"]
 struct Rect  {
     x: i32
     y: i32
@@ -23,6 +24,7 @@ struct Surface
 [extern "SDL_FreeSurface"] def Surface::destroy(&this)
 
 [extern "SDL_Color"]
+[formatting "Color(%d, %d, %d, %d)" "$.r, $.g, $.b, $.a"]
 struct Color  {
     r: i32 // Not really i32, but it's convenient
     g: i32
