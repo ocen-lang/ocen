@@ -1,0 +1,37 @@
+/// out: "12"
+
+namespace Foo {
+    namespace Bar {
+        const X: i32 = 1
+        namespace Qux {
+            const Y: i32 = 2
+            const Z: i32 = 3
+            const W: i32 = 4
+        }
+
+        [export]
+        import ::Qux::*
+    }
+
+    namespace Baz {
+        const A: i32 = 9
+    }
+
+    [export]
+    import ::Baz::A
+
+
+    [export]
+    import ::Bar::*
+}
+
+def main() {
+    let a = Foo::A
+    let x = Foo::X
+    let y = Foo::Y
+    println(`{a+ x + y}`)
+}
+
+
+
+

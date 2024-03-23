@@ -24,6 +24,7 @@ struct Namespace {
     imports: &Vector<&AST>
     typedefs: &Map<str, &Type>
     namespaces: &Map<str, &Namespace>
+    exported_symbols: &Map<str, &Symbol>
 
     sym: &Symbol
     scope: &Scope
@@ -59,6 +60,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.typedefs = Map<str, &Type>::new()
     ns.namespaces = Map<str, &Namespace>::new()
     ns.imports = Vector<&AST>::new()
+    ns.exported_symbols = Map<str, &Symbol>::new()
     ns.path = path
     ns.is_a_file = false
     return ns
@@ -89,6 +91,10 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
 
     for enum_ : .enums.iter() {
         if enum_.sym.name.eq(name) return enum_.sym
+    }
+
+    if .exported_symbols.contains(name) {
+        return .exported_symbols.at(name)
     }
 
     let td = .typedefs.get(name, null)

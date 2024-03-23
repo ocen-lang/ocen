@@ -1437,10 +1437,6 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 }
 
 def Parser::parse_import(&this): &AST {
-    if .attrs.size > 0 {
-        .error(Error::new(.token().span, "Attributes are not allowed on import statements"))
-    }
-
     let span = .token().span
     .consume(TokenType::Import)
 
@@ -1492,7 +1488,16 @@ def Parser::parse_import(&this): &AST {
         parts,
         type,
         parent_count,
+        export: false
     )
+
+    for attr : .attrs.iter_values() {
+        match attr.type {
+            Export => node.u.import_path.export = true
+            else => .error(Error::new(attr.span, "Invalid attribute for import"))
+        }
+    }
+
     .load_import_path(node)
     return node
 }
