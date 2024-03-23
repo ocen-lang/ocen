@@ -1,14 +1,15 @@
-def str::hash(this): u32 {
+
+def hash_bytes(data: &u8, len: u32): u32 {
     let hash = 5381
-    let len = .len()
     for let i = 0; i < len; i += 1 {
-        hash = hash * 33 ^ this[i] as u32
+        hash = hash * 33 ^ data[i] as u32
     }
     return hash
 }
 
 def pair_hash(a: u32, b: u32): u32 => a * 33 ^ b
 
+def str::hash(this): u32 => hash_bytes(this as &u8, this.len())
 def u8::hash(this): u32 => this as u32 * 7817 // Some random prime number
 def i8::hash(this): u32 => this as u32 * 7817 // Some random prime number
 def u16::hash(this): u32 => this as u32 * 7817 // Some random prime number
