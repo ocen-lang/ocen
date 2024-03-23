@@ -6,7 +6,17 @@ def i32::eq(this, other: i32): bool => this == other
 def u32::eq(this, other: u32): bool => this == other
 def i64::eq(this, other: i64): bool => this == other
 def u64::eq(this, other: u64): bool => this == other
-def f32::eq(this, other: f32): bool => this == other
-def f64::eq(this, other: f64): bool => this == other
 def bool::eq(this, other: bool): bool => this == other
 def char::eq(this, other: char): bool => this == other
+def f32::eq(this, other: f32): bool => this == other
+def f64::eq(this, other: f64): bool => this == other
+def f32::eq_epsilon(this, other: f32, ep: f32): bool {
+	let val = this - other
+	if val < -ep or val > ep then return false
+	return true
+}
+def f64::eq_epsilon(this, other: f64, ep: f64): bool {
+	let val: f64 = this - other
+	if val < -ep or val > ep then return false
+	return true
+}
