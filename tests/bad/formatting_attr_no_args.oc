@@ -1,0 +1,8 @@
+/// fail: Incorrect number of arguments for formatting attribute
+
+[formatting]
+struct Foo {
+    x, y: i32
+}
+
+def main() => 0

@@ -1,0 +1,11 @@
+import std::sdl::{ Color }
+
+// FIXME: These should be constants but they are not
+//        allowed to have constructors in them
+let RED: Color = Color(255, 0, 0, 255)
+let GREEN: Color = Color(0, 255, 0, 255)
+let BLUE: Color = Color(0, 0, 255, 255)
+let BLACK: Color = Color(0, 0, 0, 255)
+let WHITE: Color = Color(255, 255, 255, 255)
+let YELLOW: Color = Color(255, 255, 0, 255)
+let CYAN: Color = Color(0, 255, 255, 255)

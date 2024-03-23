@@ -1,0 +1,16 @@
+/// out: "(7, 8, 9) and 3"
+
+[formatting "(%u, %u, %u)" "$.x, $.y, $.z"]
+struct MyVec {
+    x, y, z: u32
+}
+
+[extern "int"]
+[formatting "%d"]
+struct Foo {}
+
+def main() {
+    let v = MyVec(7,8,9)
+    let w: Foo = 3 as Foo
+    println(`{v} and {w}`)
+}

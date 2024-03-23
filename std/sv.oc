@@ -8,6 +8,7 @@
 import std::buffer::{ Buffer }
 import std::libc::{ memcmp, strtoul, strtoll }
 
+[formatting "%.*s" "$.len, $.data"]
 struct SV {
     data: str
     len: u32

@@ -8,11 +8,13 @@ import @parser::{ Parser }
 import @errors::{ Error }
 
 enum AttributeType {
-    Extern          // [extern] or [extern "function_name"]
-    Exits           // [exits]
-    VariadicFormat  // [variadic_format] (expand format-strings)
+    Extern          // [extern] or [extern "function_name"]     to mark a symbol as external
+    Exits           // [exits]                                  to mark a function as non-returning
+    VariadicFormat  // [variadic_format]                        to expand format-strings to varargs
+    Export          // [export]                                 to re-export an imported object
+    Formatting      // [formatting <specifiers> <args>]         to specify formatting for an object
+
     Invalid         // used for error reporting
-    Export         // [export]
 }
 
 def AttributeType::hash(this): u32 => this as u32
@@ -23,6 +25,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "exits" => Exits
     "variadic_format" => VariadicFormat
     "export" => Export
+    "formatting" => Formatting
     else => Invalid
 }
 
@@ -56,20 +59,41 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 return false
             }
         }
-        Exits => {
+        Formatting => {
+            if .args.size < 1 or .args.size > 2 {
+                parser_for_errors.error(Error::new_note(
+                    this.span,
+                    "Incorrect number of arguments for formatting attribute",
+                    "Only one or two arguments are allowed"
+                ))
+                return false
+            }
+
+            // If we have a second argument, it should contain `$` representing the
+            // object itself, which will be replaced with the object's name at codegen
+            if .args.size == 2 {
+                let found_dollar = false
+                for c : .args.at(1).chars() {
+                    if c == '$' then found_dollar = true
+                }
+                if not found_dollar {
+                    parser_for_errors.error(Error::new(
+                        this.span,
+                        "Second argument of formatting attribute must contain '$'"
+                    ))
+                    return false
+                }
+
+            // Otherwise, just default to the object's name
+            } else {
+                .args.push("$")
+            }
+        }
+        Exits | VariadicFormat | Export => {
             if .args.size > 0 {
                 parser_for_errors.error(Error::new(
                     this.span,
                     "Exits attribute takes no arguments"
-                ))
-                return false
-            }
-        }
-        VariadicFormat => {
-            if .args.size > 0 {
-                parser_for_errors.error(Error::new(
-                    this.span,
-                    "Variadic Format attribute takes no arguments"
                 ))
                 return false
             }
@@ -80,15 +104,6 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 "Invalid attribute"
             ))
             return false
-        }
-        Export => {
-            if .args.size > 0 {
-                parser_for_errors.error(Error::new(
-                    this.span,
-                    "Export attribute takes no arguments"
-                ))
-                return false
-            }
         }
     }
     return true

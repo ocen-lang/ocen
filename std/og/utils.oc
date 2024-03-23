@@ -1,0 +1,50 @@
+// Functions that are not part of the public API
+import .state
+import std::sdl
+
+def handle_sdl_events() {
+    import .state::{ prev_keys, keys, prev_mouse, mouse, MouseWheel }
+    prev_mouse = mouse
+    prev_keys = keys
+
+    let event: sdl::Event
+    while sdl::poll_event(&event) {
+        match event.type {
+            Quit => state::running = false
+            KeyDown => {
+                // println("got keydown %d", event.key.keysym.sym)
+                let k = event.key.keysym.scancode
+                if k as i32 < 1024 {
+                    keys.keys[k as i32] = true
+                }
+            }
+            KeyUp => {
+                // println("got keyup %d", event.key.keysym.sym)
+                let k = event.key.keysym.scancode
+                if k as i32 < 1024 {
+                    keys.keys[k as i32] = false
+                }
+            }
+            MouseDown => {
+                // println("got mousebuttondown %s", event.button.button.str())
+                let b = event.button.button
+                mouse.buttons[b as i32] = true
+            }
+            MouseUp => {
+                // println("got mousebuttonup %s", event.button.button.str())
+                let b = event.button.button
+                mouse.buttons[b as i32] = false
+            }
+            Wheel => {
+                // println("got wheel %d %d", event.wheel.x, event.wheel.y)
+                mouse.wheel_dirs[MouseWheel::Right as i32] = event.wheel.x > 0
+                mouse.wheel_dirs[MouseWheel::Left as i32] = event.wheel.x < 0
+                mouse.wheel_dirs[MouseWheel::Down as i32] = event.wheel.y > 0
+                mouse.wheel_dirs[MouseWheel::Up as i32] = event.wheel.y < 0
+            }
+            else => {}
+        }
+    }
+    sdl::get_mouse_state(&mouse.pos.x, &mouse.pos.y);
+    sdl::get_relative_mouse_state(&mouse.vec.x, &mouse.vec.y);
+}

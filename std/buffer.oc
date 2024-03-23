@@ -9,6 +9,7 @@ import std::sv::{ SV }
 
 // Maybe abstract away the resizing with a `Buffer` type, 
 // and share this with `OldVector`
+[formatting "%.*s" "$.size, $.data"]
 struct Buffer {
     data: &u8
     size: u32

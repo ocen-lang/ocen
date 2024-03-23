@@ -1,0 +1,8 @@
+/// fail: Second argument of formatting attribute must contain '$'
+
+[formatting "%d => %d" "lol"]
+struct Foo {
+    x, y: i32
+}
+
+def main() => 0

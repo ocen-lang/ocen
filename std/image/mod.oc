@@ -4,14 +4,15 @@ import std::libc::{ calloc, free }
 import std::buffer::Buffer
 import std::fs
 
+[formatting "Color(%u, %u, %u)" "$.r, $.g, $.b"]
 //* A type that holds an Image in 24-bit RGB format
-
 struct Color {
     r: u8
     g: u8
     b: u8
 }
 
+[formatting "Image(%u x %u)" "$.width, $.height"]
 struct Image {
     width: u32
     height: u32
