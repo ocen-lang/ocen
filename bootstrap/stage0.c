@@ -284,6 +284,7 @@ typedef enum attributes_AttributeType {
   attributes_AttributeType_Exits,
   attributes_AttributeType_VariadicFormat,
   attributes_AttributeType_Invalid,
+  attributes_AttributeType_Export,
 } attributes_AttributeType;
 
 char *attributes_AttributeType_dbg(attributes_AttributeType this) {
@@ -292,6 +293,7 @@ char *attributes_AttributeType_dbg(attributes_AttributeType this) {
     case attributes_AttributeType_Exits: return "Exits";
     case attributes_AttributeType_VariadicFormat: return "VariadicFormat";
     case attributes_AttributeType_Invalid: return "Invalid";
+    case attributes_AttributeType_Export: return "Export";
     default: return "<unknown>";
   }
 }
@@ -586,6 +588,7 @@ typedef struct std_map_Iterator__2 std_map_Iterator__2;
 typedef struct std_map_Iterator__3 std_map_Iterator__3;
 typedef struct std_map_Iterator__4 std_map_Iterator__4;
 typedef struct std_map_Iterator__5 std_map_Iterator__5;
+typedef struct std_map_Iterator__6 std_map_Iterator__6;
 typedef struct std_map_Iterator__7 std_map_Iterator__7;
 typedef struct std_map_ValueIterator__2 std_map_ValueIterator__2;
 typedef struct std_map_ValueIterator__4 std_map_ValueIterator__4;
@@ -769,13 +772,13 @@ struct std_map_Item__4 {
 
 struct std_map_Item__5 {
   char *key;
-  char *value;
+  ast_scopes_Symbol *value;
   std_map_Item__5 *next;
 };
 
 struct std_map_Item__6 {
   char *key;
-  ast_scopes_Symbol *value;
+  char *value;
   std_map_Item__6 *next;
 };
 
@@ -876,6 +879,12 @@ struct std_map_Iterator__5 {
   i32 idx;
   std_map_Item__5 *node;
   std_map_Map__5 *map;
+};
+
+struct std_map_Iterator__6 {
+  i32 idx;
+  std_map_Item__6 *node;
+  std_map_Map__6 *map;
 };
 
 struct std_map_Iterator__7 {
@@ -1146,6 +1155,7 @@ struct ast_program_Namespace {
   std_vector_Vector__16 *imports;
   std_map_Map__3 *typedefs;
   std_map_Map__4 *namespaces;
+  std_map_Map__5 *exported_symbols;
   ast_scopes_Symbol *sym;
   ast_scopes_Scope *scope;
   char *path;
@@ -1166,9 +1176,9 @@ struct ast_program_Program {
   std_vector_Vector__5 *ordered_structs;
   std_vector_Vector__4 *c_includes;
   std_vector_Vector__4 *c_flags;
-  std_map_Map__5 *c_embeds;
+  std_map_Map__6 *c_embeds;
   bool gen_debug_info;
-  std_map_Map__5 *sources;
+  std_map_Map__6 *sources;
   std_vector_Vector__4 *library_paths;
   bool check_doc_links;
   std_vector_Vector__14 *errors;
@@ -1276,6 +1286,7 @@ struct ast_nodes_Import {
   std_vector_Vector__8 *parts;
   ast_nodes_ImportType type;
   u32 parent_count;
+  bool export;
 };
 
 struct ast_nodes_NumLiteral {
@@ -1421,7 +1432,7 @@ struct ast_scopes_Symbol {
 };
 
 struct ast_scopes_Scope {
-  std_map_Map__6 *items;
+  std_map_Map__5 *items;
   std_vector_Vector__16 *defers;
   u32 loop_count;
   bool can_yield;
@@ -1610,8 +1621,9 @@ bool std_span_Span_is_valid(std_span_Span this);
 std_span_Span std_span_Span_join(std_span_Span this, std_span_Span other);
 bool std_span_Span_starts_right_after(std_span_Span this, std_span_Span other);
 bool u64_eq(u64 this, u64 other);
-u32 str_hash(char *this);
+u32 std_traits_hash_hash_bytes(u8 *data, u32 len);
 u32 std_traits_hash_pair_hash(u32 a, u32 b);
+u32 str_hash(char *this);
 u32 u32_hash(u32 this);
 u32 u64_hash(u64 this);
 char *std_value_ValueType_str(std_value_ValueType this);
@@ -1699,23 +1711,30 @@ u32 std_map_Map__4_hash(std_map_Map__4 *this, char *key);
 std_map_Item__4 *std_map_Map__4_get_item(std_map_Map__4 *this, char *key);
 std_map_Map__4 *std_map_Map__4_new(u32 capacity);
 void std_map_Item__5_free_list(std_map_Item__5 *this);
-std_map_Item__5 *std_map_Item__5_new(char *key, char *value, std_map_Item__5 *next);
+std_map_Item__5 *std_map_Item__5_new(char *key, ast_scopes_Symbol *value, std_map_Item__5 *next);
 bool std_map_Map__5_contains(std_map_Map__5 *this, char *key);
 std_map_Item__5 *std_map_Iterator__5_cur(std_map_Iterator__5 *this);
 void std_map_Iterator__5_next(std_map_Iterator__5 *this);
 std_map_Iterator__5 std_map_Iterator__5_make(std_map_Map__5 *map);
 bool std_map_Iterator__5_has_value(std_map_Iterator__5 *this);
 std_map_Iterator__5 std_map_Map__5_iter(std_map_Map__5 *this);
-void std_map_Map__5_insert(std_map_Map__5 *this, char *key, char *value);
-char *std_map_Map__5_get(std_map_Map__5 *this, char *key, char *defolt);
+ast_scopes_Symbol *std_map_Map__5_at(std_map_Map__5 *this, char *key);
+void std_map_Map__5_insert(std_map_Map__5 *this, char *key, ast_scopes_Symbol *value);
+ast_scopes_Symbol *std_map_Map__5_get(std_map_Map__5 *this, char *key, ast_scopes_Symbol *defolt);
 void std_map_Map__5_resize(std_map_Map__5 *this);
 u32 std_map_Map__5_hash(std_map_Map__5 *this, char *key);
 std_map_Item__5 *std_map_Map__5_get_item(std_map_Map__5 *this, char *key);
 std_map_Map__5 *std_map_Map__5_new(u32 capacity);
 void std_map_Item__6_free_list(std_map_Item__6 *this);
-std_map_Item__6 *std_map_Item__6_new(char *key, ast_scopes_Symbol *value, std_map_Item__6 *next);
-void std_map_Map__6_insert(std_map_Map__6 *this, char *key, ast_scopes_Symbol *value);
-ast_scopes_Symbol *std_map_Map__6_get(std_map_Map__6 *this, char *key, ast_scopes_Symbol *defolt);
+std_map_Item__6 *std_map_Item__6_new(char *key, char *value, std_map_Item__6 *next);
+bool std_map_Map__6_contains(std_map_Map__6 *this, char *key);
+std_map_Item__6 *std_map_Iterator__6_cur(std_map_Iterator__6 *this);
+void std_map_Iterator__6_next(std_map_Iterator__6 *this);
+std_map_Iterator__6 std_map_Iterator__6_make(std_map_Map__6 *map);
+bool std_map_Iterator__6_has_value(std_map_Iterator__6 *this);
+std_map_Iterator__6 std_map_Map__6_iter(std_map_Map__6 *this);
+void std_map_Map__6_insert(std_map_Map__6 *this, char *key, char *value);
+char *std_map_Map__6_get(std_map_Map__6 *this, char *key, char *defolt);
 void std_map_Map__6_resize(std_map_Map__6 *this);
 u32 std_map_Map__6_hash(std_map_Map__6 *this, char *key);
 std_map_Item__6 *std_map_Map__6_get_item(std_map_Map__6 *this, char *key);
@@ -2011,7 +2030,7 @@ void passes_typechecker_TypeChecker_check_globals(passes_typechecker_TypeChecker
 void passes_typechecker_TypeChecker_check_namespace(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns);
 void passes_typechecker_TypeChecker_resolve_doc_links(passes_typechecker_TypeChecker *this, ast_scopes_Symbol *sym);
 types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typechecker_TypeChecker *this, ast_nodes_AST *node, types_Type *hint);
-void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_TypeChecker *this, std_vector_Vector__8 *parts, ast_scopes_Symbol *base, char *alias, i32 start_idx);
+void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_TypeChecker *this, ast_nodes_Import *imp, std_vector_Vector__8 *parts, ast_scopes_Symbol *base, char *alias, i32 start_idx);
 void passes_typechecker_TypeChecker_handle_import_statement(passes_typechecker_TypeChecker *this, ast_nodes_AST *node);
 void passes_typechecker_TypeChecker_pre_check_function(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns, ast_nodes_Function *func);
 void passes_typechecker_TypeChecker_loosely_resolve_templated_struct(passes_typechecker_TypeChecker *this, ast_nodes_Structure *struc);
@@ -2051,10 +2070,11 @@ ast_program_Namespace *passes_generic_pass_GenericPass_pop_namespace(passes_gene
 ast_scopes_Scope *passes_generic_pass_GenericPass_scope(passes_generic_pass_GenericPass *this);
 ast_program_Namespace *passes_generic_pass_GenericPass_ns(passes_generic_pass_GenericPass *this);
 errors_Error *passes_generic_pass_GenericPass_error(passes_generic_pass_GenericPass *this, errors_Error *err);
+void passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(passes_generic_pass_GenericPass *this, bool export, ast_scopes_Symbol *item, char *name);
 void passes_generic_pass_GenericPass_insert_into_scope_checked(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *item, char *name);
 ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, char *name, std_span_Span span, bool error);
-void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pass_GenericPass *this, ast_program_Namespace *ns);
-void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym);
+void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pass_GenericPass *this, ast_program_Namespace *ns, bool export);
+void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, bool export);
 types_Type *passes_generic_pass_GenericPass_verify_structure_has_field(passes_generic_pass_GenericPass *this, types_Type *type, char *field_name, std_span_Span span);
 parser_Parser parser_Parser_make(ast_program_Program *program, ast_program_Namespace *ns);
 tokens_Token *parser_Parser_peek(parser_Parser *this, i32 off);
@@ -2744,17 +2764,20 @@ bool u64_eq(u64 this, u64 other) {
   return this==other;
 }
 
-u32 str_hash(char *this) {
+u32 std_traits_hash_hash_bytes(u8 *data, u32 len) {
   u32 hash = 5381;
-  u32 len = strlen(this);
   for (u32 i = 0; (i < len); i+=1) {
-    hash=((hash * 33) ^ ((u32)this[i]));
+    hash=((hash * 33) ^ ((u32)data[i]));
   }
   return hash;
 }
 
 u32 std_traits_hash_pair_hash(u32 a, u32 b) {
   return ((a * 33) ^ b);
+}
+
+u32 str_hash(char *this) {
+  return std_traits_hash_hash_bytes(((u8 *)this), strlen(this));
 }
 
 u32 u32_hash(u32 this) {
@@ -3550,7 +3573,7 @@ void std_map_Item__5_free_list(std_map_Item__5 *this) {
   }
 }
 
-std_map_Item__5 *std_map_Item__5_new(char *key, char *value, std_map_Item__5 *next) {
+std_map_Item__5 *std_map_Item__5_new(char *key, ast_scopes_Symbol *value, std_map_Item__5 *next) {
   std_map_Item__5 *node = std_new__14(1);
   node->key=key;
   node->value=value;
@@ -3602,7 +3625,13 @@ std_map_Iterator__5 std_map_Map__5_iter(std_map_Map__5 *this) {
   return std_map_Iterator__5_make(this);
 }
 
-void std_map_Map__5_insert(std_map_Map__5 *this, char *key, char *value) {
+ast_scopes_Symbol *std_map_Map__5_at(std_map_Map__5 *this, char *key) {
+  std_map_Item__5 *node = std_map_Map__5_get_item(this, key);
+  ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  return node->value;
+}
+
+void std_map_Map__5_insert(std_map_Map__5 *this, char *key, ast_scopes_Symbol *value) {
   std_map_Item__5 *node = std_map_Map__5_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
@@ -3620,7 +3649,7 @@ void std_map_Map__5_insert(std_map_Map__5 *this, char *key, char *value) {
   } 
 }
 
-char *std_map_Map__5_get(std_map_Map__5 *this, char *key, char *defolt) {
+ast_scopes_Symbol *std_map_Map__5_get(std_map_Map__5 *this, char *key, ast_scopes_Symbol *defolt) {
   std_map_Item__5 *node = std_map_Map__5_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
@@ -3690,7 +3719,7 @@ void std_map_Item__6_free_list(std_map_Item__6 *this) {
   }
 }
 
-std_map_Item__6 *std_map_Item__6_new(char *key, ast_scopes_Symbol *value, std_map_Item__6 *next) {
+std_map_Item__6 *std_map_Item__6_new(char *key, char *value, std_map_Item__6 *next) {
   std_map_Item__6 *node = std_new__16(1);
   node->key=key;
   node->value=value;
@@ -3698,7 +3727,51 @@ std_map_Item__6 *std_map_Item__6_new(char *key, ast_scopes_Symbol *value, std_ma
   return node;
 }
 
-void std_map_Map__6_insert(std_map_Map__6 *this, char *key, ast_scopes_Symbol *value) {
+bool std_map_Map__6_contains(std_map_Map__6 *this, char *key) {
+  return ((bool)std_map_Map__6_get_item(this, key));
+}
+
+std_map_Item__6 *std_map_Iterator__6_cur(std_map_Iterator__6 *this) {
+  return this->node;
+}
+
+void std_map_Iterator__6_next(std_map_Iterator__6 *this) {
+  while ((this->idx < ((i32)this->map->num_buckets))) {
+    while (((bool)this->node)) {
+      this->node=this->node->next;
+      if (((bool)this->node)) 
+      return ;
+      
+    }
+    this->idx+=1;
+    this->node=({ std_map_Item__6 *__yield_0;
+      if ((this->idx < ((i32)this->map->num_buckets))) {
+        __yield_0 = this->map->buckets[this->idx];
+      }  else {
+        __yield_0 = NULL;
+      } 
+;__yield_0; });
+    if (((bool)this->node)) 
+    return ;
+    
+  }
+}
+
+std_map_Iterator__6 std_map_Iterator__6_make(std_map_Map__6 *map) {
+  std_map_Iterator__6 it = (std_map_Iterator__6){.idx=-1, .node=NULL, .map=map};
+  std_map_Iterator__6_next(&it);
+  return it;
+}
+
+bool std_map_Iterator__6_has_value(std_map_Iterator__6 *this) {
+  return ((bool)this->node);
+}
+
+std_map_Iterator__6 std_map_Map__6_iter(std_map_Map__6 *this) {
+  return std_map_Iterator__6_make(this);
+}
+
+void std_map_Map__6_insert(std_map_Map__6 *this, char *key, char *value) {
   std_map_Item__6 *node = std_map_Map__6_get_item(this, key);
   if (((bool)node)) {
     node->value=value;
@@ -3716,7 +3789,7 @@ void std_map_Map__6_insert(std_map_Map__6 *this, char *key, ast_scopes_Symbol *v
   } 
 }
 
-ast_scopes_Symbol *std_map_Map__6_get(std_map_Map__6 *this, char *key, ast_scopes_Symbol *defolt) {
+char *std_map_Map__6_get(std_map_Map__6 *this, char *key, char *defolt) {
   std_map_Item__6 *node = std_map_Map__6_get_item(this, key);
   if (!((bool)node)) 
   return defolt;
@@ -6778,8 +6851,8 @@ char *passes_code_generator_CodeGenerator_generate(passes_code_generator_CodeGen
     }
   }
   std_buffer_Buffer_puts(&this->out, "\n");
-  for (std_map_Iterator__5 __iter = std_map_Map__5_iter(this->o->program->c_embeds); std_map_Iterator__5_has_value(&__iter); std_map_Iterator__5_next(&__iter)) {
-    std_map_Item__5 *it = std_map_Iterator__5_cur(&__iter);
+  for (std_map_Iterator__6 __iter = std_map_Map__6_iter(this->o->program->c_embeds); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
+    std_map_Item__6 *it = std_map_Iterator__6_cur(&__iter);
     {
       std_buffer_Buffer_putsf(&this->out, format_string("/* Embed: %s */\n", it->key));
       std_buffer_Buffer_puts(&this->out, it->value);
@@ -8357,7 +8430,7 @@ void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecke
           passes_typechecker_TypeChecker_error(this, errors_Error_new(default_expr->span, format_string("Default argument has type %s but expected %s", types_Type_str(default_type), types_Type_str(param->type))));
         } 
       } 
-      std_map_Map__6_insert(new_scope->items, param->sym->name, param->sym);
+      std_map_Map__5_insert(new_scope->items, param->sym->name, param->sym);
     }
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
@@ -8376,12 +8449,6 @@ void passes_typechecker_TypeChecker_check_function(passes_typechecker_TypeChecke
 void passes_typechecker_TypeChecker_handle_imports(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns, bool is_global) {
   passes_generic_pass_GenericPass_push_namespace(this->o, ns);
   passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
-  for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->imports); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
-    ast_nodes_AST *import_ = std_vector_Iterator__16_cur(&__iter);
-    {
-      passes_typechecker_TypeChecker_handle_import_statement(this, import_);
-    }
-  }
   for (std_map_ValueIterator__4 __iter = std_map_Map__4_iter_values(ns->namespaces); std_map_ValueIterator__4_has_value(&__iter); std_map_ValueIterator__4_next(&__iter)) {
     ast_program_Namespace *child = std_map_ValueIterator__4_cur(&__iter);
     {
@@ -8393,6 +8460,12 @@ void passes_typechecker_TypeChecker_handle_imports(passes_typechecker_TypeChecke
       }  else {
         passes_typechecker_TypeChecker_handle_imports(this, child, false);
       } 
+    }
+  }
+  for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->imports); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
+    ast_nodes_AST *import_ = std_vector_Iterator__16_cur(&__iter);
+    {
+      passes_typechecker_TypeChecker_handle_import_statement(this, import_);
     }
   }
   passes_generic_pass_GenericPass_pop_scope(this->o);
@@ -8630,19 +8703,19 @@ types_Type *passes_typechecker_TypeChecker_check_const_expression(passes_typeche
   return typ;
 }
 
-void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_TypeChecker *this, std_vector_Vector__8 *parts, ast_scopes_Symbol *base, char *alias, i32 start_idx) {
+void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_TypeChecker *this, ast_nodes_Import *imp, std_vector_Vector__8 *parts, ast_scopes_Symbol *base, char *alias, i32 start_idx) {
   for (u32 i = ((u32)start_idx); (i < parts->size); i+=1) {
     ast_nodes_ImportPart *part = std_vector_Vector__8_at(parts, i);
     switch (part->type) {
       case ast_nodes_ImportPartType_Wildcard: {
-        passes_generic_pass_GenericPass_import_all_from_symbol(this->o, base);
+        passes_generic_pass_GenericPass_import_all_from_symbol(this->o, base, imp->export);
         return ;
       } break;
       case ast_nodes_ImportPartType_Multiple: {
         std_vector_Vector__18 *paths = part->u.paths;
         for (u32 j = 0; (j < paths->size); j+=1) {
           std_vector_Vector__8 *path = std_vector_Vector__18_at(paths, j);
-          passes_typechecker_TypeChecker_handle_import_path_base(this, path, base, alias, 0);
+          passes_typechecker_TypeChecker_handle_import_path_base(this, imp, path, base, alias, 0);
         }
         return ;
       } break;
@@ -8672,6 +8745,9 @@ void passes_typechecker_TypeChecker_handle_import_path_base(passes_typechecker_T
     
   }
   passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, base, alias);
+  if (imp->export) {
+    std_map_Map__5_insert(passes_generic_pass_GenericPass_ns(this->o)->exported_symbols, alias, base);
+  } 
 }
 
 void passes_typechecker_TypeChecker_handle_import_statement(passes_typechecker_TypeChecker *this, ast_nodes_AST *node) {
@@ -8714,7 +8790,7 @@ void passes_typechecker_TypeChecker_handle_import_statement(passes_typechecker_T
     passes_typechecker_TypeChecker_error(this, errors_Error_new(part->span, format_string("Couldn't import %s", name)));
     return ;
   } 
-  passes_typechecker_TypeChecker_handle_import_path_base(this, path.parts, base, alias, 1);
+  passes_typechecker_TypeChecker_handle_import_path_base(this, &path, path.parts, base, alias, 1);
 }
 
 void passes_typechecker_TypeChecker_pre_check_function(passes_typechecker_TypeChecker *this, ast_program_Namespace *ns, ast_nodes_Function *func) {
@@ -8833,8 +8909,8 @@ void passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(passes_typ
       continue;
       
       ast_scopes_Symbol *sym = ast_scopes_Scope_lookup_recursive(passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:2017:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:2021:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "compiler/passes/typechecker.oc:2020:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==ast_scopes_SymbolType_TypeDef, "compiler/passes/typechecker.oc:2024:16: Assertion failed: `sym.type == TypeDef`", NULL);
       types_Type *res = passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -9026,7 +9102,7 @@ void passes_register_types_RegisterTypes_register_base_type(passes_register_type
   types_Type *typ = types_Type_new_resolved(base, std_span_Span_default());
   typ->sym=sym;
   sym->u.type_def=typ;
-  std_map_Map__6_insert(this->o->program->global->scope->items, name, sym);
+  std_map_Map__5_insert(this->o->program->global->scope->items, name, sym);
 }
 
 void passes_register_types_RegisterTypes_register_alias(passes_register_types_RegisterTypes *this, char *name, types_Type *orig) {
@@ -9488,7 +9564,7 @@ errors_Error *passes_generic_pass_GenericPass_error(passes_generic_pass_GenericP
   return err;
 }
 
-void passes_generic_pass_GenericPass_insert_into_scope_checked(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *item, char *name) {
+void passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(passes_generic_pass_GenericPass *this, bool export, ast_scopes_Symbol *item, char *name) {
   if (!((bool)name)) 
   name=item->name;
   
@@ -9498,6 +9574,20 @@ void passes_generic_pass_GenericPass_insert_into_scope_checked(passes_generic_pa
     return ;
   } 
   ast_scopes_Scope_insert(passes_generic_pass_GenericPass_scope(this), name, item);
+  if (!export) 
+  return ;
+  
+  std_map_Map__5 *exported = passes_generic_pass_GenericPass_ns(this)->exported_symbols;
+  std_map_Item__5 *it = std_map_Map__5_get_item(exported, name);
+  if (((bool)it)) {
+    passes_generic_pass_GenericPass_error(this, errors_Error_new_hint(item->span, format_string("Name %s already exported from namespace", name), it->value->span, format_string("Previous export of %s", name)));
+    return ;
+  } 
+  std_map_Map__5_insert(passes_generic_pass_GenericPass_ns(this)->exported_symbols, name, item);
+}
+
+void passes_generic_pass_GenericPass_insert_into_scope_checked(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *item, char *name) {
+  passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, false, item, name);
 }
 
 ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, char *name, std_span_Span span, bool error) {
@@ -9559,59 +9649,65 @@ ast_scopes_Symbol *passes_generic_pass_GenericPass_lookup_in_symbol(passes_gener
 ;__yield_0; });
 }
 
-void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pass_GenericPass *this, ast_program_Namespace *ns) {
+void passes_generic_pass_GenericPass_import_all_from_namespace(passes_generic_pass_GenericPass *this, ast_program_Namespace *ns, bool export) {
   for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(ns->functions); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
     ast_nodes_Function *func = std_vector_Iterator__9_cur(&__iter);
     {
       if (!func->is_method) {
-        passes_generic_pass_GenericPass_insert_into_scope_checked(this, func->sym, NULL);
+        passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, func->sym, NULL);
       } 
     }
   }
   for (std_vector_Iterator__5 __iter = std_vector_Vector__5_iter(ns->structs); std_vector_Iterator__5_has_value(&__iter); std_vector_Iterator__5_next(&__iter)) {
     ast_nodes_Structure *struc = std_vector_Iterator__5_cur(&__iter);
     {
-      passes_generic_pass_GenericPass_insert_into_scope_checked(this, struc->sym, NULL);
+      passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, struc->sym, NULL);
     }
   }
   for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
     ast_nodes_Enum *enum_ = std_vector_Iterator__15_cur(&__iter);
     {
-      passes_generic_pass_GenericPass_insert_into_scope_checked(this, enum_->sym, NULL);
+      passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, enum_->sym, NULL);
     }
   }
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->variables); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
     ast_nodes_AST *node = std_vector_Iterator__16_cur(&__iter);
     {
       ast_nodes_Variable *var = node->u.var_decl.var;
-      passes_generic_pass_GenericPass_insert_into_scope_checked(this, var->sym, NULL);
+      passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, var->sym, NULL);
     }
   }
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->constants); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
     ast_nodes_AST *node = std_vector_Iterator__16_cur(&__iter);
     {
       ast_nodes_Variable *var = node->u.var_decl.var;
-      passes_generic_pass_GenericPass_insert_into_scope_checked(this, var->sym, NULL);
+      passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, var->sym, NULL);
     }
   }
   for (std_map_Iterator__3 __iter = std_map_Map__3_iter(ns->typedefs); std_map_Iterator__3_has_value(&__iter); std_map_Iterator__3_next(&__iter)) {
     std_map_Item__3 *it = std_map_Iterator__3_cur(&__iter);
     {
-      passes_generic_pass_GenericPass_insert_into_scope_checked(this, it->value->sym, it->key);
+      passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, it->value->sym, it->key);
+    }
+  }
+  for (std_map_Iterator__5 __iter = std_map_Map__5_iter(ns->exported_symbols); std_map_Iterator__5_has_value(&__iter); std_map_Iterator__5_next(&__iter)) {
+    std_map_Item__5 *it = std_map_Iterator__5_cur(&__iter);
+    {
+      passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, it->value, it->key);
     }
   }
 }
 
-void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym) {
+void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_GenericPass *this, ast_scopes_Symbol *sym, bool export) {
   switch (sym->type) {
     case ast_scopes_SymbolType_Namespace: {
-      passes_generic_pass_GenericPass_import_all_from_namespace(this, sym->u.ns);
+      passes_generic_pass_GenericPass_import_all_from_namespace(this, sym->u.ns, export);
     } break;
     case ast_scopes_SymbolType_TypeDef: {
       for (std_map_ValueIterator__7 __iter = std_map_Map__7_iter_values(sym->u.type_def->methods); std_map_ValueIterator__7_has_value(&__iter); std_map_ValueIterator__7_next(&__iter)) {
         ast_nodes_Function *method = std_map_ValueIterator__7_cur(&__iter);
         {
-          passes_generic_pass_GenericPass_insert_into_scope_checked(this, method->sym, NULL);
+          passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, method->sym, NULL);
         }
       }
     } break;
@@ -9619,7 +9715,7 @@ void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_
       for (std_map_ValueIterator__7 __iter = std_map_Map__7_iter_values(sym->u.struc->type->methods); std_map_ValueIterator__7_has_value(&__iter); std_map_ValueIterator__7_next(&__iter)) {
         ast_nodes_Function *method = std_map_ValueIterator__7_cur(&__iter);
         {
-          passes_generic_pass_GenericPass_insert_into_scope_checked(this, method->sym, NULL);
+          passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, method->sym, NULL);
         }
       }
     } break;
@@ -9627,7 +9723,7 @@ void passes_generic_pass_GenericPass_import_all_from_symbol(passes_generic_pass_
       for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(sym->u.enum_->fields); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
         ast_nodes_Variable *field = std_vector_Iterator__7_cur(&__iter);
         {
-          passes_generic_pass_GenericPass_insert_into_scope_checked(this, field->sym, NULL);
+          passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, field->sym, NULL);
         }
       }
     } break;
@@ -10982,9 +11078,6 @@ std_vector_Vector__8 *parser_Parser_parse_import_path(parser_Parser *this) {
 }
 
 ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
-  if ((this->attrs->size > 0)) {
-    parser_Parser_error(this, errors_Error_new(parser_Parser_token(this)->span, "Attributes are not allowed on import statements"));
-  } 
   std_span_Span span = parser_Parser_token(this)->span;
   parser_Parser_consume(this, tokens_TokenType_Import);
   u32 parent_count = 0;
@@ -11035,7 +11128,20 @@ ast_nodes_AST *parser_Parser_parse_import(parser_Parser *this) {
     return NULL;
   } 
   ast_nodes_AST *node = ast_nodes_AST_new(ast_nodes_ASTType_Import, span);
-  node->u.import_path=(ast_nodes_Import){.parts=parts, .type=type, .parent_count=parent_count};
+  node->u.import_path=(ast_nodes_Import){.parts=parts, .type=type, .parent_count=parent_count, .export=false};
+  for (std_map_ValueIterator__2 __iter = std_map_Map__2_iter_values(this->attrs); std_map_ValueIterator__2_has_value(&__iter); std_map_ValueIterator__2_next(&__iter)) {
+    attributes_Attribute *attr = std_map_ValueIterator__2_cur(&__iter);
+    {
+      switch (attr->type) {
+        case attributes_AttributeType_Export: {
+          node->u.import_path.export=true;
+        } break;
+        default: {
+          parser_Parser_error(this, errors_Error_new(attr->span, "Invalid attribute for import"));
+        } break;
+      }
+    }
+  }
   parser_Parser_load_import_path(this, node);
   return node;
 }
@@ -11315,7 +11421,7 @@ void parser_Parser_parse_compiler_option(parser_Parser *this) {
         return ;
       } 
       std_buffer_Buffer contents = std_fs_read_file(full_path);
-      std_map_Map__5_insert(this->program->c_embeds, full_path, std_buffer_Buffer_str(contents));
+      std_map_Map__6_insert(this->program->c_embeds, full_path, std_buffer_Buffer_str(contents));
     } else  {
       parser_Parser_error(this, errors_Error_new(name->span, "Unknown compiler option"));
     }
@@ -11427,8 +11533,8 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
     switch (path->type) {
       case ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__8 *parts = path->parts;
-        ae_assert((parts->size > 0), "compiler/parser.oc:1912:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1913:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "compiler/parser.oc:1917:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__8_at(parts, 0)->type==ast_nodes_ImportPartType_Single, "compiler/parser.oc:1918:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         ast_nodes_ImportPartSingle first_part = std_vector_Vector__8_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__4_contains(this->program->global->namespaces, lib_name)) {
@@ -11468,11 +11574,11 @@ bool parser_Parser_load_import_path(parser_Parser *this, ast_nodes_AST *import_s
 }
 
 void parser_Parser_load_file(parser_Parser *this, char *filename) {
-  if (std_map_Map__5_contains(this->program->sources, filename)) 
+  if (std_map_Map__6_contains(this->program->sources, filename)) 
   return ;
   
   char *contents = std_buffer_Buffer_str(std_fs_read_file(filename));
-  std_map_Map__5_insert(this->program->sources, filename, contents);
+  std_map_Map__6_insert(this->program->sources, filename, contents);
   lexer_Lexer lexer = lexer_Lexer_make(contents, filename);
   this->tokens=lexer_Lexer_lex(&lexer);
   this->curr=0;
@@ -11506,7 +11612,7 @@ void parser_Parser_include_prelude_only(parser_Parser *this) {
     parser_couldnt_find_stdlib();
   } 
   std_buffer_Buffer content = std_fs_read_file(prelude_path);
-  std_map_Map__5_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(content));
+  std_map_Map__6_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(content));
 }
 
 void parser_Parser_parse_toplevel(ast_program_Program *program, char *filename, bool include_stdlib) {
@@ -11957,6 +12063,7 @@ ast_program_Namespace *ast_program_Namespace_new(ast_program_Namespace *parent, 
   ns->typedefs=std_map_Map__3_new(32);
   ns->namespaces=std_map_Map__4_new(32);
   ns->imports=std_vector_Vector__16_new(16);
+  ns->exported_symbols=std_map_Map__5_new(32);
   ns->path=path;
   ns->is_a_file=false;
   return ns;
@@ -12012,6 +12119,9 @@ ast_scopes_Symbol *ast_program_Namespace_find_importable_symbol(ast_program_Name
       
     }
   }
+  if (std_map_Map__5_contains(this->exported_symbols, name)) {
+    return std_map_Map__5_at(this->exported_symbols, name);
+  } 
   types_Type *td = std_map_Map__3_get(this->typedefs, name, NULL);
   if (((bool)td)) 
   return td->sym;
@@ -12029,8 +12139,8 @@ ast_program_Program *ast_program_Program_new(void) {
   prog->errors=std_vector_Vector__14_new(16);
   prog->c_includes=std_vector_Vector__4_new(16);
   prog->c_flags=std_vector_Vector__4_new(16);
-  prog->c_embeds=std_map_Map__5_new(32);
-  prog->sources=std_map_Map__5_new(32);
+  prog->c_embeds=std_map_Map__6_new(32);
+  prog->sources=std_map_Map__6_new(32);
   prog->library_paths=std_vector_Vector__4_new(16);
   return prog;
 }
@@ -12043,7 +12153,7 @@ void ast_program_Program_exit_with_errors(ast_program_Program *this) {
 char *ast_program_Program_get_source_text(ast_program_Program *this, std_span_Span span) {
   std_span_Location start = span.start;
   std_span_Location end = span.end;
-  char *contents = ((char *)std_map_Map__5_get(this->sources, start.filename, NULL));
+  char *contents = ((char *)std_map_Map__6_get(this->sources, start.filename, NULL));
   if (!((bool)contents)) 
   return NULL;
   
@@ -12419,7 +12529,7 @@ ast_scopes_Symbol *ast_scopes_Symbol_remove_alias(ast_scopes_Symbol *this) {
 
 ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent) {
   ast_scopes_Scope *scope = std_new__56(1);
-  scope->items=std_map_Map__6_new(32);
+  scope->items=std_map_Map__5_new(32);
   scope->defers=std_vector_Vector__16_new(16);
   if (((bool)parent)) {
     scope->loop_count=parent->loop_count;
@@ -12431,7 +12541,7 @@ ast_scopes_Scope *ast_scopes_Scope_new(ast_scopes_Scope *parent) {
 }
 
 ast_scopes_Symbol *ast_scopes_Scope_lookup_recursive(ast_scopes_Scope *this, char *name) {
-  ast_scopes_Symbol *item = std_map_Map__6_get(this->items, name, NULL);
+  ast_scopes_Symbol *item = std_map_Map__5_get(this->items, name, NULL);
   if (((bool)item)) 
   return item;
   
@@ -12442,11 +12552,11 @@ ast_scopes_Symbol *ast_scopes_Scope_lookup_recursive(ast_scopes_Scope *this, cha
 }
 
 ast_scopes_Symbol *ast_scopes_Scope_lookup_local(ast_scopes_Scope *this, char *name) {
-  return std_map_Map__6_get(this->items, name, NULL);
+  return std_map_Map__5_get(this->items, name, NULL);
 }
 
 void ast_scopes_Scope_insert(ast_scopes_Scope *this, char *name, ast_scopes_Symbol *symbol) {
-  std_map_Map__6_insert(this->items, name, symbol);
+  std_map_Map__5_insert(this->items, name, symbol);
 }
 
 u32 attributes_AttributeType_hash(attributes_AttributeType this) {
@@ -12467,6 +12577,8 @@ attributes_AttributeType attributes_AttributeType_from_str(char *s) {
         __yield_0 = attributes_AttributeType_Exits;
       } else if (!strcmp(__match_str, "variadic_format")) {
         __yield_0 = attributes_AttributeType_VariadicFormat;
+      } else if (!strcmp(__match_str, "export")) {
+        __yield_0 = attributes_AttributeType_Export;
       } else  {
         __yield_0 = attributes_AttributeType_Invalid;
       }
@@ -12505,6 +12617,12 @@ bool attributes_Attribute_validate(attributes_Attribute *this, parser_Parser *pa
     case attributes_AttributeType_Invalid: {
       parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Invalid attribute"));
       return false;
+    } break;
+    case attributes_AttributeType_Export: {
+      if ((this->args->size > 0)) {
+        parser_Parser_error(parser_for_errors, errors_Error_new(this->span, "Export attribute takes no arguments"));
+        return false;
+      } 
     } break;
   }
   return true;

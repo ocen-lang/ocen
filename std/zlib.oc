@@ -39,13 +39,13 @@ def compress(data: Buffer): Buffer {
 
 def compress_str(s: str): Buffer => compress(Buffer::from_str(s))
 
-def decompress(data: Buffer): Buffer {
+def decompress_bytes(data: &u8, size: u32, bytes_consumed: &u32): Buffer {
     let stream: bindings::Stream
-    stream.avail_in = data.size
-    stream.next_in = data.data
+    stream.avail_in = size
+    stream.next_in = data
     if stream.init() != bindings::Z_OK then panic("Failed to initialize zlib stream")
 
-    let res = Buffer::make(capacity: data.size)
+    let res = Buffer::make(capacity: size * 2)
     stream.avail_out = res.capacity
     stream.next_out = res.data
 
@@ -68,6 +68,17 @@ def decompress(data: Buffer): Buffer {
         }
     }
 
+    if bytes_consumed? {
+        *bytes_consumed = (stream.next_in - data) as u32
+    } else {
+        if (stream.next_in - data) as u32 != size {
+            panic("zlib: not all bytes were consumed, use `bytes_consumed` to get the number of bytes consumed")
+        }
+    }
     stream.end()
     return res
+}
+
+def decompress(data: Buffer, bytes_consumed: &u32 = null): Buffer {
+    return decompress_bytes(data.data, data.size, bytes_consumed)
 }

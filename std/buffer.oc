@@ -115,6 +115,16 @@ def Buffer::str(this): str => .data as str
 def Buffer::new_str(this): str => (.data as str).copy()
 def Buffer::sv(this): SV => SV(.data as str, .size)
 
+def Buffer::copy(&this): Buffer {
+    let new_data = calloc(.capacity, 1)
+    memcpy(new_data, .data, .size)
+    return Buffer(
+        data: new_data,
+        size: .size,
+        capacity: .capacity,
+    )
+}
+
 def Buffer::clear(&this) {
     .size = 0
 }
