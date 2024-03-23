@@ -9,7 +9,7 @@ import std::span::{ Span }
 import std::vector::{ Vector }
 
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
-import @ast::nodes::{ ImportPart, Enum, Argument, MatchCase }
+import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
 import @errors::{ Error }
@@ -1561,10 +1561,6 @@ def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) 
     .o.push_namespace(ns)
     .o.push_scope(ns.scope)
 
-    for import_ : ns.imports.iter() {
-        .handle_import_statement(import_)
-    }
-
     for child : ns.namespaces.iter_values() {
         if is_global {
             let prev_root = .o.program.project_root
@@ -1574,6 +1570,10 @@ def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) 
         } else {
             .handle_imports(child)
         }
+    }
+
+    for import_ : ns.imports.iter() {
+        .handle_import_statement(import_)
     }
 
     .o.pop_scope()
@@ -1783,20 +1783,20 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
     return typ
 }
 
-def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
+def TypeChecker::handle_import_path_base(&this, imp: &Import, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
     for let i = start_idx as u32; i < parts.size; i += 1 {
         let part = parts.at(i)
 
         match part.type {
             Wildcard => {
-                .o.import_all_from_symbol(base)
+                .o.import_all_from_symbol(base, imp.export)
                 return
             }
             Multiple => {
                 let paths = part.u.paths
                 for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j)
-                    .handle_import_path_base(path, base, alias, 0)
+                    .handle_import_path_base(imp, path, base, alias, 0)
                 }
                 return
             }
@@ -1825,6 +1825,9 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
     }
 
     .o.insert_into_scope_checked(base, name: alias)
+    if imp.export {
+        .o.ns().exported_symbols.insert(alias, base)
+    }
 }
 
 //* Insert all the imported items into the current scope.
@@ -1877,7 +1880,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
-    .handle_import_path_base(path.parts, base, alias, start_idx: 1)
+    .handle_import_path_base(&path, path.parts, base, alias, start_idx: 1)
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {

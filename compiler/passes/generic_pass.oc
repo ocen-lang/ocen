@@ -71,7 +71,7 @@ def GenericPass::error(&this, err: &Error): &Error {
     return err
 }
 
-def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = null) {
+def GenericPass::insert_into_scope_checked_and_export(&this, export: bool, item: &Symbol, name: str = null) {
     if not name? name = item.name
     let prev = .scope().lookup_local(name)
     if prev? {
@@ -82,6 +82,23 @@ def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = nul
         return
     }
     .scope().insert(name, item)
+    if not export return
+
+    let exported = .ns().exported_symbols
+    let it = exported.get_item(name)
+    if it? {
+        .error(Error::new_hint(
+            item.span, `Name {name} already exported from namespace`,
+            it.value.span, `Previous export of {name}`
+        ))
+        return
+    }
+
+    .ns().exported_symbols.insert(name, item)
+}
+
+def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = null) {
+    .insert_into_scope_checked_and_export(export: false, item, name)
 }
 
 def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, error: bool): &Symbol => match sym.type {
@@ -145,52 +162,56 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
     }
 }
 
-def GenericPass::import_all_from_namespace(&this, ns: &Namespace) {
+def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) {
     for func : ns.functions.iter() {
         if not func.is_method {
-            .insert_into_scope_checked(func.sym)
+            .insert_into_scope_checked_and_export(export, func.sym)
         }
     }
 
     for struc : ns.structs.iter() {
-        .insert_into_scope_checked(struc.sym)
+        .insert_into_scope_checked_and_export(export, struc.sym)
     }
 
     for enum_ : ns.enums.iter() {
-        .insert_into_scope_checked(enum_.sym)
+        .insert_into_scope_checked_and_export(export, enum_.sym)
     }
 
     for node : ns.variables.iter() {
         let var = node.u.var_decl.var
-        .insert_into_scope_checked(var.sym)
+        .insert_into_scope_checked_and_export(export, var.sym)
     }
 
     for node : ns.constants.iter() {
         let var = node.u.var_decl.var
-        .insert_into_scope_checked(var.sym)
+        .insert_into_scope_checked_and_export(export, var.sym)
     }
 
     for it : ns.typedefs.iter() {
-        .insert_into_scope_checked(it.value.sym, it.key)
+        .insert_into_scope_checked_and_export(export, it.value.sym, it.key)
+    }
+
+    for it : ns.exported_symbols.iter() {
+        .insert_into_scope_checked_and_export(export, it.value, it.key)
     }
 }
 
-def GenericPass::import_all_from_symbol(&this, sym: &Symbol) {
+def GenericPass::import_all_from_symbol(&this, sym: &Symbol, export: bool) {
     match sym.type {
-        SymbolType::Namespace => .import_all_from_namespace(sym.u.ns)
+        SymbolType::Namespace => .import_all_from_namespace(sym.u.ns, export)
         SymbolType::TypeDef => {
             for method : sym.u.type_def.methods.iter_values() {
-                .insert_into_scope_checked(method.sym)
+                .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
         SymbolType::Structure => {
             for method : sym.u.struc.type.methods.iter_values() {
-                .insert_into_scope_checked(method.sym)
+                .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
         SymbolType::Enum => {
             for field : sym.u.enum_.fields.iter() {
-                .insert_into_scope_checked(field.sym)
+                .insert_into_scope_checked_and_export(export, field.sym)
             }
         }
         else => {
