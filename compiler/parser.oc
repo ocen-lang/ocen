@@ -151,7 +151,14 @@ def Parser::parse_type(&this): &Type => match .token().type {
         .consume(TokenType::Fn)
         .consume(TokenType::OpenParen)
         let params = Vector<&Variable>::new()
+        let is_variadic = false
         while not .token_is(TokenType::CloseParen) {
+            if .token_is(TokenType::Ellipsis) {
+                .consume(TokenType::Ellipsis)
+                is_variadic = true
+                break
+            }
+
             let param_type = .parse_type()
 
             // No names for parameters needed for function types
@@ -171,7 +178,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
             return_type = Type::new_unresolved_base(BaseType::Void, start_span)
         }
         let type = Type::new_resolved(BaseType::Function, start_span.join(close.span))
-        type.u.func = FunctionType(null, params, return_type)
+        type.u.func = FunctionType(null, params, return_type, is_variadic)
         yield type
     }
 
@@ -1221,6 +1228,17 @@ def Parser::parse_function(&this): &Function {
     .consume(TokenType::OpenParen)
     let seen_default = false
     while not .token_is(TokenType::CloseParen) {
+
+        // Ellipses are only allowed as the last parameter, so we break early if we see one
+        if .token_is(Ellipsis) {
+            if seen_default {
+                .error(Error::new(.token().span, "Cannot have variadic parameters and default parameters"))
+            }
+            .consume(TokenType::Ellipsis)
+            func.is_variadic = true
+            break
+        }
+
         let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
         let type = null as &Type
@@ -1289,8 +1307,20 @@ def Parser::parse_function(&this): &Function {
         match attr.type {
             Exits => func.exits = true
             Extern => .get_extern_from_attr(func.sym, attr)
+            VariadicFormat => {
+                if not func.is_variadic {
+                    .error(Error::new(
+                        attr.span, "Variadic format attribute can only be used on variadic functions"
+                    ))
+                }
+                func.is_variadic_format = true
+            }
             else => .error(Error::new(attr.span, "Invalid attribute for function"))
         }
+    }
+
+    if func.is_variadic and not func.sym.is_extern {
+        .error(Error::new(func.sym.span, "Only extern functions can be variadic"))
     }
 
     if func.sym.is_extern return func
@@ -1407,10 +1437,6 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 }
 
 def Parser::parse_import(&this): &AST {
-    if .attrs.size > 0 {
-        .error(Error::new(.token().span, "Attributes are not allowed on import statements"))
-    }
-
     let span = .token().span
     .consume(TokenType::Import)
 
@@ -1424,9 +1450,20 @@ def Parser::parse_import(&this): &AST {
             .consume(TokenType::ColonColon)
             yield ImportType::CurrentScope
         }
-        TokenType::Dot => {
-            while .consume_if(TokenType::Dot) {
-                parent_count += 1
+        TokenType::Dot | TokenType::Ellipsis => {
+            let done = false
+            while not done {
+                match .token().type {
+                    TokenType::Dot => {
+                        .consume(TokenType::Dot)
+                        parent_count += 1
+                    }
+                    TokenType::Ellipsis => {
+                        .consume(TokenType::Ellipsis)
+                        parent_count += 3
+                    }
+                    else => done = true
+                }
             }
             yield ImportType::ParentNamespace
         }
@@ -1451,7 +1488,16 @@ def Parser::parse_import(&this): &AST {
         parts,
         type,
         parent_count,
+        export: false
     )
+
+    for attr : .attrs.iter_values() {
+        match attr.type {
+            Export => node.u.import_path.export = true
+            else => .error(Error::new(attr.span, "Invalid attribute for import"))
+        }
+    }
+
     .load_import_path(node)
     return node
 }

@@ -1,0 +1,9 @@
+/// fail: Variadic-format function must have last positional argument of type 'str'
+
+[extern "printf"]
+[variadic_format]
+def my_printf(a: u32, ...): i32
+
+def main() {
+    my_printf(1, `{1 + 2} = {0x56:02x}`)
+}

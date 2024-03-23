@@ -51,6 +51,7 @@ enum TokenType {
     Comma
     Dot
     EOF
+    Ellipsis
     Equals
     EqualEquals
     Exclamation

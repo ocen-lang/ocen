@@ -1,0 +1,8 @@
+/// fail: Only extern functions can be variadic
+
+[variadic_format]
+def my_printf(fmt: str, ...): i32 => 3
+
+def main() {
+    my_printf(`{1 + 2} = {0x56:02x}`)
+}

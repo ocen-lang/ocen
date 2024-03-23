@@ -190,6 +190,9 @@ struct Function {
     type: &Type
     checked: bool
 
+    is_variadic: bool
+    is_variadic_format: bool
+
     is_method: bool
     is_static: bool
     parent_type: &Type
@@ -287,6 +290,7 @@ struct Import {
     // For FromParentNamespace imports, we might have something like `import ..foo`, in which
     // case we need to know how namespace levels to go up.
     parent_count: u32
+    export: bool
 }
 
 struct NumLiteral {

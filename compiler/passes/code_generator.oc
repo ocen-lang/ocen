@@ -451,12 +451,28 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
 
             .gen_expression(callee)
 
+            let is_variadic_format = (
+                sym? and
+                sym.type == Function and
+                sym.u.func? and
+                sym.u.func.is_variadic_format
+            )
+
             .out.puts("(")
             let args = node.u.call.args
             for let i = 0; i < args.size; i += 1 {
                 if i != 0 then .out.puts(", ")
                 let arg = args.at(i)
-                .gen_expression(arg.expr)
+
+                if (
+                    i == args.size - 1 and
+                    is_variadic_format and
+                    arg.expr.type == FormatStringLiteral
+                ) {
+                    .gen_format_string_variadic(arg.expr, newline_after: false)
+                } else {
+                    .gen_expression(arg.expr)
+                }
             }
             .out.puts(")")
         }
@@ -911,6 +927,8 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
                 let arg_str = .get_type_name_string(var.type, var.sym.out_name(), is_func_def: false)
                 args_str.putsf(arg_str)
             }
+            if cur.u.func.is_variadic then args_str.puts(", ...")
+
             if is_func_def and cur == top {
                 // This allows us to also create function declarations
                 acc.replace(`{acc}({args_str.str()})`)

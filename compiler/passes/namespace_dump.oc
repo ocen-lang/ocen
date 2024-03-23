@@ -55,6 +55,11 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
         println(`(typedef) {it.key}`)
     }
 
+    for it : ns.exported_symbols.iter() {
+        .print_indent()
+        println(`(export) {it.key}`)
+    }
+
     .indent -= 1
 }
 

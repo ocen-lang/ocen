@@ -5,6 +5,7 @@
 //* and bytes of different sizes in different endiannesses.
 
 import std::buffer::Buffer
+import std::sv::SV
 import std::Endian
 
 struct BufferIO {
@@ -78,6 +79,13 @@ def BufferIO::read_bytes(&this, _dst: untyped_ptr, count: u32) {
         }
     }
     .index += count
+}
+
+//* Read `count` bytes from the buffer and return them as a view
+def BufferIO::read_bytes_sv(&this, count: u32): SV {
+    let sv = SV((.data.data + .index) as str, count)
+    .index += count
+    return sv
 }
 
 //* Write a signed 64-bit integer with the given endianness

@@ -9,7 +9,7 @@ import std::span::{ Span }
 import std::vector::{ Vector }
 
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
-import @ast::nodes::{ ImportPart, Enum, Argument, MatchCase }
+import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
 import @errors::{ Error }
@@ -77,7 +77,7 @@ def TypeChecker::resolve_type(
             if not return_type? return null
 
             resolved = Type::shallow_copy(old)
-            resolved.u.func = FunctionType(func.orig, checked_params, return_type)
+            resolved.u.func = FunctionType(func.orig, checked_params, return_type, func.is_variadic)
         }
         Unresolved => {
             let node = old.u.unresolved
@@ -498,9 +498,10 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
     return struc.type
 }
 
-def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>) {
+def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
     let args = node.u.call.args
-    if params.size < args.size {
+
+    if params.size < args.size and not is_variadic {
         .error(Error::new(node.span, `Too many arguments, expected {params.size} but got {args.size}`))
     }
 
@@ -532,6 +533,20 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>) 
 
         } else {
             .error(Error::new(node.span, `Missing required argument {param.sym.name}`))
+            return
+        }
+    }
+
+    if is_variadic {
+        if args.size < params.size {
+            assert .o.program.errors.size > 1, "Should have errored already"
+            return
+        }
+
+        for let i = params.size; i < args.size; i += 1 {
+            let arg = args.at(i)
+            let arg_type = .check_expression(arg.expr)
+            if not arg_type? then continue
         }
     }
 }
@@ -586,7 +601,29 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         .check_method_call(func.orig, node)
     }
 
-    .check_call_args(node, params)
+    .check_call_args(node, params, func.is_variadic)
+
+    let is_variadic_format = func.orig? and func.orig.is_variadic_format
+    if is_variadic_format and args.size >= params.size {
+        let args = node.u.call.args
+
+        let param = params.back()
+        let arg = args.at(params.size - 1).expr
+
+        if not param.type.is_str() {
+            .error(Error::new(
+                func.orig.sym.span, "Variadic-format function must have last positional argument of type 'str'"
+            ))
+        }
+        match arg.type {
+            StringLiteral | FormatStringLiteral => {}
+            else => {
+                .error(Error::new(
+                    arg.span, "Expected a string literal for variadic-format function"
+                ))
+            }
+        }
+    }
 
     if func.orig? {
         node.u.call.is_function_pointer = false
@@ -1524,10 +1561,6 @@ def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) 
     .o.push_namespace(ns)
     .o.push_scope(ns.scope)
 
-    for import_ : ns.imports.iter() {
-        .handle_import_statement(import_)
-    }
-
     for child : ns.namespaces.iter_values() {
         if is_global {
             let prev_root = .o.program.project_root
@@ -1537,6 +1570,10 @@ def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) 
         } else {
             .handle_imports(child)
         }
+    }
+
+    for import_ : ns.imports.iter() {
+        .handle_import_statement(import_)
     }
 
     .o.pop_scope()
@@ -1746,20 +1783,20 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
     return typ
 }
 
-def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
+def TypeChecker::handle_import_path_base(&this, imp: &Import, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
     for let i = start_idx as u32; i < parts.size; i += 1 {
         let part = parts.at(i)
 
         match part.type {
             Wildcard => {
-                .o.import_all_from_symbol(base)
+                .o.import_all_from_symbol(base, imp.export)
                 return
             }
             Multiple => {
                 let paths = part.u.paths
                 for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j)
-                    .handle_import_path_base(path, base, alias, 0)
+                    .handle_import_path_base(imp, path, base, alias, 0)
                 }
                 return
             }
@@ -1788,6 +1825,9 @@ def TypeChecker::handle_import_path_base(&this, parts: &Vector<&ImportPart>, bas
     }
 
     .o.insert_into_scope_checked(base, name: alias)
+    if imp.export {
+        .o.ns().exported_symbols.insert(alias, base)
+    }
 }
 
 //* Insert all the imported items into the current scope.
@@ -1840,7 +1880,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
-    .handle_import_path_base(path.parts, base, alias, start_idx: 1)
+    .handle_import_path_base(&path, path.parts, base, alias, start_idx: 1)
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
@@ -1968,7 +2008,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
     let typ = Type::new_resolved(Function, func.sym.span)
-    typ.u.func = FunctionType(func, func.params, func.return_type)
+    typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
     func.type = typ
 }
 
