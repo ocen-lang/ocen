@@ -1319,10 +1319,6 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    if func.is_variadic and not func.sym.is_extern {
-        .error(Error::new(func.sym.span, "Only extern functions can be variadic"))
-    }
-
     if func.sym.is_extern return func
 
     .curr_func = func

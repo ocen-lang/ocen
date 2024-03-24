@@ -1,0 +1,10 @@
+//! Variadic functions and utilities for working with them
+
+@compiler c_include "stdarg.h"
+
+[extern "va_list"] struct VarArgs
+[extern "va_start"] def VarArgs::start(this, ...)
+[extern "va_end"] def VarArgs::end(this)
+
+[extern] def vprintf(format: str, args: VarArgs)
+[extern] def vsprintf(buffer: str, format: str, args: VarArgs)
