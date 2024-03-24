@@ -23,6 +23,7 @@
 
 
 [extern "fabsf"] def f32::abs(this): f32
+[extern "fabs"] def f64::abs(this): f64
 [extern "rand"] def randint(): i32
 [extern "drand48"] def rand01(): f32
 
@@ -31,6 +32,9 @@ def f32::max(this, b: f32): f32 => if this > b then this else b
 
 def f32::clamp(this, min: f32, max: f32): f32 => f32::max(f32::min(this, max), min)
 def f32::clamp01(this): f32 => this.clamp(0.0, 1.0)
+
+def f32::is_close(this, other: f32, thresh: f32 = 0.0001): bool => (this - other).abs() < thresh
+def f64::is_close(this, other: f64, thresh: f64 = 0.0001): bool => (this - other).abs() < thresh
 
 def i8::abs(this): i8 => if this < 0 then -this else this
 def i16::abs(this): i16 => if this < 0 then -this else this
