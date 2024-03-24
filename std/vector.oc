@@ -1,4 +1,4 @@
-//* A dynamic list of objects
+//! A dynamic list of objects
 
 import std::libc::{calloc, realloc, free}
 

@@ -1,8 +1,8 @@
-//* A growable buffer / string-builder type
-//*
-//* The buffer is a growable array of bytes, with a null terminator at the end.
-//* It can be used as a string builder, or as a string itself. It is also useful
-//* to hold binary data.
+//! A growable buffer / string-builder type
+//!
+//! The buffer is a growable array of bytes, with a null terminator at the end.
+//! It can be used as a string builder, or as a string itself. It is also useful
+//! to hold binary data.
 
 import std::libc::{ realloc, calloc, memcpy, free, exit }
 import std::sv::{ SV }

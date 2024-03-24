@@ -1,3 +1,5 @@
+//! FFPMEG implementation for rendering video frames
+
 import std::vector::Vector
 import std::image::{ Image, Color }
 import std::libc:: {

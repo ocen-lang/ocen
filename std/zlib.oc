@@ -1,3 +1,4 @@
+//! Zlib bindings for compressing and decompressing data.
 
 @compiler c_include "zlib.h"
 @compiler c_flag "-lz"

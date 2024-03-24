@@ -1,4 +1,4 @@
-//* Represents locations / spans in source code
+//! Represents locations / spans in source code
 
 import std // This is just here to separate docs for modules and structs
 

@@ -1,4 +1,4 @@
-//* Bindings to SDL2 and extensions
+//! Bindings to SDL2 and extensions
 
 @compiler c_include "SDL2/SDL.h"
 @compiler c_flag "-lSDL2"

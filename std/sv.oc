@@ -1,9 +1,9 @@
-//* String Views and Parsing Utilities
-//*
-//* This module provides a string view type, which is a reference to a string without owning it.
-//* It also provides a number of parsing utilities for string views.
-//*
-//* Inspired by https://github.com/tsoding/sv
+//! String Views and Parsing Utilities
+//!
+//! This module provides a string view type, which is a reference to a string without owning it.
+//! It also provides a number of parsing utilities for string views.
+//!
+//! Inspired by https://github.com/tsoding/sv
 
 import std::buffer::{ Buffer }
 import std::libc::{ memcmp, strtoul, strtoll }

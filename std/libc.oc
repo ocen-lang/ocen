@@ -1,4 +1,4 @@
-//* Bindings to libc functions
+//! Bindings to libc functions
 
 // stdlib
 [extern] def malloc(size: u32): untyped_ptr

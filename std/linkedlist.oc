@@ -1,4 +1,4 @@
-//* A doubly linked list
+//! A doubly linked list implementation.
 
 import std::libc::{ calloc, free }
 

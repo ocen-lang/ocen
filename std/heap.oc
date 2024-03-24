@@ -1,4 +1,4 @@
-//* A binary heap
+//! A binary heap implementation.
 
 import std::vector::Vector
 import std::traits::compare

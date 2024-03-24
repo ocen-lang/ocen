@@ -1,3 +1,5 @@
+//! Comparison functions for primitive types.
+
 def i8::compare(this, b: i8): i8 => (this > b) as i8 - (this < b) as i8
 def i16::compare(this, b: i16): i8 => (this > b) as i8 - (this < b) as i8
 def i32::compare(this, b: i32): i8 => (this > b) as i8 - (this < b) as i8

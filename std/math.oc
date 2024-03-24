@@ -1,3 +1,5 @@
+//! Common math functions
+
 @compiler c_flag "-lm"
 @compiler c_include "math.h"
 

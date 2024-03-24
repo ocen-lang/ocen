@@ -1,3 +1,5 @@
+//! Simple wrapper around the pthread library
+
 @compiler c_include "unistd.h"
 @compiler c_include "pthread.h"
 @compiler c_flag "-pthread"

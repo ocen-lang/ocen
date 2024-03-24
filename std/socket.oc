@@ -1,7 +1,7 @@
-// Public facing API
+//! Bindings to the C socket library
+
 import std::buffer::Buffer
 import std::libc::{ exit, strerror }
-
 
 struct Socket {
     fd: i32

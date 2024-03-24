@@ -1,3 +1,5 @@
+//! Fast Fourier Transform (FFT) and Inverse implementation.
+
 import std::complex::Complex
 import std::math
 import std::libc::{ calloc, free, memset }

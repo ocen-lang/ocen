@@ -1,4 +1,4 @@
-//* Bindings for OpenGL and GLUT
+//! Bindings for OpenGL and GLUT
 
 // Linux
 @compiler c_include "GL/glut.h"

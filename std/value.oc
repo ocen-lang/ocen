@@ -1,4 +1,4 @@
-//* A dynamically typed value, used with {{json}}/etc
+//! A dynamically typed value, used with {{json}}/etc
 
 import std::vector::Vector
 import std::compact_map::Map

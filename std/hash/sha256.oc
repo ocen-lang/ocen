@@ -1,3 +1,5 @@
+//! SHA-256 hash function implementation
+
 import std::buffer::{ Buffer, hex_dump }
 import std::libc::{ memset, memcpy, memcmp }
 import std::hash::utils::{ rotate_left, rotate_right }

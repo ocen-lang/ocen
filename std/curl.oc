@@ -1,4 +1,4 @@
-//* Bindings for libcurl used to talk to the git server
+//! Bindings for libcurl
 
 @compiler c_include "curl/curl.h"
 @compiler c_flag "-lcurl"
