@@ -1,20 +1,20 @@
-//* A simple hash-map
-//*
-//* This hash map uses closed hashing with linked lists for collision resolution.
-//* The hash map will automatically resize itself when the number of items
-//* exceeds the number of buckets.
-//*
-//* Sample usage:
-//*
-//*     import std::map::Map
-//*
-//*     let map = Map<u32, str>::new()
-//*     map.insert(1, "one")
-//*     map.insert(2, "two")
-//*     for it : map.iter() {
-//*         println(`{it.key} = {it.value}`)
-//*     }
-//*     map.remove(1)
+//! A simple hash-map
+//!
+//! This hash map uses closed hashing with linked lists for collision resolution.
+//! The hash map will automatically resize itself when the number of items
+//! exceeds the number of buckets.
+//!
+//! Sample usage:
+//!
+//!     import std::map::Map
+//!
+//!     let map = Map<u32, str>::new()
+//!     map.insert(1, "one")
+//!     map.insert(2, "two")
+//!     for it : map.iter() {
+//!         println(`{it.key} = {it.value}`)
+//!     }
+//!     map.remove(1)
 
 import std::vector::Vector
 import std::libc::{ calloc, realloc, free }

@@ -1,3 +1,4 @@
+//! File and directory manipulation/traversal functions.
 
 @compiler c_include "dirent.h"
 @compiler c_include "unistd.h"

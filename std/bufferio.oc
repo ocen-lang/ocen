@@ -1,8 +1,8 @@
-//* Wrapper for doing binary IO on a {{Buffer}}.
-//*
-//* This is a very thin wrapper around a {{Buffer}}, and gives you a
-//* simple bunch of methods for reading and writing integers
-//* and bytes of different sizes in different endiannesses.
+//! Wrapper for doing binary IO on a {{Buffer}}.
+//!
+//! This is a very thin wrapper around a {{Buffer}}, and gives you a
+//! simple bunch of methods for reading and writing integers
+//! and bytes of different sizes in different endiannesses.
 
 import std::buffer::Buffer
 import std::sv::SV

@@ -1,3 +1,4 @@
+//! Complex numbers
 
 @compiler c_include "complex.h"
 import std::math

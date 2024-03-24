@@ -1,3 +1,5 @@
+//! Generic quicksort implementation.
+
 import std::traits::compare
 
 def sort<T>(data: &T, size: u32, cmp: fn(T,T): i8 = T::compare) {

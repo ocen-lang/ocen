@@ -1,3 +1,5 @@
+//! Double-ended queue implementation.
+
 import std::libc::{ calloc, realloc, free, memcpy }
 
 struct Deque<T> {

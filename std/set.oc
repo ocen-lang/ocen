@@ -1,4 +1,4 @@
-//* A hash-set
+//! A hash-set implementation.
 
 import std::map::{ Map, Item, Iterator as MapIterator }
 import std::libc::{ calloc, free }

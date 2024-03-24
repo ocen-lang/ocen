@@ -1,3 +1,5 @@
+//! Bindings to the C standard library's time functions.
+
 @compiler c_include "time.h"
 
 [extern "time_t"] struct Time {}

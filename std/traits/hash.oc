@@ -1,3 +1,4 @@
+//! Hashing functions/utilities for various types.
 
 def hash_bytes(data: &u8, len: u32): u32 {
     let hash = 5381
@@ -9,15 +10,16 @@ def hash_bytes(data: &u8, len: u32): u32 {
 
 def pair_hash(a: u32, b: u32): u32 => a * 33 ^ b
 
+// 7817 is just some random prime number
 def str::hash(this): u32 => hash_bytes(this as &u8, this.len())
-def u8::hash(this): u32 => this as u32 * 7817 // Some random prime number
-def i8::hash(this): u32 => this as u32 * 7817 // Some random prime number
-def u16::hash(this): u32 => this as u32 * 7817 // Some random prime number
-def i16::hash(this): u32 => this as u32 * 7817 // Some random prime number
-def u32::hash(this): u32 => this as u32 * 7817 // Some random prime number
-def i32::hash(this): u32 => this as u32 * 7817 // Some random prime number
+def u8::hash(this): u32 => this as u32 * 7817
+def i8::hash(this): u32 => this as u32 * 7817
+def u16::hash(this): u32 => this as u32 * 7817
+def i16::hash(this): u32 => this as u32 * 7817
+def u32::hash(this): u32 => this as u32 * 7817
+def i32::hash(this): u32 => this as u32 * 7817
 def u64::hash(this): u32 => pair_hash((this as u32).hash(), ((this >> 32) as u32).hash())
 def i64::hash(this): u32 => pair_hash((this as u32).hash(), ((this >> 32) as u32).hash())
-def char::hash(this): u32 => this as u32 * 7817 // Some random prime number
-def f32::hash(this): u32 => this as u32 * 7817 // Some random prime number
+def char::hash(this): u32 => this as u32 * 7817
+def f32::hash(this): u32 => this as u32 * 7817
 def f64::hash(this): u32 => (this as u64).hash()

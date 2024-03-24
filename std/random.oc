@@ -1,3 +1,4 @@
+//! Random number generation utilities
 
 struct RandomState {
     x: u32

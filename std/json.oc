@@ -1,7 +1,7 @@
-//* JSON parsing and serialization
-//*
-//* This module heavily relies on {{Value}} as the representation of the data.
-//* It also re-uses the {{Lexer}} from the compiler.
+//! JSON parsing and serialization
+//!
+//! This module heavily relies on {{Value}} as the representation of the data.
+//! It also re-uses the {{Lexer}} from the compiler.
 
 
 import std::fs

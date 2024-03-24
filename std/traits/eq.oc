@@ -1,3 +1,5 @@
+//! Equality operators for primitive types.
+
 def i8::eq(this, other: i8): bool => this == other
 def u8::eq(this, other: u8): bool => this == other
 def i16::eq(this, other: i16): bool => this == other

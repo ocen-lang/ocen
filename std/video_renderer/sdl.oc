@@ -1,3 +1,4 @@
+//! SDL implementation for displaying video frames.
 
 import std::sdl
 import std::image::{Image, Color}

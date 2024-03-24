@@ -1,9 +1,10 @@
+//! Library to render/display video from a series of images
+
 import std::sdl
 
 import .ffmpeg::FFMPEGContext
 import .sdl::SDLContext
 import std::image::{Image, Color}
-
 
 enum VideoRendererType {
     FFMPEG

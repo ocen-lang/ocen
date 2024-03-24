@@ -1,6 +1,6 @@
-//* An order-preserving hash map.
-//*
-//* Uses open addressing with linear probing. Inspired by Python's dict.
+//! An order-preserving hash map.
+//!
+//! Uses open addressing with linear probing. Inspired by Python's dict.
 
 import std::vector::{ Vector, Iterator as VectorIterator }
 import std::traits::{ hash, eq }

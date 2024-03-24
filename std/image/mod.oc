@@ -1,4 +1,4 @@
-//* Image struct / IO utilities (PPM)
+//! Image struct / IO utilities (PPM)
 
 import std::libc::{ calloc, free }
 import std::buffer::Buffer
