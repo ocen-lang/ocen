@@ -1,0 +1,25 @@
+import std::variadic::{ VarArgs, vprintf }
+
+[variadic_format]
+def my_print(fmt: str, ...) {
+    let args: VarArgs
+    args.start(fmt)
+    vprintf(fmt, args)
+    args.end()
+}
+
+[formatting "%s %s" "$.str, $.len"]
+[variadic_format]
+def my_println(fmt: str, ...) {
+    let args: VarArgs
+    args.start(fmt)
+    vprintf(fmt, args)
+    args.end()
+    vprintf("\n", args)
+}
+
+def main() {
+    my_print("Hello, %s!\n", "world")
+    my_println("Hello, %s!", "world")
+    my_println(`{1+2} = {7*4}`)
+}
