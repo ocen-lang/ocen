@@ -8966,7 +8966,7 @@ void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_P
     std_map_Map__4_insert(cur_ns->namespaces, base, new_ns);
     cur_ns=new_ns;
   }
-  char *file_base = basename(filename);
+  char *file_base = strdup(basename(filename));
   if (str_ends_with(file_base, ".oc")) {
     file_base[(strlen(file_base) - 3)]='\0';
   } 

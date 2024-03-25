@@ -2130,7 +2130,7 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     }
 
     // Remove file extension
-    let file_base = basename(filename)
+    let file_base = basename(filename).copy()
     if file_base.ends_with(".oc") {
         file_base[file_base.len() - 3] = '\0'
     }
