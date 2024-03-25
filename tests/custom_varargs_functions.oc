@@ -1,3 +1,5 @@
+/// out: "a b!\na, b\n3 = 28\n"
+
 import std::variadic::{ VarArgs, vprintf }
 
 [variadic_format]
@@ -8,7 +10,6 @@ def my_print(fmt: str, ...) {
     args.end()
 }
 
-[formatting "%s %s" "$.str, $.len"]
 [variadic_format]
 def my_println(fmt: str, ...) {
     let args: VarArgs
@@ -19,7 +20,7 @@ def my_println(fmt: str, ...) {
 }
 
 def main() {
-    my_print("Hello, %s!\n", "world")
-    my_println("Hello, %s!", "world")
+    my_print("a %s!\n", "b")
+    my_println("a, %s", "b")
     my_println(`{1+2} = {7*4}`)
 }
