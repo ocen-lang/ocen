@@ -193,7 +193,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
 def MarkDeadCode::find_main_function(&this, program: &Program): &Function {
     for ns : program.iter_namespaces() {
         for f : ns.functions.iter() {
-            if f.sym.display.eq("main") {
+            if f.sym.full_name.eq("main") {
                 return f
             }
         }

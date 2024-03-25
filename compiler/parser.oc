@@ -79,6 +79,12 @@ def Parser::token_is(&this, type: TokenType): bool {
     return .token().type == type
 }
 
+def Parser::peek_token_is(&this, off: u32, type: TokenType): bool {
+    if .curr + off >= .tokens.size return false
+    let tok = .tokens.at(.curr + off)
+    return tok.type == type
+}
+
 def Parser::consume_if(&this, type: TokenType): bool {
     if .token_is(type) {
         // Newline tokens are special because they don't consume a token.
@@ -200,19 +206,34 @@ def Parser::parse_type(&this): &Type => match .token().type {
     }
 }
 
-def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST {
+def Parser::parse_identifier(&this): &AST {
     let tok = .consume(TokenType::Identifier)
     let node = AST::new(ASTType::Identifier, tok.span)
     node.u.ident.name = tok.text
+    return node
+}
+
+def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST {
+    let node = .parse_identifier()
 
     while true {
         match .token().type {
             TokenType::ColonColon => {
                 .consume(TokenType::ColonColon)
-                let name = .consume(TokenType::Identifier)
-                let lookup = AST::new(ASTType::NSLookup, node.span.join(name.span))
-                lookup.u.lookup = NSLookup(node, name.text, name.span)
+
+                let lookup = AST::new(ASTType::NSLookup, node.span)
+                lookup.u.lookup.lhs = node
                 node = lookup
+
+                if not .token_is(Identifier) {
+                    .error(Error::new(.token().span, "Expected identifier after `::`"))
+                    node.span.end = .token().span.start
+                } else {
+                    let name = .consume(TokenType::Identifier)
+                    node.span = node.span.join(name.span)
+                    node.u.lookup.rhs_name = name.text
+                    node.u.lookup.rhs_span = name.span
+                }
             }
             TokenType::LessThan => {
                 if not consume_template return node
@@ -435,13 +456,13 @@ def Parser::parse_call(&this, callee: &AST): &AST {
         let label = null as str
         let label_span = Span::default()
 
-        let expr = .parse_expression(end_type: TokenType::Comma)
-        if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
+        if .token_is(Identifier) and .peek_token_is(1, Colon) {
+            let ident = .consume(TokenType::Identifier)
             .consume(TokenType::Colon)
-            label = expr.u.ident.name
-            label_span = expr.span
-            expr = .parse_expression(end_type: TokenType::Comma)
+            label = ident.text
+            label_span = ident.span
         }
+        let expr = .parse_expression(end_type: TokenType::Comma)
 
         args.push(Argument::new(label, label_span, expr))
         if not .token_is(TokenType::CloseParen) {
@@ -601,8 +622,6 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         }
         TokenType::Dot => {
             let tok = .consume(TokenType::Dot)
-            let ident = .consume(TokenType::Identifier)
-
             if not .curr_func? or not .curr_func.is_method or .curr_func.is_static {
                 .error(Error::new(tok.span, "Cannot use dot shorthand outside of a method"))
                 return AST::new(ASTType::Error, tok.span)
@@ -611,10 +630,18 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             let lhs = AST::new(ASTType::Identifier, tok.span)
             lhs.u.ident.name = "this"
 
-            node = AST::new(ASTType::Member, tok.span.join(ident.span))
+            node = AST::new(ASTType::Member, tok.span)
             node.u.member.lhs = lhs
-            node.u.member.rhs_name = ident.text
-            node.u.member.rhs_span = ident.span
+
+            if not .token_is(TokenType::Identifier) {
+                .error(Error::new(.token().span, "Expected identifier after `.`"))
+                node.span.end = .token().span.start
+            } else {
+                let ident = .consume(TokenType::Identifier)
+                node.span = tok.span.join(ident.span)
+                node.u.member.rhs_name = ident.text
+                node.u.member.rhs_span = ident.span
+            }
         }
         else => {
             .unhandled_type("parse_expression")
@@ -635,13 +662,20 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
             TokenType::OpenParen => node = .parse_call(node)
             TokenType::Dot => {
                 .consume(TokenType::Dot)
-                let name = .consume(TokenType::Identifier)
-                let member = AST::new(ASTType::Member, node.span.join(name.span))
-
+                let member = AST::new(ASTType::Member, node.span)
                 member.u.member.lhs = node
-                member.u.member.rhs_name = name.text
-                member.u.member.rhs_span = name.span
                 node = member
+
+                if not .token_is(TokenType::Identifier) {
+                    .error(Error::new(.token().span, "Expected identifier after `.`"))
+                    node.span.end = .token().span.start
+
+                } else {
+                    let ident = .consume(TokenType::Identifier)
+                    node.span = node.span.join(ident.span)
+                    node.u.member.rhs_name = ident.text
+                    node.u.member.rhs_span = ident.span
+                }
             }
             TokenType::Question => {
                 let tok = .consume(TokenType::Question)
@@ -1147,14 +1181,22 @@ def Parser::parse_statement(&this): &AST {
 }
 
 def Parser::parse_block(&this): &AST {
+    if not .token_is(TokenType::OpenCurly) {
+        .error(Error::new(.token().span, "Expected '{'"))
+        return AST::new(ASTType::Error, .token().span)
+    }
     let start = .consume(TokenType::OpenCurly)
 
     let statements = Vector<&AST>::new()
     while not .token_is(TokenType::CloseCurly) {
         let statement = .parse_statement()
-        statements.push(statement)
+        if statement? statements.push(statement)
     }
 
+    if not .token_is(TokenType::CloseCurly) {
+        .error(Error::new(.token().span, "Expected '}'"))
+        return AST::new(ASTType::Error, .token().span)
+    }
     let end = .consume(TokenType::CloseCurly)
 
     let node = AST::new(ASTType::Block, start.span.join(end.span))
@@ -1283,7 +1325,7 @@ def Parser::parse_function(&this): &Function {
 
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
-    } else if func.sym.display.eq("main") {
+    } else if func.sym.full_name.eq("main") {
         func.return_type = Type::new_unresolved_base(BaseType::I32, name_span)
     } else {
         func.return_type = Type::new_unresolved_base(BaseType::Void, name_span)
@@ -1494,7 +1536,7 @@ def Parser::parse_import(&this): &AST {
         }
     }
 
-    .load_import_path(node)
+    if not .load_import_path(node) return null
     return node
 }
 
@@ -1831,7 +1873,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
 
         if not dir_exists and not file_exists {
             .error(Error::new(span, `Could not find import path {part_path}(.oc)`))
-            .program.exit_with_errors()
+            return null
         }
 
         next = Namespace::new(parent: base, path: part_path)
@@ -1854,6 +1896,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
         }
         std::free(path)
     }
+
     return next
 }
 
@@ -1874,7 +1917,10 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
                 }
                 return success
             }
-            Single => base = .load_single_import_part(base, part.u.single.name, part.span)
+            Single => {
+                base = .load_single_import_part(base, part.u.single.name, part.span)
+                if not base? return false
+            }
         }
     }
     return true
@@ -1912,8 +1958,6 @@ def Parser::find_external_library(&this, name: str): &Namespace {
 
 def Parser::load_import_path(&this, import_stmt: &AST): bool {
     let path = &import_stmt.u.import_path
-    let prev_project_root = .program.project_root
-
 
     let base = match path.type {
         GlobalNamespace => {
@@ -1928,16 +1972,15 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
                 let lib = .find_external_library(lib_name)
                 if not lib? {
                     .error(Error::new(import_stmt.span, `Could not find library '{lib_name}'`))
-                    .program.exit_with_errors()
+                    return false
                 }
 
                 .program.global.namespaces.insert(lib_name, lib)
             }
-            .program.project_root = .program.global.namespaces.at(lib_name)
 
             yield .program.global
         }
-        ProjectNamespace => .program.project_root
+        ProjectNamespace => .ns.get_project_root(import_stmt.span, .program)
         ParentNamespace => {
             let cur = .ns
             for let i = 0; i < path.parent_count; i += 1 {
@@ -1957,15 +2000,19 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
         }
     }
 
+    if not base? return false
     .load_import_path_from_base(path.parts, base)
-    .program.project_root = prev_project_root
     return true
 }
 
-def Parser::load_file(&this, filename: str) {
+def Parser::load_file(&this, filename: str, contents: str = null) {
     if .program.sources.contains(filename) return
 
-    let contents = fs::read_file(filename).str()
+    // println(f"Loading file: {filename} into {.ns.sym.display}")
+
+    if not contents? {
+        contents = fs::read_file(filename).str()
+    }
     .program.sources.insert(filename, contents)
 
     let lexer = Lexer::make(contents, filename)
@@ -2007,56 +2054,119 @@ def Parser::include_prelude_only(&this) {
     .program.c_embeds.insert(prelude_path, content.str())
 }
 
-def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool) {
-    // Path to the directory of the file
-    let t1 = filename.copy()
-    let dir = dirname(t1).copy()
-    std::free(t1)
+[extern] def realpath(path: str, resolved: str = null): str
 
-    // Path to the file without the extension
-    let t2 = filename.copy()
-    let base = basename(t2).copy()
-    // FIXME: Actually check and remove extension correctly
-    base.remove_last_n(3)
-    std::free(t2)
+// This function is a bit of a hot-mess, it needs to basically be completely re-thought,
+// and combined with the logic from some of the other functions above.
+//
+// General Idea: Given an input file we are loading to the compiler, say `foo/bar/baz.oc`
+//               There's two possible options: It's either a standalone script or project.
+// Definitions:
+//   - Standalone: One-file script, no project-relative imports etc allowed. We just load the file.
+//   - Project: A project is a collection of files where we are allowed to do project-relative imports.
+//              In order to work with project-relative imports, we need to know the project root. A project
+//              *must* define it's root by having a `main.oc` file in the root directory. No other file anywhere
+//              in the project should have the name `main.oc`.
+//
+// The `single_flag` file below is supposed to tell us whether we are loading a standalone file or a project.
+// ***HOWEVER***: Currently, we don't really have a way of figuring this out automatically.
+//
+// Solution: We will naively try to traverse up the file system until we find a `main.oc` file. If we do, we
+//           consider it a project, and load the file as such. If we don't, we consider it a standalone file.
+//           In the future, we need to add flags to the compiler to be able to specify this.
+def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file: bool) {
 
-    // Just the name of the directory
-    let t3 = dir.copy()
-    let dir_base = basename(t3).copy()
-    std::free(t3)
+    // NOTE: We currently special-case the standard library path, since it's also a "project root"
+    // for the standard library. We want to do this for all external libraries in the future, and have
+    // some way of indicating it other than `main.oc` file.
+    let std_lib_ns_path = realpath(.find_external_library("std").path)
 
+    let cur = realpath(filename)
+    let namespace_paths = Vector<str>::new()
+    let found_root = false
+    while true {
+        let base = dirname(cur.copy()).copy()
 
-    // Namespace for the project directory
-    let project_ns = Namespace::new(parent: program.global, path: dir)
-    project_ns.sym = Symbol::new(Namespace,
-        ns: program.global,
-        name: dir_base,
+        namespace_paths.push(base)
+        if base.eq("/") break
+
+        if single_file break
+        let potential_main_path = `{base}/main.oc`
+        let main_exists = fs::file_exists(potential_main_path)
+        potential_main_path.free()
+
+        // What about other libraries??
+        if base.eq(std_lib_ns_path) or main_exists {
+            found_root = true
+            break
+        }
+        cur = base
+    }
+
+    // If we didn't find a root, treat this as a standalone file. Only create one
+    // directory above the file itself.
+    let start: i32 = if found_root then namespace_paths.size as i32 - 1 else 0
+
+    // Create all the necessary namespaces
+    let cur_ns = .program.global
+    for let i = start; i >= 0; i -= 1 {
+        let path = namespace_paths.data[i]
+        let t1 = path.copy()
+        let base = basename(t1).copy()
+        t1.free()
+
+        // If we've already loaded this before, skip
+        // (This only happens for stdlib imports, which we've already loaded)
+        if cur_ns.namespaces.contains(base) {
+            cur_ns = cur_ns.namespaces.at(base)
+            continue
+        }
+
+        let new_ns = Namespace::new(parent: cur_ns, path: path)
+        new_ns.sym = Symbol::new_with_parent(Namespace, cur_ns, cur_ns.sym, base, Span::default())
+        new_ns.sym.u.ns = new_ns
+        cur_ns.namespaces.insert(base, new_ns)
+        cur_ns = new_ns
+    }
+
+    // Remove file extension
+    let file_base = basename(filename)
+    if file_base.ends_with(".oc") {
+        file_base[file_base.len() - 3] = '\0'
+    }
+
+    // If this is a `mod.oc` file, we don't create a separate namespace for it.
+    if file_base.eq("mod") {
+        cur_ns.is_top_level = true
+        .ns = cur_ns
+        return
+    }
+
+    // Create the namespace for the file
+    let child_ns = Namespace::new(parent: cur_ns, path: filename)
+    child_ns.sym = Symbol::new(Namespace,
+        ns: cur_ns,
+        name: file_base,
         display: "",
         full_name: "",
         Span::default()
     )
-    project_ns.sym.u.ns = project_ns
-    program.global.namespaces.insert(dir_base, project_ns)
-    program.project_root = project_ns
+    child_ns.sym.u.ns = child_ns
+    cur_ns.namespaces.insert(file_base, child_ns)
 
-    // Namespace for the file
-    let ns = Namespace::new(parent: project_ns, path: filename)
-    ns.sym = Symbol::new(Namespace,
-        ns: project_ns,
-        name: base,
-        display: "",
-        full_name: "",
-        Span::default()
-    )
-    ns.sym.u.ns = ns
-    project_ns.namespaces.insert(base, ns)
+    // If generating code, don't prefix symbols in the file explicitly
+    // specified as the input file.
+    child_ns.sym.full_name = ""
+    .ns = child_ns
+}
 
-
-    let parser = Parser::make(program, ns)
+def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool, file_contents: str = null) {
+    let parser = Parser::make(program, program.global)
     if include_stdlib {
         parser.find_and_import_stdlib()
     } else {
         parser.include_prelude_only()
     }
-    parser.load_file(filename)
+    parser.create_namespaces_for_initial_file(filename, false)
+    parser.load_file(filename, file_contents)
 }

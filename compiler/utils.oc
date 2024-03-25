@@ -4,13 +4,18 @@ import std::vector::Vector
 
 [extern] def strsep(s: &str, delim: str): str
 
+const MAX_N: u32 = 128
+const MAX_M: u32 = 128
+
 def edit_distance(str1: str, str2: str): u32 {
     let n = str1.len()
     let m = str2.len()
+    if n > MAX_N or m > MAX_M return n + m
+
     let stride = m + 1
 
     // The stack _should_ be large enough to hold the entire matrix.
-    let d: [[u32; m + 1]; n + 1]
+    let d: [[u32; MAX_M]; MAX_N]
 
     for let i = 0; i <= n; i += 1 {
         d[i][0] = i

@@ -100,20 +100,20 @@ def File::puts(&this, s: str) {
 }
 
 def file_info(path: str): FileMetadata {
-    let stat: bindings::FileStat
-    let res = bindings::stat(path, &stat)
+    let s: bindings::FileStat
+    let res = bindings::stat(path, &s)
     if res != 0 {
         panic(`failed to get file info: '{path}': {libc::get_err()}`)
     }
     return FileMetadata(
-        size: stat.st_size,
-        atime: stat.st_atime,
-        mtime: stat.st_mtime,
-        ctime: stat.st_ctime,
-        uid: stat.st_uid,
-        gid: stat.st_gid,
-        dev: stat.st_dev,
-        mode: stat.st_mode
+        size: s.st_size,
+        atime: s.st_atime,
+        mtime: s.st_mtime,
+        ctime: s.st_ctime,
+        uid: s.st_uid,
+        gid: s.st_gid,
+        dev: s.st_dev,
+        mode: s.st_mode
     )
 }
 

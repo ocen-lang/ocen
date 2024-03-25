@@ -45,6 +45,9 @@ struct Namespace {
     //        in the same namespace as the containing folder. All other files that are imported
     //        from the same folder will go into a new namespace as per usual.
     is_top_level: bool
+
+    checked_project_root: bool
+    internal_project_root: &Namespace
 }
 
 def Namespace::new(parent: &Namespace, path: str): &Namespace {
@@ -103,9 +106,48 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     return null
 }
 
+// FIXME: There's logic here that is already in Parser, need to refactor these
+def Namespace::get_project_root(&this, span: Span, program_for_errors: &Program): &Namespace {
+    if .checked_project_root then return .internal_project_root
+    .checked_project_root = true
+
+    let cur = this
+    let root: &Namespace = null
+
+    while cur? {
+        // Short circuit if we've already found the project root
+        if cur.internal_project_root? {
+            root = cur.internal_project_root
+            break
+        }
+        if not cur.is_a_file {
+            let potential_main_path = `{cur.path}/main.oc`
+            if std::fs::file_exists(potential_main_path) {
+                if root? {
+                    program_for_errors.error(Error::new_note(
+                        span,
+                        f"Multiple project roots found: {root.path} and {cur.path}",
+                        f"Only one `main.oc` file is allowed per project, in the root."
+                    ))
+                }
+                root = cur
+            }
+            potential_main_path.free()
+        }
+        cur = cur.parent
+    }
+    .internal_project_root = root
+    if not root? {
+        program_for_errors.error(Error::new_note(
+            span, "No project root found, can't use a Project Namespace import",
+            "A project root is a top-level directory containing a `main.oc` file."
+        ))
+    }
+    return root
+}
+
 struct Program {
     global: &Namespace
-    project_root: &Namespace
 
     //* Structs in topologically sorted order. Filled by {{passes::reorder_structs}}
     ordered_structs: &Vector<&Structure>

@@ -3,16 +3,32 @@
 import std::fs
 import std::libc::{ exit, calloc, system }
 import std::vector::Vector
+
 import .ast::program::Program
 import .parser::Parser
 import .passes::{ run_typecheck_passes, run_codegen_passes }
 import .docgen::generate_doc_json
+import .lsp::lsp_main
 
+def shift_args(argc: &i32, argv: &&str, where: str = "here"): str {
+    if *argc == 0 {
+        println(f"Expected argument but got none")
+        exit(1)
+    }
+    let arg = (*argv)[0]
+    (*argv) = (*argv) + 1
+    (*argc) = (*argc) - 1
+    return arg
+}
 
-def usage(code: i32) {
+def usage(code: i32, full: bool) {
+    println("Usage:")
+    println("   ./ocen [--help] [compile-options] <file>")
+    println("   ./ocen lsp [--help] [lsp-options] <file>")
+    if not full then exit(code)
+
     println("--------------------------------------------------------")
-    println("Usage: ./ocen [options] <file>")
-    println("Options:")
+    println("Compile Options:")
     println("    -o path        Output executable (default: ./out)")
     println("    -c path        Output C code (default: {out}.c)")
     println("    --no-stdlid    Don't include the standard library")
@@ -25,8 +41,7 @@ def usage(code: i32) {
     println("    -l path        Directory to search for libraries (can be used multiple times)")
     println("    --docs path    Output documentation JSON (default: none)")
     println("    --cflags flags Additional C flags (can be used multiple times)")
-    println("                   (Default: working directory)")
-    println("--------------------------------------------------------")
+    println("    -h             Display this information")
     exit(code)
 }
 
@@ -79,43 +94,34 @@ def save_and_compile_code(program: &Program, code: str) {
 def parse_args(argc: i32, argv: &str, program: &Program) {
     extra_c_flags = Vector<str>::new()
 
-    for let i = 1; i < argc as u32; i += 1 {
-        match argv[i] {
-            "-h" => usage(code: 0)
+    while argc > 0 {
+        let arg = shift_args(&argc, &argv)
+        match arg {
+            "--help" => usage(code: 0, true)
             "-s" => silent = true
             "-d" => debug = true
             "-n" => compile_c = false
-            "-o" => {
-                i += 1
-                exec_path = argv[i]
-            }
-            "-c" => {
-                i += 1
-                c_path = argv[i]
-            }
-            "-l" => {
-                i += 1
-                program.library_paths.push(argv[i])
-            }
+            "-o" => exec_path = shift_args(&argc, &argv)
+            "-c" => c_path = shift_args(&argc, &argv)
+            "-l" => program.library_paths.push(shift_args(&argc, &argv))
             "-e0" => error_level = 0
             "-e1" => error_level = 1
             "-e2" => error_level = 2
             "--docs" => {
-                i += 1
-                docs_path = argv[i]
+                docs_path = shift_args(&argc, &argv)
                 program.check_doc_links = true
             }
             "--no-stdlib" => include_stdlib = false
-            "--cflags" | "-cf" => extra_c_flags.push(argv[++i])
+            "--cflags" | "-cf" => extra_c_flags.push(shift_args(&argc, &argv))
             else => {
-                if argv[i][0] == '-' {
-                    println("Unknown option: %s", argv[i])
-                    usage(1)
+                if arg[0] == '-' {
+                    println("Unknown option: %s", arg)
+                    usage(1, true)
                 } else if not filename? {
-                    filename = argv[i]
+                    filename = arg
                 } else {
-                    println("Unknown option/argument: '%s'", argv[i])
-                    usage(code: 1)
+                    println("Unknown option/argument: '%s'", arg)
+                    usage(code: 1, true)
                 }
             }
         }
@@ -123,11 +129,16 @@ def parse_args(argc: i32, argv: &str, program: &Program) {
 
     if not filename? {
         println("No file specified")
-        usage(code: 1)
+        usage(code: 1, false)
     }
 }
 
 def main(argc: i32, argv: &str) {
+    shift_args(&argc, &argv)
+    if argc > 1 and argv[0].eq("lsp") {
+        return lsp_main(argc, argv)
+    }
+
     let program = Program::new()
 
     program.library_paths.push("")
@@ -146,11 +157,16 @@ def main(argc: i32, argv: &str) {
 
     run_typecheck_passes(program)
 
+    if not program.errors.is_empty() then program.exit_with_errors()
+
     if docs_path? {
         generate_doc_json(program, docs_path)
 
     } else {
         let code = run_codegen_passes(program)
+
+        if not program.errors.is_empty() then program.exit_with_errors()
+
         save_and_compile_code(program, code)
     }
 }

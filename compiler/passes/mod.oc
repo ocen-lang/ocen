@@ -12,8 +12,6 @@ def run_typecheck_passes(program: &Program) {
 
     RegisterTypes::run(program)
     TypeChecker::run(program)
-
-    if not program.errors.is_empty() then program.exit_with_errors()
 }
 
 //* Generates code for the program and returns it
@@ -21,7 +19,5 @@ def run_codegen_passes(program: &Program): str {
     ReorderStructs::run(program)
     MarkDeadCode::run(program)
     let code = CodeGenerator::run(program)
-
-    if not program.errors.is_empty() then program.exit_with_errors()
     return code
 }

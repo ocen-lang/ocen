@@ -1,0 +1,217 @@
+//
+// This is meant to be run for every single LSP request, it takes in a location in a file
+// and returns the requested information (type/definition/etc)
+//
+
+import std::buffer::Buffer
+import std::span::{ Span, Location }
+import std::vector::Vector
+import std::libc::{ calloc, free }
+import std::{ panic, exit }
+import std::fs
+import std::json
+
+import @lexer::Lexer
+import @parser::Parser
+import @passes::{ run_typecheck_passes }
+import @ast::nodes::*
+import @ast::program::*
+import @ast::scopes::*
+import @types::*
+
+import .finder::{ Finder }
+import .utils
+
+let verbose: bool = false
+
+enum CommandType {
+    Hover
+    GoToDefinition
+    GoToType
+    None
+    DocumentSymbols
+    Completions
+}
+
+def handle_location_command(program: &Program, type: CommandType, loc: Location) {
+    run_typecheck_passes(program)
+
+    if program.errors.size > 0 {
+        if verbose then println("Compilation failed:")
+        for err : program.errors.iter() {
+            if not err.span1.start.filename? continue
+            if err.span1.start.filename.eq(loc.filename) {
+                let start = err.span1.start
+                let end = err.span1.end
+                if verbose then println("ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
+            }
+        }
+    } else {
+        if verbose then println("type checked program successfully")
+    }
+
+
+    if verbose then println(`Looking for location: {loc}`)
+    let finder = Finder::make(loc)
+
+    let usage = finder.find(program)
+    if not usage? {
+        if verbose then println("No result found")
+        return
+    }
+
+    let resp = match type {
+        Hover => utils::gen_hover_json(usage)
+        GoToDefinition => utils::gen_span_json_with_filename(usage.span, loc)
+        GoToType => {
+            let type = utils::get_symbol_typedef(usage)
+            if not type? return
+            yield utils::gen_span_json_with_filename(usage.span, loc)
+        }
+        Completions => utils::gen_completions_json(usage, ns_lookup: finder.found_in_ns_lookup)
+        else => panic("Unhandled command type")
+    }
+    if not resp? return
+    let resp_text = json::serialize(resp)
+    println(`{resp_text}`)
+}
+
+def handle_document_symbols(program: &Program, path: str) {
+    run_typecheck_passes(program)
+
+    if program.errors.size > 0 {
+        if verbose then println("Compilation failed:")
+        for err : program.errors.iter() {
+            if not err.span1.start.filename? continue
+            if err.span1.start.filename.eq(path) {
+                let start = err.span1.start
+                let end = err.span1.end
+                if verbose then println("ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
+            }
+        }
+    } else {
+        if verbose then println("type checked program successfully")
+    }
+
+    let doc_ns: &Namespace = null
+    for ns : program.iter_namespaces() {
+        if ns.path? and ns.path.eq(path) {
+            doc_ns = ns
+            break
+        }
+    }
+
+    if not doc_ns? {
+        if verbose then println(f"No namespace found for path: {path}")
+        return
+    }
+
+    let resp = utils::gen_namespace_json(doc_ns)
+    if not resp? return
+
+    let children = resp.get("children")
+    let resp_text = json::serialize(children)
+    println(`{resp_text}`)
+}
+
+def shift_args(argc: &i32, argv: &&str, where: str = "here"): str {
+    if *argc == 0 {
+        println(f"Expected argument but got none")
+        exit(1)
+    }
+    let arg = (*argv)[0]
+    (*argv) = (*argv) + 1
+    (*argc) = (*argc) - 1
+    return arg
+}
+
+def lsp_usage(code: i32, full: bool) {
+    println("Symbol:")
+    println("   ./ocen [--help] [compile-options] <file>")
+    println("   ./ocen lsp [--help] [lsp-options] <file>")
+    if not full then exit(code)
+
+    println("--------------------------------------------------------")
+    println("LSP Options:")
+    println("    --show-path path   Display this file path instead of actual one")
+    println("    -h <line> <col>    Type hints for the given location")
+    println("    -d <line> <col>    Find definition for the given location")
+    println("    -t <line> <col>    Find type for the given location")
+    println("    -c <line> <col>    Completions for the given location")
+    println("    -v                 Verbose output")
+    println("    --doc-symbols      List all symbols in the file")
+    println("    --validate         Does nothing yet")
+    exit(code)
+}
+
+def lsp_main(argc: i32, argv: &str): i32 {
+    shift_args(&argc, &argv) // skip the first argument
+
+    let show_path: str = null
+    let file_path: str = null
+    let line: u32 = 0
+    let col: u32 = 0
+    let cmd_type = CommandType::None
+
+    while argc > 0 {
+        let arg = shift_args(&argc, &argv)
+        match arg {
+            "--help" => lsp_usage(0, true)
+            "-h" | "-d" | "-t" | "-c" => {
+                cmd_type = match arg {
+                    "-h" => Hover
+                    "-d" => GoToDefinition
+                    "-t" => GoToType
+                    "-c" => Completions
+                    else => panic("Invalid command type")
+                }
+                line = shift_args(&argc, &argv).to_u32()
+                col = shift_args(&argc, &argv).to_u32()
+            }
+            "--validate" => return 0
+            "--doc-symbols" => cmd_type = DocumentSymbols
+            "-v" => verbose = true
+            "--show-path" => show_path = shift_args(&argc, &argv)
+            else => {
+                if file_path? {
+                    println(`Too many arguments, got: {arg}`)
+                    lsp_usage(1, false)
+                }
+                file_path = arg
+            }
+        }
+    }
+    if not file_path? {
+        println("No file path provided")
+        lsp_usage(1, false)
+    }
+    if cmd_type == CommandType::None {
+        println("No command type provided")
+        lsp_usage(1, false)
+    }
+
+    if not show_path? then show_path = file_path
+
+    // Load the program
+    let program = Program::new()
+
+    let ocen_root = std::libc::getenv("OCEN_ROOT")
+    if not ocen_root? or ocen_root.len() == 0 {
+        ocen_root = "."
+    }
+    program.library_paths.push(ocen_root)
+
+    let contents = fs::read_file(file_path).str()
+    Parser::parse_toplevel(program, show_path, true, contents)
+
+    match cmd_type {
+        Hover | GoToDefinition | GoToType | Completions  => {
+            let loc = Location(show_path, line, col, 0)
+            handle_location_command(program, cmd_type, loc)
+        }
+        DocumentSymbols => handle_document_symbols(program, show_path)
+        else => panic("Unhandled command type")
+    }
+
+    return 0
+}
