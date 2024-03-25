@@ -96,7 +96,7 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
         let sb = Buffer::make()
         sb.puts(sym.display)
         sb.puts(": ")
-        sb.putsf(gen_type_string(sym.u.var.type))
+        sb.puts(gen_type_string(sym.u.var.type))
         yield sb.str()
     }
     Constant => {
@@ -104,7 +104,7 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
         sb.puts("const ")
         sb.puts(sym.display)
         sb.puts(": ")
-        sb.putsf(gen_type_string(sym.u.var.type))
+        sb.puts(gen_type_string(sym.u.var.type))
         yield sb.str()
     }
     Enum | Namespace | Structure => sym.display
