@@ -25,6 +25,7 @@ import .passes
 import .parser
 import .utils
 import .docgen
+import .lsp
 EOF
 
 ./bootstrap/ocen compiler/doc.oc --docs $1

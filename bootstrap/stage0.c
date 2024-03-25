@@ -10307,7 +10307,7 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
         std_buffer_Buffer sb = std_buffer_Buffer_make(16);
         std_buffer_Buffer_puts(&sb, sym->display);
         std_buffer_Buffer_puts(&sb, ": ");
-        std_buffer_Buffer_putsf(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
+        std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
       case compiler_ast_scopes_SymbolType_Constant: {
@@ -10315,7 +10315,7 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
         std_buffer_Buffer_puts(&sb, "const ");
         std_buffer_Buffer_puts(&sb, sym->display);
         std_buffer_Buffer_puts(&sb, ": ");
-        std_buffer_Buffer_putsf(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
+        std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
       case compiler_ast_scopes_SymbolType_Enum:
@@ -10623,7 +10623,7 @@ bool compiler_lsp_finder_Finder_find_in_identifier(compiler_lsp_finder_Finder *t
 
 bool compiler_lsp_finder_Finder_find_in_var(compiler_lsp_finder_Finder *this, compiler_ast_nodes_Variable *var) {
   if (std_span_Span_contains_loc(var->sym->span, this->loc)) {
-    compiler_lsp_finder_Finder_set_usage(this, var->sym);
+    return compiler_lsp_finder_Finder_set_usage(this, var->sym);
   } 
   if ((((bool)var->parsed_type) && compiler_lsp_finder_Finder_find_in_type(this, var->parsed_type))) {
     return true;
@@ -10888,9 +10888,39 @@ bool compiler_lsp_finder_Finder_find_in_block(compiler_lsp_finder_Finder *this, 
 }
 
 bool compiler_lsp_finder_Finder_find_in_type(compiler_lsp_finder_Finder *this, compiler_types_Type *type) {
-  if (std_span_Span_contains_loc(type->span, this->loc)) {
-    return compiler_lsp_finder_Finder_set_usage(this, type->sym);
-  } 
+  switch (type->base) {
+    case compiler_types_BaseType_Pointer: {
+      return compiler_lsp_finder_Finder_find_in_type(this, type->u.ptr);
+    } break;
+    case compiler_types_BaseType_Array: {
+      if ((((bool)type->u.arr.size_expr) && compiler_lsp_finder_Finder_find_in_expression(this, type->u.arr.size_expr))) 
+      return true;
+      
+      return compiler_lsp_finder_Finder_find_in_type(this, type->u.arr.elem_type);
+    } break;
+    case compiler_types_BaseType_Unresolved: {
+      return compiler_lsp_finder_Finder_find_in_expression(this, type->u.unresolved);
+    } break;
+    case compiler_types_BaseType_UnresolvedTemplate: {
+      compiler_types_UnresolvedTemplate spec = type->u.unresolved_spec;
+      if (compiler_lsp_finder_Finder_find_in_type(this, spec.base)) 
+      return true;
+      
+      for (std_vector_Iterator__0 __iter = std_vector_Vector__0_iter(spec.args); std_vector_Iterator__0_has_value(&__iter); std_vector_Iterator__0_next(&__iter)) {
+        compiler_types_Type *ty = std_vector_Iterator__0_cur(&__iter);
+        {
+          if (compiler_lsp_finder_Finder_find_in_type(this, ty)) 
+          return true;
+          
+        }
+      }
+    } break;
+    default: {
+      if (std_span_Span_contains_loc(type->span, this->loc)) {
+        return compiler_lsp_finder_Finder_set_usage(this, type->sym);
+      } 
+    } break;
+  }
   return false;
 }
 
@@ -10898,15 +10928,13 @@ bool compiler_lsp_finder_Finder_find_in_function(compiler_lsp_finder_Finder *thi
   if (std_span_Span_contains_loc(func->sym->span, this->loc)) {
     return compiler_lsp_finder_Finder_set_usage(this, func->sym);
   } 
-  std_vector_Vector__4 *params = func->params;
-  for (u32 i = 0; (i < params->size); i+=1) {
-    compiler_ast_nodes_Variable *param = ((compiler_ast_nodes_Variable *)std_vector_Vector__4_at(params, i));
-    if (compiler_lsp_finder_Finder_find_in_var(this, param)) 
-    return true;
-    
-    if (compiler_lsp_finder_Finder_find_in_type(this, param->parsed_type)) 
-    return true;
-    
+  for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(func->params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
+    compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
+    {
+      if (compiler_lsp_finder_Finder_find_in_var(this, param)) 
+      return true;
+      
+    }
   }
   compiler_types_Type *ret_type = func->return_type;
   if ((((bool)ret_type) && compiler_lsp_finder_Finder_find_in_type(this, ret_type))) 
@@ -10919,13 +10947,13 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
   for (std_vector_Iterator__2 __iter = std_vector_Vector__2_iter(ns->structs); std_vector_Iterator__2_has_value(&__iter); std_vector_Iterator__2_next(&__iter)) {
     compiler_ast_nodes_Structure *struc = std_vector_Iterator__2_cur(&__iter);
     {
+      if (std_span_Span_contains_loc(struc->sym->span, this->loc)) 
+      return compiler_lsp_finder_Finder_set_usage(this, struc->sym);
+      
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
         compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
         {
           if (compiler_lsp_finder_Finder_find_in_var(this, field)) 
-          return true;
-          
-          if ((((bool)field->parsed_type) && compiler_lsp_finder_Finder_find_in_type(this, field->parsed_type))) 
           return true;
           
         }
@@ -10935,13 +10963,13 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
   for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->enums); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
     compiler_ast_nodes_Enum *enm = std_vector_Iterator__13_cur(&__iter);
     {
+      if (std_span_Span_contains_loc(enm->sym->span, this->loc)) 
+      return compiler_lsp_finder_Finder_set_usage(this, enm->sym);
+      
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enm->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
         compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
         {
           if (compiler_lsp_finder_Finder_find_in_var(this, field)) 
-          return true;
-          
-          if ((((bool)field->parsed_type) && compiler_lsp_finder_Finder_find_in_type(this, field->parsed_type))) 
           return true;
           
         }
@@ -10951,6 +10979,9 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
     {
+      if (std_span_Span_contains_loc(func->sym->span, this->loc)) 
+      return compiler_lsp_finder_Finder_set_usage(this, func->sym);
+      
       if (compiler_lsp_finder_Finder_find_in_function(this, func)) 
       return true;
       
@@ -10959,6 +10990,9 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
   for (std_map_ValueIterator__4 __iter = std_map_Map__4_iter_values(ns->namespaces); std_map_ValueIterator__4_has_value(&__iter); std_map_ValueIterator__4_next(&__iter)) {
     compiler_ast_program_Namespace *child = std_map_ValueIterator__4_cur(&__iter);
     {
+      if (std_span_Span_contains_loc(child->sym->span, this->loc)) 
+      return compiler_lsp_finder_Finder_set_usage(this, child->sym);
+      
       if (compiler_lsp_finder_Finder_find_in_program(this, child)) 
       return true;
       
@@ -10968,10 +11002,8 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
 }
 
 compiler_ast_scopes_Symbol *compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program) {
-  if (compiler_lsp_finder_Finder_find_in_program(this, program->global)) {
-    return this->usage;
-  } 
-  return NULL;
+  compiler_lsp_finder_Finder_find_in_program(this, program->global);
+  return this->usage;
 }
 
 u32 compiler_attributes_AttributeType_hash(compiler_attributes_AttributeType this) {

@@ -39,7 +39,7 @@ def Finder::find_in_identifier(&this, node: &AST): bool {
 
 def Finder::find_in_var(&this, var: &Variable): bool {
     if var.sym.span.contains_loc(.loc) {
-        .set_usage(var.sym)
+        return .set_usage(var.sym)
     }
     if var.parsed_type? and .find_in_type(var.parsed_type) {
         return true
@@ -225,9 +225,26 @@ def Finder::find_in_block(&this, node: &AST): bool {
 }
 
 def Finder::find_in_type(&this, type: &Type): bool {
-    // FIXME: might want to only do this for base type...
-    if type.span.contains_loc(.loc) {
-        return .set_usage(type.sym)
+    match type.base {
+        Pointer => return .find_in_type(type.u.ptr)
+        Array => {
+            if type.u.arr.size_expr? and .find_in_expression(type.u.arr.size_expr) return true
+            return .find_in_type(type.u.arr.elem_type)
+        }
+        Unresolved => return .find_in_expression(type.u.unresolved)
+        UnresolvedTemplate => {
+            let spec = type.u.unresolved_spec
+            if .find_in_type(spec.base) return true
+            for ty : spec.args.iter() {
+                if .find_in_type(ty) return true
+            }
+        }
+        else => {
+            // FIXME: be more robust
+            if type.span.contains_loc(.loc) {
+                return .set_usage(type.sym)
+            }
+        }
     }
     return false
 }
@@ -237,11 +254,8 @@ def Finder::find_in_function(&this, func: &Function): bool {
         return .set_usage(func.sym)
     }
 
-    let params = func.params
-    for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i) as &Variable
+    for param : func.params.iter() {
         if .find_in_var(param) return true
-        if .find_in_type(param.parsed_type) return true
     }
 
     let ret_type = func.return_type
@@ -252,20 +266,21 @@ def Finder::find_in_function(&this, func: &Function): bool {
 
 def Finder::find_in_program(&this, ns: &Namespace): bool {
     for struc : ns.structs.iter() {
+        if struc.sym.span.contains_loc(.loc) return .set_usage(struc.sym)
         for field : struc.fields.iter() {
             if .find_in_var(field) return true
-            if field.parsed_type? and .find_in_type(field.parsed_type) return true
         }
     }
 
     for enm : ns.enums.iter() {
+        if enm.sym.span.contains_loc(.loc) return .set_usage(enm.sym)
         for field : enm.fields.iter() {
             if .find_in_var(field) return true
-            if field.parsed_type? and .find_in_type(field.parsed_type) return true
         }
     }
 
     for func : ns.functions.iter() {
+        if func.sym.span.contains_loc(.loc) return .set_usage(func.sym)
         if .find_in_function(func) return true
     }
 
@@ -275,6 +290,7 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
     // }
 
     for child : ns.namespaces.iter_values() {
+        if child.sym.span.contains_loc(.loc) return .set_usage(child.sym)
         if .find_in_program(child) return true
     }
 
@@ -282,8 +298,6 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
 }
 
 def Finder::find(&this, program: &Program): &Symbol {
-    if .find_in_program(program.global) {
-        return .usage
-    }
-    return null
+    .find_in_program(program.global)
+    return .usage
 }
