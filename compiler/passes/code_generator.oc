@@ -396,17 +396,10 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Match => .gen_in_yield_context(node)
         Block => .gen_in_yield_context(node)
         Member => {
-            if node.resolved_symbol? {
+            let sym = node.resolved_symbol
+            if sym? and sym.type == Function {
                 // Method call
-                let sym = node.resolved_symbol
-                match sym.type {
-                    Function => .out.puts(sym.out_name())
-                    else => {
-                        .error(Error::new(
-                            node.span, `Unhandled symbol type in CodeGenerator::gen_expression: {sym.type}`
-                        ))
-                    }
-                }
+                .out.puts(sym.out_name())
                 return
             }
 

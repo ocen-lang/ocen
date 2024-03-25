@@ -175,7 +175,7 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
     if .base != other.base return false
 
     match .base {
-        Error | Unresolved => return false
+        Error | Unresolved | UnresolvedTemplate => return false
         Function => {
             let af = .u.func
             let bf = other.u.func

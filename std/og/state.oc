@@ -3,7 +3,7 @@ import std::vec::{ Vec2i }
 
 let window: &sdl::Window = null
 let renderer: &sdl::Renderer = null
-let prev_time: u64 = 0
+let prev_time: u32 = 0
 let frame_time: f32 = 0.0
 let running: bool = true
 let window_size: Vec2i

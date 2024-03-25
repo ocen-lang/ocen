@@ -17,7 +17,7 @@ def NamespaceDump::print_indent(&this) {
 def NamespaceDump::print_namespace(&this, ns: &Namespace) {
     .print_indent()
     if ns.sym.display.len() == 0 {
-        println("(ns) <root>")
+        println(`(ns) (null) ({ns.sym.name})`)
     } else {
         println(`(ns) {ns.sym.display}`)
     }

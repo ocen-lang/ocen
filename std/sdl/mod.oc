@@ -142,7 +142,8 @@ enum BlendMode extern("SDL_BlendMode") {
 [extern "SDL_WINDOW_RESIZABL"]         const WINDOW_RESIZABL: i32
 [extern "SDL_RENDERER_ACCELERATED"]    const RENDERER_ACCELERATED: i32
 [extern "SDL_NUM_SCANCODES"]           const NUM_SCANCODES: i32
-
+[extern "SDL_WINDOW_FULLSCREEN"]       const WINDOW_FULLSCREEN: i32
+[extern "SDL_WINDOW_FULLSCREEN_DESKTOP"] const WINDOW_FULLSCREEN_DESKTOP: i32
 
 [extern "SDL_Init"]                    def init(flags: i32): i32
 [extern "SDL_Quit"]                    def quit()
@@ -153,6 +154,11 @@ enum BlendMode extern("SDL_BlendMode") {
 [extern "SDL_GetRelativeMouseState"]   def get_relative_mouse_state(x: &i32, y: &i32): i32
 [extern "SDL_ShowCursor"]              def show_cursor(toggle: bool)
 [extern "SDL_CreateWindow"]            def create_window(title: str, x: i32, y: i32, w: i32, h: i32, flags: i32): &Window
+[extern "SDL_SetWindowPosition"]       def Window::set_position(&this, x: i32, y: i32)
+[extern "SDL_GetWindowPosition"]       def Window::get_position(&this, x: &i32, y: &i32)
+[extern "SDL_GetWindowSurface"]        def Window::get_surface(&this): &Surface
+[extern "SDL_SetWindowFullscreen"]     def Window::set_fullscreen(&this, fullscreen: i32): i32
+
 
 [extern "SDL_CreateTextureFromSurface"] def Renderer::create_texture_from_surface(&this, surface: &Surface): &Texture
 [extern "SDL_CreateWindowAndRenderer"]  def create_window_renderer(width: i32, height: i32, flags: i32, window: &&Window, renderer: &&Renderer)
