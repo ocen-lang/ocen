@@ -382,7 +382,8 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 return null
             }
 
-            let args = node.u.spec.template_args
+            let args = node.u.spec.parsed_template_args
+            let resolved_args = Vector<&Type>::new(capacity: args.size)
             let failed = false
             for let i = 0; i < args.size; i += 1 {
                 let resolved_arg = .resolve_type(args.at(i), allow_incomplete: true, error, resolve_templates)
@@ -390,9 +391,10 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                     failed = true
                     continue
                 }
-                args.data[i] = resolved_arg
+                resolved_args.push(resolved_arg)
             }
             if failed return null
+            node.u.spec.template_args = resolved_args
 
             if not resolve_templates {
                 node.resolved_symbol = base

@@ -8,6 +8,7 @@ import @ast::nodes::*
 import @ast::program::*
 import @ast::scopes::*
 import @types::*
+import @errors::{ Error }
 
 def gen_type_string(type: &Type, full: bool = true): str => match type.base {
     Char | Bool | Void | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => type.base.str()
@@ -16,19 +17,34 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         Char => "str"
         else => `&{gen_type_string(type.u.ptr, full)}`
     }
-    Array => `&{gen_type_string(type.u.arr.elem_type, false)}`
-    Structure | Enum | Alias => if full then type.sym.display else type.sym.name
+    Array => `&{gen_type_string(type.u.arr.elem_type, full)}`
+    Structure | Enum | Alias => {
+        if full return type.sym.display
+        if not type.template_instance? return type.sym.name
+
+        let instance = type.template_instance
+        let sb = Buffer::make()
+        sb.puts(instance.parent.name)
+        sb.puts("<")
+        for let i = 0; i < instance.args.size; i += 1 {
+            if i > 0 {
+                sb.puts(", ")
+            }
+            sb.puts(gen_type_string(instance.args.at(i), full: false))
+        }
+        sb.puts(">")
+        yield sb.str()
+    }
     Function => {
         let sb = Buffer::make()
-        let is_non_static_method = false
         let func_type = type.u.func
+        let is_non_static_method = false
 
-        if type.u.func.orig? {
-            let func = func_type.orig
-            if func.is_method {
-                is_non_static_method = not func.is_static
+        if func_type.orig? {
+            if func_type.orig.is_method {
+                is_non_static_method = not func_type.orig.is_static
             }
-            sb.puts(func.sym.display)
+            sb.puts(func_type.orig.sym.display)
         } else {
             sb.puts("fn")
         }
@@ -118,6 +134,14 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
     Enum => sym.u.enum_.type
     Structure => sym.u.struc.type
     Namespace => null
+}
+
+def gen_error_json(err: &Error): &Value {
+    let obj = Value::new(Dictionary)
+    obj.insert("severity", Value::new_str("Error"))
+    obj.insert("span", gen_span_json(err.span1))
+    obj.insert("message", Value::new_str(err.msg1))
+    return obj
 }
 
 def gen_span_json(span: Span): &Value {
@@ -218,7 +242,7 @@ def gen_namespace_json(ns: &Namespace): &Value {
     let obj = Value::new(Dictionary)
     obj.insert("name", Value::new_str(ns.sym.name))
     obj.insert("kind", Value::new_str("namespace"))
-    obj.insert("range", gen_span_json(ns.span))
+    obj.insert("range", gen_span_json(ns.sym.span))
     obj.insert("selection_range", gen_span_json(ns.span))
 
     let children = Value::new(List)
@@ -251,6 +275,25 @@ def gen_namespace_json(ns: &Namespace): &Value {
     return obj
 }
 
+def gen_completion_from_symbol(sym: &Symbol): &Value {
+    let val = Value::new(Dictionary)
+    val.insert("label", Value::new_str(sym.name))
+    val.insert("detail", Value::new_str(gen_hover_string(sym)))
+
+    // TODO: other types?
+    match sym.type {
+        Function => {
+            val.insert("insertText", Value::new_str(`{sym.name}($1)`))
+            val.insert("kind", Value::new_str("function"))
+        }
+        else => {
+            val.insert("insertText", Value::new_str(sym.name))
+            val.insert("kind", Value::new_str("field"))
+        }
+    }
+    return val
+}
+
 def gen_completions_json(sym: &Symbol, ns_lookup: bool = false): &Value {
     let completions = Value::new(List)
 
@@ -258,26 +301,26 @@ def gen_completions_json(sym: &Symbol, ns_lookup: bool = false): &Value {
         Structure => {
             if not ns_lookup {
                 for field : sym.u.struc.fields.iter() {
-                    completions.push(Value::new_str(field.sym.name))
+                    completions.push(gen_completion_from_symbol(field.sym))
                 }
             }
-            for mth : sym.u.struc.type.methods.iter_keys() {
-                completions.push(Value::new_str(`{mth}()`))
+            for mth : sym.u.struc.type.methods.iter_values() {
+                completions.push(gen_completion_from_symbol(mth.sym))
             }
         }
         TypeDef => {
-            for mth : sym.u.type_def.methods.iter_keys() {
-                completions.push(Value::new_str(`{mth}()`))
+            for mth : sym.u.type_def.methods.iter_values() {
+                completions.push(gen_completion_from_symbol(mth.sym))
             }
         }
         Enum => {
             if ns_lookup {
                 for field : sym.u.enum_.fields.iter() {
-                    completions.push(Value::new_str(field.sym.name))
+                    completions.push(gen_completion_from_symbol(field.sym))
                 }
             }
-            for mth : sym.u.enum_.type.methods.iter_keys() {
-                completions.push(Value::new_str(`{mth}()`))
+            for mth : sym.u.enum_.type.methods.iter_values() {
+                completions.push(gen_completion_from_symbol(mth.sym))
             }
         }
         Variable => {
@@ -291,27 +334,27 @@ def gen_completions_json(sym: &Symbol, ns_lookup: bool = false): &Value {
         }
         Namespace => {
             for it : sym.u.ns.namespaces.iter_values() {
-                completions.push(Value::new_str(it.sym.name))
+                completions.push(gen_completion_from_symbol(it.sym))
             }
             for it : sym.u.ns.enums.iter() {
-                completions.push(Value::new_str(it.sym.name))
+                completions.push(gen_completion_from_symbol(it.sym))
             }
             for it : sym.u.ns.structs.iter() {
-                completions.push(Value::new_str(it.sym.name))
+                completions.push(gen_completion_from_symbol(it.sym))
             }
             for it : sym.u.ns.variables.iter() {
                 if it.resolved_symbol? {
-                    completions.push(Value::new_str(it.resolved_symbol.name))
+                    completions.push(gen_completion_from_symbol(it.resolved_symbol))
                 }
             }
             for it : sym.u.ns.constants.iter() {
                 if it.resolved_symbol? {
-                    completions.push(Value::new_str(it.resolved_symbol.name))
+                    completions.push(gen_completion_from_symbol(it.resolved_symbol))
                 }
             }
             for it : sym.u.ns.functions.iter() {
                 if not it.is_method {
-                    completions.push(Value::new_str(`{it.sym.name}()`))
+                    completions.push(gen_completion_from_symbol(it.sym))
                 }
             }
         }

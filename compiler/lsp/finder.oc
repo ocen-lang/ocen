@@ -165,7 +165,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         Specialization => {
             let spec = &node.u.spec
             if .find_in_expression(spec.base) return true
-            for ty : spec.template_args.iter() {
+            for ty : spec.parsed_template_args.iter() {
                 if .find_in_type(ty) return true
             }
         }
