@@ -1,0 +1,5 @@
+/// fail: Expected identifier for field name
+
+struct Test {
+    let var: u32 //  if has const or let building no error, But always loop can't exits must kill
+}

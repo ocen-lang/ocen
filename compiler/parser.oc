@@ -2,7 +2,7 @@
 
 import std::buffer::{ Buffer }
 import std::map::{ Map }
-import std::span::{ Span }
+import std::span::{ Span, Location }
 import std::vector::{ Vector }
 import std::fs
 
@@ -272,7 +272,11 @@ def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST 
                 }
                 let end = .consume(TokenType::GreaterThan)
                 let spec = AST::new(ASTType::Specialization, node.span.join(end.span))
-                spec.u.spec = Specialization(base: node, template_args: args)
+                spec.u.spec = Specialization(
+                    base: node,
+                    parsed_template_args: args,
+                    template_args: args,
+                )
                 node = spec
             }
             else => return node
@@ -1321,10 +1325,12 @@ def Parser::parse_function(&this): &Function {
             .consume(TokenType::Comma)
         }
     }
-    .consume(TokenType::CloseParen)
+    let end_span = .consume(TokenType::CloseParen).span
 
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
+        end_span = func.return_type.span
+
     } else if func.sym.full_name.eq("main") {
         func.return_type = Type::new_unresolved_base(BaseType::I32, name_span)
     } else {
@@ -1332,7 +1338,7 @@ def Parser::parse_function(&this): &Function {
 
         // TODO: Deprecate this once we've fully moved to attributes
         if .token_is(TokenType::Identifier) and .token().text.eq("exits") {
-            .consume(TokenType::Identifier)
+            end_span = .consume(TokenType::Identifier).span
             func.exits = true
         }
     }
@@ -1361,7 +1367,10 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    if func.sym.is_extern return func
+    if func.sym.is_extern {
+        func.span = start.span.join(end_span)
+        return func
+    }
 
     .curr_func = func
 
@@ -1540,7 +1549,7 @@ def Parser::parse_import(&this): &AST {
     return node
 }
 
-def Parser::parse_struct_field(&this, struc: &Structure) {
+def Parser::parse_struct_field(&this, struc: &Structure): bool {
     // To allow `x, y, z: i32` syntax, we need to first parse all the identifiers
     // before we parse the type. All the identifiers are stored in here.
     let fields = Vector<&Variable>::new(capacity: 4)
@@ -1548,7 +1557,7 @@ def Parser::parse_struct_field(&this, struc: &Structure) {
     while true {
         if not .token_is(Identifier) {
             .error(Error::new(.token().span, "Expected identifier for field name"))
-            return
+            return false
         }
 
         let name = .consume(TokenType::Identifier)
@@ -1563,17 +1572,19 @@ def Parser::parse_struct_field(&this, struc: &Structure) {
 
     if not .consume_if(TokenType::Colon) {
         .error(Error::new(.token().span, "Expected ':' after struct field names for type"))
-        return
+        return false
     }
 
     let type = .parse_type()
 
     for var : fields.iter() {
         var.type = type
+        var.parsed_type = type
         struc.fields.push(var)
     }
 
     fields.free()
+    return true
 }
 
 def Parser::parse_struct(&this): &Structure {
@@ -1615,7 +1626,7 @@ def Parser::parse_struct(&this): &Structure {
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
         .consume(TokenType::OpenCurly)
         while not .token_is(TokenType::CloseCurly) {
-            .parse_struct_field(struc)
+            if not .parse_struct_field(struc) break
             if not .token_is(TokenType::CloseCurly) {
                 .consume_newline_or(TokenType::Comma)
             }
@@ -2007,6 +2018,10 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
 
 def Parser::load_file(&this, filename: str, contents: str = null) {
     if .program.sources.contains(filename) return
+    let loc = Location(filename.copy(), 0, 0, 0)
+    let span = Span(loc, loc)
+    .ns.span = span
+    .ns.sym.span = span
 
     // println(f"Loading file: {filename} into {.ns.sym.display}")
 
@@ -2054,8 +2069,6 @@ def Parser::include_prelude_only(&this) {
     .program.c_embeds.insert(prelude_path, content.str())
 }
 
-[extern] def realpath(path: str, resolved: str = null): str
-
 // This function is a bit of a hot-mess, it needs to basically be completely re-thought,
 // and combined with the logic from some of the other functions above.
 //
@@ -2079,9 +2092,9 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     // NOTE: We currently special-case the standard library path, since it's also a "project root"
     // for the standard library. We want to do this for all external libraries in the future, and have
     // some way of indicating it other than `main.oc` file.
-    let std_lib_ns_path = realpath(.find_external_library("std").path)
+    let std_lib_ns_path = fs::realpath(.find_external_library("std").path)
 
-    let cur = realpath(filename)
+    let cur = fs::realpath(filename)
     let namespace_paths = Vector<str>::new()
     let found_root = false
     while true {
@@ -2123,7 +2136,8 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
         }
 
         let new_ns = Namespace::new(parent: cur_ns, path: path)
-        new_ns.sym = Symbol::new_with_parent(Namespace, cur_ns, cur_ns.sym, base, Span::default())
+        let loc = Location(path, 0, 0, 0)
+        new_ns.sym = Symbol::new_with_parent(Namespace, cur_ns, cur_ns.sym, base, Span(loc, loc))
         new_ns.sym.u.ns = new_ns
         cur_ns.namespaces.insert(base, new_ns)
         cur_ns = new_ns

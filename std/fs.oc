@@ -55,6 +55,7 @@ namespace bindings {
     [extern] def closedir(dir: &Dir)
     [extern] def mkdir(path: str, mode: i32 = 0777): i32
     [extern] def readdir(dir: &Dir): &dirent
+    [extern] def realpath(path: str, resolved: str): str
 }
 
 struct FileMetadata {
@@ -68,6 +69,8 @@ struct FileMetadata {
     mode: u32
 }
 
+
+def realpath(path: str): str => bindings::realpath(path, null)
 
 def File::open(path: str, mode: str = "r"): &File {
     let file = bindings::fopen(path, mode)

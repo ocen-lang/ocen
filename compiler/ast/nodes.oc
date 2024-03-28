@@ -370,6 +370,7 @@ struct Match {
 
 struct Specialization {
     base: &AST
+    parsed_template_args: &Vector<&Type>  // For error messages
     template_args: &Vector<&Type>
 }
 
