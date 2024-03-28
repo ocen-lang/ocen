@@ -1,0 +1,144 @@
+// byte-encoding of objects used in BitTorrent protocol
+
+import std::value::{ Value }
+import std::buffer::{ Buffer }
+import std::sv::{ SV }
+import std::span::{ Location, Span }
+import std::vector::{ Vector }
+import std::compact_map::{ Map }
+
+struct Parser {
+    input: SV
+    loc: Location
+}
+
+def Parser::new(input: Buffer): Parser {
+    return Parser(
+        input: input.sv(),
+        loc: Location(
+            filename: "<bencoded string>",
+            line: 1,
+            col: 1,
+            index: 0,
+        )
+    )
+}
+
+def Parser::cur(&this): char => .input.data[.loc.index] as char
+
+def Parser::parse(&this): &Value {
+    let start = .loc
+    let val = match .cur() {
+        'i' => .parse_int()
+        'l' => .parse_list()
+        'd' => .parse_dict()
+        else => .parse_string()
+    }
+    val.span = Span(start, .loc)
+    return val
+}
+
+def Parser::inc(&this) => .loc.index += 1
+
+def Parser::parse_int_internal(&this): i64 {
+    let scale = 1i64
+    if .cur() == '-' {
+        scale = -1
+        .inc()
+    }
+    let num = 0i64
+    while .cur().is_digit() {
+        num *= 10
+        num += .cur() as i64 - '0' as i64
+        .inc()
+    }
+    return num * scale
+}
+
+def Parser::parse_list(&this): &Value {
+    let val = Value::new(List)
+    val.u.as_list = Vector<&Value>::new()
+    .inc() // skip 'l'
+    while .cur() != 'e' {
+        val.u.as_list.push(.parse())
+    }
+    .inc() // skip 'e'
+    return val
+}
+
+def Parser::parse_dict(&this): &Value {
+    let val = Value::new(Dictionary)
+    val.u.as_dict = Map<str, &Value>::new()
+    .inc() // skip 'l'
+    while .cur() != 'e' {
+        let key = .parse_string_internal()
+        let value = .parse()
+        val.u.as_dict.insert(key.str(), value)
+    }
+    .inc() // skip 'e'
+    return val
+}
+
+def Parser::parse_string_internal(&this): Buffer {
+    let len = .parse_int_internal() as u32
+    .inc() // skip ':'
+    let s = .input.slice(.loc.index, .loc.index + len)
+
+    for let i = 0; i < len; i++ {
+        .inc()
+    }
+    return Buffer::from_sv(s)
+}
+
+def Parser::parse_string(&this): &Value {
+    let val = Value::new(String)
+    val.u.as_str = .parse_string_internal()
+    return val
+}
+
+def Parser::parse_int(&this): &Value {
+    let val = Value::new(Integer)
+    .inc() // skip 'i'
+    let num = .parse_int_internal()
+    .inc() // skip 'e'
+    val.u.as_int = num
+    return val
+}
+
+def parse(input: Buffer): &Value {
+    let parser = Parser::new(input)
+    return parser.parse()
+}
+
+def serialize_into(val: &Value, sb: &Buffer) {
+    match val.type {
+        String => {
+            let s = val.u.as_str
+            sb.putsf(`{s.size}:`)
+            sb.putb(&s)
+        }
+        Integer => sb.putsf(`i{val.u.as_int}e`)
+        List => {
+            sb.puts("l")
+            for val : val.u.as_list.iter() {
+                serialize_into(val, sb)
+            }
+            sb.puts("e")
+        }
+        Dictionary => {
+            sb.puts("d")
+            for it : val.u.as_dict.iter() {
+                sb.putsf(`{it.key.len()}:{it.key}`)
+                serialize_into(it.value, sb)
+            }
+            sb.puts("e")
+        }
+        else => panic(`Unsupported Value type {val.type} in Bencode::serialize_into()`)
+    }
+}
+
+def serialize(val: &Value): Buffer {
+    let sb = Buffer::make()
+    serialize_into(val, &sb)
+    return sb
+}

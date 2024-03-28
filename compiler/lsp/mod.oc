@@ -57,7 +57,6 @@ def handle_validate(program: &Program, path: str) {
         if not err.span1.start.filename? continue
         let err_value = utils::gen_error_json(err)
         println(`{err_value.dbg()}`)
-        err_value.free()
     }
 }
 
@@ -145,7 +144,7 @@ def lsp_usage(code: i32, full: bool) {
     println("    -c <line> <col>    Completions for the given location")
     println("    -v                 Verbose output")
     println("    --doc-symbols      List all symbols in the file")
-    println("    --validate         Does nothing yet")
+    println("    --validate         List all errors in the file")
     exit(code)
 }
 

@@ -708,7 +708,6 @@ typedef struct std_vector_Iterator__14 std_vector_Iterator__14;
 typedef struct std_vector_Iterator__15 std_vector_Iterator__15;
 typedef struct std_vector_Iterator__16 std_vector_Iterator__16;
 typedef struct std_vector_Iterator__17 std_vector_Iterator__17;
-typedef struct std_vector_Iterator__18 std_vector_Iterator__18;
 
 /* Struct definitions */
 struct compiler_docgen_DocGenerator {
@@ -1549,11 +1548,6 @@ struct std_vector_Iterator__17 {
   u32 index;
 };
 
-struct std_vector_Iterator__18 {
-  std_vector_Vector__18 *vec;
-  u32 index;
-};
-
 
 bool compiler_lsp_verbose = false;
 char *exec_path = "./out";
@@ -2004,7 +1998,6 @@ std_compact_map_Iterator__0 std_compact_map_Map__0_iter(std_compact_map_Map__0 *
 std_compact_map_Item__0 std_compact_map_Iterator__0_cur(std_compact_map_Iterator__0 *this);
 void std_compact_map_Iterator__0_next(std_compact_map_Iterator__0 *this);
 bool std_compact_map_Iterator__0_has_value(std_compact_map_Iterator__0 *this);
-void std_compact_map_Map__0_free(std_compact_map_Map__0 *this);
 void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value);
 u32 std_compact_map_Map__0_get_index(std_compact_map_Map__0 *this, char *key, u32 hash);
 std_value_Value *std_compact_map_Map__0_get(std_compact_map_Map__0 *this, char *key, std_value_Value *defolt);
@@ -2052,7 +2045,6 @@ std_value_Value *std_value_Value_get(std_value_Value *this, char *key, std_value
 void std_value_Value_insert(std_value_Value *this, char *key, std_value_Value *value);
 std_compact_map_Map__0 *std_value_Value_as_dict(std_value_Value *this);
 char *std_value_Value_dbg(std_value_Value *this);
-void std_value_Value_free(std_value_Value *this);
 char *std_fs_realpath(char *path);
 bool std_fs_file_exists(char *path);
 void std_fs_write_file_bytes(char *path, void *data, u32 size);
@@ -2328,13 +2320,7 @@ compiler_ast_nodes_MatchCase *std_vector_Vector__17_at(std_vector_Vector__17 *th
 void std_vector_Vector__17_resize(std_vector_Vector__17 *this, u32 new_capacity);
 std_vector_Vector__17 *std_vector_Vector__17_new(u32 capacity);
 void std_vector_Vector__17_push(std_vector_Vector__17 *this, compiler_ast_nodes_MatchCase *value);
-std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this);
-std_value_Value *std_vector_Iterator__18_cur(std_vector_Iterator__18 *this);
-void std_vector_Iterator__18_next(std_vector_Iterator__18 *this);
-std_vector_Iterator__18 std_vector_Iterator__18_make(std_vector_Vector__18 *vec);
-bool std_vector_Iterator__18_has_value(std_vector_Iterator__18 *this);
 std_value_Value *std_vector_Vector__18_at(std_vector_Vector__18 *this, u32 i);
-void std_vector_Vector__18_free(std_vector_Vector__18 *this);
 void std_vector_Vector__18_resize(std_vector_Vector__18 *this, u32 new_capacity);
 std_vector_Vector__18 *std_vector_Vector__18_new(u32 capacity);
 void std_vector_Vector__18_push(std_vector_Vector__18 *this, std_value_Value *value);
@@ -2344,7 +2330,6 @@ void std_vector_Iterator__19_next(std_vector_Iterator__19 *this);
 std_vector_Iterator__19 std_vector_Iterator__19_make(std_vector_Vector__19 *vec);
 bool std_vector_Iterator__19_has_value(std_vector_Iterator__19 *this);
 std_compact_map_Item__0 std_vector_Vector__19_at(std_vector_Vector__19 *this, u32 i);
-void std_vector_Vector__19_free(std_vector_Vector__19 *this);
 void std_vector_Vector__19_resize(std_vector_Vector__19 *this, u32 new_capacity);
 std_vector_Vector__19 *std_vector_Vector__19_new(u32 capacity);
 void std_vector_Vector__19_push(std_vector_Vector__19 *this, std_compact_map_Item__0 value);
@@ -8945,6 +8930,7 @@ void compiler_parser_Parser_include_prelude_only(compiler_parser_Parser *this) {
   if (!((bool)std_path)) {
     compiler_parser_couldnt_find_stdlib();
   } 
+  compiler_parser_Parser_consume_end_of_statement(this);
   char *prelude_path = format_string("%s/prelude.h", std_path);
   if (!std_fs_file_exists(prelude_path)) {
     compiler_parser_couldnt_find_stdlib();
@@ -10007,7 +9993,6 @@ void compiler_lsp_handle_validate(compiler_ast_program_Program *program, char *p
       
       std_value_Value *err_value = compiler_lsp_utils_gen_error_json(err);
       printf("%s\n", std_value_Value_dbg(err_value));
-      std_value_Value_free(err_value);
     }
   }
 }
@@ -10112,7 +10097,7 @@ void compiler_lsp_lsp_usage(i32 code, bool full) {
   printf("    -c <line> <col>    Completions for the given location""\n");
   printf("    -v                 Verbose output""\n");
   printf("    --doc-symbols      List all symbols in the file""\n");
-  printf("    --validate         Does nothing yet""\n");
+  printf("    --validate         List all errors in the file""\n");
   exit(code);
 }
 
@@ -12361,12 +12346,6 @@ bool std_compact_map_Iterator__0_has_value(std_compact_map_Iterator__0 *this) {
   return std_vector_Iterator__19_has_value(&this->iter);
 }
 
-void std_compact_map_Map__0_free(std_compact_map_Map__0 *this) {
-  free(this->indices);
-  std_vector_Vector__19_free(this->items);
-  free(this);
-}
-
 void std_compact_map_Map__0_insert(std_compact_map_Map__0 *this, char *key, std_value_Value *value) {
   u32 hash = str_hash(key);
   u32 index = std_compact_map_Map__0_get_index(this, key, hash);
@@ -12693,36 +12672,6 @@ std_compact_map_Map__0 *std_value_Value_as_dict(std_value_Value *this) {
 char *std_value_Value_dbg(std_value_Value *this) {
   std_buffer_Buffer buf = std_json_serialize(this);
   return std_buffer_Buffer_str(buf);
-}
-
-void std_value_Value_free(std_value_Value *this) {
-  switch (this->type) {
-    case std_value_ValueType_String: {
-      std_buffer_Buffer_free(&this->u.as_str);
-    } break;
-    case std_value_ValueType_List: {
-      for (std_vector_Iterator__18 __iter = std_vector_Vector__18_iter(this->u.as_list); std_vector_Iterator__18_has_value(&__iter); std_vector_Iterator__18_next(&__iter)) {
-        std_value_Value *val = std_vector_Iterator__18_cur(&__iter);
-        {
-          std_value_Value_free(val);
-        }
-      }
-      std_vector_Vector__18_free(this->u.as_list);
-    } break;
-    case std_value_ValueType_Dictionary: {
-      for (std_compact_map_Iterator__0 __iter = std_compact_map_Map__0_iter(this->u.as_dict); std_compact_map_Iterator__0_has_value(&__iter); std_compact_map_Iterator__0_next(&__iter)) {
-        std_compact_map_Item__0 iter = std_compact_map_Iterator__0_cur(&__iter);
-        {
-          free(iter.key);
-          std_value_Value_free(iter.value);
-        }
-      }
-      std_compact_map_Map__0_free(this->u.as_dict);
-    } break;
-    default: {
-    } break;
-  }
-  free(this);
 }
 
 char *std_fs_realpath(char *path) {
@@ -14772,36 +14721,9 @@ void std_vector_Vector__17_push(std_vector_Vector__17 *this, compiler_ast_nodes_
   this->size+=1;
 }
 
-std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this) {
-  return std_vector_Iterator__18_make(this);
-}
-
-std_value_Value *std_vector_Iterator__18_cur(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
-  return this->vec->data[this->index];
-}
-
-void std_vector_Iterator__18_next(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
-  this->index+=1;
-}
-
-std_vector_Iterator__18 std_vector_Iterator__18_make(std_vector_Vector__18 *vec) {
-  return (std_vector_Iterator__18){.vec=vec, .index=0};
-}
-
-bool std_vector_Iterator__18_has_value(std_vector_Iterator__18 *this) {
-  return (this->index < this->vec->size);
-}
-
 std_value_Value *std_vector_Vector__18_at(std_vector_Vector__18 *this, u32 i) {
   ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
-}
-
-void std_vector_Vector__18_free(std_vector_Vector__18 *this) {
-  free(this->data);
-  free(this);
 }
 
 void std_vector_Vector__18_resize(std_vector_Vector__18 *this, u32 new_capacity) {
@@ -14850,11 +14772,6 @@ bool std_vector_Iterator__19_has_value(std_vector_Iterator__19 *this) {
 std_compact_map_Item__0 std_vector_Vector__19_at(std_vector_Vector__19 *this, u32 i) {
   ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
-}
-
-void std_vector_Vector__19_free(std_vector_Vector__19 *this) {
-  free(this->data);
-  free(this);
 }
 
 void std_vector_Vector__19_resize(std_vector_Vector__19 *this, u32 new_capacity) {
