@@ -114,6 +114,11 @@ def Value::push(&this, value: &Value) {
     .u.as_list.push(value)
 }
 
+def Value::contains(&this, key: str): bool {
+    if .type != Dictionary return false
+    return .u.as_dict.contains(key)
+}
+
 def Value::get(&this, key: str, defolt: &Value = null): &Value {
     .ensure(Dictionary)
     return .u.as_dict.get(key, defolt)

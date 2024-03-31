@@ -7,6 +7,7 @@
 #include "unistd.h"
 #include "sys/stat.h"
 #include "sys/types.h"
+#include "setjmp.h"
 #include "dirent.h"
 #include "libgen.h"
 
@@ -834,6 +835,7 @@ struct compiler_ast_program_Program {
   std_vector_Vector__12 *errors;
   u32 error_level;
   compiler_ast_program_CachedTypes cached_types;
+  jmp_buf err_jmp_ctx;
 };
 
 struct compiler_ast_program_NSIterator {
@@ -1770,7 +1772,7 @@ char *compiler_parser_Parser_find_external_library_path(compiler_parser_Parser *
 compiler_ast_program_Namespace *compiler_parser_Parser_find_external_library(compiler_parser_Parser *this, char *name);
 bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compiler_ast_nodes_AST *import_stmt);
 void compiler_parser_Parser_load_file(compiler_parser_Parser *this, char *filename, char *contents);
-void compiler_parser_couldnt_find_stdlib(void);
+void compiler_parser_Parser_couldnt_find_stdlib(compiler_parser_Parser *this);
 void compiler_parser_Parser_find_and_import_stdlib(compiler_parser_Parser *this);
 void compiler_parser_Parser_include_prelude_only(compiler_parser_Parser *this);
 void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_Parser *this, char *filename, bool single_file);
@@ -6181,8 +6183,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
       continue;
       
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2051:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2055:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2050:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2054:16: Assertion failed: `sym.type == TypeDef`", NULL);
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -7032,8 +7034,9 @@ void compiler_parser_Parser_unhandled_type(compiler_parser_Parser *this, char *f
 
 compiler_tokens_Token *compiler_parser_Parser_token(compiler_parser_Parser *this) {
   if ((this->curr >= this->tokens->size)) {
+    this->curr=(this->tokens->size - 1);
     compiler_parser_Parser_error_msg(this, "Unexpected end of file");
-    compiler_ast_program_Program_exit_with_errors(this->program);
+    longjmp(this->program->err_jmp_ctx, 1);
   } 
   return std_vector_Vector__10_unchecked_at(this->tokens, ((u32)this->curr));
 }
@@ -7056,7 +7059,9 @@ bool compiler_parser_Parser_peek_token_is(compiler_parser_Parser *this, u32 off,
 bool compiler_parser_Parser_consume_if(compiler_parser_Parser *this, compiler_tokens_TokenType type) {
   if (compiler_parser_Parser_token_is(this, type)) {
     if ((type != compiler_tokens_TokenType_Newline)) {
+      if ((this->curr < (this->tokens->size - 1))) 
       this->curr+=1;
+      
     } 
     return true;
   } 
@@ -7065,10 +7070,12 @@ bool compiler_parser_Parser_consume_if(compiler_parser_Parser *this, compiler_to
 
 void compiler_parser_Parser_consume_newline_or(compiler_parser_Parser *this, compiler_tokens_TokenType type) {
   if (compiler_parser_Parser_token_is(this, type)) {
+    if ((this->curr < (this->tokens->size - 1))) 
     this->curr+=1;
+    
   }  else   if (!compiler_parser_Parser_token(this)->seen_newline) {
     compiler_parser_Parser_error_msg(this, format_string("Expected %s or newline", compiler_tokens_TokenType_str(type)));
-    compiler_ast_program_Program_exit_with_errors(this->program);
+    longjmp(this->program->err_jmp_ctx, 1);
   } 
   
 }
@@ -7077,7 +7084,7 @@ compiler_tokens_Token *compiler_parser_Parser_consume(compiler_parser_Parser *th
   compiler_tokens_Token *tok = compiler_parser_Parser_token(this);
   if (!compiler_parser_Parser_consume_if(this, type)) {
     compiler_parser_Parser_error_msg(this, format_string("Expected TokenType::%s", compiler_tokens_TokenType_str(type)));
-    compiler_ast_program_Program_exit_with_errors(this->program);
+    longjmp(this->program->err_jmp_ctx, 1);
   } 
   return tok;
 }
@@ -8313,7 +8320,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1420:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1422:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if ((attr->args->size > 0)) {
     sym->extern_name=std_vector_Vector__1_at(attr->args, 0);
@@ -8849,8 +8856,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert((parts->size > 0), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1976:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1977:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1978:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1979:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__4_contains(this->program->global->namespaces, lib_name)) {
@@ -8872,7 +8879,7 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
           if (!((bool)cur->parent)) {
             compiler_ast_nodes_ImportPart *first_part = std_vector_Vector__5_at(path->parts, 0);
             compiler_parser_Parser_error(this, compiler_errors_Error_new(first_part->span, "Cannot import from parent of root namespace"));
-            compiler_ast_program_Program_exit_with_errors(this->program);
+            longjmp(this->program->err_jmp_ctx, 1);
           } 
           cur=cur->parent;
         }
@@ -8912,12 +8919,12 @@ void compiler_parser_Parser_load_file(compiler_parser_Parser *this, char *filena
   this->ns->span=std_span_Span_join(start, end);
 }
 
-void compiler_parser_couldnt_find_stdlib(void) {
+void compiler_parser_Parser_couldnt_find_stdlib(compiler_parser_Parser *this) {
   printf("--------------------------------------------------------------------------------""\n");
   printf("    Could not find standard library. Set OCEN_ROOT environment variable.""\n");
   printf("      Alternatively, compile from the root of `ocen` repository.""\n");
   printf("--------------------------------------------------------------------------------""\n");
-  exit(1);
+  longjmp(this->program->err_jmp_ctx, 1);
 }
 
 void compiler_parser_Parser_find_and_import_stdlib(compiler_parser_Parser *this) {
@@ -8928,12 +8935,11 @@ void compiler_parser_Parser_find_and_import_stdlib(compiler_parser_Parser *this)
 void compiler_parser_Parser_include_prelude_only(compiler_parser_Parser *this) {
   char *std_path = compiler_parser_Parser_find_external_library_path(this, "std");
   if (!((bool)std_path)) {
-    compiler_parser_couldnt_find_stdlib();
+    compiler_parser_Parser_couldnt_find_stdlib(this);
   } 
-  compiler_parser_Parser_consume_end_of_statement(this);
   char *prelude_path = format_string("%s/prelude.h", std_path);
   if (!std_fs_file_exists(prelude_path)) {
-    compiler_parser_couldnt_find_stdlib();
+    compiler_parser_Parser_couldnt_find_stdlib(this);
   } 
   std_buffer_Buffer content = std_fs_read_file(prelude_path);
   std_map_Map__6_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(content));
@@ -8998,6 +9004,9 @@ void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_P
 }
 
 void compiler_parser_Parser_parse_toplevel(compiler_ast_program_Program *program, char *filename, bool include_stdlib, char *file_contents) {
+  if ((setjmp(program->err_jmp_ctx) > 0)) 
+  return ;
+  
   compiler_parser_Parser parser = compiler_parser_Parser_make(program, program->global);
   if (include_stdlib) {
     compiler_parser_Parser_find_and_import_stdlib(&parser);

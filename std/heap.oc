@@ -4,7 +4,6 @@ import std::vector::Vector
 import std::traits::compare
 import std::libc::{ calloc, free }
 
-
 enum Mode {
     Min
     Max

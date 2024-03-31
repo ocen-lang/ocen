@@ -1,0 +1,12 @@
+
+@compiler c_include "setjmp.h"
+
+[extern "jmp_buf"]
+struct ErrorContext
+
+[extern "setjmp"]
+def ErrorContext::set_jump_point(this): i32
+
+[exits]
+[extern "longjmp"]
+def ErrorContext::jump_back(this, status: i32)
