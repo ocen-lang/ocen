@@ -1850,6 +1850,7 @@ def TypeChecker::handle_import_path_base(&this, imp: &Import, parts: &Vector<&Im
         base = new_base
         alias = part.u.single.alias
         if not alias? then alias = name
+        part.resolved_symbol = base
     }
 
     .o.insert_into_scope_checked(base, name: alias)
@@ -1910,6 +1911,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
+    part.resolved_symbol = base
     .handle_import_path_base(&path, path.parts, base, alias, start_idx: 1)
 }
 
