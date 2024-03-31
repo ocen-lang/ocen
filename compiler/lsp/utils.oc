@@ -175,6 +175,7 @@ def gen_type_methods_into(obj: &Value, type: &Type) {
         let func = it.value
         let func_doc = Value::new(Dictionary)
         func_doc.insert("name", Value::new_str(it.key))
+        func_doc.insert("detail", Value::new_str(gen_hover_string(func.sym)))
         func_doc.insert("kind", Value::new_str("method"))
         func_doc.insert("range", gen_span_json(func.sym.span))
         func_doc.insert("selection_range", gen_span_json(func.sym.span))
@@ -186,6 +187,7 @@ def gen_type_methods_into(obj: &Value, type: &Type) {
 def gen_enum_json(enum_: &Enum): &Value {
     let obj = Value::new(Dictionary)
     obj.insert("name", Value::new_str(enum_.sym.name))
+    obj.insert("detail", Value::new_str(gen_hover_string(enum_.sym)))
     obj.insert("kind", Value::new_str("enum"))
     obj.insert("range", gen_span_json(enum_.sym.span))
     obj.insert("selection_range", gen_span_json(enum_.sym.span))
@@ -209,6 +211,7 @@ def gen_enum_json(enum_: &Enum): &Value {
 def gen_struct_json(struc: &Structure): &Value {
     let obj = Value::new(Dictionary)
     obj.insert("name", Value::new_str(struc.sym.name))
+    obj.insert("detail", Value::new_str(gen_hover_string(struc.sym)))
     obj.insert("kind", Value::new_str("struct"))
     obj.insert("range", gen_span_json(struc.sym.span))
     obj.insert("selection_range", gen_span_json(struc.sym.span))
@@ -223,6 +226,7 @@ def gen_struct_json(struc: &Structure): &Value {
 def gen_variable_json(var: &Variable): &Value {
     let obj = Value::new(Dictionary)
     obj.insert("name", Value::new_str(var.sym.name))
+    obj.insert("detail", Value::new_str(gen_hover_string(var.sym)))
     obj.insert("kind", Value::new_str("variable"))
     obj.insert("range", gen_span_json(var.sym.span))
     obj.insert("selection_range", gen_span_json(var.sym.span))
@@ -233,6 +237,7 @@ def gen_variable_json(var: &Variable): &Value {
 def gen_function_json(func: &Function): &Value {
     let obj = Value::new(Dictionary)
     obj.insert("name", Value::new_str(func.sym.name))
+    obj.insert("detail", Value::new_str(gen_hover_string(func.sym)))
     obj.insert("kind", Value::new_str("function"))
     obj.insert("range", gen_span_json(func.sym.span))
     obj.insert("selection_range", gen_span_json(func.sym.span))
@@ -243,6 +248,7 @@ def gen_function_json(func: &Function): &Value {
 def gen_namespace_json(ns: &Namespace): &Value {
     let obj = Value::new(Dictionary)
     obj.insert("name", Value::new_str(ns.sym.name))
+    obj.insert("detail", Value::new_str(gen_hover_string(ns.sym)))
     obj.insert("kind", Value::new_str("namespace"))
     obj.insert("range", gen_span_json(ns.sym.span))
     obj.insert("selection_range", gen_span_json(ns.span))

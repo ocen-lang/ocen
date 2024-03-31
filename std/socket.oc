@@ -2,6 +2,8 @@
 
 import std::buffer::Buffer
 import std::libc::{ exit, strerror }
+import std::fcntl
+import std::time::{ TimeVal }
 
 struct Socket {
     fd: i32
@@ -12,7 +14,15 @@ enum SocketMode {
     TCP
 }
 
-def Socket::connect(host: str, port: i32, mode: SocketMode): Socket {
+enum SocketStatus {
+    Ok
+    CreateError
+    HostError
+    InetPtonError
+    ConnectError
+}
+
+def Socket::try_connect(host: str, port: i32, mode: SocketMode, out_sock: &Socket, timeout_secs: i32 = -1): SocketStatus {
     let sock: Socket
 
 	// Creating socket
@@ -20,9 +30,8 @@ def Socket::connect(host: str, port: i32, mode: SocketMode): Socket {
         UDP => socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP),
         TCP => socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
     }
-	if (sock.fd < 0){
-        println(`Error creating socket: {strerror(errno)}`)
-        exit(1)
+	if (sock.fd < 0) {
+        return CreateError
 	}
 
 	// Adding server address info. to struct
@@ -32,22 +41,61 @@ def Socket::connect(host: str, port: i32, mode: SocketMode): Socket {
 
     let hostm = gethostbyname(host)
     if not hostm? or not hostm.h_addr? {
-        panic(`Error getting host by name, exiting`)
+        return HostError
     }
     server_address.sin_addr.s_addr = *(hostm.h_addr as &i32)
 
 	// Assigning IP address to struct
 	if (inet_pton(AF_INET, host, &server_address.sin_addr) < 0) {
-        println(`inet_pton had an error: {strerror(errno)}`)
-        exit(1)
+        return InetPtonError
   	}
+
+    let should_timeout = (timeout_secs > 0)
+    let set: fcntl::FdSet
+
+    if should_timeout {
+        // Setting the socket to non-blocking
+        set.zero()
+        set.set(sock.fd)
+        fcntl::fcntl(sock.fd, fcntl::F_SETFL, fcntl::O_NONBLOCK)
+    }
 
     // Connecting to the socket
   	if (connect(sock.fd, (&server_address) as &SockAddr, sizeof(SockAddrIn)) < 0) {
-        println(`Error connecting to socket: {strerror(errno)}`)
-        exit(1)
+        if should_timeout and errno != fcntl::EINPROGRESS {
+            return ConnectError
+        }
     }
 
+    if should_timeout {
+        let timeout: TimeVal
+        timeout.tv_sec = timeout_secs as i64;
+        timeout.tv_usec = 0;
+
+        let ret = fcntl::select(sock.fd + 1, null, &set, null, &timeout);
+        if (ret <= 0) {
+            return ConnectError
+        }
+
+        // After connecting
+        let flags = fcntl::fcntl(sock.fd, fcntl::F_GETFL, 0);
+        fcntl::fcntl(sock.fd, fcntl::F_SETFL, flags & ~fcntl::O_NONBLOCK);
+    }
+
+    *out_sock = sock
+    return Ok
+}
+
+def Socket::connect(host: str, port: i32, mode: SocketMode, timeout_secs: i32 = -1): Socket {
+    let sock: Socket
+    let res = Socket::try_connect(host, port, mode, &sock, timeout_secs)
+    match res {
+        Ok => {}
+        CreateError => std::panic(f"Error creating socket: {strerror(errno)}")
+        HostError => std::panic(f"Error getting host by name: {strerror(errno)}: ({host})")
+        InetPtonError => std::panic(f"Error converting host to IP address: {strerror(errno)}: ({host})")
+        ConnectError => std::panic(f"Error connecting to host: {strerror(errno)}")
+    }
     return sock
 }
 
