@@ -1,0 +1,17 @@
+import std::time::{ TimeVal }
+
+@compiler c_include "fcntl.h"
+
+[extern] let EINPROGRESS: i32
+
+[extern "fd_set"] struct FdSet
+[extern "FD_ZERO"] def FdSet::zero(&this)
+[extern "FD_SET"] def c_FD_SET(fd: i32, set: &FdSet)
+def FdSet::set(&this, fd: i32) => c_FD_SET(fd, this)
+
+[extern "F_SETFL"] let F_SETFL: i32
+[extern "F_GETFL"] let F_GETFL: i32
+[extern "O_NONBLOCK"] let O_NONBLOCK: i32
+[extern "fcntl"] def fcntl(fd: i32, cmd: i32, arg: i32): i32
+[extern "select"] def select(nfds: i32, readfds: &FdSet, writefds: &FdSet, exceptfds: &FdSet, timeout: &TimeVal): i32
+
