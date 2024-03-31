@@ -32,13 +32,9 @@ namespace bindings {
     [extern] def fclose(file: &File): i32
     [extern] def fwrite(ptr: untyped_ptr, size: u32, nmemb: u32, file: &File): i32
     [extern] def fread(ptr: untyped_ptr, size: u32, nmemb: u32, file: &File): i32
-    [extern] def fseek(file: &File, offset: i64, whence: i32): i32
+    [extern] def fseek(file: &File, offset: i64, mode: SeekMode): i32
     [extern] def ftell(file: &File): i64
     [extern] def stat(path: str, buf: &FileStat): i32
-
-    [extern] const SEEK_SET: i32
-    [extern] const SEEK_CUR: i32
-    [extern] const SEEK_END: i32
 
     [extern "DIR"] struct Dir
 
@@ -56,6 +52,16 @@ namespace bindings {
     [extern] def mkdir(path: str, mode: i32 = 0777): i32
     [extern] def readdir(dir: &Dir): &dirent
     [extern] def realpath(path: str, resolved: str): str
+
+    [extern] def fileno(file: &File): i32
+    [extern] def ftruncate(fd: i32, size: i64): i32
+}
+
+[extern "i32"]
+enum SeekMode {
+    Set = extern("SEEK_SET")
+    Cur = extern("SEEK_CUR")
+    End = extern("SEEK_END")
 }
 
 struct FileMetadata {
@@ -92,14 +98,29 @@ def File::write(&this, buf: untyped_ptr, size: u32): i32 {
 
 def File::size(&this): u32 {
     let pos = bindings::ftell(this)
-    bindings::fseek(this, 0, bindings::SEEK_END)
+    bindings::fseek(this, 0, End)
     let size = bindings::ftell(this) as u32
-    bindings::fseek(this, pos, bindings::SEEK_SET)
+    bindings::fseek(this, pos, Set)
     return size
 }
 
 def File::puts(&this, s: str) {
     bindings::fwrite(s , 1, s.len(), this)
+}
+
+def File::truncate(&this, size: i64) {
+    let fd = bindings::fileno(this)
+    let res = bindings::ftruncate(fd, size)
+    if res != 0 {
+        panic(`Failed to truncate file: {libc::get_err()}`)
+    }
+}
+
+def File::seek(&this, offset: i64, mode: SeekMode) {
+    let res = bindings::fseek(this, offset, mode)
+    if res != 0 {
+        panic(`Failed to seek in file: {libc::get_err()}`)
+    }
 }
 
 def file_info(path: str): FileMetadata {
@@ -148,9 +169,9 @@ def write_file(path: str, data: Buffer) {
 def read_file(path: str): Buffer {
     let file = bindings::fopen(path)
     if not file? panic(`[-] Failed to open file: {path}`)
-    bindings::fseek(file, 0, bindings::SEEK_END)
+    bindings::fseek(file, 0, End)
     let size = bindings::ftell(file) as u32
-    bindings::fseek(file, 0, bindings::SEEK_SET)
+    bindings::fseek(file, 0, Set)
     let data = Buffer::make(capacity: size + 1)
     let read = bindings::fread(data.data, 1, size, file)
     if read as u32 != size {

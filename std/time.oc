@@ -8,3 +8,8 @@
 [extern] def time(t: &Time): Time
 [extern] def localtime(t: &Time): &TM
 [extern] def strftime(s: untyped_ptr, maxsize: u32, format: str, timeptr: &TM): u32
+
+[extern "struct timeval"] struct TimeVal {
+    tv_sec: i64
+    tv_usec: i64
+}

@@ -75,9 +75,12 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
         Hover => utils::gen_hover_json(usage)
         GoToDefinition => utils::gen_span_json_with_filename(usage.span, loc)
         GoToType => {
-            let type = utils::get_symbol_typedef(usage)
-            if not type? return
-            yield utils::gen_span_json_with_filename(usage.span, loc)
+            let typ = utils::get_symbol_typedef(usage)
+            if typ? and not typ.can_have_methods() and typ.base == Pointer {
+                typ = typ.u.ptr
+            }
+            if not typ? return
+            yield utils::gen_span_json_with_filename(typ.span, loc)
         }
         Completions => utils::gen_completions_json(usage, ns_lookup: finder.found_in_ns_lookup)
         else => panic("Unhandled command type")
