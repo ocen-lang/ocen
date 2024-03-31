@@ -1106,7 +1106,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             }
             if not lhs.eq(rhs) {
                 .error(Error::new(
-                    node.span, `Variable type does not match assignment type, Expected type '{lhs.str()}', got '{rhs.str()}'`
+                    node.u.binary.rhs.span, `Variable type does not match assignment type, Expected type '{lhs.str()}', got '{rhs.str()}'`
                 ))
             }
             return lhs

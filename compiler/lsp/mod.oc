@@ -94,7 +94,7 @@ def handle_document_symbols(program: &Program, path: str) {
 
     let doc_ns: &Namespace = null
     for ns : program.iter_namespaces() {
-        let ns_filename = ns.sym.span.start.filename
+        let ns_filename = ns.span.start.filename
         if ns_filename? and ns_filename.eq(path) {
             doc_ns = ns
             break

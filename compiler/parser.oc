@@ -2120,11 +2120,11 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
 
     // If we didn't find a root, treat this as a standalone file. Only create one
     // directory above the file itself.
-    let start: i32 = if found_root then namespace_paths.size as i32 - 1 else 0
+    let start: i32 = if found_root then namespace_paths.size as i32 else 0
 
     // Create all the necessary namespaces
     let cur_ns = .program.global
-    for let i = start; i >= 0; i -= 1 {
+    for let i = start - 1; i >= 0; i -= 1 {
         let path = namespace_paths.data[i]
         let t1 = path.copy()
         let base = basename(t1).copy()
@@ -2155,6 +2155,14 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     if file_base.eq("mod") {
         cur_ns.is_top_level = true
         .ns = cur_ns
+        return
+    }
+
+    // This almost certainly means we're looking at something that's in the standard library.
+    // This is likely happening in LSP mode, so we don't particularly care about adjusting the
+    // `full_name` field of the symbol here since we're not going to make it to codegen anyway.
+    if cur_ns.namespaces.contains(file_base) {
+        .ns = cur_ns.namespaces.at(file_base)
         return
     }
 

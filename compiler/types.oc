@@ -1,13 +1,13 @@
 //* Contains the structs for the type system.
 
-import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
-import @ast::scopes::{ Symbol, TemplateInstance }
-import @ast::program::Namespace
 import std::buffer::Buffer
 import std::vector::Vector
 import std::map::Map
 import std::span::Span
 import std::libc::calloc
+import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
+import @ast::scopes::{ Symbol, TemplateInstance }
+import @ast::program::Namespace
 import @tokens::{ Token, TokenType }
 
 enum BaseType {

@@ -2,12 +2,12 @@
 
 import std::vector::Vector
 import std::span::Span
+import std::libc::calloc
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
 import @types::{ Type, BaseType }
 import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
-import std::libc::calloc
 
 //* Base class for passes
 //*
