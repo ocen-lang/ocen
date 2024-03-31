@@ -15,6 +15,7 @@ import @ast::nodes::*
 import @ast::program::*
 import @ast::scopes::*
 import @types::*
+import .utils::{ verbose }
 
 // Namespace thing again
 struct Finder {
@@ -177,17 +178,23 @@ def Finder::find_in_expression(&this, node: &AST): bool {
     return false
 }
 
-// def Finder::find_in_import_part(&this, part: &ImportPart): bool {
-//     match part.type {
-//         Single => {
-//             if part.span.contains_loc(.loc) {
-//                 return .set_usage(part.sym)
-//             }
-//         }
-//         Multiple => {}
-//         Wildcard => {}
-//     }
-// }
+def Finder::find_in_import_part(&this, part: &ImportPart): bool => match part.type {
+    Single => {
+        if part.span.contains_loc(.loc) {
+            return .set_usage(part.resolved_symbol)
+        }
+        return false
+    }
+    Multiple => {
+        for subpath : part.u.paths.iter() {
+            for subpart : subpath.iter() {
+                if .find_in_import_part(subpart) return true
+            }
+        }
+        return false
+    }
+    Wildcard => false
+}
 
 def Finder::find_in_statement(&this, node: &AST): bool {
     match node.type {
@@ -205,12 +212,12 @@ def Finder::find_in_statement(&this, node: &AST): bool {
         }
         Block => return .find_in_block(node)
         Return => return node.u.unary? and .find_in_expression(node.u.unary)
-        // Import => {
-        //     let imp = &node.u.import_
-        //     for part : imp.parts.iter() {
-        //         if .find_in_import_part(part) return true
-        //     }
-        // }
+        Import => {
+            let path = node.u.import_path
+            for part : path.parts.iter() {
+                if .find_in_import_part(part) return true
+            }
+        }
         else => return .find_in_expression(node)
     }
     return false
@@ -284,10 +291,9 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         if .find_in_function(func) return true
     }
 
-    // // FIXME: Import statements don't store references to resolved symbols
-    // for import_ : ns.imports.iter() {
-    //     if .find_in_statement(import_) return true
-    // }
+    for import_ : ns.imports.iter() {
+        if .find_in_statement(import_) return true
+    }
 
     for child : ns.namespaces.iter_values() {
         if child.sym.span.contains_loc(.loc) return .set_usage(child.sym)

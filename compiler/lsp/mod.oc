@@ -20,9 +20,7 @@ import @ast::scopes::*
 import @types::*
 
 import .finder::{ Finder }
-import .utils
-
-let verbose: bool = false
+import .utils::{ this, verbose }
 
 enum CommandType {
     Hover
@@ -118,7 +116,7 @@ def handle_document_symbols(program: &Program, path: str) {
     println(`{resp_text}`)
 }
 
-def shift_args(argc: &i32, argv: &&str, where: str = "here"): str {
+def shift_args(argc: &i32, argv: &&str): str {
     if *argc == 0 {
         println(f"Expected argument but got none")
         exit(1)

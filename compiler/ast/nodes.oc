@@ -266,6 +266,7 @@ struct ImportPart {
     type: ImportPartType
     u: ImportPartUnion
     span: Span
+    resolved_symbol: &Symbol
 }
 
 def ImportPart::new(type: ImportPartType, span: Span): &ImportPart {
