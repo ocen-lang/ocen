@@ -4,6 +4,7 @@ import std::vector::Vector
 import std::span::Span
 import std::map::Map
 import std::libc::{ calloc, exit }
+import std::setjmp::{ ErrorContext }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
 import @errors::Error
@@ -168,6 +169,7 @@ struct Program {
     error_level: u32
 
     cached_types: CachedTypes
+    err_jmp_ctx: ErrorContext
 }
 
 def Program::new(): &Program {

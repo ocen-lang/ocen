@@ -444,7 +444,6 @@ def AST::is_identifier(&this): bool => match .type {
 def AST::symbol(&this): &Symbol => .resolved_symbol
 
 def AST::is_lvalue(&this): bool => match .type {
-    // FIXME: What about `a::b::c?`
     Identifier => not .u.ident.is_function
     Member => true
     Dereference => true

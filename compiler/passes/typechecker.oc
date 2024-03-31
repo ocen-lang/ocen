@@ -1428,7 +1428,6 @@ def TypeChecker::check_for(&this, node: &AST) {
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
         ASTType::Return | ASTType::ArrowReturn => {
-            // todo: make sure in function
             let cur_func = .scope().cur_func
             if not cur_func? {
                 .error(Error::new(node.span, "Cannot return from outside a function"))
