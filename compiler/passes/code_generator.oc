@@ -42,7 +42,7 @@ def CodeGenerator::gen_debug_info(&this, span: Span, force: bool = false) {
 
 def CodeGenerator::get_op(&this, type: ASTType): str => match type {
     And => "&&",
-    Assignment => "=",
+    Assignment | IndexAssign => "=",
     BitwiseAnd => "&",
     BitwiseOr => "|",
     BitwiseXor => "^",
@@ -556,6 +556,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
 
         Equals |
         Assignment |
+        IndexAssign |
         PlusEquals |
         MinusEquals |
         DivideEquals |

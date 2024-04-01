@@ -170,6 +170,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Plus |
         RightShift |
         Index |
+        IndexAssign |
         Equals |
         Assignment |
         PlusEquals |
@@ -225,6 +226,10 @@ def MarkDeadCode::run(program: &Program) {
     let main = pass.find_main_function(program)
     if not main? {
         println("[+] No main function found, not marking any functions as dead.")
+        return
+    }
+
+    if program.keep_all_code {
         return
     }
 

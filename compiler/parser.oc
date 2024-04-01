@@ -688,12 +688,16 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 node = op
             }
             TokenType::OpenSquare => {
-                .consume(TokenType::OpenSquare)
+                let open = .consume(TokenType::OpenSquare)
                 let index = .parse_expression(end_type: TokenType::CloseSquare)
                 let close = .consume(TokenType::CloseSquare)
+
+                // Contructing the binop here manually to properly handle the
+                // spans of `]` being _after_ the index expression.
                 let op = AST::new(ASTType::Index, node.span.join(close.span))
                 op.u.binary.lhs = node
                 op.u.binary.rhs = index
+                op.u.binary.op_span = open.span
                 node = op
             }
             TokenType::MinusMinus | TokenType::PlusPlus => {
@@ -945,11 +949,22 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
             .token_is(TokenType::PlusEquals) or
             .token_is(TokenType::MinusEquals) or
             .token_is(TokenType::StarEquals) or
-            .token_is(TokenType::SlashEquals) {
+            .token_is(TokenType::SlashEquals) or
+            .token_is(TokenType::LeftShiftEquals) or
+            .token_is(TokenType::RightShiftEquals) {
         if .token_is(end_type) break
 
         let op_tok = .consume(.token().type)
         let op = ASTType::from_token(op_tok.type)
+
+        // FIXME: expressions such as `foo[x] += 5` can't be overloaded
+        //        properly since we only handle `foo[x] = 5` as a special
+        //        case here. Figure out how to make this more general without
+        //        Introducing more AST-types for all the different operators.
+        if op == Assignment and lhs.type == Index {
+            op = IndexAssign
+        }
+
         let rhs = .parse_expression(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
