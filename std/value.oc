@@ -117,6 +117,7 @@ def Value::set(&this, idx: u32, value: &Value) {
     .u.as_list.data[idx] = value
 }
 
+[operator "<<"]
 def Value::push(&this, value: &Value) {
     .ensure(List)
     .u.as_list.push(value)

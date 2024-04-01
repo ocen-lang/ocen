@@ -129,6 +129,7 @@ def Map::insert(&this, key: K, value: V) {
     }
 }
 
+[operator "+="]
 //* Inserts all key-value pairs from the other map into
 def Map::extend(&this, other: &Map<K, V>) {
     for iter : other.iter() {
@@ -179,17 +180,6 @@ def Map::resize(&this) {
         old_buckets[i].free_list()
     }
     free(old_buckets)
-}
-
-//* Pushes all keys into the given vector
-def Map::push_keys(&this, vec: &Vector<K>) {
-    for let i = 0; i < .num_buckets; i += 1 {
-        let node = .buckets[i]
-        while node? {
-            vec.push(node.key)
-            node = node.next
-        }
-    }
 }
 
 //* Checks if the map is empty

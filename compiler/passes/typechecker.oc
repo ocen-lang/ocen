@@ -463,7 +463,7 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
     } else if not member.is_pointer and method_param.base == Pointer {
         first_arg = AST::new_unop(ASTType::Address, first_arg.span, first_arg)
     }
-    node.u.call.args.push_front(Argument::new(null, Span::default(), first_arg))
+    node.u.call.args.push_front(Argument::new(first_arg))
 }
 
 def TypeChecker::check_internal_print(&this, node: &AST): &Type {
@@ -534,7 +534,7 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
             // FIXME: We should not be evaluating the default argument here during every call,
             // we should be evaluating it at the time of checking the function declaration and using
             // a cached value here
-            let new_arg = Argument::new(label: null, label_span: Span::default(), expr: param.default_value)
+            let new_arg = Argument::new(param.default_value)
             // Plus the default argument to the list of arguments
             args.push(new_arg)
 
@@ -659,15 +659,23 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
 }
 
 def TypeChecker::find_and_replace_overloaded_op(&this, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
-    let op_type = match node.type {
-        ASTType::Plus => Operator::Plus,
-        ASTType::Minus => Operator::Minus,
-        ASTType::Multiply => Operator::Multiply,
-        ASTType::Divide => Operator::Divide,
-        ASTType::Equals => Operator::Equals,
-        ASTType::NotEquals => Operator::NotEquals,
-        ASTType::Index => Operator::Index,
-        ASTType::Assignment => {
+    let op_type: Operator = match node.type {
+        Plus => Plus,
+        Minus => Minus,
+        Multiply => Multiply,
+        Divide => Divide,
+        Equals => Equals,
+        NotEquals => NotEquals,
+        Index => Index,
+        LeftShift => LeftShift
+        RightShift => RightShift
+        BitwiseAnd => BitwiseAnd
+        BitwiseOr => BitwiseOr
+        PlusEquals => PlusEquals
+        MinusEquals => MinusEquals
+        MultiplyEquals => MultiplyEquals
+        DivideEquals => DivideEquals
+        Assignment => {
             if node.u.binary.lhs.type != Index return null
             if not arg3? return null
             yield Operator::IndexAssign
@@ -687,14 +695,14 @@ def TypeChecker::find_and_replace_overloaded_op(&this, node: &AST, arg1: &AST, a
     if not func? return null
 
     // FIXME: This is not correct, we can't just make this an identifier
-    let callee = AST::new(Identifier, node.span)
+    let callee = AST::new(Identifier, node.u.binary.op_span)
     callee.u.ident.name = func.sym.name
     callee.resolved_symbol = func.sym
 
     let args = Vector<&Argument>::new()
-    if arg1? args.push(Argument::new(null, arg1.span, arg1))
-    if arg2? args.push(Argument::new(null, arg2.span, arg2))
-    if arg3? args.push(Argument::new(null, arg3.span, arg3))
+    if arg1? args.push(Argument::new(arg1))
+    if arg2? args.push(Argument::new(arg2))
+    if arg3? args.push(Argument::new(arg3))
 
     node.type = Call
     node.u.call.callee = callee
@@ -771,7 +779,10 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                 return null
             }
             if lhs.base == BaseType::Structure {
-                .error(Error::new(node.span, "Cannot compare structs directly"))
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
@@ -2128,6 +2139,18 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
             if num_params_needed > 0 then overload.type1 = func.params.at(0).type
             if num_params_needed > 1 then overload.type2 = func.params.at(1).type
             if num_params_needed > 2 then overload.type3 = func.params.at(2).type
+
+            let it = .o.program.operator_overloads.get_item(overload)
+            if it? {
+                if it.value != func {
+                    .error(Error::new_hint(
+                        func.sym.span, `Operator overload for {op} already exists ({func.sym.display})`,
+                        it.value.sym.span, `Previous definition here ({it.value.sym.display})`
+                    ))
+                }
+                continue
+            }
+
             .o.program.operator_overloads.insert(overload, func)
         }
     }

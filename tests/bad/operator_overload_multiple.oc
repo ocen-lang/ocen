@@ -1,0 +1,10 @@
+/// fail: Operator overload for Minus already exists (two)
+
+struct Foo {}
+
+[operator "+"]
+[operator "-"]
+def one(a: Foo, b: Foo): Foo => a
+
+[operator "-"]
+def two(a: Foo, b: Foo): Foo => a

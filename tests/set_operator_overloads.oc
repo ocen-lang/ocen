@@ -1,0 +1,43 @@
+/// out: "Ok"
+
+import std::set::{ Set }
+
+def main() {
+    let s = Set<u32>::new()
+
+    s << 5
+    s << 10
+    s << 15
+    s << 20
+    s << 25
+
+    assert s.contains(5)
+    assert s.size == 5
+
+    let ns = Set<u32>::new()
+
+    ns << 5
+    ns << 15
+    ns << 25
+
+    s -= ns
+
+    assert s.size == 2
+    assert s.contains(10)
+    assert s.contains(20)
+    assert not s.contains(5)
+    assert not s.contains(15)
+    assert not s.contains(25)
+
+    s += ns
+    s >> 5
+
+    assert s.size == 4
+    assert s.contains(10)
+    assert s.contains(15)
+    assert s.contains(20)
+    assert s.contains(25)
+    assert not s.contains(5)
+
+    println("Ok")
+}
