@@ -9,6 +9,7 @@ def hash_bytes(data: &u8, len: u32): u32 {
 }
 
 def pair_hash(a: u32, b: u32): u32 => a * 33 ^ b
+def ptr_hash(ptr: untyped_ptr): u32 => (ptr as u64).hash()
 
 // 7817 is just some random prime number
 def str::hash(this): u32 => hash_bytes(this as &u8, this.len())

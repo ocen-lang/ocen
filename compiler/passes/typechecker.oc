@@ -8,7 +8,7 @@ import std::map::{ Map }
 import std::span::{ Span }
 import std::vector::{ Vector }
 
-import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
+import @ast::nodes::{ AST, ASTType, Structure, Function, Variable, Operator, OperatorOverload }
 import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
@@ -664,17 +664,61 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
     return null
 }
 
+def TypeChecker::check_operator_overload(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
+    let op_type = match node.type {
+        ASTType::Plus => Operator::Plus,
+        ASTType::Minus => Operator::Minus,
+        ASTType::Multiply => Operator::Multiply,
+        ASTType::Divide => Operator::Divide,
+        ASTType::Equals => Operator::Equals,
+        ASTType::NotEquals => Operator::NotEquals,
+        else => {
+            .error(Error::new(node.span, f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"))
+            return null
+        }
+    }
+
+    // FIXME: Auto-address / dereference?
+    let overload: OperatorOverload
+    overload.op = op_type
+    overload.type1 = lhs
+    overload.type2 = rhs
+    let it = .o.program.operator_overloads.get_item(overload)
+
+    // If we found a function that can overload this operator, change the
+    // node type to a call, and call it
+    if it? {
+        let func = it.value
+        let lhs_node = node.u.binary.lhs
+        let rhs_node = node.u.binary.rhs
+
+        let callee = AST::new(Identifier, node.span)
+        callee.u.ident.name = it.value.sym.name
+        callee.resolved_symbol = func.sym
+
+        let args = Vector<&Argument>::new()
+        args.push(Argument::new(null, lhs_node.span, lhs_node))
+        args.push(Argument::new(null, rhs_node.span, rhs_node))
+
+        node.type = Call
+        node.u.call.callee = callee
+        node.u.call.args = args
+        return func.return_type
+    }
+
+    .error(Error::new(node.span, f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"))
+    return null
+}
+
 def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
     match node.type {
         Plus | Minus | Multiply | Divide => {
             if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
                 return .check_pointer_arith(node, lhs, rhs)
+
             } else if not lhs.is_numeric() or not rhs.is_numeric() {
-                .error(Error::new_note(
-                    node.span, "Operator requires numeric types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
-                return null
+                return .check_operator_overload(node, lhs, rhs)
+
             } else if not lhs.eq(rhs) {
                 .error(Error::new_note(
                     node.span, "Operands must be of the same type",
@@ -686,17 +730,14 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             }
         }
         PlusEquals | MinusEquals | DivideEquals | MultiplyEquals => {
-            if not lhs.is_numeric() or not rhs.is_numeric() {
-                .error(Error::new_note(
-                    node.span, "Operator requires numeric types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
-                return null
-            }
             let lhs_node = node.u.binary.lhs
             if not lhs_node.is_lvalue() {
                 .error(Error::new(node.span, "Left hand side of assignment must be assignable"))
                 return null
+            }
+            if not lhs.is_numeric() or not rhs.is_numeric() {
+                return .check_operator_overload(node, lhs, rhs)
+
             }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -709,10 +750,8 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
             if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
-                .error(Error::new_note(
-                    node.span, "Operator requires numeric or char types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
+                return .check_operator_overload(node, lhs, rhs)
+
             }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -724,10 +763,8 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         Equals | NotEquals => {
             if not lhs.eq(rhs) {
-                .error(Error::new_note(
-                    node.span, "Operands must be of the same type",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
+                return .check_operator_overload(node, lhs, rhs)
+
             }
             if lhs.base == BaseType::Structure {
                 .error(Error::new(node.span, "Cannot compare structs directly"))
@@ -736,19 +773,15 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         And | Or => {
             if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
-                .error(Error::new_note(
-                    node.span, "Operands must be boolean",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
+                return .check_operator_overload(node, lhs, rhs)
+
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
         BitwiseXor => {
             if not lhs.eq(rhs) {
-                .error(Error::new_note(
-                    node.span, "Operands must be of the same type",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
+                return .check_operator_overload(node, lhs, rhs)
+
             }
             if lhs.base != BaseType::Bool and not lhs.is_integer() {
                 .error(Error::new(node.span, "Operator requires integer types"))
@@ -757,10 +790,8 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         Modulus | BitwiseOr | BitwiseAnd | LeftShift | RightShift => {
             if not lhs.is_integer() or not rhs.is_integer() {
-                .error(Error::new_note(
-                    node.span, "Operator requires integer types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                ))
+                return .check_operator_overload(node, lhs, rhs)
+
             }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -2036,6 +2067,23 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     for param : func.params.iter() {
         param.type = .resolve_type(param.type, allow_incomplete, error, resolve_templates)
     }
+
+    if func.operator_overloads? {
+        for op : func.operator_overloads.iter() {
+            let num_params_needed = op.num_params()
+            if num_params_needed != func.params.size {
+                .error(Error::new(func.span, `Operator overload for {op} must have {num_params_needed} parameters`))
+                continue
+            }
+
+            let overload: OperatorOverload
+            overload.op = op
+            if num_params_needed > 0 then overload.type1 = func.params.at(0).type
+            if num_params_needed > 1 then overload.type2 = func.params.at(1).type
+            .o.program.operator_overloads.insert(overload, func)
+        }
+    }
+
 
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls

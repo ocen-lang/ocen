@@ -154,7 +154,7 @@ def SV::chop_signed(&this, fn_name: str): i64 {
     let res = strtoll(.data, &endptr)
     assert endptr != .data, `Failed to parse number in {fn_name}`
     .only_chop_left((endptr - .data) as u32)
-    return res   
+    return res
 }
 
 //* Chop off a i64 from the beginning of the string and return it. Fails if there is no number

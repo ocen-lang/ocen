@@ -29,6 +29,7 @@ struct Parser {
     ns: &Namespace
 
     attrs: &Map<AttributeType, &Attribute>
+    attrs_span: Span
 }
 
 def Parser::make(program: &Program, ns: &Namespace): Parser {
@@ -38,7 +39,8 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         curr_func: null,
         program: program,
         ns: ns,
-        attrs: Map<AttributeType, &Attribute>::new()
+        attrs: Map<AttributeType, &Attribute>::new(),
+        attrs_span: Span::default()
     )
 }
 
@@ -1365,7 +1367,18 @@ def Parser::parse_function(&this): &Function {
                 }
                 func.is_variadic_format = true
             }
-            else => .error(Error::new(attr.span, "Invalid attribute for function"))
+            Operator => {
+                let op = Operator::from_str(attr.args.at(0))
+                if op == Invalid {
+                    .error(Error::new(attr.span, "Invalid operator"))
+                    continue
+                }
+                if not func.operator_overloads? {
+                    func.operator_overloads = Vector<Operator>::new()
+                }
+                func.operator_overloads.push(op)
+            }
+            else => .error(Error::new(attr.span, f"Invalid attribute for function: {attr.type}"))
         }
     }
 
@@ -1682,6 +1695,9 @@ def Parser::parse_enum(&this): &Enum {
 
 def Parser::parse_attribute(&this) {
     let start = .consume(TokenType::OpenSquare)
+    if .attrs.size == 0 {
+        .attrs_span = start.span
+    }
 
     // FIXME: Should `extern` be a keyword once we have fully moved to attrs?
     if not (.token_is(Identifier) or .token_is(Extern)) {
@@ -1707,7 +1723,8 @@ def Parser::parse_attribute(&this) {
         let arg = .consume(TokenType::StringLiteral)
         attr.args.push(arg.text)
     }
-    .consume(TokenType::CloseSquare)
+    let close = .consume(TokenType::CloseSquare)
+    .attrs_span = .attrs_span.join(close.span)
 
     // We don't want to handle invalid attributes, so we just ignore them.
     if not attr.validate(this) return

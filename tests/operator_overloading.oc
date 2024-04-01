@@ -1,0 +1,25 @@
+/// out: "(11, 13)"
+
+struct Vec2 {
+    x, y: u32
+}
+
+[operator "+"]
+def Vec2::add(this, b: Vec2): Vec2 {
+    return Vec2(.x + b.x, .y + b.y)
+}
+
+[operator "+"]
+def Vec2::adds(this, b: u32): Vec2 => Vec2(.x + b, .y + b)
+
+[operator "+"]
+def Vec2::adds_f(a: u32, b: Vec2): Vec2 => Vec2(b.x + a, b.y + a)
+
+def main() {
+    let a = Vec2(1, 2)
+    let b = Vec2(3, 4)
+    let c = a + b
+    let d = c + 5
+    let f = 2 + d
+    println(`({f.x}, {f.y})`)
+}

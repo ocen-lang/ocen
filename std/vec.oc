@@ -21,17 +21,21 @@ def Vec2::print(this) {
     println(f"{.x} {.y}")
 }
 
-def Vec2::add(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x + other.x, .y + other.y)
-def Vec2::adds(this, val: T): Vec2<T> => Vec2<T>(.x + val, .y + val)
+[operator "+"] def Vec2::add(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x + other.x, .y + other.y)
+[operator "+"] def Vec2::adds(this, val: T): Vec2<T> => Vec2<T>(.x + val, .y + val)
+[operator "+"] def Vec2::addrs(val: T, this: Vec2<T>): Vec2<T> => Vec2<T>(val + this.x, val + this.y)
 
-def Vec2::sub(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x - other.x, .y - other.y)
-def Vec2::subs(this, val: T): Vec2<T> => Vec2<T>(.x - val, .y - val)
+[operator "-"] def Vec2::sub(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x - other.x, .y - other.y)
+[operator "-"] def Vec2::subs(this, val: T): Vec2<T> => Vec2<T>(.x - val, .y - val)
+[operator "-"] def Vec2::subrs(val: T, this: Vec2<T>): Vec2<T> => Vec2<T>(val - this.x, val - this.y)
 
-def Vec2::mult(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x * other.x, .y * other.y)
-def Vec2::mults(this, val: T): Vec2<T> => Vec2<T>(.x * val, .y * val)
+[operator "*"] def Vec2::mult(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x * other.x, .y * other.y)
+[operator "*"] def Vec2::mults(this, val: T): Vec2<T> => Vec2<T>(.x * val, .y * val)
+[operator "*"] def Vec2::multrs(val: T, this: Vec2<T>): Vec2<T> => Vec2<T>(val * this.x, val * this.y)
 
-def Vec2::div(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x / other.x, .y / other.y)
-def Vec2::divs(this, val: T): Vec2<T> => Vec2<T>(.x / val, .y / val)
+[operator "/"] def Vec2::div(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x / other.x, .y / other.y)
+[operator "/"] def Vec2::divs(this, val: T): Vec2<T> => Vec2<T>(.x / val, .y / val)
+[operator "/"] def Vec2::divrs(val: T, this: Vec2<T>): Vec2<T> => Vec2<T>(val / this.x, val / this.y)
 
 def Vec2::dot(this, other: Vec2<T>): T => .x * other.x + .y * other.y
 
@@ -58,8 +62,9 @@ def Vec2::rotate(&this, angle: f32): Vec2f {
     )
 }
 
-def Vec2::hash(this): u32 => pair_hash(.x.hash(), .y.hash())
+[operator "=="]
 def Vec2::eq(this, other: Vec2<T>): bool => .x == other.x and .y == other.y
+def Vec2::hash(this): u32 => pair_hash(.x.hash(), .y.hash())
 
 def Vec2::to_f32(this): Vec2f => Vec2f(.x as f32, .y as f32)
 def Vec2::to_i32(this): Vec2i => Vec2i(.x as i32, .y as i32)
@@ -88,17 +93,21 @@ def Vec3::print(this) {
     println("%f %f %f\n", .x, .y, .z)
 }
 
-def Vec3::add(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x + other.x, .y + other.y, .z + other.z)
-def Vec3::adds(this, val: T): Vec3<T> => Vec3<T>(.x + val, .y + val, .z + val)
+[operator "+"] def Vec3::add(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x + other.x, .y + other.y, .z + other.z)
+[operator "+"] def Vec3::adds(this, val: T): Vec3<T> => Vec3<T>(.x + val, .y + val, .z + val)
+[operator "+"] def Vec3::addrs(val: T, this: Vec3<T>): Vec3<T> => Vec3<T>(val + this.x, val + this.y, val + this.z)
 
-def Vec3::sub(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x - other.x, .y - other.y, .z - other.z)
-def Vec3::subs(this, val: T): Vec3<T> => Vec3<T>(.x - val, .y - val, .z - val)
+[operator "-"] def Vec3::sub(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x - other.x, .y - other.y, .z - other.z)
+[operator "-"] def Vec3::subs(this, val: T): Vec3<T> => Vec3<T>(.x - val, .y - val, .z - val)
+[operator "-"] def Vec3::subrs(val: T, this: Vec3<T>): Vec3<T> => Vec3<T>(val - this.x, val - this.y, val - this.z)
 
-def Vec3::mult(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x * other.x, .y * other.y, .z * other.z)
-def Vec3::mults(this, val: T): Vec3<T> => Vec3<T>(.x * val, .y * val, .z * val)
+[operator "*"] def Vec3::mult(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x * other.x, .y * other.y, .z * other.z)
+[operator "*"] def Vec3::mults(this, val: T): Vec3<T> => Vec3<T>(.x * val, .y * val, .z * val)
+[operator "*"] def Vec3::multrs(val: T, this: Vec3<T>): Vec3<T> => Vec3<T>(val * this.x, val * this.y, val * this.z)
 
-def Vec3::div(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x / other.x, .y / other.y, .z / other.z)
-def Vec3::divs(this, val: T): Vec3<T> => Vec3<T>(.x / val, .y / val, .z / val)
+[operator "/"] def Vec3::div(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x / other.x, .y / other.y, .z / other.z)
+[operator "/"] def Vec3::divs(this, val: T): Vec3<T> => Vec3<T>(.x / val, .y / val, .z / val)
+[operator "/"] def Vec3::divrs(val: T, this: Vec3<T>): Vec3<T> => Vec3<T>(val / this.x, val / this.y, val / this.z)
 
 def Vec3::dot(this, other: Vec3<T>): T => .x * other.x + .y * other.y + .z * other.z
 
@@ -144,8 +153,9 @@ def Vec3::rotateZ(&this, angle: f32): Vec3f {
     return Vec3f(x, y, .z as f32)
 }
 
-def Vec3::hash(this): u32 => pair_hash(.x.hash(), pair_hash(.y.hash(), .z.hash()))
+[operator "=="]
 def Vec3::eq(this, other: Vec3<T>): bool => .x == other.x and .y == other.y and .z == other.z
+def Vec3::hash(this): u32 => pair_hash(.x.hash(), pair_hash(.y.hash(), .z.hash()))
 
 def Vec3::to_f32(this): Vec3f => Vec3f(.x as f32, .y as f32, .z as f32)
 def Vec3::to_i32(this): Vec3i => Vec3i(.x as i32, .y as i32, .z as i32)
