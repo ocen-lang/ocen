@@ -23,6 +23,7 @@ def Vector::resize(&this, new_capacity: u32) {
     .data = realloc(.data , .capacity * sizeof(T)) as &T
 }
 
+[operator "<<"]
 //* Pushes an element to the end of the vector
 def Vector::push(&this, value: T) {
     if .size == .capacity {
@@ -71,6 +72,7 @@ def Vector::pop_at(&this, i: u32): T {
     return val
 }
 
+[operator "+="]
 //* Appends the contents of another vector to this one
 def Vector::extend(&this, other: &Vector<T>) {
     for val : other.iter() {

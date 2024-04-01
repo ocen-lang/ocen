@@ -35,7 +35,7 @@ def Location::is_before(&this, other: Location): bool {
 
 //* A span in a source file (start and end location)
 [formatting
-    "%s:%u:%u => %s:%u:%u" 
+    "%s:%u:%u => %s:%u:%u"
     "$.start.filename, $.start.line, $.start.col, $.end.filename, $.end.line, $.end.col"
 ]
 struct Span {

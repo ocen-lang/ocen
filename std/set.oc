@@ -14,11 +14,13 @@ def Set::new(): &Set<T> {
     return set
 }
 
+[operator "<<"]
 def Set::add(&this, key: T) {
     .map.insert(key, true)
     .size = .map.size
 }
 
+[operator ">>"]
 def Set::remove(&this, key: T) {
     .map.remove(key)
     .size = .map.size
@@ -29,11 +31,13 @@ def Set::clear(&this) {
     .size = 0
 }
 
+[operator "+="]
 def Set::extend(&this, other: &Set<T>) {
     .map.extend(other.map)
     .size = .map.size
 }
 
+[operator "-="]
 def Set::subtract(&this, other: &Set<T>) {
     for let iter = other.iter(); iter.has_value(); iter.next() {
         .remove(iter.cur())

@@ -53,6 +53,8 @@ def handle_validate(program: &Program, path: str) {
     typecheck_and_log_errors(program, path)
     for err : program.errors.iter() {
         if not err.span1.start.filename? continue
+        if not (err.span1.start.filename == path) continue
+
         let err_value = utils::gen_error_json(err)
         println(`{err_value.dbg()}`)
     }

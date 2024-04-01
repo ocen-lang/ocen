@@ -28,7 +28,7 @@ struct Parser {
     program: &Program
     ns: &Namespace
 
-    attrs: &Map<AttributeType, &Attribute>
+    attrs: &Vector<&Attribute>
     attrs_span: Span
 }
 
@@ -39,7 +39,7 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         curr_func: null,
         program: program,
         ns: ns,
-        attrs: Map<AttributeType, &Attribute>::new(),
+        attrs: Vector<&Attribute>::new(),
         attrs_span: Span::default()
     )
 }
@@ -131,7 +131,7 @@ def Parser::consume_end_of_statement(&this) {
 }
 
 def Parser::clear_attributes(&this) {
-    for attr : .attrs.iter_values() {
+    for attr : .attrs.iter() {
         std::free(attr)
     }
     .attrs.clear()
@@ -461,18 +461,14 @@ def Parser::parse_call(&this, callee: &AST): &AST {
     .consume(TokenType::OpenParen)
     let args = Vector<&Argument>::new()
     while not .token_is(TokenType::CloseParen) {
-        let label = null as str
-        let label_span = Span::default()
-
+        let label_tok: &Token = null
         if .token_is(Identifier) and .peek_token_is(1, Colon) {
-            let ident = .consume(TokenType::Identifier)
+            label_tok = .consume(TokenType::Identifier)
             .consume(TokenType::Colon)
-            label = ident.text
-            label_span = ident.span
         }
         let expr = .parse_expression(end_type: TokenType::Comma)
 
-        args.push(Argument::new(label, label_span, expr))
+        args.push(Argument::new(expr, label_tok))
         if not .token_is(TokenType::CloseParen) {
             .consume(TokenType::Comma)
         }
@@ -560,7 +556,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
 
     .parse_extern_into_symbol(var.sym)
 
-    for attr : .attrs.iter_values() {
+    for attr : .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(var.sym, attr)
             else => .error(Error::new(attr.span, "Unexpected attribute for variable"))
@@ -800,10 +796,10 @@ def Parser::parse_term(&this, end_type: TokenType): &AST {
             .token_is(TokenType::Slash) or
             .token_is(TokenType::Percent) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_cast(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -813,10 +809,10 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
     let lhs = .parse_term(end_type)
     while .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_term(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -825,10 +821,12 @@ def Parser::parse_shift(&this, end_type: TokenType): &AST {
     let lhs = .parse_additive(end_type)
     while .token_is(TokenType::LessThan) or
             .token_is(TokenType::GreaterThan) {
+        let cur_token = .token()
         let next_token = .tokens.at(.curr + 1)
-        if .token().type != next_token.type then break
+        if cur_token.type != next_token.type then break
         if .token_is(end_type) break
 
+        let op_span = cur_token.span.join(next_token.span)
         let op = if next_token.type == TokenType::LessThan {
             yield ASTType::LeftShift
         } else {
@@ -837,7 +835,7 @@ def Parser::parse_shift(&this, end_type: TokenType): &AST {
 
         .curr += 2
         let rhs = .parse_additive(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_span)
     }
     return lhs
 }
@@ -846,10 +844,10 @@ def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
     let lhs = .parse_shift(end_type)
     while .token_is(TokenType::Ampersand) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_shift(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -858,10 +856,10 @@ def Parser::parse_bw_xor(&this, end_type: TokenType): &AST {
     let lhs = .parse_bw_and(end_type)
     while .token_is(TokenType::Caret) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_bw_and(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -870,10 +868,10 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
     let lhs = .parse_bw_xor(end_type)
     while .token_is(TokenType::Line) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_bw_xor(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -903,9 +901,9 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
         let tok = operators.at(i)
         let lhs = operands.at(i)
         let rhs = operands.at(i+1)
-        let op = AST::new_binop(ASTType::from_token(tok.type), lhs, rhs)
+        let op = AST::new_binop(ASTType::from_token(tok.type), lhs, rhs, tok.span)
         if root? {
-            root = AST::new_binop(ASTType::And, root, op)
+            root = AST::new_binop(ASTType::And, root, op, tok.span)
         } else {
             root = op
         }
@@ -921,10 +919,10 @@ def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
     let lhs = .parse_relational(end_type)
     while .token_is(TokenType::And) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_relational(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -933,10 +931,10 @@ def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
     let lhs = .parse_logical_and(end_type)
     while .token_is(TokenType::Or) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_logical_and(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -949,10 +947,11 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
             .token_is(TokenType::StarEquals) or
             .token_is(TokenType::SlashEquals) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
+
+        let op_tok = .consume(.token().type)
+        let op = ASTType::from_token(op_tok.type)
         let rhs = .parse_expression(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
 }
@@ -1355,7 +1354,7 @@ def Parser::parse_function(&this): &Function {
     // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(func.sym)
 
-    for attr : .attrs.iter_values() {
+    for attr : .attrs.iter() {
         match attr.type {
             Exits => func.exits = true
             Extern => .get_extern_from_attr(func.sym, attr)
@@ -1553,7 +1552,7 @@ def Parser::parse_import(&this): &AST {
         export: false
     )
 
-    for attr : .attrs.iter_values() {
+    for attr : .attrs.iter() {
         match attr.type {
             Export => node.u.import_path.export = true
             else => .error(Error::new(attr.span, "Invalid attribute for import"))
@@ -1626,7 +1625,7 @@ def Parser::parse_struct(&this): &Structure {
     // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(struc.sym)
 
-    for attr : .attrs.iter_values() {
+    for attr : .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(struc.sym, attr)
             Formatting => {
@@ -1663,7 +1662,7 @@ def Parser::parse_enum(&this): &Enum {
     .add_doc_comment(enum_def.sym, start)
 
     .parse_extern_into_symbol(enum_def.sym)
-    for attr : .attrs.iter_values() {
+    for attr : .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(enum_def.sym, attr)
             else => .error(Error::new(attr.span, "Invalid attribute for enum"))
@@ -1729,16 +1728,7 @@ def Parser::parse_attribute(&this) {
     // We don't want to handle invalid attributes, so we just ignore them.
     if not attr.validate(this) return
 
-    if .attrs.contains(attr_type) {
-        let prev_attr = .attrs.at(attr_type)
-        .error(Error::new_hint(
-            attr.span, "Duplicate attribute",
-            prev_attr.span, "Previously defined here"
-        ))
-        return
-    }
-
-    .attrs.insert(attr_type, attr)
+    .attrs.push(attr)
 }
 
 def Parser::parse_namespace_until(&this, end_type: TokenType) {

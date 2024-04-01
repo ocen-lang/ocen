@@ -4,7 +4,7 @@ import std::vector::Vector
 import std::map::Map
 import std::span::Span
 import std::libc::calloc
-import @tokens::TokenType
+import @tokens::{ TokenType, Token }
 import @ast::scopes::{ Scope, Symbol }
 import @ast::program::Namespace
 import @types::Type
@@ -228,11 +228,11 @@ struct Argument {
     label_span: Span
 }
 
-def Argument::new(label: str, label_span: Span, expr: &AST): &Argument {
+def Argument::new(expr: &AST, label_token: &Token = null): &Argument {
     let arg = std::new<Argument>()
     arg.expr = expr
-    arg.label = label
-    arg.label_span = label_span
+    if label_token? then arg.label = label_token.text
+    if label_token? then arg.label_span = label_token.span
     return arg
 }
 
@@ -305,6 +305,7 @@ struct NumLiteral {
 struct Binary {
     lhs: &AST
     rhs: &AST
+    op_span: Span
 }
 
 struct NSLookup {
@@ -428,11 +429,12 @@ def AST::new_unop(type: ASTType, span: Span, expr: &AST): &AST {
     return ast
 }
 
-def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
+def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST, op_span: Span): &AST {
     let span = lhs.span.join(rhs.span)
     let ast = AST::new(type, span)
     ast.u.binary.lhs = lhs
     ast.u.binary.rhs = rhs
+    ast.u.binary.op_span = op_span
     return ast
 }
 
@@ -467,6 +469,14 @@ enum Operator {
     Invalid
     Index
     IndexAssign
+    LeftShift
+    RightShift
+    BitwiseAnd
+    BitwiseOr
+    PlusEquals
+    MinusEquals
+    MultiplyEquals
+    DivideEquals
 }
 
 def Operator::from_str(op: str): Operator => match op {
@@ -478,12 +488,21 @@ def Operator::from_str(op: str): Operator => match op {
     "!=" => NotEquals
     "[]" => Index
     "[]=" => IndexAssign
+    "<<" => LeftShift
+    ">>" => RightShift
+    "&" => BitwiseAnd
+    "|" => BitwiseOr
+    "+=" => PlusEquals
+    "-=" => MinusEquals
+    "*=" => MultiplyEquals
+    "/=" => DivideEquals
     else => Invalid
 }
 
 def Operator::num_params(this): u32 => match this {
-    Plus | Minus | Multiply | Divide => 2
-    Equals | NotEquals | Index => 2
+    Plus | Minus | Multiply | Divide | Equals | NotEquals |
+    Index | LeftShift | RightShift | BitwiseAnd | BitwiseOr |
+    PlusEquals | MinusEquals | MultiplyEquals | DivideEquals => 2
     IndexAssign => 3
     Invalid => 0
 }
@@ -506,6 +525,7 @@ def OperatorOverload::hash(this): u32 {
     return hash
 }
 
+[operator "=="]
 def OperatorOverload::eq(this, other: OperatorOverload): bool {
     return (
         .op == other.op and
