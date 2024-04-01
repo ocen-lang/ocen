@@ -169,8 +169,8 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
     if (this == null or other == null) return false
 
     // Aliases are equal to their original type
-    if .base == Alias return .u.ptr.eq(other)
-    if other.base == Alias return .eq(other.u.ptr)
+    if .base == Alias return .u.ptr.eq(other, strict)
+    if other.base == Alias return .eq(other.u.ptr, strict)
 
     if .base != other.base return false
 

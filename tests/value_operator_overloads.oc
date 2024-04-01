@@ -1,0 +1,16 @@
+/// exit: 0
+
+import std::value::{ Value }
+
+def main() {
+    let ls = Value::new(List)
+    ls.push(Value::new_int(1))
+    ls.push(Value::new_int(2))
+    ls.push(Value::new_int(3))
+
+    ls[2] = Value::new_int(4)
+
+    let mp = Value::new(Dictionary)
+    mp["hello"] = Value::new_int(5)
+}
+

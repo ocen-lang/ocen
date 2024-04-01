@@ -89,6 +89,7 @@ def Map::get_item(&this, key: K): &Item<K, V> {
     return null
 }
 
+[operator "[]"]
 //* Returns the value for the given key, or fails
 def Map::at(&this, key: K): V {
     let node = .get_item(key)
@@ -108,6 +109,7 @@ def Map::contains(&this, key: K): bool {
     return .get_item(key)?
 }
 
+[operator "[]="]
 //* Inserts / updates the given key-value pair
 def Map::insert(&this, key: K, value: V) {
     let node = .get_item(key)

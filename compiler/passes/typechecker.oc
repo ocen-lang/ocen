@@ -446,12 +446,6 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
         return
     }
 
-    // Due to the way we handle typechecking, we might run this function twice
-    // on the same node. This is fine, but we need to make sure we don't double
-    // add the method argument twice implicitly.
-    if node.u.call.added_method_arg return
-    node.u.call.added_method_arg = true
-
     if callee.type != ASTType::Member return
     if method.params.size == 0 {
         // This should ideally never happen.
@@ -664,7 +658,7 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
     return null
 }
 
-def TypeChecker::check_operator_overload(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
+def TypeChecker::find_and_replace_overloaded_op(&this, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
     let op_type = match node.type {
         ASTType::Plus => Operator::Plus,
         ASTType::Minus => Operator::Minus,
@@ -672,52 +666,56 @@ def TypeChecker::check_operator_overload(&this, node: &AST, lhs: &Type, rhs: &Ty
         ASTType::Divide => Operator::Divide,
         ASTType::Equals => Operator::Equals,
         ASTType::NotEquals => Operator::NotEquals,
+        ASTType::Index => Operator::Index,
+        ASTType::Assignment => {
+            if node.u.binary.lhs.type != Index return null
+            if not arg3? return null
+            yield Operator::IndexAssign
+        }
         else => {
-            .error(Error::new(node.span, f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"))
-            return null
+            return null // Operator not supported
         }
     }
 
     // FIXME: Auto-address / dereference?
     let overload: OperatorOverload
     overload.op = op_type
-    overload.type1 = lhs
-    overload.type2 = rhs
-    let it = .o.program.operator_overloads.get_item(overload)
+    if arg1? overload.type1 = arg1.etype
+    if arg2? overload.type2 = arg2.etype
+    if arg3? overload.type3 = arg3.etype
+    let func = .o.program.operator_overloads.get(overload, defolt: null)
+    if not func? return null
 
-    // If we found a function that can overload this operator, change the
-    // node type to a call, and call it
-    if it? {
-        let func = it.value
-        let lhs_node = node.u.binary.lhs
-        let rhs_node = node.u.binary.rhs
+    // FIXME: This is not correct, we can't just make this an identifier
+    let callee = AST::new(Identifier, node.span)
+    callee.u.ident.name = func.sym.name
+    callee.resolved_symbol = func.sym
 
-        let callee = AST::new(Identifier, node.span)
-        callee.u.ident.name = it.value.sym.name
-        callee.resolved_symbol = func.sym
+    let args = Vector<&Argument>::new()
+    if arg1? args.push(Argument::new(null, arg1.span, arg1))
+    if arg2? args.push(Argument::new(null, arg2.span, arg2))
+    if arg3? args.push(Argument::new(null, arg3.span, arg3))
 
-        let args = Vector<&Argument>::new()
-        args.push(Argument::new(null, lhs_node.span, lhs_node))
-        args.push(Argument::new(null, rhs_node.span, rhs_node))
-
-        node.type = Call
-        node.u.call.callee = callee
-        node.u.call.args = args
-        return func.return_type
-    }
-
-    .error(Error::new(node.span, f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"))
-    return null
+    node.type = Call
+    node.u.call.callee = callee
+    node.u.call.args = args
+    return func.return_type
 }
 
 def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
+    let res = .find_and_replace_overloaded_op(node, node.u.binary.lhs, node.u.binary.rhs)
+    if res? return res
+
     match node.type {
         Plus | Minus | Multiply | Divide => {
             if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
                 return .check_pointer_arith(node, lhs, rhs)
 
             } else if not lhs.is_numeric() or not rhs.is_numeric() {
-                return .check_operator_overload(node, lhs, rhs)
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
 
             } else if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -736,8 +734,10 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                 return null
             }
             if not lhs.is_numeric() or not rhs.is_numeric() {
-                return .check_operator_overload(node, lhs, rhs)
-
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -750,8 +750,10 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
             if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
-                return .check_operator_overload(node, lhs, rhs)
-
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -763,8 +765,10 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         Equals | NotEquals => {
             if not lhs.eq(rhs) {
-                return .check_operator_overload(node, lhs, rhs)
-
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             if lhs.base == BaseType::Structure {
                 .error(Error::new(node.span, "Cannot compare structs directly"))
@@ -773,15 +777,19 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         And | Or => {
             if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
-                return .check_operator_overload(node, lhs, rhs)
-
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
         BitwiseXor => {
             if not lhs.eq(rhs) {
-                return .check_operator_overload(node, lhs, rhs)
-
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             if lhs.base != BaseType::Bool and not lhs.is_integer() {
                 .error(Error::new(node.span, "Operator requires integer types"))
@@ -790,8 +798,10 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         }
         Modulus | BitwiseOr | BitwiseAnd | LeftShift | RightShift => {
             if not lhs.is_integer() or not rhs.is_integer() {
-                return .check_operator_overload(node, lhs, rhs)
-
+                .error(Error::new(node.span,
+                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
@@ -920,10 +930,37 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
 // This is just here so we can use early exits in the actual check_expression
 // function, and still always assign the type to the node's etype field
 def TypeChecker::check_expression(&this, node: &AST, hint: &Type = null): &Type {
+    if node.etype? return node.etype
+
     let typ = .check_expression_helper(node, hint)
     if typ? and node.type != ArrayLiteral then typ = typ.decay_array()
     node.etype = typ
     return typ
+}
+
+def TypeChecker::check_index(&this, node: &AST, hint: &Type, is_being_assigned: bool): &Type {
+    let lhs = .check_expression(node.u.binary.lhs)
+    let rhs = .check_expression(node.u.binary.rhs)
+    if not lhs? or not rhs? return null
+
+    if not is_being_assigned {
+        let res = .find_and_replace_overloaded_op(node, node.u.binary.lhs, node.u.binary.rhs)
+        if res? return res
+    }
+
+    if not rhs.is_integer() {
+        .error(Error::new(node.span, `Index must be an integer, got {rhs.str()}`))
+        return null
+    }
+    lhs = lhs.unaliased()
+    match lhs.base {
+        BaseType::Array => return lhs.u.arr.elem_type
+        BaseType::Pointer => return lhs.u.ptr
+        else => {
+            .error(Error::new(node.span, `Cannot index type {lhs.str()}`))
+            return null
+        }
+    }
 }
 
 def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type {
@@ -1051,24 +1088,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             .check_match(node, is_expr: true, hint)
             return node.etype
         }
-        ASTType::Index => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
-            if not lhs? or not rhs? return null
-            if not rhs.is_integer() {
-                .error(Error::new(node.span, `Index must be an integer, got {rhs.str()}`))
-                return null
-            }
-            lhs = lhs.unaliased()
-            match lhs.base {
-                BaseType::Array => return lhs.u.arr.elem_type
-                BaseType::Pointer => return lhs.u.ptr
-                else => {
-                    .error(Error::new(node.span, `Cannot index type {lhs.str()}`))
-                    return null
-                }
-            }
-        }
+        ASTType::Index => return .check_index(node, hint, is_being_assigned: false)
         ASTType::Identifier | ASTType::NSLookup | ASTType::Specialization => {
             let item = .resolve_scoped_identifier(node, error: true, hint)
             if not item? return null
@@ -1128,7 +1148,34 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         }
 
         Assignment => {
-            let lhs = .check_expression(node.u.binary.lhs)
+            // We need to handle this operator overload carefully - since if we naively check the LHS
+            // and RHS, we might end up replacing the LHS with the overloaded function for `[]`.
+            // eg:     `a[x] = y` => `a_get(a, x) = y`
+            // which is bad.
+            let lhs = if node.u.binary.lhs.type == Index {
+                let idx = node.u.binary.lhs
+                let arg1 = idx.u.binary.lhs
+                let arg2 = idx.u.binary.rhs
+                let arg3 = node.u.binary.rhs
+                if not .check_expression(arg1)? return null
+                if not .check_expression(arg2)? return null
+
+                let arg3_hint: &Type = null
+                let arg1_typ = arg1.etype.unaliased()
+                if arg1_typ.base == BaseType::Pointer {
+                    arg3_hint = arg1_typ.u.ptr
+                }
+
+                if not .check_expression(arg3, hint: arg3_hint)? return null
+
+                let res = .find_and_replace_overloaded_op(node, arg1, arg2, arg3)
+                if res? return res
+
+                yield .check_index(idx, hint, is_being_assigned: true)
+            } else {
+                yield .check_expression(node.u.binary.lhs)
+            }
+
             let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
             if not lhs? or not rhs? return null
 
@@ -2080,6 +2127,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
             overload.op = op
             if num_params_needed > 0 then overload.type1 = func.params.at(0).type
             if num_params_needed > 1 then overload.type2 = func.params.at(1).type
+            if num_params_needed > 2 then overload.type3 = func.params.at(2).type
             .o.program.operator_overloads.insert(overload, func)
         }
     }

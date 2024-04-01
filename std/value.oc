@@ -99,11 +99,19 @@ def Value::ensure(&this, type: ValueType) {
 
 def Value::is(this, type: ValueType): bool => .type == type
 
+[operator "[]"]
 def Value::at(&this, idx: u32): &Value {
     .ensure(List)
     return .u.as_list.at(idx)
 }
 
+[operator "[]"]
+def Value::at_key(&this, key: str): &Value {
+    .ensure(Dictionary)
+    return .u.as_dict.get(key, null)
+}
+
+[operator "[]="]
 def Value::set(&this, idx: u32, value: &Value) {
     .ensure(List)
     .u.as_list.data[idx] = value
@@ -124,6 +132,7 @@ def Value::get(&this, key: str, defolt: &Value = null): &Value {
     return .u.as_dict.get(key, defolt)
 }
 
+[operator "[]="]
 def Value::insert(&this, key: str, value: &Value) {
     .ensure(Dictionary)
     .u.as_dict.insert(key, value)

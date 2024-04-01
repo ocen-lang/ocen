@@ -10,7 +10,7 @@ import std::libc::{ calloc, free }
 let TOL: f32 = 0.00001;
 
 def random_vec(): Vec {
-    return Vec(rand01(), rand01(), rand01()).mults(2.0).subs(1.0);
+    return Vec(rand01(), rand01(), rand01()) * 2.0 - 1.0;
 }
 
 def random_vec_unit(): Vec {
@@ -29,7 +29,7 @@ struct Ray {
 }
 
 def Ray::at(&this, t: f32): Vec {
-    return .dir.mults(t).add(.ori);
+    return .dir * t + .ori
 }
 
 enum Material {
@@ -52,7 +52,7 @@ def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &S
 }
 
 def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
-    let oc = ray.ori.sub(.center);
+    let oc = ray.ori - .center
     let a = ray.dir.dot(ray.dir)
     let b = 2.0 * oc.dot(ray.dir)
     let c = oc.dot(oc) - .radius * .radius
@@ -77,10 +77,10 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
 
 def background_color(ray: &Ray): Vec {
     let t = 0.5 * (ray.dir.y + 1.0)
-    let col2 = Vec(1.0, 1.0, 1.0).mults(1.0-t)
+    let col2 = Vec(1.0, 1.0, 1.0) * (1.0-t)
 
     let res = Vec(0.5, 0.7, 1.0)
-    return res.mults(t).add(col2)
+    return res * t + col2
 }
 
 def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
@@ -161,12 +161,9 @@ def Camera::make(origin: Vec, direction: Vec): Camera {
     cam.u = up.cross(cam.w).normalized()
     cam.v = cam.w.cross(cam.u)
 
-    cam.horizontal = cam.u.mults(-viewport_width)
-    cam.vertical = cam.v.mults(viewport_height)
-    cam.ll_corner = (cam.origin
-        .sub(cam.horizontal.divs(2.0))
-        .sub(cam.vertical.divs(2.0))
-        .sub(cam.w))
+    cam.horizontal = cam.u * -viewport_width
+    cam.vertical = cam.v * viewport_height
+    cam.ll_corner = cam.origin - cam.horizontal / 2.0 - cam.vertical / 2.0 - cam.w
 
     return cam
 }
@@ -176,11 +173,7 @@ def Camera::ray(&this, x: u32, y: u32): Ray {
     let v = 1.0 - (rand01() + y as f32) / (HEIGHT-1) as f32
     let ray: Ray
     ray.ori = .origin
-    ray.dir = (.ll_corner
-        .add(.horizontal.mults(u))
-        .add(.vertical.mults(v))
-        .sub(.origin)
-        .normalized())
+    ray.dir = Vec::normalized(.ll_corner + .horizontal * u + .vertical * v - .origin)
     return ray
 }
 
@@ -267,12 +260,12 @@ def main() {
                     let cur_modified = true
                     match e.key.keysym.scancode {
                         Q | Escape => quit = true
-                        W => origin = origin.add(camera.w.mults(-0.1))
-                        S => origin = origin.add(camera.w.mults(0.1))
-                        A => origin = origin.add(camera.u.mults(0.1))
-                        D => origin = origin.add(camera.u.mults(-0.1))
-                        Z => origin = origin.add(camera.v.mults(-0.1))
-                        X => origin = origin.add(camera.v.mults(0.1))
+                        W => origin = origin + camera.w * -0.1
+                        S => origin = origin + camera.w *  0.1
+                        A => origin = origin + camera.u *  0.1
+                        D => origin = origin + camera.u * -0.1
+                        Z => origin = origin + camera.v * -0.1
+                        X => origin = origin + camera.v *  0.1
 
                         Left => direction = direction.rotateY(-0.1)
                         Right => direction = direction.rotateY(0.1)

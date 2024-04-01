@@ -17,7 +17,18 @@ def str::to_u32(this): u32 => this.to_i32() as u32 // FIXME: this doesn't always
 [extern "strlen"] def str::len(this): u32
 [extern "strcat"] def str::concat(this, src: str)
 [extern "strdup"] def str::copy(this): str
-def str::eq(this, other: str): bool => libc::strcmp(this, other) == 0
+
+[operator "=="]
+def str::eq(this, other: str): bool {
+    // Note: when doing `a == b`, it's also possible we want to compare pointers.
+    // We'll also do an explicit pointer comparison here to account for this, and
+    // only fall back to `strcmp` if the pointers are different.
+    let a = this as untyped_ptr
+    let b = other as untyped_ptr
+    if a == b return true
+    if not (a? and b?) return false
+    return libc::strcmp(this, other) == 0
+}
 
 def str::substring(this, start: u32, len: u32): str {
     let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str
