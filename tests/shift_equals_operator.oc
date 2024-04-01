@@ -1,0 +1,21 @@
+/// skip
+
+// TODO: Implement support for this. Need to properly
+//       abstract away the operators (and merge with asttype)
+//       to properly handle all mutable operators (like we do with []=)
+//       Currently that has just been special cased, which is not great.
+
+struct Foo {
+    x: u32
+}
+
+[operator "<<="]
+def Foo::shift(&this, val: u32) {
+    .x <<= val
+}
+
+def main() {
+    let f = Foo(4)
+    f <<= 2
+    println(`{f.x}`)
+}
