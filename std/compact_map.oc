@@ -113,6 +113,7 @@ def Map::resize(&this, new_capacity: u32) {
     }
 }
 
+[operator "[]="]
 def Map::insert(&this, key: K, value: V) {
     let hash = key.hash()
     let index = .get_index(key, hash)
@@ -146,6 +147,7 @@ def Map::get(&this, key: K, defolt: V): V {
     return item.value
 }
 
+[operator "[]"]
 def Map::at(&this, key: K): V {
     let item = .get_item(key)
     if not item? {

@@ -242,6 +242,8 @@ typedef enum compiler_ast_nodes_Operator {
   compiler_ast_nodes_Operator_Equals,
   compiler_ast_nodes_Operator_NotEquals,
   compiler_ast_nodes_Operator_Invalid,
+  compiler_ast_nodes_Operator_Index,
+  compiler_ast_nodes_Operator_IndexAssign,
 } compiler_ast_nodes_Operator;
 
 char *compiler_ast_nodes_Operator_dbg(compiler_ast_nodes_Operator this) {
@@ -253,6 +255,8 @@ char *compiler_ast_nodes_Operator_dbg(compiler_ast_nodes_Operator this) {
     case compiler_ast_nodes_Operator_Equals: return "Equals";
     case compiler_ast_nodes_Operator_NotEquals: return "NotEquals";
     case compiler_ast_nodes_Operator_Invalid: return "Invalid";
+    case compiler_ast_nodes_Operator_Index: return "Index";
+    case compiler_ast_nodes_Operator_IndexAssign: return "IndexAssign";
     default: return "<unknown>";
   }
 }
@@ -959,7 +963,6 @@ struct compiler_ast_nodes_FuncCall {
   compiler_ast_nodes_Function *func;
   bool is_constructor;
   bool is_function_pointer;
-  bool added_method_arg;
 };
 
 struct compiler_ast_nodes_ImportPartSingle {
@@ -1099,6 +1102,7 @@ struct compiler_ast_nodes_OperatorOverload {
   compiler_ast_nodes_Operator op;
   compiler_types_Type *type1;
   compiler_types_Type *type2;
+  compiler_types_Type *type3;
 };
 
 struct compiler_ast_scopes_TemplateInstance {
@@ -1724,11 +1728,12 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
 void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, bool is_variadic);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *_lhs, compiler_types_Type *_rhs);
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_operator_overload(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_being_called);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint);
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint, bool is_being_assigned);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_helper(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_value(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST **node_ptr);
 void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enum_, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
@@ -2230,6 +2235,7 @@ std_map_Map__5 *std_map_Map__5_new(u32 capacity);
 void std_map_Item__6_free_list(std_map_Item__6 *this);
 std_map_Item__6 *std_map_Item__6_new(compiler_ast_nodes_OperatorOverload key, compiler_ast_nodes_Function *value, std_map_Item__6 *next);
 void std_map_Map__6_insert(std_map_Map__6 *this, compiler_ast_nodes_OperatorOverload key, compiler_ast_nodes_Function *value);
+compiler_ast_nodes_Function *std_map_Map__6_get(std_map_Map__6 *this, compiler_ast_nodes_OperatorOverload key, compiler_ast_nodes_Function *defolt);
 void std_map_Map__6_resize(std_map_Map__6 *this);
 u32 std_map_Map__6_hash(std_map_Map__6 *this, compiler_ast_nodes_OperatorOverload key);
 std_map_Item__6 *std_map_Map__6_get_item(std_map_Map__6 *this, compiler_ast_nodes_OperatorOverload key);
@@ -4717,10 +4723,6 @@ void compiler_passes_typechecker_TypeChecker_check_method_call(compiler_passes_t
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(callee->span, "Method call is not to a member, internal compiler error"));
     return ;
   } 
-  if (node->u.call.added_method_arg) 
-  return ;
-  
-  node->u.call.added_method_arg=true;
   if ((callee->type != compiler_ast_nodes_ASTType_Member)) 
   return ;
   
@@ -4767,7 +4769,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
   node->u.call.is_constructor=true;
   compiler_ast_nodes_AST *callee = node->u.call.callee;
   compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
-  ae_assert(type_sym->type==compiler_ast_scopes_SymbolType_Structure, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:504:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type)));
+  ae_assert(type_sym->type==compiler_ast_scopes_SymbolType_Structure, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:498:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type)));
   compiler_ast_nodes_Structure *struc = type_sym->u.struc;
   std_vector_Vector__4 *params = struc->fields;
   compiler_passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
@@ -4804,7 +4806,7 @@ void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typ
   }
   if (is_variadic) {
     if ((args->size < params->size)) {
-      ae_assert((this->o->program->errors->size > 1), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:555:20: Assertion failed: `.o.program.errors.size > 1`", "Should have errored already");
+      ae_assert((this->o->program->errors->size > 1), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:549:20: Assertion failed: `.o.program.errors.size > 1`", "Should have errored already");
       return ;
     } 
     for (u32 i = params->size; (i < args->size); i+=1) {
@@ -4919,7 +4921,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith
   return NULL;
 }
 
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_operator_overload(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3) {
   compiler_ast_nodes_Operator op_type = ({ compiler_ast_nodes_Operator __yield_0;
     switch (node->type) {
       case compiler_ast_nodes_ASTType_Plus: {
@@ -4940,37 +4942,62 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_operator_over
       case compiler_ast_nodes_ASTType_NotEquals: {
         __yield_0 = compiler_ast_nodes_Operator_NotEquals;
       } break;
+      case compiler_ast_nodes_ASTType_Index: {
+        __yield_0 = compiler_ast_nodes_Operator_Index;
+      } break;
+      case compiler_ast_nodes_ASTType_Assignment: {
+        if ((node->u.binary.lhs->type != compiler_ast_nodes_ASTType_Index)) 
+        return NULL;
+        
+        if (!((bool)arg3)) 
+        return NULL;
+        
+        __yield_0 = compiler_ast_nodes_Operator_IndexAssign;
+      } break;
       default: {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       } break;
     }
 ;__yield_0; });
   compiler_ast_nodes_OperatorOverload overload = {0};
   overload.op=op_type;
-  overload.type1=lhs;
-  overload.type2=rhs;
-  std_map_Item__6 *it = std_map_Map__6_get_item(this->o->program->operator_overloads, overload);
-  if (((bool)it)) {
-    compiler_ast_nodes_Function *func = it->value;
-    compiler_ast_nodes_AST *lhs_node = node->u.binary.lhs;
-    compiler_ast_nodes_AST *rhs_node = node->u.binary.rhs;
-    compiler_ast_nodes_AST *callee = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Identifier, node->span);
-    callee->u.ident.name=it->value->sym->name;
-    callee->resolved_symbol=func->sym;
-    std_vector_Vector__17 *args = std_vector_Vector__17_new(16);
-    std_vector_Vector__17_push(args, compiler_ast_nodes_Argument_new(NULL, lhs_node->span, lhs_node));
-    std_vector_Vector__17_push(args, compiler_ast_nodes_Argument_new(NULL, rhs_node->span, rhs_node));
-    node->type=compiler_ast_nodes_ASTType_Call;
-    node->u.call.callee=callee;
-    node->u.call.args=args;
-    return func->return_type;
-  } 
-  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+  if (((bool)arg1)) 
+  overload.type1=arg1->etype;
+  
+  if (((bool)arg2)) 
+  overload.type2=arg2->etype;
+  
+  if (((bool)arg3)) 
+  overload.type3=arg3->etype;
+  
+  compiler_ast_nodes_Function *func = std_map_Map__6_get(this->o->program->operator_overloads, overload, NULL);
+  if (!((bool)func)) 
   return NULL;
+  
+  compiler_ast_nodes_AST *callee = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Identifier, node->span);
+  callee->u.ident.name=func->sym->name;
+  callee->resolved_symbol=func->sym;
+  std_vector_Vector__17 *args = std_vector_Vector__17_new(16);
+  if (((bool)arg1)) 
+  std_vector_Vector__17_push(args, compiler_ast_nodes_Argument_new(NULL, arg1->span, arg1));
+  
+  if (((bool)arg2)) 
+  std_vector_Vector__17_push(args, compiler_ast_nodes_Argument_new(NULL, arg2->span, arg2));
+  
+  if (((bool)arg3)) 
+  std_vector_Vector__17_push(args, compiler_ast_nodes_Argument_new(NULL, arg3->span, arg3));
+  
+  node->type=compiler_ast_nodes_ASTType_Call;
+  node->u.call.callee=callee;
+  node->u.call.args=args;
+  return func->return_type;
 }
 
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
+  compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
+  if (((bool)res)) 
+  return res;
+  
   switch (node->type) {
     case compiler_ast_nodes_ASTType_Plus:
     case compiler_ast_nodes_ASTType_Minus:
@@ -4979,7 +5006,8 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
       if ((lhs->base==compiler_types_BaseType_Pointer || rhs->base==compiler_types_BaseType_Pointer)) {
         return compiler_passes_typechecker_TypeChecker_check_pointer_arith(this, node, lhs, rhs);
       }  else       if ((!compiler_types_Type_is_numeric(lhs) || !compiler_types_Type_is_numeric(rhs))) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       }  else       if (!compiler_types_Type_eq(lhs, rhs, false)) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
@@ -4999,7 +5027,8 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
         return NULL;
       } 
       if ((!compiler_types_Type_is_numeric(lhs) || !compiler_types_Type_is_numeric(rhs))) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       } 
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
@@ -5012,7 +5041,8 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_nodes_ASTType_GreaterThan:
     case compiler_ast_nodes_ASTType_GreaterThanEquals: {
       if ((!compiler_types_Type_is_numeric_or_char(lhs) || !compiler_types_Type_is_numeric_or_char(rhs))) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       } 
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
@@ -5022,7 +5052,8 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_nodes_ASTType_Equals:
     case compiler_ast_nodes_ASTType_NotEquals: {
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       } 
       if (lhs->base==compiler_types_BaseType_Structure) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot compare structs directly"));
@@ -5032,13 +5063,15 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_nodes_ASTType_And:
     case compiler_ast_nodes_ASTType_Or: {
       if ((!compiler_types_Type_eq(lhs, rhs, false) || (lhs->base != compiler_types_BaseType_Bool))) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       } 
       return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
     } break;
     case compiler_ast_nodes_ASTType_BitwiseXor: {
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       } 
       if (((lhs->base != compiler_types_BaseType_Bool) && !compiler_types_Type_is_integer(lhs))) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Operator requires integer types"));
@@ -5051,7 +5084,8 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_nodes_ASTType_LeftShift:
     case compiler_ast_nodes_ASTType_RightShift: {
       if ((!compiler_types_Type_is_integer(lhs) || !compiler_types_Type_is_integer(rhs))) {
-        return compiler_passes_typechecker_TypeChecker_check_operator_overload(this, node, lhs, rhs);
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_nodes_ASTType_dbg(node->type), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        return NULL;
       } 
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
@@ -5171,12 +5205,46 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compil
 }
 
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint) {
+  if (((bool)node->etype)) 
+  return node->etype;
+  
   compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression_helper(this, node, hint);
   if ((((bool)typ) && (node->type != compiler_ast_nodes_ASTType_ArrayLiteral))) 
   typ=compiler_types_Type_decay_array(typ);
   
   node->etype=typ;
   return typ;
+}
+
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint, bool is_being_assigned) {
+  compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
+  compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, NULL);
+  if ((!((bool)lhs) || !((bool)rhs))) 
+  return NULL;
+  
+  if (!is_being_assigned) {
+    compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
+    if (((bool)res)) 
+    return res;
+    
+  } 
+  if (!compiler_types_Type_is_integer(rhs)) {
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Index must be an integer, got %s", compiler_types_Type_str(rhs))));
+    return NULL;
+  } 
+  lhs=compiler_types_Type_unaliased(lhs);
+  switch (lhs->base) {
+    case compiler_types_BaseType_Array: {
+      return lhs->u.arr.elem_type;
+    } break;
+    case compiler_types_BaseType_Pointer: {
+      return lhs->u.ptr;
+    } break;
+    default: {
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot index type %s", compiler_types_Type_str(lhs))));
+      return NULL;
+    } break;
+  }
 }
 
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_helper(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint) {
@@ -5334,28 +5402,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
       return node->etype;
     } break;
     case compiler_ast_nodes_ASTType_Index: {
-      compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
-      compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, NULL);
-      if ((!((bool)lhs) || !((bool)rhs))) 
-      return NULL;
-      
-      if (!compiler_types_Type_is_integer(rhs)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Index must be an integer, got %s", compiler_types_Type_str(rhs))));
-        return NULL;
-      } 
-      lhs=compiler_types_Type_unaliased(lhs);
-      switch (lhs->base) {
-        case compiler_types_BaseType_Array: {
-          return lhs->u.arr.elem_type;
-        } break;
-        case compiler_types_BaseType_Pointer: {
-          return lhs->u.ptr;
-        } break;
-        default: {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot index type %s", compiler_types_Type_str(lhs))));
-          return NULL;
-        } break;
-      }
+      return compiler_passes_typechecker_TypeChecker_check_index(this, node, hint, false);
     } break;
     case compiler_ast_nodes_ASTType_Identifier:
     case compiler_ast_nodes_ASTType_NSLookup:
@@ -5424,7 +5471,35 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
       return compiler_passes_typechecker_TypeChecker_check_binary_op(this, node, compiler_types_Type_unaliased(lhs), compiler_types_Type_unaliased(rhs));
     } break;
     case compiler_ast_nodes_ASTType_Assignment: {
-      compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
+      compiler_types_Type *lhs = ({ compiler_types_Type *__yield_0;
+        if (node->u.binary.lhs->type==compiler_ast_nodes_ASTType_Index) {
+          compiler_ast_nodes_AST *idx = node->u.binary.lhs;
+          compiler_ast_nodes_AST *arg1 = idx->u.binary.lhs;
+          compiler_ast_nodes_AST *arg2 = idx->u.binary.rhs;
+          compiler_ast_nodes_AST *arg3 = node->u.binary.rhs;
+          if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg1, NULL))) 
+          return NULL;
+          
+          if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg2, NULL))) 
+          return NULL;
+          
+          compiler_types_Type *arg3_hint = NULL;
+          compiler_types_Type *arg1_typ = compiler_types_Type_unaliased(arg1->etype);
+          if (arg1_typ->base==compiler_types_BaseType_Pointer) {
+            arg3_hint=arg1_typ->u.ptr;
+          } 
+          if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg3, arg3_hint))) 
+          return NULL;
+          
+          compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, node, arg1, arg2, arg3);
+          if (((bool)res)) 
+          return res;
+          
+          __yield_0 = compiler_passes_typechecker_TypeChecker_check_index(this, idx, hint, true);
+        }  else {
+          __yield_0 = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
+        } 
+;__yield_0; });
       compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, lhs);
       if ((!((bool)lhs) || !((bool)rhs))) 
       return NULL;
@@ -6346,6 +6421,9 @@ void compiler_passes_typechecker_TypeChecker_check_function_declaration(compiler
         if ((num_params_needed > 1)) 
         overload.type2=std_vector_Vector__4_at(func->params, 1)->type;
         
+        if ((num_params_needed > 2)) 
+        overload.type3=std_vector_Vector__4_at(func->params, 2)->type;
+        
         std_map_Map__6_insert(this->o->program->operator_overloads, overload, func);
       }
     }
@@ -6363,8 +6441,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
       continue;
       
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2100:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2104:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2150:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2154:16: Assertion failed: `sym.type == TypeDef`", NULL);
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -10060,6 +10138,10 @@ compiler_ast_nodes_Operator compiler_ast_nodes_Operator_from_str(char *op) {
         __yield_0 = compiler_ast_nodes_Operator_Equals;
       } else if (!strcmp(__match_str, "!=")) {
         __yield_0 = compiler_ast_nodes_Operator_NotEquals;
+      } else if (!strcmp(__match_str, "[]")) {
+        __yield_0 = compiler_ast_nodes_Operator_Index;
+      } else if (!strcmp(__match_str, "[]=")) {
+        __yield_0 = compiler_ast_nodes_Operator_IndexAssign;
       } else  {
         __yield_0 = compiler_ast_nodes_Operator_Invalid;
       }
@@ -10077,8 +10159,12 @@ u32 compiler_ast_nodes_Operator_num_params(compiler_ast_nodes_Operator this) {
         __yield_0 = 2;
       } break;
       case compiler_ast_nodes_Operator_Equals:
-      case compiler_ast_nodes_Operator_NotEquals: {
+      case compiler_ast_nodes_Operator_NotEquals:
+      case compiler_ast_nodes_Operator_Index: {
         __yield_0 = 2;
+      } break;
+      case compiler_ast_nodes_Operator_IndexAssign: {
+        __yield_0 = 3;
       } break;
       case compiler_ast_nodes_Operator_Invalid: {
         __yield_0 = 0;
@@ -10095,11 +10181,14 @@ u32 compiler_ast_nodes_OperatorOverload_hash(compiler_ast_nodes_OperatorOverload
   if (((bool)this.type2)) {
     std_traits_hash_pair_hash(hash, ((u32)this.type2->base));
   } 
+  if (((bool)this.type3)) {
+    std_traits_hash_pair_hash(hash, ((u32)this.type3->base));
+  } 
   return hash;
 }
 
 bool compiler_ast_nodes_OperatorOverload_eq(compiler_ast_nodes_OperatorOverload this, compiler_ast_nodes_OperatorOverload other) {
-  return ((this.op==other.op && compiler_types_Type_eq(this.type1, other.type1, false)) && compiler_types_Type_eq(this.type2, other.type2, false));
+  return (((this.op==other.op && compiler_types_Type_eq(this.type1, other.type1, true)) && compiler_types_Type_eq(this.type2, other.type2, true)) && compiler_types_Type_eq(this.type3, other.type3, true));
 }
 
 compiler_ast_scopes_TemplateInstance *compiler_ast_scopes_TemplateInstance_new(std_vector_Vector__0 *args, compiler_ast_scopes_Symbol *parent, compiler_ast_scopes_Symbol *resolved) {
@@ -12022,10 +12111,10 @@ bool compiler_types_Type_eq(compiler_types_Type *this, compiler_types_Type *othe
   return false;
   
   if (this->base==compiler_types_BaseType_Alias) 
-  return compiler_types_Type_eq(this->u.ptr, other, false);
+  return compiler_types_Type_eq(this->u.ptr, other, strict);
   
   if (other->base==compiler_types_BaseType_Alias) 
-  return compiler_types_Type_eq(this, other->u.ptr, false);
+  return compiler_types_Type_eq(this, other->u.ptr, strict);
   
   if ((this->base != other->base)) 
   return false;
@@ -12336,6 +12425,14 @@ u32 str_to_u32(char *this) {
 }
 
 bool str_eq(char *this, char *other) {
+  void *a = ((void *)this);
+  void *b = ((void *)other);
+  if (a==b) 
+  return true;
+  
+  if (!(((bool)a) && ((bool)b))) 
+  return false;
+  
   return strcmp(this, other)==0;
 }
 
@@ -13357,7 +13454,7 @@ std_map_Iterator__2 std_map_Map__2_iter(std_map_Map__2 *this) {
 
 compiler_attributes_Attribute *std_map_Map__2_at(std_map_Map__2 *this, compiler_attributes_AttributeType key) {
   std_map_Item__2 *node = std_map_Map__2_get_item(this, key);
-  ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "std/map.oc:96:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -13660,7 +13757,7 @@ std_map_Iterator__4 std_map_Map__4_iter(std_map_Map__4 *this) {
 
 compiler_ast_program_Namespace *std_map_Map__4_at(std_map_Map__4 *this, char *key) {
   std_map_Item__4 *node = std_map_Map__4_get_item(this, key);
-  ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "std/map.oc:96:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -13810,7 +13907,7 @@ std_map_Iterator__5 std_map_Map__5_iter(std_map_Map__5 *this) {
 
 compiler_ast_scopes_Symbol *std_map_Map__5_at(std_map_Map__5 *this, char *key) {
   std_map_Item__5 *node = std_map_Map__5_get_item(this, key);
-  ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "std/map.oc:96:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -13926,6 +14023,14 @@ void std_map_Map__6_insert(std_map_Map__6 *this, compiler_ast_nodes_OperatorOver
       std_map_Map__6_resize(this);
     } 
   } 
+}
+
+compiler_ast_nodes_Function *std_map_Map__6_get(std_map_Map__6 *this, compiler_ast_nodes_OperatorOverload key, compiler_ast_nodes_Function *defolt) {
+  std_map_Item__6 *node = std_map_Map__6_get_item(this, key);
+  if (!((bool)node)) 
+  return defolt;
+  
+  return node->value;
 }
 
 void std_map_Map__6_resize(std_map_Map__6 *this) {
@@ -14196,7 +14301,7 @@ std_map_Iterator__8 std_map_Map__8_iter(std_map_Map__8 *this) {
 
 compiler_ast_nodes_Function *std_map_Map__8_at(std_map_Map__8 *this, char *key) {
   std_map_Item__8 *node = std_map_Map__8_get_item(this, key);
-  ae_assert(((bool)node), "std/map.oc:95:12: Assertion failed: `node?`", "Key not found");
+  ae_assert(((bool)node), "std/map.oc:96:12: Assertion failed: `node?`", "Key not found");
   return node->value;
 }
 
@@ -14388,12 +14493,12 @@ std_vector_Iterator__0 std_vector_Vector__0_iter(std_vector_Vector__0 *this) {
 }
 
 compiler_types_Type *std_vector_Iterator__0_cur(std_vector_Iterator__0 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__0_next(std_vector_Iterator__0 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14406,7 +14511,7 @@ bool std_vector_Iterator__0_has_value(std_vector_Iterator__0 *this) {
 }
 
 compiler_types_Type *std_vector_Vector__0_at(std_vector_Vector__0 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14448,12 +14553,12 @@ std_vector_Iterator__1 std_vector_Vector__1_iter(std_vector_Vector__1 *this) {
 }
 
 char *std_vector_Iterator__1_cur(std_vector_Iterator__1 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__1_next(std_vector_Iterator__1 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14466,7 +14571,7 @@ bool std_vector_Iterator__1_has_value(std_vector_Iterator__1 *this) {
 }
 
 char *std_vector_Vector__1_at(std_vector_Vector__1 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14501,12 +14606,12 @@ std_vector_Iterator__2 std_vector_Vector__2_iter(std_vector_Vector__2 *this) {
 }
 
 compiler_ast_nodes_Structure *std_vector_Iterator__2_cur(std_vector_Iterator__2 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__2_next(std_vector_Iterator__2 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14553,12 +14658,12 @@ std_vector_Iterator__3 std_vector_Vector__3_iter(std_vector_Vector__3 *this) {
 }
 
 compiler_ast_scopes_TemplateInstance *std_vector_Iterator__3_cur(std_vector_Iterator__3 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__3_next(std_vector_Iterator__3 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14602,12 +14707,12 @@ std_vector_Iterator__4 std_vector_Vector__4_iter(std_vector_Vector__4 *this) {
 }
 
 compiler_ast_nodes_Variable *std_vector_Iterator__4_cur(std_vector_Iterator__4 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__4_next(std_vector_Iterator__4 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14620,7 +14725,7 @@ bool std_vector_Iterator__4_has_value(std_vector_Iterator__4 *this) {
 }
 
 compiler_ast_nodes_Variable *std_vector_Vector__4_at(std_vector_Vector__4 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14659,12 +14764,12 @@ std_vector_Iterator__5 std_vector_Vector__5_iter(std_vector_Vector__5 *this) {
 }
 
 compiler_ast_nodes_ImportPart *std_vector_Iterator__5_cur(std_vector_Iterator__5 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__5_next(std_vector_Iterator__5 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14677,7 +14782,7 @@ bool std_vector_Iterator__5_has_value(std_vector_Iterator__5 *this) {
 }
 
 compiler_ast_nodes_ImportPart *std_vector_Vector__5_at(std_vector_Vector__5 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14713,12 +14818,12 @@ std_vector_Iterator__6 std_vector_Vector__6_iter(std_vector_Vector__6 *this) {
 }
 
 compiler_ast_nodes_Function *std_vector_Iterator__6_cur(std_vector_Iterator__6 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__6_next(std_vector_Iterator__6 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14762,7 +14867,7 @@ compiler_ast_scopes_Scope *std_vector_Vector__8_pop(std_vector_Vector__8 *this) 
 }
 
 compiler_ast_scopes_Scope *std_vector_Vector__8_at(std_vector_Vector__8 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14794,7 +14899,7 @@ compiler_ast_program_Namespace *std_vector_Vector__9_pop(std_vector_Vector__9 *t
 }
 
 compiler_ast_program_Namespace *std_vector_Vector__9_at(std_vector_Vector__9 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14829,7 +14934,7 @@ void std_vector_Vector__9_push(std_vector_Vector__9 *this, compiler_ast_program_
 }
 
 compiler_tokens_Token *std_vector_Vector__10_at(std_vector_Vector__10 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14868,12 +14973,12 @@ std_vector_Iterator__12 std_vector_Vector__12_iter(std_vector_Vector__12 *this) 
 }
 
 compiler_errors_Error *std_vector_Iterator__12_cur(std_vector_Iterator__12 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__12_next(std_vector_Iterator__12 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14886,7 +14991,7 @@ bool std_vector_Iterator__12_has_value(std_vector_Iterator__12 *this) {
 }
 
 compiler_errors_Error *std_vector_Vector__12_at(std_vector_Vector__12 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -14925,12 +15030,12 @@ std_vector_Iterator__13 std_vector_Vector__13_iter(std_vector_Vector__13 *this) 
 }
 
 compiler_ast_nodes_Enum *std_vector_Iterator__13_cur(std_vector_Iterator__13 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__13_next(std_vector_Iterator__13 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14972,12 +15077,12 @@ std_vector_Iterator__14 std_vector_Vector__14_iter(std_vector_Vector__14 *this) 
 }
 
 compiler_ast_nodes_AST *std_vector_Iterator__14_cur(std_vector_Iterator__14 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__14_next(std_vector_Iterator__14 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -14990,7 +15095,7 @@ bool std_vector_Iterator__14_has_value(std_vector_Iterator__14 *this) {
 }
 
 compiler_ast_nodes_AST *std_vector_Vector__14_at(std_vector_Vector__14 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -15029,12 +15134,12 @@ std_vector_Iterator__16 std_vector_Vector__16_iter(std_vector_Vector__16 *this) 
 }
 
 compiler_ast_nodes_Operator std_vector_Iterator__16_cur(std_vector_Iterator__16 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__16_next(std_vector_Iterator__16 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -15083,12 +15188,12 @@ std_vector_Iterator__17 std_vector_Vector__17_iter(std_vector_Vector__17 *this) 
 }
 
 compiler_ast_nodes_Argument *std_vector_Iterator__17_cur(std_vector_Iterator__17 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__17_next(std_vector_Iterator__17 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -15101,7 +15206,7 @@ bool std_vector_Iterator__17_has_value(std_vector_Iterator__17 *this) {
 }
 
 compiler_ast_nodes_Argument *std_vector_Vector__17_at(std_vector_Vector__17 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -15131,12 +15236,12 @@ std_vector_Iterator__18 std_vector_Vector__18_iter(std_vector_Vector__18 *this) 
 }
 
 std_vector_Vector__5 *std_vector_Iterator__18_cur(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__18_next(std_vector_Iterator__18 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -15149,7 +15254,7 @@ bool std_vector_Iterator__18_has_value(std_vector_Iterator__18 *this) {
 }
 
 std_vector_Vector__5 *std_vector_Vector__18_at(std_vector_Vector__18 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -15179,12 +15284,12 @@ std_vector_Iterator__19 std_vector_Vector__19_iter(std_vector_Vector__19 *this) 
 }
 
 compiler_ast_nodes_MatchCase *std_vector_Iterator__19_cur(std_vector_Iterator__19 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__19_next(std_vector_Iterator__19 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -15197,7 +15302,7 @@ bool std_vector_Iterator__19_has_value(std_vector_Iterator__19 *this) {
 }
 
 compiler_ast_nodes_MatchCase *std_vector_Vector__19_at(std_vector_Vector__19 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -15223,7 +15328,7 @@ void std_vector_Vector__19_push(std_vector_Vector__19 *this, compiler_ast_nodes_
 }
 
 std_value_Value *std_vector_Vector__20_at(std_vector_Vector__20 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -15253,12 +15358,12 @@ std_vector_Iterator__21 std_vector_Vector__21_iter(std_vector_Vector__21 *this) 
 }
 
 std_compact_map_Item__0 std_vector_Iterator__21_cur(std_vector_Iterator__21 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:128:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:136:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current");
   return this->vec->data[this->index];
 }
 
 void std_vector_Iterator__21_next(std_vector_Iterator__21 *this) {
-  ae_assert((this->index < this->vec->size), "std/vector.oc:123:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
+  ae_assert((this->index < this->vec->size), "std/vector.oc:131:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::next");
   this->index+=1;
 }
 
@@ -15271,7 +15376,7 @@ bool std_vector_Iterator__21_has_value(std_vector_Iterator__21 *this) {
 }
 
 std_compact_map_Item__0 std_vector_Vector__21_at(std_vector_Vector__21 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 
@@ -15297,7 +15402,7 @@ void std_vector_Vector__21_push(std_vector_Vector__21 *this, std_compact_map_Ite
 }
 
 u32 std_vector_Vector__22_at(std_vector_Vector__22 *this, u32 i) {
-  ae_assert((i < this->size), "std/vector.oc:90:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
+  ae_assert((i < this->size), "std/vector.oc:91:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at");
   return this->data[i];
 }
 

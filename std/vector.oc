@@ -85,10 +85,18 @@ def Vector::back(&this, i: u32 = 0): T {
     return .data[.size - i - 1]
 }
 
+[operator "[]"]
 //* Returns the element at the given index
 def Vector::at(&this, i: u32): T {
     assert i < .size, "Out of bounds in Vector::at"
     return .data[i]
+}
+
+[operator "[]="]
+//* Returns the element at the given index
+def Vector::set(&this, i: u32, val: T) {
+    assert i < .size, "Out of bounds in Vector::set"
+    .data[i] = val
 }
 
 //* Returns the element at the given index without checking if it's out of bounds

@@ -1,0 +1,7 @@
+/// exit: 0
+
+def main() {
+    let a = "hello 123"
+    let b = `hello {100+23}`
+    assert a == b
+}

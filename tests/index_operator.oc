@@ -1,0 +1,61 @@
+/// exit: 0
+
+import std::vector::{ Vector }
+
+struct Foo {
+    x, y, z: u32
+}
+
+[operator "[]"]
+def Foo::index(this, i: u32): u32 => match i {
+    0 => this.x,
+    1 => this.y,
+    2 => this.z,
+    else => {
+        assert false, "index out of bounds for Foo::index"
+    }
+}
+
+[operator "[]="]
+def Foo::set_index(&this, i: u32, v: u32) {
+    match i {
+        0 => this.x = v,
+        1 => this.y = v,
+        2 => this.z = v,
+        else => {
+            assert false, "index out of bounds for Foo::index"
+        }
+    }
+}
+
+def main() {
+    let f = Foo(1, 2, 3)
+    assert f[0] == 1
+    assert f[1] == 2
+    assert f[2] == 3
+    (&f)[0] = 4  // Hacky, no auto-dereference yet
+    (&f)[1] = 5  // Hacky, no auto-dereference yet
+    (&f)[2] = 6  // Hacky, no auto-dereference yet
+    assert f[0] == 4
+    assert f[1] == 5
+    assert f[2] == 6
+
+    let v = Vector<u32>::new()
+    v.push(1)
+    v.push(2)
+    v.push(3)
+
+    assert v[0] == 1
+    assert v[1] == 2
+    assert v[2] == 3
+
+    v[0] = 4
+    v[1] = 5
+    v[2] = 6
+
+    assert v[0] == 4
+    assert v[1] == 5
+    assert v[2] == 6
+
+    println("All tests passed!")
+}

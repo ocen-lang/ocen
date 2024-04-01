@@ -15,6 +15,8 @@ def Vec2::adds(this, b: u32): Vec2 => Vec2(.x + b, .y + b)
 [operator "+"]
 def Vec2::adds_f(a: u32, b: Vec2): Vec2 => Vec2(b.x + a, b.y + a)
 
+def Vec2::normalized(this): Vec2 => Vec2(.x / 2, .y / 2)
+
 def main() {
     let a = Vec2(1, 2)
     let b = Vec2(3, 4)
@@ -22,4 +24,6 @@ def main() {
     let d = c + 5
     let f = 2 + d
     println(`({f.x}, {f.y})`)
+
+    let g = (a + b).normalized()
 }

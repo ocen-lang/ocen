@@ -243,7 +243,6 @@ struct FuncCall {
 
     is_constructor: bool
     is_function_pointer: bool
-    added_method_arg: bool
 }
 
 enum ImportPartType {
@@ -466,6 +465,8 @@ enum Operator {
     Equals
     NotEquals
     Invalid
+    Index
+    IndexAssign
 }
 
 def Operator::from_str(op: str): Operator => match op {
@@ -475,12 +476,15 @@ def Operator::from_str(op: str): Operator => match op {
     "/" => Divide
     "==" => Equals
     "!=" => NotEquals
+    "[]" => Index
+    "[]=" => IndexAssign
     else => Invalid
 }
 
 def Operator::num_params(this): u32 => match this {
     Plus | Minus | Multiply | Divide => 2
-    Equals | NotEquals => 2
+    Equals | NotEquals | Index => 2
+    IndexAssign => 3
     Invalid => 0
 }
 
@@ -488,6 +492,7 @@ struct OperatorOverload {
     op: Operator
     type1: &Type
     type2: &Type
+    type3: &Type
     // Maybe need more in the future?
 }
 
@@ -497,13 +502,15 @@ def OperatorOverload::hash(this): u32 {
     // This is a terrible hash function, we're only hashing the base type
     if .type1? { pair_hash(hash, .type1.base as u32) }
     if .type2? { pair_hash(hash, .type2.base as u32) }
+    if .type3? { pair_hash(hash, .type3.base as u32) }
     return hash
 }
 
 def OperatorOverload::eq(this, other: OperatorOverload): bool {
     return (
         .op == other.op and
-        .type1.eq(other.type1) and
-        .type2.eq(other.type2)
+        .type1.eq(other.type1, strict: true) and
+        .type2.eq(other.type2, strict: true) and
+        .type3.eq(other.type3, strict: true)
     )
 }
