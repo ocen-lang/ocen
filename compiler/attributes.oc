@@ -13,6 +13,7 @@ enum AttributeType {
     VariadicFormat  // [variadic_format]                        to expand format-strings to varargs
     Export          // [export]                                 to re-export an imported object
     Formatting      // [formatting <specifiers> <args>]         to specify formatting for an object
+    Operator        // [operator <op>]                          to specify an operator overload
 
     Invalid         // used for error reporting
 }
@@ -26,6 +27,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "variadic_format" => VariadicFormat
     "export" => Export
     "formatting" => Formatting
+    "operator" => Operator
     else => Invalid
 }
 
@@ -104,6 +106,16 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 "Invalid attribute"
             ))
             return false
+        }
+        Operator => {
+            if .args.size != 1 {
+                parser_for_errors.error(Error::new(
+                    this.span,
+                    "Operator attribute takes exactly one argument"
+                ))
+                return false
+            }
+            // We will check the operator name in parsing phase
         }
     }
     return true

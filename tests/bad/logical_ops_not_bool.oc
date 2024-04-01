@@ -1,4 +1,4 @@
-/// fail: Operands must be boolean
+/// fail: Operator `Or` does not support `bool` and `u32`
 
 def main() {
     let x = true or 5

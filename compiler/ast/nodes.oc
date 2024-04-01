@@ -195,6 +195,7 @@ struct Function {
 
     is_variadic: bool
     is_variadic_format: bool
+    operator_overloads: &Vector<Operator>
 
     is_method: bool
     is_static: bool
@@ -454,4 +455,55 @@ def AST::is_lvalue(&this): bool => match .type {
         return sym? and sym.type == Variable
     }
     else => false
+}
+
+//! Used for operator overloading
+enum Operator {
+    Plus
+    Minus
+    Multiply
+    Divide
+    Equals
+    NotEquals
+    Invalid
+}
+
+def Operator::from_str(op: str): Operator => match op {
+    "+" => Plus
+    "-" => Minus
+    "*" => Multiply
+    "/" => Divide
+    "==" => Equals
+    "!=" => NotEquals
+    else => Invalid
+}
+
+def Operator::num_params(this): u32 => match this {
+    Plus | Minus | Multiply | Divide => 2
+    Equals | NotEquals => 2
+    Invalid => 0
+}
+
+struct OperatorOverload {
+    op: Operator
+    type1: &Type
+    type2: &Type
+    // Maybe need more in the future?
+}
+
+def OperatorOverload::hash(this): u32 {
+    import std::traits::hash::{ pair_hash }
+    let hash = (.op as u32).hash()
+    // This is a terrible hash function, we're only hashing the base type
+    if .type1? { pair_hash(hash, .type1.base as u32) }
+    if .type2? { pair_hash(hash, .type2.base as u32) }
+    return hash
+}
+
+def OperatorOverload::eq(this, other: OperatorOverload): bool {
+    return (
+        .op == other.op and
+        .type1.eq(other.type1) and
+        .type2.eq(other.type2)
+    )
 }
