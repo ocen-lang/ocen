@@ -161,17 +161,19 @@ struct Program {
     //* Mapping from file name to file contents
     c_embeds: &Map<str, str>
 
-    gen_debug_info: bool
     sources: &Map<str, str>
-
     library_paths: &Vector<str>
 
-    check_doc_links: bool
     errors: &Vector<&Error>
     error_level: u32
 
     cached_types: CachedTypes
     err_jmp_ctx: ErrorContext
+
+    // Configs
+    check_doc_links: bool
+    gen_debug_info: bool
+    keep_all_code: bool
 }
 
 def Program::new(): &Program {

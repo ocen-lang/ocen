@@ -37,6 +37,7 @@ def usage(code: i32, full: bool) {
     println("    -e2            Error messages with source / hints")
     println("    -s             Silent mode (no debug output)")
     println("    -n             Don't compile C code (default: false)")
+    println("    --no-dce       Don't perform dead code elimination")
     println("    -d             Emit debug information (default: false)")
     println("    -l path        Directory to search for libraries (can be used multiple times)")
     println("    --docs path    Output documentation JSON (default: none)")
@@ -100,7 +101,11 @@ def parse_args(argc: i32, argv: &str, program: &Program) {
             "--help" => usage(code: 0, true)
             "-s" => silent = true
             "-d" => debug = true
-            "-n" => compile_c = false
+            "-n" => {
+                compile_c = false
+                program.keep_all_code = true
+            }
+            "--no-dce" => program.keep_all_code = true
             "-o" => exec_path = shift_args(&argc, &argv)
             "-c" => c_path = shift_args(&argc, &argv)
             "-l" => program.library_paths.push(shift_args(&argc, &argv))

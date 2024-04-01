@@ -39,7 +39,6 @@ enum ASTType {
     Null
     MethodCall
     Match
-    Index
     Defer
     Specialization
     PreIncrement
@@ -69,6 +68,8 @@ enum ASTType {
     Equals
     GreaterThan
     GreaterThanEquals
+    Index
+    IndexAssign
     LeftShift
     LessThan
     LessThanEquals
@@ -477,6 +478,8 @@ enum Operator {
     MinusEquals
     MultiplyEquals
     DivideEquals
+    LeftShiftEquals
+    RightShiftEquals
 }
 
 def Operator::from_str(op: str): Operator => match op {
@@ -496,13 +499,16 @@ def Operator::from_str(op: str): Operator => match op {
     "-=" => MinusEquals
     "*=" => MultiplyEquals
     "/=" => DivideEquals
+    "<<=" => LeftShiftEquals
+    ">>=" => RightShiftEquals
     else => Invalid
 }
 
 def Operator::num_params(this): u32 => match this {
     Plus | Minus | Multiply | Divide | Equals | NotEquals |
     Index | LeftShift | RightShift | BitwiseAnd | BitwiseOr |
-    PlusEquals | MinusEquals | MultiplyEquals | DivideEquals => 2
+    PlusEquals | MinusEquals | MultiplyEquals | DivideEquals |
+    LeftShiftEquals | RightShiftEquals => 2
     IndexAssign => 3
     Invalid => 0
 }

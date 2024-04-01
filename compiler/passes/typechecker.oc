@@ -675,9 +675,13 @@ def TypeChecker::find_and_replace_overloaded_op(&this, node: &AST, arg1: &AST, a
         MinusEquals => MinusEquals
         MultiplyEquals => MultiplyEquals
         DivideEquals => DivideEquals
-        Assignment => {
-            if node.u.binary.lhs.type != Index return null
-            if not arg3? return null
+        IndexAssign => {
+            // FIXME: need to do this for other mutators as well
+            // Auto-address for a value if it's not a pointer
+            if arg1.etype.base != Pointer {
+                arg1 = AST::new_unop(Address, arg1.span, arg1)
+                if not .check_expression(arg1)? return null
+            }
             yield Operator::IndexAssign
         }
         else => {
@@ -974,6 +978,20 @@ def TypeChecker::check_index(&this, node: &AST, hint: &Type, is_being_assigned: 
     }
 }
 
+// FIXME: Merge this into `check_binary_op`, but we need to properly handle how we
+//        overload IndexAssign operator; we have 3 operands for that instead of 2.
+def TypeChecker::check_assignment(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
+    if not node.u.binary.lhs.is_lvalue() {
+        .error(Error::new(node.u.binary.lhs.span, "Must be an l-value"))
+    }
+    if not lhs.eq(rhs) {
+        .error(Error::new(
+            node.u.binary.rhs.span, `Variable type does not match assignment type, Expected type '{lhs.str()}', got '{rhs.str()}'`
+        ))
+    }
+    return lhs
+}
+
 def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type {
     match node.type {
         ASTType::IntLiteral => {
@@ -1157,48 +1175,40 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             if not lhs? or not rhs? return null
             return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
         }
-
         Assignment => {
+            let lhs = .check_expression(node.u.binary.lhs)
+            let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
+            if not lhs? or not rhs? return null
+            return .check_assignment(node, lhs, rhs)
+        }
+        IndexAssign => {
             // We need to handle this operator overload carefully - since if we naively check the LHS
             // and RHS, we might end up replacing the LHS with the overloaded function for `[]`.
             // eg:     `a[x] = y` => `a_get(a, x) = y`
             // which is bad.
-            let lhs = if node.u.binary.lhs.type == Index {
-                let idx = node.u.binary.lhs
-                let arg1 = idx.u.binary.lhs
-                let arg2 = idx.u.binary.rhs
-                let arg3 = node.u.binary.rhs
-                if not .check_expression(arg1)? return null
-                if not .check_expression(arg2)? return null
+            let index = node.u.binary.lhs
+            let arg1 = index.u.binary.lhs
+            let arg2 = index.u.binary.rhs
+            let arg3 = node.u.binary.rhs
+            if not .check_expression(arg1)? return null
+            if not .check_expression(arg2)? return null
 
-                let arg3_hint: &Type = null
-                let arg1_typ = arg1.etype.unaliased()
-                if arg1_typ.base == BaseType::Pointer {
-                    arg3_hint = arg1_typ.u.ptr
-                }
-
-                if not .check_expression(arg3, hint: arg3_hint)? return null
-
-                let res = .find_and_replace_overloaded_op(node, arg1, arg2, arg3)
-                if res? return res
-
-                yield .check_index(idx, hint, is_being_assigned: true)
-            } else {
-                yield .check_expression(node.u.binary.lhs)
+            // Infer the type for the assigned value (in case it's a pointer to an array)
+            let arg3_hint: &Type = null
+            let arg1_typ = arg1.etype.unaliased()
+            if arg1_typ.base == BaseType::Pointer {
+                arg3_hint = arg1_typ.u.ptr
             }
 
-            let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
+            if not .check_expression(arg3, hint: arg3_hint)? return null
+
+            let res = .find_and_replace_overloaded_op(node, arg1, arg2, arg3)
+            if res? return res
+
+            let lhs = .check_index(index, hint: null, is_being_assigned: true)
+            let rhs = .check_expression(arg3, hint: lhs)
             if not lhs? or not rhs? return null
-
-            if not node.u.binary.lhs.is_lvalue() {
-                .error(Error::new(node.u.binary.lhs.span, "Must be an l-value"))
-            }
-            if not lhs.eq(rhs) {
-                .error(Error::new(
-                    node.u.binary.rhs.span, `Variable type does not match assignment type, Expected type '{lhs.str()}', got '{rhs.str()}'`
-                ))
-            }
-            return lhs
+            return .check_assignment(node, lhs, rhs)
         }
 
         PreIncrement | PostIncrement | PreDecrement | PostDecrement => {
@@ -2130,7 +2140,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
         for op : func.operator_overloads.iter() {
             let num_params_needed = op.num_params()
             if num_params_needed != func.params.size {
-                .error(Error::new(func.span, `Operator overload for {op} must have {num_params_needed} parameters`))
+                .error(Error::new(func.sym.span, `Operator overload for {op} must have {num_params_needed} parameters`))
                 continue
             }
 
@@ -2139,6 +2149,14 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
             if num_params_needed > 0 then overload.type1 = func.params.at(0).type
             if num_params_needed > 1 then overload.type2 = func.params.at(1).type
             if num_params_needed > 2 then overload.type3 = func.params.at(2).type
+
+            if op == IndexAssign {
+                let type1 = overload.type1.unaliased()
+                if type1.base != Pointer {
+                    .error(Error::new(func.sym.span, "First parameter of index-assign operator must be a pointer-type"))
+                    continue
+                }
+            }
 
             let it = .o.program.operator_overloads.get_item(overload)
             if it? {

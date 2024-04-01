@@ -81,11 +81,11 @@ def Lexer::inc(&this) {
     .loc.index += 1
 }
 
-def Lexer::peek(&this, offset: i32): char {
+def Lexer::peek(&this, offset: u32 = 1): char {
     if .cur() == '\0' {
         return .cur()
     }
-    return .source[.i + 1]
+    return .source[.i + offset]
 }
 
 def Lexer::lex_char_literal(&this) {

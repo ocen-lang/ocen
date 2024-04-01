@@ -33,9 +33,9 @@ def main() {
     assert f[0] == 1
     assert f[1] == 2
     assert f[2] == 3
-    (&f)[0] = 4  // Hacky, no auto-dereference yet
-    (&f)[1] = 5  // Hacky, no auto-dereference yet
-    (&f)[2] = 6  // Hacky, no auto-dereference yet
+    f[0] = 4
+    f[1] = 5
+    f[2] = 6
     assert f[0] == 4
     assert f[1] == 5
     assert f[2] == 6
