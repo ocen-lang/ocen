@@ -120,19 +120,13 @@ def Finder::find_in_expression(&this, node: &AST): bool {
                 return .set_usage(node.resolved_symbol)
             }
         }
-        And | Assignment | BitwiseAnd |
-        BitwiseOr | BitwiseXor | Divide | DivideEquals |
-        Equals | GreaterThan | GreaterThanEquals | Index |
-        LeftShift | LessThan | LessThanEquals | Minus |
-        MinusEquals | Modulus | Multiply | MultiplyEquals |
-        NotEquals | Or | Plus | PlusEquals |
-        RightShift => {
+        BinaryOp => {
             let lhs = node.u.binary.lhs
             let rhs = node.u.binary.rhs
             return .find_in_expression(lhs) or .find_in_expression(rhs)
         }
-        Address | Dereference | Not | Negate |
-        Defer | IsNotNull | Yield => return .find_in_expression(node.u.unary)
+        UnaryOp => return .find_in_expression(node.u.unary.expr)
+        Defer | Yield => return .find_in_expression(node.u.child)
         Call => {
             let call = &node.u.call
             if .find_in_expression(call.callee) return true
@@ -160,9 +154,8 @@ def Finder::find_in_expression(&this, node: &AST): bool {
             if stmt.defolt? and .find_in_statement(stmt.defolt) return true
         }
         Break | Continue => {}
-        ArrowReturn => return .find_in_expression(node.u.unary)
+        ArrowReturn => return .find_in_expression(node.u.child)
         Assert => return .find_in_expression(node.u.assertion.expr)
-        PreIncrement | PostIncrement | PreDecrement | PostDecrement => return .find_in_expression(node.u.unary)
         Specialization => {
             let spec = &node.u.spec
             if .find_in_expression(spec.base) return true
@@ -211,7 +204,7 @@ def Finder::find_in_statement(&this, node: &AST): bool {
             if decl.init? and .find_in_expression(decl.init) return true
         }
         Block => return .find_in_block(node)
-        Return => return node.u.unary? and .find_in_expression(node.u.unary)
+        Return => return node.u.child? and .find_in_expression(node.u.child)
         Import => {
             let path = node.u.import_path
             for part : path.parts.iter() {

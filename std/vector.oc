@@ -23,7 +23,7 @@ def Vector::resize(&this, new_capacity: u32) {
     .data = realloc(.data , .capacity * sizeof(T)) as &T
 }
 
-[operator "<<"]
+[operator "+="]
 //* Pushes an element to the end of the vector
 def Vector::push(&this, value: T) {
     if .size == .capacity {

@@ -114,24 +114,24 @@ def serialize_into(val: &Value, sb: &Buffer) {
     match val.type {
         String => {
             let s = val.u.as_str
-            sb.putsf(`{s.size}:`)
-            sb.putb(&s)
+            sb <<= `{s.size}:`
+            sb += &s
         }
-        Integer => sb.putsf(`i{val.u.as_int}e`)
+        Integer => sb <<= `i{val.u.as_int}e`
         List => {
-            sb.puts("l")
+            sb += "l"
             for val : val.u.as_list.iter() {
                 serialize_into(val, sb)
             }
-            sb.puts("e")
+            sb += "e"
         }
         Dictionary => {
-            sb.puts("d")
+            sb += "d"
             for it : val.u.as_dict.iter() {
-                sb.putsf(`{it.key.len()}:{it.key}`)
+                sb <<= `{it.key.len()}:{it.key}`
                 serialize_into(it.value, sb)
             }
-            sb.puts("e")
+            sb += "e"
         }
         else => panic(`Unsupported Value type {val.type} in Bencode::serialize_into()`)
     }

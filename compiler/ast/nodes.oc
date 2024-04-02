@@ -7,6 +7,7 @@ import std::libc::calloc
 import @tokens::{ TokenType, Token }
 import @ast::scopes::{ Scope, Symbol }
 import @ast::program::Namespace
+import @ast::operators::{ Operator }
 import @types::Type
 
 enum ASTType {
@@ -41,74 +42,10 @@ enum ASTType {
     Match
     Defer
     Specialization
-    PreIncrement
-    PreDecrement
-    PostIncrement
-    PostDecrement
     ArrayLiteral
 
-    // Unary operators
-    Address
-    Dereference
-    Negate
-    Not
-
-    //* ptr? operator
-    IsNotNull
-
-    // Binary operators
-    And
-    Assignment
-    BitwiseAnd
-    BitwiseNot
-    BitwiseOr
-    BitwiseXor
-    Divide
-    DivideEquals
-    Equals
-    GreaterThan
-    GreaterThanEquals
-    Index
-    IndexAssign
-    LeftShift
-    LessThan
-    LessThanEquals
-    Minus
-    MinusEquals
-    Modulus
-    Multiply
-    MultiplyEquals
-    NotEquals
-    Or
-    Plus
-    PlusEquals
-    RightShift
-}
-
-def ASTType::from_token(type: TokenType): ASTType => match type {
-    Ampersand => ASTType::BitwiseAnd
-    And => ASTType::And
-    Caret => ASTType::BitwiseXor
-    EqualEquals => ASTType::Equals
-    Equals => ASTType::Assignment
-    GreaterThan => ASTType::GreaterThan
-    GreaterThanEquals => ASTType::GreaterThanEquals
-    LessThan => ASTType::LessThan
-    LessThanEquals => ASTType::LessThanEquals
-    Line => ASTType::BitwiseOr
-    Minus => ASTType::Minus
-    MinusEquals => ASTType::MinusEquals
-    NotEquals => ASTType::NotEquals
-    Or => ASTType::Or
-    Percent => ASTType::Modulus
-    Plus => ASTType::Plus
-    PlusEquals => ASTType::PlusEquals
-    Slash => ASTType::Divide
-    SlashEquals => ASTType::DivideEquals
-    Star => ASTType::Multiply
-    StarEquals => ASTType::MultiplyEquals
-    Tilde => ASTType::BitwiseNot
-    else => std::panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
+    UnaryOp
+    BinaryOp
 }
 
 struct Variable {
@@ -304,8 +241,15 @@ struct NumLiteral {
 }
 
 struct Binary {
+    op: Operator
     lhs: &AST
     rhs: &AST
+    op_span: Span
+}
+
+struct Unary {
+    op: Operator
+    expr: &AST
     op_span: Span
 }
 
@@ -397,13 +341,14 @@ union ASTUnion {
     num_literal: NumLiteral
     string_literal: str
     char_literal: str
-    unary: &AST
+    unary: Unary
     var_decl: VarDeclaration
     fmt_str: FormatString
     size_of_type: &Type
     match_stmt: Match
     spec: Specialization
     array_literal: ArrayLiteral
+    child: &AST
 }
 
 struct AST {
@@ -424,15 +369,17 @@ def AST::new(type: ASTType, span: Span): &AST {
     return ast
 }
 
-def AST::new_unop(type: ASTType, span: Span, expr: &AST): &AST {
-    let ast = AST::new(type, span)
-    ast.u.unary = expr
+def AST::new_unop(op: Operator, span: Span, expr: &AST): &AST {
+    let ast = AST::new(UnaryOp, span)
+    ast.u.unary.op = op
+    ast.u.unary.expr = expr
     return ast
 }
 
-def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST, op_span: Span): &AST {
+def AST::new_binop(op: Operator, lhs: &AST, rhs: &AST, op_span: Span): &AST {
     let span = lhs.span.join(rhs.span)
-    let ast = AST::new(type, span)
+    let ast = AST::new(BinaryOp, span)
+    ast.u.binary.op = op
     ast.u.binary.lhs = lhs
     ast.u.binary.rhs = rhs
     ast.u.binary.op_span = op_span
@@ -450,93 +397,11 @@ def AST::symbol(&this): &Symbol => .resolved_symbol
 def AST::is_lvalue(&this): bool => match .type {
     Identifier => not .u.ident.is_function
     Member => true
-    Dereference => true
-    Index => true
+    UnaryOp => .u.unary.op == Dereference
+    BinaryOp => .u.binary.op == Index
     NSLookup => {
         let sym = .resolved_symbol
         return sym? and sym.type == Variable
     }
     else => false
-}
-
-//! Used for operator overloading
-enum Operator {
-    Plus
-    Minus
-    Multiply
-    Divide
-    Equals
-    NotEquals
-    Invalid
-    Index
-    IndexAssign
-    LeftShift
-    RightShift
-    BitwiseAnd
-    BitwiseOr
-    PlusEquals
-    MinusEquals
-    MultiplyEquals
-    DivideEquals
-    LeftShiftEquals
-    RightShiftEquals
-}
-
-def Operator::from_str(op: str): Operator => match op {
-    "+" => Plus
-    "-" => Minus
-    "*" => Multiply
-    "/" => Divide
-    "==" => Equals
-    "!=" => NotEquals
-    "[]" => Index
-    "[]=" => IndexAssign
-    "<<" => LeftShift
-    ">>" => RightShift
-    "&" => BitwiseAnd
-    "|" => BitwiseOr
-    "+=" => PlusEquals
-    "-=" => MinusEquals
-    "*=" => MultiplyEquals
-    "/=" => DivideEquals
-    "<<=" => LeftShiftEquals
-    ">>=" => RightShiftEquals
-    else => Invalid
-}
-
-def Operator::num_params(this): u32 => match this {
-    Plus | Minus | Multiply | Divide | Equals | NotEquals |
-    Index | LeftShift | RightShift | BitwiseAnd | BitwiseOr |
-    PlusEquals | MinusEquals | MultiplyEquals | DivideEquals |
-    LeftShiftEquals | RightShiftEquals => 2
-    IndexAssign => 3
-    Invalid => 0
-}
-
-struct OperatorOverload {
-    op: Operator
-    type1: &Type
-    type2: &Type
-    type3: &Type
-    // Maybe need more in the future?
-}
-
-def OperatorOverload::hash(this): u32 {
-    import std::traits::hash::{ pair_hash }
-    let hash = (.op as u32).hash()
-    // This is a terrible hash function, we're only hashing the base type
-    if .type1? { pair_hash(hash, .type1.base as u32) }
-    if .type2? { pair_hash(hash, .type2.base as u32) }
-    if .type3? { pair_hash(hash, .type3.base as u32) }
-    return hash
-}
-
-[operator "=="]
-def OperatorOverload::eq(this, other: OperatorOverload): bool {
-    return (
-        .op == other.op and
-        .type1.eq(other.type1, strict: true) and
-        .type2.eq(other.type2, strict: true) and
-        .type3.eq(other.type3, strict: true)
-    )
 }

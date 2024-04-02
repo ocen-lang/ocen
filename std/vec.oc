@@ -17,10 +17,6 @@ typedef Vec2f64 = Vec2<f64>
 typedef Vec2i64 = Vec2<i64>
 typedef Vec2u64 = Vec2<u64>
 
-def Vec2::print(this) {
-    println(f"{.x} {.y}")
-}
-
 [operator "+"] def Vec2::add(this, other: Vec2<T>): Vec2<T> => Vec2<T>(.x + other.x, .y + other.y)
 [operator "+"] def Vec2::adds(this, val: T): Vec2<T> => Vec2<T>(.x + val, .y + val)
 [operator "+"] def Vec2::addrs(val: T, this: Vec2<T>): Vec2<T> => Vec2<T>(val + this.x, val + this.y)
@@ -88,10 +84,6 @@ typedef Vec3u = Vec3<u32>
 typedef Vec3f64 = Vec3<f64>
 typedef Vec3i64 = Vec3<i64>
 typedef Vec3u64 = Vec3<u64>
-
-def Vec3::print(this) {
-    println("%f %f %f\n", .x, .y, .z)
-}
 
 [operator "+"] def Vec3::add(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x + other.x, .y + other.y, .z + other.z)
 [operator "+"] def Vec3::adds(this, val: T): Vec3<T> => Vec3<T>(.x + val, .y + val, .z + val)
