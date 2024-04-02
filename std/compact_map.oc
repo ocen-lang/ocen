@@ -171,6 +171,7 @@ def Map::clear(&this) {
 
 def Map::is_empty(&this): bool => .items.size == 0
 
+[operator "+="]
 def Map::extend(&this, other: &Map<K, V>) {
     for item : other.iter() {
         .insert(item.key, item.value)

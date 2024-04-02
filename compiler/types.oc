@@ -236,28 +236,29 @@ def Type::str(&this): str => match .base {
     Pointer => `&{.u.ptr.str()}`
     Function => {
         let buf = Buffer::make()
-        buf.puts("fn(")
+        buf += "fn("
         for let i = 0; i < .u.func.params.size; i += 1 {
             let param = .u.func.params.at(i)
-            buf.puts(param.type.str())
+            buf += param.type.str()
             if i < .u.func.params.size - 1 {
-                buf.puts(", ")
+                buf += ", "
             }
         }
-        buf.puts("): ")
-        buf.puts(.u.func.return_type.str())
+        buf += "): "
+        buf += .u.func.return_type.str()
         return buf.str()
     }
     Array => {
         let buf = Buffer::make()
-        buf.puts(.u.arr.elem_type.str())
-        buf.puts("[")
+        buf += .u.arr.elem_type.str()
+        buf += "["
         if .u.arr.size_known {
-            buf.putsf(`{.u.arr.size}`)
+            buf += `{.u.arr.size}`
+
         } else {
-            buf.puts(`?{this:p}`)
+            buf += `?{this:p}`
         }
-        buf.puts("]")
+        buf += "]"
         return buf.str()
     }
     Structure => .u.struc.sym.display

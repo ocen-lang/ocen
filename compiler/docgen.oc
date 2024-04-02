@@ -58,17 +58,17 @@ def DocGenerator::gen_location(&this, obj: &Value, span: Span) {
 def DocGenerator::gen_templated_type(&this, base: &Type, args: &Vector<&Type>): str {
     let base_name = .gen_typename_str(base)
     let buf = Buffer::make()
-    buf.putsf(base_name)
-    buf.puts("<")
+    buf += base_name
+    buf += "<"
     let first = true
     for arg_type : args.iter() {
-        if not first then buf.puts(", ")
+        if not first then buf += ", "
         first = false
 
         let param_name = .gen_typename_str(arg_type)
-        buf.putsf(param_name)
+        buf += param_name
     }
-    buf.puts(">")
+    buf += ">"
     return buf.str()
 }
 
@@ -110,18 +110,18 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
         }
         Function => {
             let buf = Buffer::make()
-            buf.puts("fn(")
+            buf += "fn("
             let first = true
             for param : type.u.func.params.iter() {
-                if not first then buf.puts(", ")
+                if not first then buf += ", "
                 first = false
 
                 let param_name = .gen_typename_str(param.type)
-                buf.putsf(param_name)
+                buf <<= param_name
             }
-            buf.puts("): ")
+            buf += "): "
             let return_name = .gen_typename_str(type.u.func.return_type)
-            buf.putsf(return_name)
+            buf <<= return_name
             return buf.str()
         }
         Unresolved => {

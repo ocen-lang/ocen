@@ -1,0 +1,160 @@
+
+import std::vector::Vector
+import std::map::Map
+import std::span::Span
+import std::libc::calloc
+import @tokens::{ TokenType, Token }
+import @ast::scopes::{ Scope, Symbol }
+import @ast::program::Namespace
+import @types::Type
+import @ast::nodes::{ AST, ASTType }
+import std::traits::hash
+
+//! Used for operator overloading
+enum Operator {
+    // Unary
+    Address
+    Dereference
+    Negate
+    Not
+    BitwiseNot
+    IsNotNull
+    PreIncrement
+    PreDecrement
+    PostIncrement
+    PostDecrement
+
+    // Binary
+    And
+    Assignment
+    BitwiseAnd
+    BitwiseOr
+    BitwiseXor
+    Divide
+    DivideEquals
+    Equals
+    GreaterThan
+    GreaterThanEquals
+    Index
+    LeftShift
+    LessThan
+    LessThanEquals
+    Minus
+    MinusEquals
+    Modulus
+    Multiply
+    MultiplyEquals
+    NotEquals
+    Or
+    Plus
+    PlusEquals
+    RightShift
+    LeftShiftEquals
+    RightShiftEquals
+
+    // Technically binary, but need 3 operands for overloading
+    IndexAssign
+
+    Error
+}
+
+def Operator::from_operator_overload_str(s: str): Operator => match s {
+    "+" => Plus
+    "-" => Minus
+    "*" => Multiply
+    "/" => Divide
+    "==" => Equals
+    "!=" => NotEquals
+    "[]" => Index
+    "<<" => LeftShift
+    ">>" => RightShift
+    "&" => BitwiseAnd
+    "|" => BitwiseOr
+    "+=" => PlusEquals
+    "-=" => MinusEquals
+    "*=" => MultiplyEquals
+    "/=" => DivideEquals
+    "[]=" => IndexAssign
+    "<<=" => LeftShiftEquals
+    ">>=" => RightShiftEquals
+    else => Error
+}
+
+def Operator::from_token(type: TokenType): Operator => match type {
+    Ampersand => BitwiseAnd
+    And => And
+    Caret => BitwiseXor
+    EqualEquals => Equals
+    Equals => Assignment
+    GreaterThan => GreaterThan
+    GreaterThanEquals => GreaterThanEquals
+    LessThan => LessThan
+    LessThanEquals => LessThanEquals
+    Line => BitwiseOr
+    Minus => Minus
+    MinusEquals => MinusEquals
+    NotEquals => NotEquals
+    Or => Or
+    Percent => Modulus
+    Plus => Plus
+    PlusEquals => PlusEquals
+    Slash => Divide
+    SlashEquals => DivideEquals
+    Star => Multiply
+    StarEquals => MultiplyEquals
+    else => std::panic(`Unhandled token type in Operator::from_token: {type.str()}`)
+}
+
+def Operator::num_overload_params(this): u32 => match this {
+    Address | Dereference | Negate | Not | BitwiseNot | IsNotNull |
+    PreIncrement | PreDecrement | PostIncrement | PostDecrement => 1
+
+    And | Assignment | BitwiseAnd | BitwiseOr | LeftShiftEquals | Divide |
+    RightShiftEquals | BitwiseXor | DivideEquals | Equals | GreaterThan |
+    GreaterThanEquals | Index | LeftShift | LessThan | LessThanEquals |
+    Minus | MinusEquals | Modulus | Multiply | MultiplyEquals | Or | Plus |
+    NotEquals | PlusEquals | RightShift => 2
+
+    IndexAssign => 3
+
+    Error => 0
+}
+
+def Operator::needs_lhs_pointer_for_overload(this): bool => match this {
+    MultiplyEquals => true
+    DivideEquals => true
+    PlusEquals => true
+    MinusEquals => true
+    IndexAssign => true
+    LeftShiftEquals => true
+    RightShiftEquals => true
+    else => false
+}
+
+struct OperatorOverload {
+    op: Operator
+    type1: &Type
+    type2: &Type
+    type3: &Type
+    // Maybe need more in the future?
+}
+
+def OperatorOverload::hash(this): u32 {
+    import std::traits::hash::{ pair_hash }
+    let hash = (.op as u32).hash()
+    // This is a terrible hash function, we're only hashing the base type
+    if .type1? { pair_hash(hash, .type1.base as u32) }
+    if .type2? { pair_hash(hash, .type2.base as u32) }
+    if .type3? { pair_hash(hash, .type3.base as u32) }
+    return hash
+}
+
+[operator "=="]
+def OperatorOverload::eq(this, other: OperatorOverload): bool {
+    return (
+        .op == other.op and
+        .type1.eq(other.type1, strict: true) and
+        .type2.eq(other.type2, strict: true) and
+        .type3.eq(other.type3, strict: true)
+    )
+}

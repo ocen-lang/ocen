@@ -8,6 +8,7 @@ import std::fs
 
 import @ast::nodes::{ * }
 import @ast::program::{ Namespace, Program }
+import @ast::operators::{ Operator }
 import @ast::scopes::{ Symbol, SymbolType, Template }
 import @attributes::{ Attribute, AttributeType }
 import @errors::Error
@@ -135,6 +136,29 @@ def Parser::clear_attributes(&this) {
         std::free(attr)
     }
     .attrs.clear()
+}
+
+def Parser::is_compound_operator(&this, op: Operator): bool => match op {
+    LeftShift => .token_is(LessThan) and .peek_token_is(1, LessThan)
+    RightShift => .token_is(GreaterThan) and .peek_token_is(1, GreaterThan)
+    LeftShiftEquals => .token_is(LessThan) and .peek_token_is(1, LessThanEquals)
+    RightShiftEquals => .token_is(GreaterThan) and .peek_token_is(1, GreaterThanEquals)
+    else => false
+}
+
+def Parser::consume_compound_operator(&this, op: Operator): Span {
+    let span = .token().span
+    match op {
+        LeftShift => { .consume(LessThan); .consume(LessThan); }
+        RightShift => { .consume(GreaterThan); .consume(GreaterThan); }
+        LeftShiftEquals => { .consume(LessThan); .consume(LessThanEquals); }
+        RightShiftEquals => { .consume(GreaterThan); .consume(GreaterThanEquals); }
+        else => {
+            .error(Error::new(span, f"Unknown operator {op} in Parser::consume_compound_operator"))
+        }
+    }
+    let prev_token = .tokens[.curr - 1]
+    return span.join(prev_token.span)
 }
 
 // NOTE: The parser _always_ returns an `Unresolved` base type, with the name of the type stored in
@@ -683,9 +707,7 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
             }
             TokenType::Question => {
                 let tok = .consume(TokenType::Question)
-                let op = AST::new(ASTType::IsNotNull, node.span.join(tok.span))
-                op.u.unary = node
-                node = op
+                node = AST::new_unop(IsNotNull, node.span.join(tok.span), node)
             }
             TokenType::OpenSquare => {
                 let open = .consume(TokenType::OpenSquare)
@@ -694,7 +716,8 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
 
                 // Contructing the binop here manually to properly handle the
                 // spans of `]` being _after_ the index expression.
-                let op = AST::new(ASTType::Index, node.span.join(close.span))
+                let op = AST::new(ASTType::BinaryOp, node.span.join(close.span))
+                op.u.binary.op = Index
                 op.u.binary.lhs = node
                 op.u.binary.rhs = index
                 op.u.binary.op_span = open.span
@@ -704,10 +727,10 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 let span = node.span.join(.token().span)
                 let op = if .token_is(TokenType::MinusMinus) {
                     .consume(TokenType::MinusMinus)
-                    yield ASTType::PostDecrement
+                    yield Operator::PostDecrement
                 } else {
                     .consume(TokenType::PlusPlus)
-                    yield ASTType::PostIncrement
+                    yield Operator::PostIncrement
                 }
                 node = AST::new_unop(op, span, node)
             }
@@ -723,18 +746,17 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
         TokenType::Ampersand => {
             let amp = .consume(TokenType::Ampersand)
             let expr = .parse_prefix(end_type)
-            let node = AST::new(ASTType::Address, amp.span.join(expr.span))
-            node.u.unary = expr
+            let node = AST::new_unop(Operator::Address, amp.span.join(expr.span), expr)
             return node
         }
         TokenType::MinusMinus | TokenType::PlusPlus => {
             let start_span = .token().span
             let op = if .token_is(TokenType::MinusMinus) {
                 .consume(TokenType::MinusMinus)
-                yield ASTType::PreDecrement
+                yield Operator::PreDecrement
             } else {
                 .consume(TokenType::PlusPlus)
-                yield ASTType::PreIncrement
+                yield Operator::PreIncrement
             }
             let expr = .parse_prefix(end_type)
             return AST::new_unop(op, start_span.join(expr.span), expr)
@@ -751,29 +773,25 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
         TokenType::Star => {
             let star = .consume(TokenType::Star)
             let expr = .parse_prefix(end_type)
-            let node = AST::new(ASTType::Dereference, star.span.join(expr.span))
-            node.u.unary = expr
+            let node = AST::new_unop(Dereference, star.span.join(expr.span), expr)
             return node
         }
         TokenType::Minus => {
             let minus = .consume(TokenType::Minus)
             let expr = .parse_prefix(end_type)
-            let node = AST::new(ASTType::Negate, minus.span.join(expr.span))
-            node.u.unary = expr
+            let node = AST::new_unop(Negate, minus.span.join(expr.span), expr)
             return node
         }
         TokenType::Not => {
             let tok = .consume(TokenType::Not)
             let expr = .parse_prefix(end_type)
-            let node = AST::new(ASTType::Not, tok.span.join(expr.span))
-            node.u.unary = expr
+            let node = AST::new_unop(Not, tok.span.join(expr.span), expr)
             return node
         }
         TokenType::Tilde => {
             let tok = .consume(TokenType::Tilde)
             let expr = .parse_prefix(end_type)
-            let node = AST::new(ASTType::BitwiseNot, tok.span.join(expr.span))
-            node.u.unary = expr
+            let node = AST::new_unop(BitwiseNot, tok.span.join(expr.span), expr)
             return node
         }
         else => return .parse_postfix(end_type)
@@ -801,7 +819,7 @@ def Parser::parse_term(&this, end_type: TokenType): &AST {
             .token_is(TokenType::Percent) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_cast(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -814,7 +832,7 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_term(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -823,21 +841,15 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
 
 def Parser::parse_shift(&this, end_type: TokenType): &AST {
     let lhs = .parse_additive(end_type)
-    while .token_is(TokenType::LessThan) or
-            .token_is(TokenType::GreaterThan) {
-        let cur_token = .token()
-        let next_token = .tokens.at(.curr + 1)
-        if cur_token.type != next_token.type then break
-        if .token_is(end_type) break
+    while .is_compound_operator(LeftShift) or
+            .is_compound_operator(RightShift) {
 
-        let op_span = cur_token.span.join(next_token.span)
-        let op = if next_token.type == TokenType::LessThan {
-            yield ASTType::LeftShift
+        let op = if .token().type == TokenType::LessThan {
+            yield Operator::LeftShift
         } else {
-            yield ASTType::RightShift
+            yield Operator::RightShift
         }
-
-        .curr += 2
+        let op_span = .consume_compound_operator(op)
         let rhs = .parse_additive(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_span)
     }
@@ -849,7 +861,7 @@ def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Ampersand) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_shift(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -861,7 +873,7 @@ def Parser::parse_bw_xor(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Caret) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_bw_and(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -873,7 +885,7 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Line) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_bw_xor(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -892,8 +904,16 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
             .token_is(TokenType::EqualEquals) or
             .token_is(TokenType::NotEquals) {
         if .token_is(end_type) break
-        operators.push(.token())
-        .curr += 1
+
+        let done = match .token().type {
+            LessThan => .is_compound_operator(LeftShiftEquals)
+            GreaterThan => .is_compound_operator(RightShiftEquals)
+            else => false
+        }
+        if done then break
+
+        let token = .consume(.token().type)
+        operators.push(token)
         let term = .parse_bw_or(end_type)
         operands.push(term)
     }
@@ -905,9 +925,9 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
         let tok = operators.at(i)
         let lhs = operands.at(i)
         let rhs = operands.at(i+1)
-        let op = AST::new_binop(ASTType::from_token(tok.type), lhs, rhs, tok.span)
+        let op = AST::new_binop(Operator::from_token(tok.type), lhs, rhs, tok.span)
         if root? {
-            root = AST::new_binop(ASTType::And, root, op, tok.span)
+            root = AST::new_binop(And, root, op, tok.span)
         } else {
             root = op
         }
@@ -924,7 +944,7 @@ def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::And) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_relational(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -936,7 +956,7 @@ def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Or) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok.type)
         let rhs = .parse_logical_and(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -950,23 +970,37 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
             .token_is(TokenType::MinusEquals) or
             .token_is(TokenType::StarEquals) or
             .token_is(TokenType::SlashEquals) or
-            .token_is(TokenType::LeftShiftEquals) or
-            .token_is(TokenType::RightShiftEquals) {
+            .is_compound_operator(LeftShiftEquals) or
+            .is_compound_operator(RightShiftEquals) {
         if .token_is(end_type) break
 
-        let op_tok = .consume(.token().type)
-        let op = ASTType::from_token(op_tok.type)
+        let op_span: Span
+        let op = match .token().type {
+            LessThan => {
+                op_span = .consume_compound_operator(LeftShiftEquals)
+                yield Operator::LeftShiftEquals
+            }
+            GreaterThan => {
+                op_span = .consume_compound_operator(RightShiftEquals)
+                yield Operator::RightShiftEquals
+            }
+            else => {
+                let tok = .consume(.token().type)
+                op_span = tok.span
+                yield Operator::from_token(tok.type)
+            }
+        }
 
         // FIXME: expressions such as `foo[x] += 5` can't be overloaded
         //        properly since we only handle `foo[x] = 5` as a special
         //        case here. Figure out how to make this more general without
         //        Introducing more AST-types for all the different operators.
-        if op == Assignment and lhs.type == Index {
+        if op == Assignment and lhs.type == BinaryOp and lhs.u.binary.op == Index {
             op = IndexAssign
         }
 
         let rhs = .parse_expression(end_type)
-        lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
+        lhs = AST::new_binop(op, lhs, rhs, op_span)
     }
     return lhs
 }
@@ -1135,13 +1169,15 @@ def Parser::parse_statement(&this): &AST {
             if not .is_end_of_statement() {
                 expr = .parse_expression(end_type: TokenType::Newline)
             }
-            node = AST::new_unop(ASTType::Return, start_span.join(.token().span), expr)
+            node = AST::new(ASTType::Return, start_span.join(.token().span))
+            node.u.child = expr
             .consume_end_of_statement()
         }
         TokenType::Yield => {
             .consume(TokenType::Yield)
             let expr = .parse_expression(end_type: TokenType::Newline)
-            node = AST::new_unop(ASTType::Yield, start_span.join(.token().span), expr)
+            node = AST::new(ASTType::Yield, start_span.join(.token().span))
+            node.u.child = expr
             .consume_end_of_statement()
         }
         TokenType::Break => {
@@ -1182,7 +1218,8 @@ def Parser::parse_statement(&this): &AST {
         TokenType::Defer => {
             .consume(TokenType::Defer)
             let expr = .parse_expression(end_type: TokenType::Newline)
-            node = AST::new_unop(ASTType::Defer, start_span.join(.token().span), expr)
+            node = AST::new(ASTType::Defer, start_span.join(.token().span))
+            node.u.child = expr
             .consume_end_of_statement()
         }
         TokenType::Import => {
@@ -1382,8 +1419,8 @@ def Parser::parse_function(&this): &Function {
                 func.is_variadic_format = true
             }
             Operator => {
-                let op = Operator::from_str(attr.args.at(0))
-                if op == Invalid {
+                let op = Operator::from_operator_overload_str(attr.args.at(0))
+                if op == Error {
                     .error(Error::new(attr.span, "Invalid operator"))
                     continue
                 }
@@ -1413,7 +1450,7 @@ def Parser::parse_function(&this): &Function {
 
         let expr = .parse_expression(end_type: TokenType::Newline)
         let ret = AST::new(ASTType::ArrowReturn, expr.span)
-        ret.u.unary = expr
+        ret.u.child = expr
 
         let body = AST::new(ASTType::Block, ret.span)
 
@@ -1688,7 +1725,7 @@ def Parser::parse_enum(&this): &Enum {
     while not .token_is(TokenType::CloseCurly) {
         let name = .consume(TokenType::Identifier)
         let var = Variable::new(null)
-        var.sym = Symbol::new_with_parent(Variable, .ns, enum_def.sym, name.text, name.span)
+        var.sym = Symbol::new_with_parent(EnumVariant, .ns, enum_def.sym, name.text, name.span)
         var.sym.u.var = var
         .add_doc_comment(var.sym, name)
 

@@ -12,6 +12,7 @@ enum SymbolType {
     Function
     Structure
     Enum
+    EnumVariant
     TypeDef
     Namespace
     Variable

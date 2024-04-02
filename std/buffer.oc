@@ -71,7 +71,7 @@ def hex_dump(data: &u8, size: u32) {
 
 def Buffer::hex_dump(this) => hex_dump(.data, .size)
 
-[operator "<<"]
+[operator "+="]
 def Buffer::putb(&this, buf: &Buffer) {
     .resize_if_necessary(new_size: .size + buf.size + 1)
     memcpy(.data + .size, buf.data, buf.size)
@@ -79,12 +79,13 @@ def Buffer::putb(&this, buf: &Buffer) {
     .size += buf.size
 }
 
+[operator "<<="]
 def Buffer::putbf(&this, buf: &Buffer) {
     .putb(buf)
     buf.free()
 }
 
-[operator "<<"]
+[operator "+="]
 def Buffer::puts(&this, s: str) {
     let len = s.len() as u32
     .resize_if_necessary(new_size: .size + len as u32 + 1) // +1 for null terminator
@@ -92,18 +93,19 @@ def Buffer::puts(&this, s: str) {
     .size += len
 }
 
-[operator "<<"]
+[operator "<<="]
+// Put and free the string
+def Buffer::putsf(&this, s: str) {
+    .puts(s)
+    free(s)
+}
+
+[operator "+="]
 def Buffer::putc(&this, c: char) {
     .resize_if_necessary(new_size: .size + 2) // +1 for null terminator
     .data[.size] = c as u8
     .size += 1
     .data[.size] = '\0' as u8
-}
-
-// Put and free the string
-def Buffer::putsf(&this, s: str) {
-    .puts(s)
-    free(s)
 }
 
 def Buffer::put_bytes(&this, bytes: &u8, size: u32) {
@@ -113,7 +115,7 @@ def Buffer::put_bytes(&this, bytes: &u8, size: u32) {
     .data[.size] = '\0' as u8
 }
 
-[operator "<<"]
+[operator "+="]
 def Buffer::putsv(&this, sv: SV) => .put_bytes(sv.data as &u8, sv.len)
 
 def Buffer::str(this): str => .data as str

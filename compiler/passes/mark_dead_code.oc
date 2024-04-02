@@ -99,9 +99,8 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Import | Break | Continue | IntLiteral | FloatLiteral |
         BoolLiteral | StringLiteral | CharLiteral | Null => {}
 
-        Return | ArrowReturn | Yield | Defer | Address | Dereference | Negate |
-        BitwiseNot | Not | IsNotNull | Cast | PreIncrement | 
-        PreDecrement | PostIncrement | PostDecrement => .mark(node.u.unary)
+        Return | ArrowReturn | Yield | Defer => .mark(node.u.child)
+        UnaryOp => .mark(node.u.unary.expr)
 
         SizeOf => .mark_type(node.u.size_of_type)
         VarDeclaration => {
@@ -151,34 +150,13 @@ def MarkDeadCode::mark(&this, node: &AST) {
                 .mark(arg.expr)
             }
         }
-
-        And |
-        BitwiseAnd |
-        BitwiseOr |
-        BitwiseXor |
-        Divide |
-        GreaterThan |
-        GreaterThanEquals |
-        LeftShift |
-        LessThan |
-        LessThanEquals |
-        Minus |
-        Modulus |
-        Multiply |
-        NotEquals |
-        Or |
-        Plus |
-        RightShift |
-        Index |
-        IndexAssign |
-        Equals |
-        Assignment |
-        PlusEquals |
-        MinusEquals |
-        DivideEquals |
-        MultiplyEquals => {
+        BinaryOp => {
             .mark(node.u.binary.lhs)
             .mark(node.u.binary.rhs)
+        }
+        Cast => {
+            .mark(node.u.cast.lhs)
+            .mark_type(node.u.cast.to)
         }
 
         ArrayLiteral => {

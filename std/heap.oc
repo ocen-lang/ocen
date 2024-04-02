@@ -21,6 +21,7 @@ def Heap::new(mode: Mode, capacity: u32 = 32): &Heap<T> {
     return heap
 }
 
+[operator "+="]
 def Heap::push(&this, value: T) {
     .vec.push(value)
     .sift_up(.size() - 1)

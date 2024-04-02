@@ -8,7 +8,8 @@ import std::map::{ Map }
 import std::span::{ Span }
 import std::vector::{ Vector }
 
-import @ast::nodes::{ AST, ASTType, Structure, Function, Variable, Operator, OperatorOverload }
+import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
+import @ast::operators::{ Operator, OperatorOverload }
 import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
@@ -283,8 +284,8 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
 
     // Want to also build a new display name for the specialization
     let new_display_name = Buffer::make()
-    new_display_name.puts(sym.name)
-    new_display_name.puts("<")
+    new_display_name += sym.name
+    new_display_name += "<"
 
     // This is the scope that we'll use to resolve the template parameters
     let scope = Scope::new(sym.ns.scope)
@@ -295,8 +296,8 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
         let param = template_params.at(i)
         let arg = template_args.at(i)
 
-        if i > 0 then new_display_name.puts(", ")
-        new_display_name.puts(arg.str())
+        if i > 0 then new_display_name += ", "
+        new_display_name += arg.str()
 
         let cur_sym = Symbol::new(
             TypeDef,
@@ -310,7 +311,7 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
         .o.insert_into_scope_checked(cur_sym)
     }
 
-    new_display_name.puts(">")
+    new_display_name += ">"
 
     // NOTE: We need to do `new_with_parent` to properly set the namespaced names of the symbol
     let new_out_name = `{sym.name}__{sym.template.instances.size}`
@@ -459,9 +460,9 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
     let first_arg = member.lhs
 
     if member.is_pointer and method_param.base != Pointer {
-        first_arg = AST::new_unop(ASTType::Dereference, first_arg.span, first_arg)
+        first_arg = AST::new_unop(Dereference, first_arg.span, first_arg)
     } else if not member.is_pointer and method_param.base == Pointer {
-        first_arg = AST::new_unop(ASTType::Address, first_arg.span, first_arg)
+        first_arg = AST::new_unop(Address, first_arg.span, first_arg)
     }
     node.u.call.args.push_front(Argument::new(first_arg))
 }
@@ -641,7 +642,8 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
 }
 
 def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type): &Type {
-    if node.type == ASTType::Plus or node.type == ASTType::Minus {
+    let op = node.u.binary.op
+    if op == Operator::Plus or op == Operator::Minus {
         if _lhs.base == BaseType::Pointer and _rhs.is_integer() {
             return _lhs
         }
@@ -649,7 +651,7 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
             return _rhs
         }
         if _lhs.eq(_rhs) and _lhs.base == BaseType::Pointer {
-            if node.type == ASTType::Minus {
+            if op == Operator::Minus {
                 return .get_base_type(BaseType::I64, node.span)
             }
         }
@@ -658,47 +660,26 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
     return null
 }
 
-def TypeChecker::find_and_replace_overloaded_op(&this, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
-    let op_type: Operator = match node.type {
-        Plus => Plus,
-        Minus => Minus,
-        Multiply => Multiply,
-        Divide => Divide,
-        Equals => Equals,
-        NotEquals => NotEquals,
-        Index => Index,
-        LeftShift => LeftShift
-        RightShift => RightShift
-        BitwiseAnd => BitwiseAnd
-        BitwiseOr => BitwiseOr
-        PlusEquals => PlusEquals
-        MinusEquals => MinusEquals
-        MultiplyEquals => MultiplyEquals
-        DivideEquals => DivideEquals
-        IndexAssign => {
-            // FIXME: need to do this for other mutators as well
-            // Auto-address for a value if it's not a pointer
-            if arg1.etype.base != Pointer {
-                arg1 = AST::new_unop(Address, arg1.span, arg1)
-                if not .check_expression(arg1)? return null
-            }
-            yield Operator::IndexAssign
-        }
-        else => {
-            return null // Operator not supported
+def TypeChecker::find_and_replace_overloaded_binary_op(&this, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
+    let op = node.u.binary.op
+    if op.needs_lhs_pointer_for_overload() {
+        // Auto-address for a value if it's not a pointer
+        if arg1.is_lvalue() and arg1.etype.base != Pointer {
+            arg1 = AST::new_unop(Address, arg1.span, arg1)
+            if not .check_expression(arg1)? return null
         }
     }
 
-    // FIXME: Auto-address / dereference?
     let overload: OperatorOverload
-    overload.op = op_type
+    overload.op = op
     if arg1? overload.type1 = arg1.etype
     if arg2? overload.type2 = arg2.etype
     if arg3? overload.type3 = arg3.etype
     let func = .o.program.operator_overloads.get(overload, defolt: null)
     if not func? return null
 
-    // FIXME: This is not correct, we can't just make this an identifier
+    // NOTE: This is a little hacky; it's not actually an identifier
+    //        but we know the correct symbol so we're resolving it manually.
     let callee = AST::new(Identifier, node.u.binary.op_span)
     callee.u.ident.name = func.sym.name
     callee.resolved_symbol = func.sym
@@ -715,17 +696,18 @@ def TypeChecker::find_and_replace_overloaded_op(&this, node: &AST, arg1: &AST, a
 }
 
 def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
-    let res = .find_and_replace_overloaded_op(node, node.u.binary.lhs, node.u.binary.rhs)
+    let res = .find_and_replace_overloaded_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
     if res? return res
 
-    match node.type {
+    let op = node.u.binary.op
+    match op {
         Plus | Minus | Multiply | Divide => {
             if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
                 return .check_pointer_arith(node, lhs, rhs)
 
             } else if not lhs.is_numeric() or not rhs.is_numeric() {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
 
@@ -747,7 +729,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             }
             if not lhs.is_numeric() or not rhs.is_numeric() {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
@@ -763,7 +745,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
             if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
@@ -778,13 +760,13 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         Equals | NotEquals => {
             if not lhs.eq(rhs) {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
             if lhs.base == BaseType::Structure {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
@@ -793,7 +775,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         And | Or => {
             if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
@@ -802,7 +784,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         BitwiseXor => {
             if not lhs.eq(rhs) {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
@@ -811,10 +793,10 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             }
             return lhs
         }
-        Modulus | BitwiseOr | BitwiseAnd | LeftShift | RightShift => {
+        Modulus | BitwiseOr | BitwiseAnd | LeftShift | RightShift | LeftShiftEquals | RightShiftEquals => {
             if not lhs.is_integer() or not rhs.is_integer() {
                 .error(Error::new(node.span,
-                    f"Operator `{node.type}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
@@ -824,6 +806,16 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 ))
             }
+
+            let lhs_node = node.u.binary.lhs
+            match op {
+                LeftShiftEquals | RightShiftEquals => if not lhs_node.is_lvalue() {
+                    .error(Error::new(lhs_node.span, f"Must be an l-value"))
+                    return null
+                },
+                else => {}
+            }
+
             return lhs
         }
         else => std::panic(`Internal error: unhandled op in check_binary_op: {node.type}`)
@@ -959,7 +951,7 @@ def TypeChecker::check_index(&this, node: &AST, hint: &Type, is_being_assigned: 
     if not lhs? or not rhs? return null
 
     if not is_being_assigned {
-        let res = .find_and_replace_overloaded_op(node, node.u.binary.lhs, node.u.binary.rhs)
+        let res = .find_and_replace_overloaded_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
         if res? return res
     }
 
@@ -1024,6 +1016,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             if not typ? return null
             let target = .resolve_type(node.u.cast.to)
             if not target? return null
+            node.u.cast.to = target
             // FIXME: Disallow invalid casts
             return target
         }
@@ -1036,68 +1029,87 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::BoolLiteral => {
             return .get_base_type(BaseType::Bool, node.span)
         }
-        ASTType::Negate => {
-            if not (hint? and hint.is_numeric()) {
-                hint = .get_base_type(BaseType::I32, node.span)
+        ASTType::UnaryOp => match node.u.unary.op {
+            PreIncrement | PostIncrement | PreDecrement | PostDecrement => {
+                let lhs = .check_expression(node.u.unary.expr)
+                if not lhs? return null
+                if not lhs.is_integer() {
+                    .error(Error::new(node.span, `Cannot increment or decrement non-integer type: {lhs.str()}`))
+                    return null
+                }
+                if not node.u.unary.expr.is_lvalue() {
+                    .error(Error::new(node.span, `Can't perform {node.u.unary.op} on a non-lvalue`))
+                }
+                return lhs
             }
-            let typ = .check_expression(node.u.unary, hint)
-            if not typ? return null
-            if not typ.is_numeric() {
-                .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
-                return null
+            Negate => {
+                if not (hint? and hint.is_numeric()) {
+                    hint = .get_base_type(BaseType::I32, node.span)
+                }
+                let typ = .check_expression(node.u.unary.expr, hint)
+                if not typ? return null
+                if not typ.is_numeric() {
+                    .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
+                    return null
+                }
+                return typ
             }
-            return typ
-        }
-        ASTType::BitwiseNot => {
-            let typ = .check_expression(node.u.unary, hint)
-            if not typ? return null
-            if not typ.is_integer() {
-                .error(Error::new(node.span, `Cannot do bitwise-not on non-integer type: {typ.str()}`))
-                return null
+            BitwiseNot => {
+                let typ = .check_expression(node.u.unary.expr, hint)
+                if not typ? return null
+                if not typ.is_integer() {
+                    .error(Error::new(node.span, `Cannot do bitwise-not on non-integer type: {typ.str()}`))
+                    return null
+                }
+                return typ
             }
-            return typ
-        }
-        ASTType::IsNotNull => {
-            let typ = .check_expression(node.u.unary)
-            if not typ? return null
-            typ = typ.unaliased()
-            if typ.base != BaseType::Pointer {
-                .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
+            IsNotNull => {
+                let typ = .check_expression(node.u.unary.expr)
+                if not typ? return null
+                typ = typ.unaliased()
+                if typ.base != BaseType::Pointer {
+                    .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
+                }
+                return .get_base_type(BaseType::Bool, node.span)
             }
-            return .get_base_type(BaseType::Bool, node.span)
-        }
-        ASTType::Not => {
-            let typ = .check_expression(node.u.unary, hint: .get_base_type(BaseType::Bool, node.span))
-            if not typ? return null
-            if typ.base != BaseType::Bool {
-                .error(Error::new(node.span, `Cannot negate non-boolean type: {typ.str()}`))
-                return null
+            Not => {
+                let typ = .check_expression(node.u.unary.expr, hint: .get_base_type(BaseType::Bool, node.span))
+                if not typ? return null
+                if typ.base != BaseType::Bool {
+                    .error(Error::new(node.span, `Cannot negate non-boolean type: {typ.str()}`))
+                    return null
+                }
+                return typ
             }
-            return typ
-        }
-        ASTType::Address => {
-            let typ = .check_expression(node.u.unary)
-            if not typ? return null
+            Address => {
+                let typ = .check_expression(node.u.unary.expr)
+                if not typ? return null
 
-            match typ.base {
-                BaseType::Char => return .get_type_by_name("str", node.span)
-                BaseType::Void => return .get_type_by_name("untyped_ptr", node.span)
-                else => {
-                    let ptr = Type::new_resolved(BaseType::Pointer, node.span)
-                    ptr.u.ptr = typ
-                    return ptr
+                match typ.base {
+                    BaseType::Char => return .get_type_by_name("str", node.span)
+                    BaseType::Void => return .get_type_by_name("untyped_ptr", node.span)
+                    else => {
+                        let ptr = Type::new_resolved(BaseType::Pointer, node.span)
+                        ptr.u.ptr = typ
+                        return ptr
+                    }
                 }
             }
-        }
-        ASTType::Dereference => {
-            let typ = .check_expression(node.u.unary)
-            if not typ? return null
-            if typ.base != BaseType::Pointer {
-                .error(Error::new(node.span, `Cannot dereference non-pointer type: {typ.str()}`))
+            Dereference => {
+                let typ = .check_expression(node.u.unary.expr)
+                if not typ? return null
+                if typ.base != BaseType::Pointer {
+                    .error(Error::new(node.span, `Cannot dereference non-pointer type: {typ.str()}`))
+                    return null
+                }
+                return typ.u.ptr
+            }
+            else => {
+                .error(Error::new(node.span, `Unknown unary operator in check_expression: {node.u.unary.op}`))
                 return null
             }
-            return typ.u.ptr
         }
+
         ASTType::Member => return .check_member(node, is_being_called: false)
         ASTType::SizeOf => {
             let typ = .resolve_type(node.u.size_of_type)
@@ -1117,7 +1129,6 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             .check_match(node, is_expr: true, hint)
             return node.etype
         }
-        ASTType::Index => return .check_index(node, hint, is_being_assigned: false)
         ASTType::Identifier | ASTType::NSLookup | ASTType::Specialization => {
             let item = .resolve_scoped_identifier(node, error: true, hint)
             if not item? return null
@@ -1125,22 +1136,14 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             item = item.remove_alias()
             match item.type {
                 Function => return item.u.func.type
-                Variable | Constant => return item.u.var.type
-                Structure => {
-                    .error(Error::new(node.span, "Cannot use a struct name as an expression"))
-                    return null
-                }
-                Enum => {
-                    .error(Error::new(node.span, "Cannot use an enum name as an expression"))
-                    return null
-                }
-                Namespace => {
-                    .error(Error::new(node.span, "Cannot use a namespace as an expression"))
-                    return null
-                }
+                Variable | Constant | EnumVariant => return item.u.var.type
                 TypeDef => {
-                    // Fixme: How will this work with struct constructors?
-                    .error(Error::new(node.span, "Cannot use a type name as an expression"))
+                    // This is just for a nicer error message
+                    .error(Error::new(node.span, f"Cannot use type `{item.name}` as an expression"))
+                    return null
+                }
+                Structure | Enum | Namespace => {
+                    .error(Error::new(node.span, f"Cannot use {item.type} `{item.name}` as an expression"))
                     return null
                 }
             }
@@ -1148,80 +1151,78 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::Call => return .check_call(node)
 
         // Binary operators
-        Plus |
-        Minus |
-        Multiply |
-        Divide |
-        LessThan |
-        LessThanEquals |
-        GreaterThan |
-        GreaterThanEquals |
-        Equals |
-        NotEquals |
-        PlusEquals |
-        MinusEquals |
-        MultiplyEquals |
-        DivideEquals |
-        And |
-        Or |
-        Modulus |
-        BitwiseOr |
-        BitwiseAnd |
-        BitwiseXor |
-        LeftShift |
-        RightShift => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
-            if not lhs? or not rhs? return null
-            return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
-        }
-        Assignment => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
-            if not lhs? or not rhs? return null
-            return .check_assignment(node, lhs, rhs)
-        }
-        IndexAssign => {
-            // We need to handle this operator overload carefully - since if we naively check the LHS
-            // and RHS, we might end up replacing the LHS with the overloaded function for `[]`.
-            // eg:     `a[x] = y` => `a_get(a, x) = y`
-            // which is bad.
-            let index = node.u.binary.lhs
-            let arg1 = index.u.binary.lhs
-            let arg2 = index.u.binary.rhs
-            let arg3 = node.u.binary.rhs
-            if not .check_expression(arg1)? return null
-            if not .check_expression(arg2)? return null
+        BinaryOp => {
+            let lhs_node = node.u.binary.lhs
+            let rhs_node = node.u.binary.rhs
+            let op = node.u.binary.op
+            match op {
+                Plus |
+                Minus |
+                Multiply |
+                Divide |
+                LessThan |
+                LessThanEquals |
+                GreaterThan |
+                GreaterThanEquals |
+                Equals |
+                NotEquals |
+                PlusEquals |
+                MinusEquals |
+                MultiplyEquals |
+                DivideEquals |
+                And |
+                Or |
+                Modulus |
+                BitwiseOr |
+                BitwiseAnd |
+                BitwiseXor |
+                LeftShiftEquals |
+                RightShiftEquals |
+                LeftShift |
+                RightShift => {
+                    let lhs = .check_expression(lhs_node)
+                    let rhs = .check_expression(rhs_node, hint: lhs)
+                    if not lhs? or not rhs? return null
+                    return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
+                }
+                Index => return .check_index(node, hint, is_being_assigned: false)
+                Assignment => {
+                    let lhs = .check_expression(node.u.binary.lhs)
+                    let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
+                    if not lhs? or not rhs? return null
+                    return .check_assignment(node, lhs, rhs)
+                }
+                IndexAssign => {
+                    // We need to handle this operator overload carefully - since if we naively check the LHS
+                    // and RHS, we might end up replacing the LHS with the overloaded function for `[]`.
+                    // eg:     `a[x] = y` => `a_get(a, x) = y`
+                    // which is bad.
+                    let index = node.u.binary.lhs
+                    let arg1 = index.u.binary.lhs
+                    let arg2 = index.u.binary.rhs
+                    let arg3 = node.u.binary.rhs
+                    if not .check_expression(arg1)? return null
+                    if not .check_expression(arg2)? return null
 
-            // Infer the type for the assigned value (in case it's a pointer to an array)
-            let arg3_hint: &Type = null
-            let arg1_typ = arg1.etype.unaliased()
-            if arg1_typ.base == BaseType::Pointer {
-                arg3_hint = arg1_typ.u.ptr
+                    // Infer the type for the assigned value (in case it's a pointer to an array)
+                    let arg3_hint: &Type = null
+                    let arg1_typ = arg1.etype.unaliased()
+                    if arg1_typ.base == BaseType::Pointer {
+                        arg3_hint = arg1_typ.u.ptr
+                    }
+
+                    if not .check_expression(arg3, hint: arg3_hint)? return null
+
+                    let res = .find_and_replace_overloaded_binary_op(node, arg1, arg2, arg3)
+                    if res? return res
+
+                    let lhs = .check_index(index, hint: null, is_being_assigned: true)
+                    let rhs = .check_expression(arg3, hint: lhs)
+                    if not lhs? or not rhs? return null
+                    return .check_assignment(node, lhs, rhs)
+                }
+                else => std::panic(`Internal error: unhandled op in check_expression binary_op: {node.type}`)
             }
-
-            if not .check_expression(arg3, hint: arg3_hint)? return null
-
-            let res = .find_and_replace_overloaded_op(node, arg1, arg2, arg3)
-            if res? return res
-
-            let lhs = .check_index(index, hint: null, is_being_assigned: true)
-            let rhs = .check_expression(arg3, hint: lhs)
-            if not lhs? or not rhs? return null
-            return .check_assignment(node, lhs, rhs)
-        }
-
-        PreIncrement | PostIncrement | PreDecrement | PostDecrement => {
-            let lhs = .check_expression(node.u.unary)
-            if not lhs? return null
-            if not lhs.is_integer() {
-                .error(Error::new(node.span, `Cannot increment or decrement non-integer type: {lhs.str()}`))
-                return null
-            }
-            if not node.u.unary.is_lvalue() {
-                .error(Error::new(node.span, `Can't perform {node.type} on a non-lvalue`))
-            }
-            return lhs
         }
 
         ArrayLiteral => {
@@ -1536,14 +1537,14 @@ def TypeChecker::check_statement(&this, node: &AST) {
             let expected = cur_func.return_type
 
             let res: &Type = null
-            if node.u.unary? then res = .check_expression(node.u.unary, hint: expected)
+            if node.u.child? then res = .check_expression(node.u.child, hint: expected)
 
             if expected.base == BaseType::Void {
                 // We allow using arrow returns in void functions, they just don't return anything.
-                if node.u.unary? and node.type != ASTType::ArrowReturn {
+                if node.u.child? and node.type != ASTType::ArrowReturn {
                     .error(Error::new(node.span, "Cannot return a value from a void function"))
                 }
-            } else if node.u.unary? {
+            } else if node.u.child? {
                 if res? and not res.eq(expected) {
                     .error(Error::new(node.span, `Return type {res.str()} does not match function return type {expected.str()}`))
                 }
@@ -1570,12 +1571,12 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 node.returns = true
             }
         }
-        ASTType::Defer => .check_statement(node.u.unary)
+        ASTType::Defer => .check_statement(node.u.child)
         ASTType::Yield => {
             if not .scope().can_yield {
                 .error(Error::new(node.span, "Cannot yield here"))
             }
-            node.etype = .check_expression(node.u.unary)
+            node.etype = .check_expression(node.u.child)
         }
         ASTType::Import => {
             .handle_import_statement(node)
@@ -1775,7 +1776,7 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
             i++
 
         } if doc[i] == doc[i+1] == '{' {
-            buffer.putsf(doc.substring(prev, i-prev))
+            buffer <<= doc.substring(prev, i-prev)
             prev = i + 2
             i++
 
@@ -1824,21 +1825,21 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
                 Function => `{sym.u.func:x}`
                 Enum => `{sym.u.enum_.type:x}`
                 TypeDef => `{sym.u.type_def:x}`
-                Variable => `{sym.u.var:x}`
+                Variable | EnumVariant => `{sym.u.var:x}`
                 Constant => `{sym.u.var:x}`
                 Namespace => `{sym.u.ns:x}`
             }
 
-            buffer.puts("{{")
-            buffer.putsf(linked_part)
-            buffer.puts("}}")
+            buffer += "{{"
+            buffer <<= linked_part
+            buffer += "}}"
             std::free(part)
 
             prev = i + 2
             i++
         }
     }
-    buffer.putsf(doc.substring(prev, doc_len))
+    buffer <<= doc.substring(prev, doc_len)
     sym.comment = buffer.str()
 }
 
@@ -1861,25 +1862,7 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
         BoolLiteral => .get_base_type(BaseType::Bool, node.span)
         CharLiteral => .get_base_type(BaseType::Char, node.span)
         StringLiteral => .get_type_by_name("str", node.span)
-        Plus |
-        Minus |
-        Multiply |
-        Divide |
-        LessThan |
-        LessThanEquals |
-        GreaterThan |
-        GreaterThanEquals |
-        Equals |
-        NotEquals |
-        And |
-        Or |
-        Modulus |
-        BitwiseNot |
-        BitwiseOr |
-        BitwiseAnd |
-        BitwiseXor |
-        LeftShift |
-        RightShift => {
+        BinaryOp => {
             let lhs = .check_const_expression(node.u.binary.lhs)
             let rhs = .check_const_expression(node.u.binary.rhs)
             if not lhs? or not rhs? return null
@@ -1889,17 +1872,23 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
             }
             yield .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
         }
-        Negate => {
-            if not hint? or not hint.is_numeric() {
-                hint = .get_base_type(BaseType::I32, node.span)
+        UnaryOp => match node.u.unary.op {
+            BitwiseNot | Negate => {
+                if not hint? or not hint.is_numeric() {
+                    hint = .get_base_type(BaseType::I32, node.span)
+                }
+                let typ = .check_const_expression(node.u.unary.expr, hint)
+                if not typ? return null
+                if not typ.is_numeric() {
+                    .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
+                    return null
+                }
+                yield typ
             }
-            let typ = .check_const_expression(node.u.unary, hint)
-            if not typ? return null
-            if not typ.is_numeric() {
-                .error(Error::new(node.span, `Cannot negate non-numeric type: {typ.str()}`))
+            else => {
+                .error(Error::new(node.span, f"Unsupported operator in constant expression: {node.u.unary.op}"))
                 return null
             }
-            return typ
         }
         else => {
             .error(Error::new(node.span, "Unsupported operator in constant expression"))
@@ -2138,7 +2127,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
     if func.operator_overloads? {
         for op : func.operator_overloads.iter() {
-            let num_params_needed = op.num_params()
+            let num_params_needed = op.num_overload_params()
             if num_params_needed != func.params.size {
                 .error(Error::new(func.sym.span, `Operator overload for {op} must have {num_params_needed} parameters`))
                 continue
@@ -2150,10 +2139,10 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
             if num_params_needed > 1 then overload.type2 = func.params.at(1).type
             if num_params_needed > 2 then overload.type3 = func.params.at(2).type
 
-            if op == IndexAssign {
+            if op.needs_lhs_pointer_for_overload() {
                 let type1 = overload.type1.unaliased()
                 if type1.base != Pointer {
-                    .error(Error::new(func.sym.span, "First parameter of index-assign operator must be a pointer-type"))
+                    .error(Error::new(func.sym.span, f"First parameter of {op} operator must be a pointer-type"))
                     continue
                 }
             }

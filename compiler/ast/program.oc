@@ -6,7 +6,8 @@ import std::map::Map
 import std::libc::{ calloc, exit }
 import std::setjmp::{ ErrorContext }
 import @ast::scopes::{ Symbol, Scope }
-import @ast::nodes::{ AST, Function, Structure, Enum, OperatorOverload }
+import @ast::nodes::{ AST, Function, Structure, Enum }
+import @ast::operators::{ OperatorOverload }
 import @errors::Error
 import @types::{ Type, BaseType }
 import @parser::Parser

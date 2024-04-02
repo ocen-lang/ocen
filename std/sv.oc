@@ -22,6 +22,7 @@ def SV::from_str(s: str): SV => SV(s, s.len())
 //* Get the first n characters of the string
 def SV::get(this, n: u32): SV => SV(this.data, n)
 
+[operator "[]"]
 //* Get the n-th character of the string
 def SV::at(this, n: u32): char {
     assert n < .len, "Index out of bounds in SV::at"
@@ -178,9 +179,10 @@ def SV::print(&this, msg: str=null) {
     }
 }
 
+
 //* Compare two string views
-def SV::eq(this, other: SV): bool => .len == other.len and memcmp(.data, other.data, .len) == 0
-def SV::eq_str(this, other: str): bool => .eq(SV::from_str(other))
+[operator "=="] def SV::eq(this, other: SV): bool => .len == other.len and memcmp(.data, other.data, .len) == 0
+[operator "=="] def SV::eq_str(this, other: str): bool => .eq(SV::from_str(other))
 
 //* Hash a string view
 def SV::hash(this): u32 {

@@ -14,13 +14,13 @@ def Set::new(): &Set<T> {
     return set
 }
 
-[operator "<<"]
+[operator "+="]
 def Set::add(&this, key: T) {
     .map.insert(key, true)
     .size = .map.size
 }
 
-[operator ">>"]
+[operator "-="]
 def Set::remove(&this, key: T) {
     .map.remove(key)
     .size = .map.size
