@@ -39,7 +39,7 @@ def Parser::consume(&this, type: TokenType): &Token {
 }
 
 def Parser::parse_object(&this): &Value {
-    .consume(TokenType::OpenCurly)
+    let start = .consume(TokenType::OpenCurly)
     let json = Value::new(ValueType::Dictionary)
     while .token().type != TokenType::CloseCurly {
         let key = .consume(TokenType::StringLiteral)
@@ -50,12 +50,13 @@ def Parser::parse_object(&this): &Value {
             .consume(TokenType::Comma)
         }
     }
-    .consume(TokenType::CloseCurly)
+    let end = .consume(TokenType::CloseCurly)
+    json.span = start.span.join(end.span)
     return json
 }
 
 def Parser::parse_array(&this): &Value {
-    .consume(TokenType::OpenSquare)
+    let start = .consume(TokenType::OpenSquare)
     let json = Value::new(ValueType::List)
     while .token().type != TokenType::CloseSquare {
         let value = .parse_value()
@@ -64,19 +65,23 @@ def Parser::parse_array(&this): &Value {
             .consume(TokenType::Comma)
         }
     }
-    .consume(TokenType::CloseSquare)
+    let end = .consume(TokenType::CloseSquare)
+    json.span = start.span.join(end.span)
     return json
 }
 
 def Parser::parse_value(&this): &Value => match .token().type {
     Null => {
-        .consume(TokenType::Null)
-        yield Value::new(ValueType::Null)
+        let tok = .consume(TokenType::Null)
+        let val = Value::new(ValueType::Null)
+        val.span = tok.span
+        yield val
     }
     True | False => {
         let json = Value::new(ValueType::Bool)
         let tok = .token()
         json.u.as_bool = tok.text.eq("true")
+        json.span = tok.span
         .curr += 1
         yield json
     }
@@ -84,23 +89,27 @@ def Parser::parse_value(&this): &Value => match .token().type {
         let json = Value::new(ValueType::Integer)
         let tok = .consume(TokenType::IntLiteral)
         json.u.as_int = tok.text.to_i32() as i64
+        json.span = tok.span
         yield json
     }
     FloatLiteral => {
         let json = Value::new(ValueType::Float)
         let tok = .consume(TokenType::FloatLiteral)
         json.u.as_float = std::libc::strtod(tok.text, null)
+        json.span = tok.span
         yield json
     }
     StringLiteral => {
         let json = Value::new(ValueType::String)
-        json.u.as_str = Buffer::from_str(.consume(TokenType::StringLiteral).text)
+        let tok = .consume(TokenType::StringLiteral)
+        json.u.as_str = Buffer::from_str(tok.text)
+        json.span = tok.span
         yield json
     }
     OpenCurly => .parse_object()
     OpenSquare => .parse_array()
     Minus => {
-        .consume(TokenType::Minus)
+        let start = .consume(TokenType::Minus)
         let next = .parse_value()
         match next.type {
             Integer => {
@@ -114,6 +123,7 @@ def Parser::parse_value(&this): &Value => match .token().type {
                 exit(1)
             }
         }
+        next.span = start.span.join(next.span)
         yield next
     }
     else => {
