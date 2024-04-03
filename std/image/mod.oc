@@ -79,8 +79,8 @@ def bilinear_interp(t0: f32, t1: f32, a: f32, b: f32, c: f32, d: f32):f32 {
 }
 
 def Image::get_interpolated(&this, xf: f32, yf: f32): Color {
-    assert 0.0 <= xf < (.width as f32), `X coordinate out of bounds: {xf}`
-    assert 0.0 <= yf < (.height as f32), `Y coordinate out of bounds: {yf}`
+    assert 0.0 <= xf < (.width as f32)
+    assert 0.0 <= yf < (.height as f32)
 
     let x_fl = xf as u32
     let y_fl = yf as u32

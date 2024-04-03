@@ -77,6 +77,7 @@ def Operator::from_operator_overload_str(s: str): Operator => match s {
     "[]=" => IndexAssign
     "<<=" => LeftShiftEquals
     ">>=" => RightShiftEquals
+    "%" => Modulus
     else => Error
 }
 

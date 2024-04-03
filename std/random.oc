@@ -1,5 +1,10 @@
 //! Random number generation utilities
 
+namespace c {
+    [extern] def srand(seed: u32)
+    [extern] def rand(): u32
+}
+
 struct RandomState {
     x: u32
     y: u32
@@ -10,15 +15,19 @@ struct RandomState {
 let global_random_state: RandomState = RandomState(123456789, 362436069, 521288629, 88675123)
 
 def RandomState::seed(&this, s: u32) {
-    this.x = (s * 0xf00ba7) ^ 0xdeafbeef
-    this.y = s ^ 0x49616E42
-    this.z = s ^ 0x6C078965
-    this.w = s ^ 0x8F1BBCDC
+    c::srand(s)
+    .x = c::rand()
+    .y = c::rand()
+    .z = c::rand()
+    .w = c::rand()
 }
 
 def RandomState::make(s: u32 = 0): RandomState {
     let rs: RandomState
-    rs.seed(s)
+    rs.x = c::rand()
+    rs.y = c::rand()
+    rs.z = c::rand()
+    rs.w = c::rand()
     return rs
 }
 
