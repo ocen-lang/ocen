@@ -2123,7 +2123,6 @@ u32 std_traits_hash_pair_hash(u32 a, u32 b);
 u32 str_hash(char *this);
 u32 u32_hash(u32 this);
 u32 u64_hash(u64 this);
-char *std_value_ValueType_str(std_value_ValueType this);
 std_value_Value *std_value_Value_new(std_value_ValueType type);
 std_value_Value *std_value_Value_new_str(char *s);
 std_value_Value *std_value_Value_new_bool(bool bul);
@@ -10051,6 +10050,8 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_ov
         __yield_0 = compiler_ast_operators_Operator_LeftShiftEquals;
       } else if (!strcmp(__match_str, ">>=")) {
         __yield_0 = compiler_ast_operators_Operator_RightShiftEquals;
+      } else if (!strcmp(__match_str, "%")) {
+        __yield_0 = compiler_ast_operators_Operator_Modulus;
       } else  {
         __yield_0 = compiler_ast_operators_Operator_Error;
       }
@@ -13185,10 +13186,6 @@ u32 u64_hash(u64 this) {
   return std_traits_hash_pair_hash(u32_hash(((u32)this)), u32_hash(((u32)(this >> ((u64)32)))));
 }
 
-char *std_value_ValueType_str(std_value_ValueType this) {
-  return std_value_ValueType_dbg(this);
-}
-
 std_value_Value *std_value_Value_new(std_value_ValueType type) {
   std_value_Value *val = std_new__24(1);
   val->type=type;
@@ -13226,7 +13223,7 @@ std_value_Value *std_value_Value_new_int(i64 num) {
 
 void std_value_Value_ensure(std_value_Value *this, std_value_ValueType type) {
   if ((this->type != type)) {
-    printf("Value type mismatch, expected %s but got %s""\n", std_value_ValueType_str(this->type), std_value_ValueType_str(type));
+    printf("%s:%u:%u: Value type mismatch, expected %s but got %s\n", (this->span.start).filename, (this->span.start).line, (this->span.start).col, std_value_ValueType_dbg(this->type), std_value_ValueType_dbg(type));
     exit(1);
   } 
 }

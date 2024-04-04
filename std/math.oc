@@ -14,6 +14,10 @@
 [extern "ceilf"] def f32::ceil(this): f32
 [extern "floorf"] def f32::floor(this): f32
 
+[extern "INFINITY"] const INFINITY: f64
+def f32::inf(): f32 => INFINITY as f32
+def f64::inf(): f64 => INFINITY
+
 [extern "sqrt"] def f64::sqrt(this): f64
 [extern "cos"] def f64::cos(this): f64
 [extern "sin"] def f64::sin(this): f64
@@ -23,7 +27,6 @@
 [extern "log2"] def f64::log2(this): f64
 [extern "ceil"] def f64::ceil(this): f64
 [extern "floor"] def f64::floor(this): f64
-
 
 [extern "fabsf"] def f32::abs(this): f32
 [extern "fabs"] def f64::abs(this): f64
