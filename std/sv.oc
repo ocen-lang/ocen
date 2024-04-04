@@ -149,6 +149,14 @@ def SV::chop_u16(&this): u16 => .chop_unsigned("SV::chop_u16") as u16
 //* Chop off a u8 from the beginning of the string and return it. Fails if there is no number
 def SV::chop_u8(&this): u8 => .chop_unsigned("SV::chop_u8") as u8
 
+def SV::chop_f32(&this): f32 {
+    let endptr = ""
+    let res = std::libc::strtod(.data, &endptr)
+    assert endptr != .data, "Failed to parse number in SV::chop_f32"
+    .only_chop_left((endptr - .data) as u32)
+    return res as f32
+}
+
 //* Helper function for parsing signed numbers
 def SV::chop_signed(&this, fn_name: str): i64 {
     let endptr = ""

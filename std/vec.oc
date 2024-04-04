@@ -155,3 +155,6 @@ def Vec3::to_u32(this): Vec3u => Vec3u(.x as u32, .y as u32, .z as u32)
 def Vec3::to_f64(this): Vec3f64 => Vec3f64(.x as f64, .y as f64, .z as f64)
 def Vec3::to_i64(this): Vec3i64 => Vec3i64(.x as i64, .y as i64, .z as i64)
 def Vec3::to_u64(this): Vec3u64 => Vec3u64(.x as u64, .y as u64, .z as u64)
+
+[operator "[]"]
+def Vec3::index(this, idx: u32): T => (&this as &T)[idx]
