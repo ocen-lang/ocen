@@ -1,3 +1,2 @@
 *.oc linguist-language=Rust
 bootstrap/*.c binary -text -diff
-stage0.c filter=lfs diff=lfs merge=lfs -text

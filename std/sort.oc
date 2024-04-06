@@ -2,7 +2,9 @@
 
 import std::traits::compare
 
-def sort<T>(data: &T, size: u32, cmp: fn(T,T): i8 = T::compare) {
+def sort<T>(data: &T, size: u32) => sort_by<T>(data, size, T::compare)
+
+def sort_by<T>(data: &T, size: u32, cmp: fn(T,T): i8) {
     if size <= 1 {
         return
     }
@@ -27,6 +29,6 @@ def sort<T>(data: &T, size: u32, cmp: fn(T,T): i8 = T::compare) {
         }
     }
 
-    sort<T>(data, j + 1, cmp)
-    sort<T>(data + i, size - i, cmp)
+    sort_by<T>(data, j + 1, cmp)
+    sort_by<T>(data + i, size - i, cmp)
 }
