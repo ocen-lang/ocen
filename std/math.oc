@@ -9,7 +9,7 @@
 [extern "tanf"] def f32::tan(this): f32
 [extern "atan2f"] def f32::atan2(this, y: f32): f32
 [extern "asin"] def f32::asin(this): f32
-[extern "asin"] def f32::acos(this): f32
+[extern "acos"] def f32::acos(this): f32
 [extern "logf"] def f32::log(this): f32
 [extern "log2f"] def f32::log2(this): f32
 [extern "ceilf"] def f32::ceil(this): f32
