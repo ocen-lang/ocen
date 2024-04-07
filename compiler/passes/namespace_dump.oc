@@ -60,6 +60,10 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
         println(`(export) {it.key}`)
     }
 
+    for it : ns.namespaces.iter() {
+        .print_namespace(it.value)
+    }
+
     .indent -= 1
 }
 
@@ -67,9 +71,7 @@ def NamespaceDump::run(program: &Program) {
     let pass = NamespaceDump(indent: 0)
     println("---------------------- Namespace Dump ----------------------")
 
-    for ns : program.iter_namespaces() {
-        pass.print_namespace(ns)
-    }
+    pass.print_namespace(program.global)
 
     println("------------------------------------------------------------")
 }

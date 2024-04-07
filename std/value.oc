@@ -222,6 +222,30 @@ def Value::dbg(&this): str {
     return buf.str()
 }
 
+[operator "=="]
+def Value::eq_str(&this, other: str): bool {
+    if not .is(String) return false
+    return .u.as_str.str() == other
+}
+
+[operator "=="]
+def Value::eq_bool(&this, other: bool): bool {
+    if not .is(Bool) return false
+    return .u.as_bool == other
+}
+
+[operator "=="]
+def Value::eq_i64(&this, other: i64): bool {
+    if not .is(Integer) return false
+    return .u.as_int == other
+}
+
+[operator "=="]
+def Value::eq_u32(&this, other: u32): bool {
+    if not .is(Integer) return false
+    return .u.as_int as u32 == other
+}
+
 def Value::free(&this) {
     match .type {
         String => .u.as_str.free()

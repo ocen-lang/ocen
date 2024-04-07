@@ -1,5 +1,4 @@
-import std::buffer::{ Buffer }
-import std::bufferio::{ BufferIO }
+import std::buffer::{ Buffer, BytesReader }
 import std::libc::{ memset }
 import std::image::{ Image }
 
@@ -23,7 +22,7 @@ def RGBA::eq(this, other: RGBA): bool {
 }
 
 struct QOIDecoder {
-    io: BufferIO,
+    io: BytesReader
 
     width: u32,
     height: u32,
@@ -40,7 +39,7 @@ struct QOIDecoder {
 def QOIDecoder::make(data: &Buffer): QOIDecoder {
     let decoder: QOIDecoder
     memset(&decoder, 0, sizeof(QOIDecoder))
-    decoder.io = BufferIO::make(data)
+    decoder.io = data.reader()
     decoder.prev = RGBA(0, 0, 0, 255)
     return decoder
 }
@@ -167,7 +166,7 @@ def QOIDecoder::decode_op_run(&this, first: u8) {
 }
 
 struct QOIEncoder {
-    io: BufferIO,
+    buf: &Buffer
     img: &Image
 
     seen: [RGBA; 64]
@@ -179,17 +178,17 @@ def QOIEncoder::make(img: &Image, buffer: &Buffer): QOIEncoder {
     let encoder: QOIEncoder
     memset(&encoder, 0, sizeof(QOIEncoder))
     encoder.img = img
-    encoder.io = BufferIO::make(buffer)
+    encoder.buf = buffer
     encoder.prev = RGBA(0, 0, 0, 255)
     return encoder
 }
 
 def QOIEncoder::encode_header(&this) {
-    .io.write_u32(0x716f6966, endian: Little) // Magic
-    .io.write_u32(.img.width, endian: Little)
-    .io.write_u32(.img.height, endian: Little)
-    .io.write_u8(3) // Channels
-    .io.write_u8(0) // Colorspace
+    .buf += "qoif"  // Magic number
+    .buf.write_u32(.img.width, endian: Big)
+    .buf.write_u32(.img.height, endian: Big)
+    .buf.write_u8(3) // Channels
+    .buf.write_u8(0) // Colorspace
 }
 
 def QOIEncoder::img_pix(&this, idx: u32): RGBA {
@@ -217,7 +216,7 @@ def QOIEncoder::encode_pixel(&this, pix: RGBA) {
 
         assert 1 <= run <= 62, "Run length must be between 1 and 62"
 
-        .io.write_u8((0b11u8 << 6) | (run as u8 - 1))
+        .buf.write_u8((0b11u8 << 6) | (run as u8 - 1))
         .handle_pixel(pix, run)
         return
     }
@@ -227,7 +226,7 @@ def QOIEncoder::encode_pixel(&this, pix: RGBA) {
         let hash = pix.hash()
         let seen_pix = .seen[hash]
         if seen_pix.eq(pix) {
-            .io.write_u8((0b00u8 << 6u8) | hash as u8)
+            .buf.write_u8((0b00u8 << 6u8) | hash as u8)
             .handle_pixel(pix)
             return
         }
@@ -244,7 +243,7 @@ def QOIEncoder::encode_pixel(&this, pix: RGBA) {
             let dr_u = (dr + 2) as u8
             let dg_u = (dg + 2) as u8
             let db_u = (db + 2) as u8
-            .io.write_u8((0b01u8 << 6) | (dr_u << 4) | (dg_u << 2) | db_u)
+            .buf.write_u8((0b01u8 << 6) | (dr_u << 4) | (dg_u << 2) | db_u)
             .handle_pixel(pix)
             return
         }
@@ -256,18 +255,18 @@ def QOIEncoder::encode_pixel(&this, pix: RGBA) {
             let dg_u = (dg + 32) as u8
             let dr_dg_u = (dr_dg + 8) as u8
             let db_dg_u = (db_dg + 8) as u8
-            .io.write_u8((0b10u8 << 6) | dg_u)
-            .io.write_u8((dr_dg_u << 4) | db_dg_u)
+            .buf.write_u8((0b10u8 << 6) | dg_u)
+            .buf.write_u8((dr_dg_u << 4) | db_dg_u)
             .handle_pixel(pix)
             return
         }
     }
 
     // Save as rgb
-    .io.write_u8(0b11111110)
-    .io.write_u8(pix.r)
-    .io.write_u8(pix.g)
-    .io.write_u8(pix.b)
+    .buf.write_u8(0b11111110)
+    .buf.write_u8(pix.r)
+    .buf.write_u8(pix.g)
+    .buf.write_u8(pix.b)
     .handle_pixel(pix)
 }
 
@@ -279,9 +278,9 @@ def QOIEncoder::encode_pixels(&this) {
 
 def QOIEncoder::encode_end(&this) {
     for let i = 0; i < 7; i++ {
-        .io.write_u8(0)
+        .buf.write_u8(0)
     }
-    .io.write_u8(1)
+    .buf.write_u8(1)
 }
 
 def QOIEncoder::encode(&this) {

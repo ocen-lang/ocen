@@ -65,7 +65,7 @@ namespace impl {
     ): u64 {
         let buffer = user_data as &Buffer
         let bytes = size * nmemb
-        buffer.put_bytes(data as &u8, bytes as u32)
+        buffer.write_bytes(data as &u8, bytes as u32)
         return bytes
     }
 }

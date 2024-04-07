@@ -271,8 +271,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     if not ns.enums.is_empty() {
         let enums_doc = Value::new(Dictionary)
         for enum_ : ns.enums.iter() {
-            let enum_doc = .gen_enum(enum_)
-            enums_doc.insert(enum_.sym.name, enum_doc)
+            enums_doc[enum_.sym.name] = .gen_enum(enum_)
         }
         ns_doc["enums"] = enums_doc
     }
@@ -283,9 +282,9 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         for struc : ns.structs.iter() {
             let struct_doc = .gen_struct(struc)
             if not struc.is_union {
-                structs_doc.insert(struc.sym.name, struct_doc)
+                structs_doc[struc.sym.name] = struct_doc
             } else {
-                unions_doc.insert(struc.sym.name, struct_doc)
+                unions_doc[struc.sym.name] = struct_doc
             }
         }
 
@@ -313,7 +312,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             if var.sym.is_extern {
                 var_doc["extern"] = var.sym.out_name()
             }
-            vars_doc.insert(var.sym.name, var_doc)
+            vars_doc[var.sym.name] = var_doc
         }
         ns_doc["variables"] = vars_doc
     }
@@ -334,7 +333,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             if var.sym.is_extern {
                 const_doc["extern"] = var.sym.out_name()
             }
-            consts_doc.insert(var.sym.name, const_doc)
+            consts_doc[var.sym.name] = const_doc
         }
         ns_doc["constants"] = consts_doc
     }
@@ -346,7 +345,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
                 continue
             }
             let func_doc = .gen_function(func)
-            funcs_doc.insert(func.sym.name, func_doc)
+            funcs_doc[func.sym.name] = func_doc
         }
         ns_doc["functions"] = funcs_doc
     }
@@ -358,7 +357,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             typedef_doc["kind"] = "typedef"
             typedef_doc["name"] = it.key.copy()
             typedef_doc["type"] = .gen_typename(it.value)
-            typedefs_doc.insert(it.key, typedef_doc)
+            typedefs_doc[it.key] = typedef_doc
         }
         ns_doc["typedefs"] = typedefs_doc
     }
@@ -367,7 +366,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         let namespaces_doc = Value::new(Dictionary)
         for it : ns.namespaces.iter() {
             let ns_doc = .gen_ns(it.value)
-            namespaces_doc.insert(it.key, ns_doc)
+            namespaces_doc[it.key] = ns_doc
         }
         ns_doc["namespaces"] = namespaces_doc
     }

@@ -660,8 +660,7 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
     return null
 }
 
-def TypeChecker::find_and_replace_overloaded_binary_op(&this, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
-    let op = node.u.binary.op
+def TypeChecker::find_and_replace_overloaded_binary_op(&this, op: Operator, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
     if op.needs_lhs_pointer_for_overload() {
         // Auto-address for a value if it's not a pointer
         if arg1.is_lvalue() and arg1.etype.base != Pointer {
@@ -692,14 +691,15 @@ def TypeChecker::find_and_replace_overloaded_binary_op(&this, node: &AST, arg1: 
     node.type = Call
     node.u.call.callee = callee
     node.u.call.args = args
+    node.etype = func.return_type
     return func.return_type
 }
 
 def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
-    let res = .find_and_replace_overloaded_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
+    let op = node.u.binary.op
+    let res = .find_and_replace_overloaded_binary_op(op, node, node.u.binary.lhs, node.u.binary.rhs)
     if res? return res
 
-    let op = node.u.binary.op
     match op {
         Plus | Minus | Multiply | Divide => {
             if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
@@ -757,18 +757,31 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
-        Equals | NotEquals => {
-            if not lhs.eq(rhs) {
+        Equals => {
+            if not lhs.eq(rhs) or lhs.base == BaseType::Structure {
                 .error(Error::new(node.span,
                     f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
                 return null
             }
-            if lhs.base == BaseType::Structure {
-                .error(Error::new(node.span,
-                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
-                ))
-                return null
+            return .get_base_type(BaseType::Bool, node.span)
+        }
+        NotEquals => {
+            if not lhs.eq(rhs) or lhs.base == BaseType::Structure {
+                // Try using the == operator and negating the result
+                let res = .find_and_replace_overloaded_binary_op(Equals, node, node.u.binary.lhs, node.u.binary.rhs)
+                if res? {
+                    let copy = AST::new(UnaryOp, node.span)
+                    *copy = *node
+                    *node = *AST::new_unop(Not, node.span, copy)
+                    .check_expression(node)
+
+                } else {
+                    .error(Error::new(node.span,
+                        f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    ))
+                    return null
+                }
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
@@ -951,7 +964,7 @@ def TypeChecker::check_index(&this, node: &AST, hint: &Type, is_being_assigned: 
     if not lhs? or not rhs? return null
 
     if not is_being_assigned {
-        let res = .find_and_replace_overloaded_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
+        let res = .find_and_replace_overloaded_binary_op(Index, node, node.u.binary.lhs, node.u.binary.rhs)
         if res? return res
     }
 
@@ -1213,7 +1226,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
 
                     if not .check_expression(arg3, hint: arg3_hint)? return null
 
-                    let res = .find_and_replace_overloaded_binary_op(node, arg1, arg2, arg3)
+                    let res = .find_and_replace_overloaded_binary_op(IndexAssign, node, arg1, arg2, arg3)
                     if res? return res
 
                     let lhs = .check_index(index, hint: null, is_being_assigned: true)
@@ -2173,6 +2186,11 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
                     .error(Error::new(func.sym.span, f"First parameter of {op} operator must be a pointer-type"))
                     continue
                 }
+            }
+
+            if op == Equals and func.return_type.base != BaseType::Bool {
+                .error(Error::new(func.sym.span, "`==` operator must return a boolean"))
+                continue
             }
 
             let it = .o.program.operator_overloads.get_item(overload)

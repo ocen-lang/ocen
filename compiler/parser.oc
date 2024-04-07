@@ -1918,7 +1918,7 @@ def Parser::parse_compiler_option(&this) {
 
 def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
     let mod_path = f"{ns.path}/mod.oc"
-    if fs::file_exists(mod_path) {
+    if fs::file_exists(mod_path) and not ns.is_top_level {
         ns.is_top_level = true
         let parser = Parser::make(.program, ns)
         parser.load_file(mod_path)
@@ -1928,6 +1928,7 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
 }
 
 def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Span): &Namespace {
+    .try_load_mod_for_namespace(base)
     let sym = base.find_importable_symbol(name)
 
     // Special case for "this", we are not allowed to have a module with that name.
@@ -2153,9 +2154,15 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     // NOTE: We currently special-case the standard library path, since it's also a "project root"
     // for the standard library. We want to do this for all external libraries in the future, and have
     // some way of indicating it other than `main.oc` file.
-    let std_lib_ns_path = fs::realpath(.find_external_library("std").path)
+    let std_lib_ns = .find_external_library("std")
+    if not std_lib_ns? then .couldnt_find_stdlib()
+    let std_lib_ns_path = fs::realpath(std_lib_ns.path)
 
     let cur = fs::realpath(filename)
+    if not cur? {
+        .error(Error::new(Span::default(), f"Could not find file: {filename}"))
+        .program.err_jmp_ctx.jump_back(1)
+    }
     let namespace_paths = Vector<str>::new()
     let found_root = false
     while true {
