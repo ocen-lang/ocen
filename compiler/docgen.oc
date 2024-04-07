@@ -15,14 +15,14 @@ struct DocGenerator {
 
 def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
     let enum_doc = Value::new(Dictionary)
-    enum_doc.insert("id", Value::new_str(`{enum_.type:x}`))
-    enum_doc.insert("name", Value::new_str(enum_.sym.name))
+    enum_doc["id"] = `{enum_.type:x}`
+    enum_doc["name"] = enum_.sym.name
     if enum_.sym.comment? {
-        enum_doc.insert("description", Value::new_str(enum_.sym.comment))
+        enum_doc["description"] = enum_.sym.comment
     }
-    enum_doc.insert("kind", Value::new_str("enum"))
+    enum_doc["kind"] = "enum"
     if enum_.sym.is_extern {
-        enum_doc.insert("extern", Value::new_str(enum_.sym.out_name()))
+        enum_doc["extern"] = enum_.sym.out_name()
     } else {
         .gen_location(enum_doc, enum_.sym.span)
     }
@@ -30,19 +30,19 @@ def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
     let fields_doc = Value::new(List)
     for field : enum_.fields.iter() {
         let field_doc = Value::new(Dictionary)
-        field_doc.insert("name", Value::new_str(field.sym.name))
+        field_doc["name"] = field.sym.name
         if field.sym.comment? {
-            field_doc.insert("description", Value::new_str(field.sym.comment))
+            field_doc["description"] = field.sym.comment
         }
         if field.sym.is_extern {
-            field_doc.insert("extern", Value::new_str(field.sym.out_name()))
+            field_doc["extern"] = field.sym.out_name()
         }
         fields_doc.push(field_doc)
     }
-    enum_doc.insert("fields", fields_doc)
+    enum_doc["fields"] = fields_doc
 
     let methods_doc = .gen_methods(enum_.type)
-    enum_doc.insert("methods", methods_doc)
+    enum_doc["methods"] = methods_doc
 
     return enum_doc
 }
@@ -51,7 +51,7 @@ def DocGenerator::gen_location(&this, obj: &Value, span: Span) {
     let start = span.start
     if start.is_valid() {
         let src_str = `{start.filename}#L{start.line}`
-        obj.insert("source", Value::new_str(src_str))
+        obj["source"] = src_str
     }
 }
 
@@ -154,73 +154,72 @@ def DocGenerator::gen_methods(&this, type: &Type): &Value {
     let methods_doc = Value::new(Dictionary)
     for it : type.methods.iter() {
         let method = it.value
-        let method_doc = .gen_function(method)
-        methods_doc.insert(method.sym.name, method_doc)
+        methods_doc[method.sym.name] = .gen_function(method)
     }
     return methods_doc
 }
 
 def DocGenerator::gen_function(&this, func: &Function): &Value {
     let func_doc = Value::new(Dictionary)
-    func_doc.insert("id", Value::new_str(`{func:x}`))
-    func_doc.insert("name", Value::new_str(`{func.sym.name}`))
+    func_doc["id"] = `{func:x}`
+    func_doc["name"] = `{func.sym.name}`
 
     if func.sym.comment? {
-        func_doc.insert("description", Value::new_str(func.sym.comment))
+        func_doc["description"] = func.sym.comment
     }
     if func.is_method {
-        func_doc.insert("kind", Value::new_str("method"))
-        func_doc.insert("parent", .gen_typename(func.parent_type))
+        func_doc["kind"] = "method"
+        func_doc["parent"] = .gen_typename(func.parent_type)
     } else {
-        func_doc.insert("kind", Value::new_str("function"))
+        func_doc["kind"] = "function"
     }
 
     if func.sym.is_extern {
-        func_doc.insert("extern", Value::new_str(func.sym.out_name()))
+        func_doc["extern"] = func.sym.out_name()
     } else {
         .gen_location(func_doc, func.span)
     }
 
     let return_doc = Value::new(Dictionary)
     let ret_type = func.return_type
-    return_doc.insert("type", .gen_typename(ret_type))
+    return_doc["type"] = .gen_typename(ret_type)
 
     let params_doc = Value::new(List)
     for param : func.params.iter() {
         let param_doc = Value::new(Dictionary)
-        param_doc.insert("name", Value::new_str(`{param.sym.name}`))
+        param_doc["name"] = `{param.sym.name}`
         if param.sym.comment? {
-            param_doc.insert("description", Value::new_str(param.sym.comment))
+            param_doc["description"] = param.sym.comment
         }
-        param_doc.insert("type", .gen_typename(param.type))
+        param_doc["type"] = .gen_typename(param.type)
 
         let default_value = param.default_value
         if default_value? {
             let value_str = Value::new_str(.program.get_source_text(default_value.span))
-            param_doc.insert("default_value", value_str)
+            param_doc["default_value"] = value_str
         }
 
-        params_doc.push(param_doc)
+        params_doc += param_doc
     }
 
-    func_doc.insert("params", params_doc)
-    func_doc.insert("return", return_doc)
+    func_doc["params"] = params_doc
+    func_doc["return"] = return_doc
     return func_doc
 }
 
 def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
     let struc_doc = Value::new(Dictionary)
-    struc_doc.insert("id", Value::new_str(`{struc.type:x}`))
-    struc_doc.insert("name", Value::new_str(`{struc.sym.name}`))
+    struc_doc["id"] = `{struc.type:x}`
+    struc_doc["name"] = `{struc.sym.name}`
     if struc.sym.comment? {
-        struc_doc.insert("description", Value::new_str(struc.sym.comment))
+        struc_doc["description"] = struc.sym.comment
     }
     if struc.is_union {
-        struc_doc.insert("kind", Value::new_str("union"))
+        struc_doc["kind"] = "union"
     } else {
-        struc_doc.insert("kind", Value::new_str("struct"))
+        struc_doc["kind"] = "struct"
     }
-    struc_doc.insert("is_templated", Value::new_bool(struc.sym.is_templated()))
+    struc_doc["is_templated"] = Value::new_bool(struc.sym.is_templated())
 
     if struc.sym.is_templated() {
         let params_doc = Value::new(List)
@@ -228,10 +227,10 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
             let name = var.sym.name
             params_doc.push(Value::new_str(name))
         }
-        struc_doc.insert("template_params", params_doc)
+        struc_doc["template_params"] = params_doc
     }
     if struc.sym.is_extern {
-        struc_doc.insert("extern", Value::new_str(struc.sym.out_name()))
+        struc_doc["extern"] = struc.sym.out_name()
     } else {
         .gen_location(struc_doc, struc.span)
     }
@@ -239,32 +238,32 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
     let fields_doc = Value::new(List)
     for field : struc.fields.iter() {
         let field_doc = Value::new(Dictionary)
-        field_doc.insert("name", Value::new_str(field.sym.name))
-        field_doc.insert("type", .gen_typename(field.type))
+        field_doc["name"] = field.sym.name
+        field_doc["type"] = .gen_typename(field.type)
         if field.sym.comment? {
-            field_doc.insert("description", Value::new_str(field.sym.comment))
+            field_doc["description"] = field.sym.comment
         }
         if field.sym.is_extern {
-            field_doc.insert("extern", Value::new_str(field.sym.out_name()))
+            field_doc["extern"] = field.sym.out_name()
         }
         fields_doc.push(field_doc)
     }
-    struc_doc.insert("fields", fields_doc)
+    struc_doc["fields"] = fields_doc
 
     let methods_doc = .gen_methods(struc.type)
-    struc_doc.insert("methods", methods_doc)
+    struc_doc["methods"] = methods_doc
 
     return struc_doc
 }
 
 def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     let ns_doc = Value::new(Dictionary)
-    ns_doc.insert("id", Value::new_str(`{ns:x}`))
+    ns_doc["id"] = `{ns:x}`
     if ns.sym.comment? {
-        ns_doc.insert("description", Value::new_str(ns.sym.comment))
+        ns_doc["description"] = ns.sym.comment
     }
-    ns_doc.insert("name", Value::new_str(ns.sym.name))
-    ns_doc.insert("kind", Value::new_str("namespace"))
+    ns_doc["name"] = ns.sym.name
+    ns_doc["kind"] = "namespace"
     if ns.is_a_file or ns.is_top_level {
         .gen_location(ns_doc, ns.span)
     }
@@ -275,7 +274,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             let enum_doc = .gen_enum(enum_)
             enums_doc.insert(enum_.sym.name, enum_doc)
         }
-        ns_doc.insert("enums", enums_doc)
+        ns_doc["enums"] = enums_doc
     }
 
     if not ns.structs.is_empty() {
@@ -291,10 +290,10 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         }
 
         if not structs_doc.as_dict().is_empty() {
-            ns_doc.insert("structs", structs_doc)
+            ns_doc["structs"] = structs_doc
         }
         if not unions_doc.as_dict().is_empty() {
-            ns_doc.insert("unions", unions_doc)
+            ns_doc["unions"] = unions_doc
         }
     }
 
@@ -303,20 +302,20 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         for node : ns.variables.iter() {
             let var = node.u.var_decl.var
             let var_doc = Value::new(Dictionary)
-            var_doc.insert("id", Value::new_str(`{var:x}`))
+            var_doc["id"] = `{var:x}`
             if var.sym.comment? {
-                var_doc.insert("description", Value::new_str(var.sym.comment))
+                var_doc["description"] = var.sym.comment
             }
-            var_doc.insert("name", Value::new_str(var.sym.name))
-            var_doc.insert("kind", Value::new_str("variable"))
-            var_doc.insert("type", .gen_typename(var.type))
+            var_doc["name"] = var.sym.name
+            var_doc["kind"] = "variable"
+            var_doc["type"] = .gen_typename(var.type)
             .gen_location(var_doc, var.sym.span)
             if var.sym.is_extern {
-                var_doc.insert("extern", Value::new_str(var.sym.out_name()))
+                var_doc["extern"] = var.sym.out_name()
             }
             vars_doc.insert(var.sym.name, var_doc)
         }
-        ns_doc.insert("variables", vars_doc)
+        ns_doc["variables"] = vars_doc
     }
 
     if not ns.constants.is_empty() {
@@ -324,20 +323,20 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         for node : ns.constants.iter() {
             let var = node.u.var_decl.var
             let const_doc = Value::new(Dictionary)
-            const_doc.insert("id", Value::new_str(`{var:x}`))
+            const_doc["id"] = `{var:x}`
             if var.sym.comment? {
-                const_doc.insert("description", Value::new_str(var.sym.comment))
+                const_doc["description"] = var.sym.comment
             }
-            const_doc.insert("name", Value::new_str(var.sym.name))
-            const_doc.insert("kind", Value::new_str("constant"))
-            const_doc.insert("type", .gen_typename(var.type))
+            const_doc["name"] = var.sym.name
+            const_doc["kind"] = "constant"
+            const_doc["type"] = .gen_typename(var.type)
             .gen_location(const_doc, var.sym.span)
             if var.sym.is_extern {
-                const_doc.insert("extern", Value::new_str(var.sym.out_name()))
+                const_doc["extern"] = var.sym.out_name()
             }
             consts_doc.insert(var.sym.name, const_doc)
         }
-        ns_doc.insert("constants", consts_doc)
+        ns_doc["constants"] = consts_doc
     }
 
     if not ns.functions.is_empty() {
@@ -349,19 +348,19 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             let func_doc = .gen_function(func)
             funcs_doc.insert(func.sym.name, func_doc)
         }
-        ns_doc.insert("functions", funcs_doc)
+        ns_doc["functions"] = funcs_doc
     }
 
     if not ns.typedefs.is_empty() {
         let typedefs_doc = Value::new(Dictionary)
         for it : ns.typedefs.iter() {
             let typedef_doc = Value::new(Dictionary)
-            typedef_doc.insert("kind", Value::new_str("typedef"))
-            typedef_doc.insert("name", Value::new_str(it.key.copy()))
-            typedef_doc.insert("type", .gen_typename(it.value))
+            typedef_doc["kind"] = "typedef"
+            typedef_doc["name"] = it.key.copy()
+            typedef_doc["type"] = .gen_typename(it.value)
             typedefs_doc.insert(it.key, typedef_doc)
         }
-        ns_doc.insert("typedefs", typedefs_doc)
+        ns_doc["typedefs"] = typedefs_doc
     }
 
     if not ns.namespaces.is_empty() {
@@ -370,7 +369,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
             let ns_doc = .gen_ns(it.value)
             namespaces_doc.insert(it.key, ns_doc)
         }
-        ns_doc.insert("namespaces", namespaces_doc)
+        ns_doc["namespaces"] = namespaces_doc
     }
 
     return ns_doc
@@ -378,13 +377,13 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
 def DocGenerator::gen_builtin(&this, type: &Type): &Value {
     let type_doc = Value::new(Dictionary)
-    type_doc.insert("id", Value::new_str(`{type:x}`))
-    type_doc.insert("name", Value::new_str(`{type.sym.name}`))
-    type_doc.insert("description", Value::new_str(`Built-in type {type.sym.name}`))
-    type_doc.insert("kind", Value::new_str("builtin"))
+    type_doc["id"] = `{type:x}`
+    type_doc["name"] = `{type.sym.name}`
+    type_doc["description"] = `Built-in type {type.sym.name}`
+    type_doc["kind"] = "builtin"
 
     let methods_doc = .gen_methods(type)
-    type_doc.insert("methods", methods_doc)
+    type_doc["methods"] = methods_doc
 
     return type_doc
 }
@@ -393,17 +392,14 @@ def DocGenerator::gen_builtins(&this, program: &Program): &Value {
     let builtins_doc = Value::new(Dictionary)
     for let i = 0; i < BaseType::NUM_BASE_TYPES as u32; i += 1 {
         let type = program.get_base_type(i as BaseType, Span::default())
-        let type_doc = .gen_builtin(type)
-        builtins_doc.insert(type.name, type_doc)
+        builtins_doc[type.name] = .gen_builtin(type)
     }
 
     let str_type = program.get_type_by_name("str", Span::default())
-    let str_type_doc = .gen_builtin(str_type)
-    builtins_doc.insert("str", str_type_doc)
+    builtins_doc["str"] = .gen_builtin(str_type)
 
     let untyped_ptr_type = program.get_type_by_name("untyped_ptr", Span::default())
-    let untyped_ptr_type_doc = .gen_builtin(untyped_ptr_type)
-    builtins_doc.insert("untyped_ptr", untyped_ptr_type_doc)
+    builtins_doc["untyped_ptr"] = .gen_builtin(untyped_ptr_type)
 
     return builtins_doc
 }
@@ -413,10 +409,10 @@ def generate_doc_json(program: &Program, json_path: str) {
 
     let docs = docs_generator.gen_ns(program.global)
     let builtins = docs_generator.gen_builtins(program)
-    docs.insert("builtins", builtins)
+    docs["builtins"] = builtins
 
     let container = Value::new(Dictionary)
-    container.insert("ocen", docs)
+    container["ocen"] = docs
 
     json::write_to_file(container, json_path)
 }
