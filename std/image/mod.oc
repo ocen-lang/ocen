@@ -36,12 +36,15 @@ def Image::set(&this, x: u32, y: u32, col: Color) { .data[y * .width + x] = col 
 def Image::save(&this, filename: str) {
     import .ppm
     import .qoi
+    import .png
 
     let buffer = Buffer::make()
     if filename.ends_with(".ppm") {
         ppm::encode(this, &buffer)
     } else if filename.ends_with(".qoi") {
         qoi::encode(this, &buffer)
+    } else if filename.ends_with(".png") {
+        png::encode(this, &buffer)
     } else {
         assert false, `Unknown file format for image: ${filename}`
     }
@@ -53,6 +56,7 @@ def Image::save(&this, filename: str) {
 def Image::load(filename: str): &Image {
     import .ppm
     import .qoi
+    import .png
 
     let data = fs::read_file(filename)
 
@@ -61,6 +65,8 @@ def Image::load(filename: str): &Image {
         image = ppm::decode(&data)
     } else if filename.ends_with(".qoi") {
         image = qoi::decode(&data)
+    } else if filename.ends_with(".png") {
+        image = png::decode(&data)
     } else {
         assert false, `Unknown file format for image: ${filename}`
     }

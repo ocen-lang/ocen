@@ -71,6 +71,12 @@ def hex_dump(data: &u8, size: u32) {
 
 def Buffer::hex_dump(this) => hex_dump(.data, .size)
 
+[operator "[]"]
+def Buffer::get_byte_at(this, index: u32): u8 {
+    assert index < .size, "Index out of bounds"
+    return .data[index]
+}
+
 [operator "+="]
 def Buffer::putb(&this, buf: &Buffer) {
     .resize_if_necessary(new_size: .size + buf.size + 1)
@@ -107,6 +113,9 @@ def Buffer::putc(&this, c: char) {
     .size += 1
     .data[.size] = '\0' as u8
 }
+
+[operator "+="]
+def Buffer::put_u8(&this, val: u8) => .putc(val as char)
 
 def Buffer::put_bytes(&this, bytes: &u8, size: u32) {
     .resize_if_necessary(new_size: .size + size + 1)
