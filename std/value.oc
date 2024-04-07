@@ -125,11 +125,30 @@ def Value::set(&this, idx: u32, value: &Value) {
     .u.as_list.data[idx] = value
 }
 
+[operator "[]="] def Value::set_str(&this, idx: u32, s: str) => .set(idx, Value::new_str(s))
+[operator "[]="] def Value::set_bool(&this, idx: u32, b: bool) => .set(idx, Value::new_bool(b))
+[operator "[]="] def Value::set_u32(&this, idx: u32, i: u32) => .set(idx, Value::new_int(i as i64))
+[operator "[]="] def Value::set_i32(&this, idx: u32, i: i32) => .set(idx, Value::new_int(i as i64))
+[operator "[]="] def Value::set_u64(&this, idx: u32, i: u64) => .set(idx, Value::new_int(i as i64))
+[operator "[]="] def Value::set_i64(&this, idx: u32, i: i64) => .set(idx, Value::new_int(i))
+[operator "[]="] def Value::set_f32(&this, idx: u32, f: f32) => .set(idx, Value::new_float(f as f64))
+[operator "[]="] def Value::set_f64(&this, idx: u32, f: f64) => .set(idx, Value::new_float(f))
+
+
 [operator "+="]
 def Value::push(&this, value: &Value) {
     .ensure(List)
     .u.as_list.push(value)
 }
+
+[operator "+="] def Value::push_str(&this, s: str) => .push(Value::new_str(s))
+[operator "+="] def Value::push_bool(&this, b: bool) => .push(Value::new_bool(b))
+[operator "+="] def Value::push_u32(&this, i: u32) => .push(Value::new_int(i as i64))
+[operator "+="] def Value::push_i32(&this, i: i32) => .push(Value::new_int(i as i64))
+[operator "+="] def Value::push_u64(&this, i: u64) => .push(Value::new_int(i as i64))
+[operator "+="] def Value::push_i64(&this, i: i64) => .push(Value::new_int(i))
+[operator "+="] def Value::push_f32(&this, f: f32) => .push(Value::new_float(f as f64))
+[operator "+="] def Value::push_f64(&this, f: f64) => .push(Value::new_float(f))
 
 def Value::contains(&this, key: str): bool {
     if .type != Dictionary return false
@@ -146,6 +165,15 @@ def Value::insert(&this, key: str, value: &Value) {
     .ensure(Dictionary)
     .u.as_dict.insert(key, value)
 }
+
+[operator "[]="] def Value::insert_str(&this, key: str, s: str) => .insert(key, Value::new_str(s))
+[operator "[]="] def Value::insert_bool(&this, key: str, b: bool) => .insert(key, Value::new_bool(b))
+[operator "[]="] def Value::insert_u32(&this, key: str, i: u32) => .insert(key, Value::new_int(i as i64))
+[operator "[]="] def Value::insert_i32(&this, key: str, i: i32) => .insert(key, Value::new_int(i as i64))
+[operator "[]="] def Value::insert_u64(&this, key: str, i: u64) => .insert(key, Value::new_int(i as i64))
+[operator "[]="] def Value::insert_i64(&this, key: str, i: i64) => .insert(key, Value::new_int(i))
+[operator "[]="] def Value::insert_f32(&this, key: str, f: f32) => .insert(key, Value::new_float(f as f64))
+[operator "[]="] def Value::insert_f64(&this, key: str, f: f64) => .insert(key, Value::new_float(f))
 
 def Value::as_bool(&this): bool {
     .ensure(Bool)
