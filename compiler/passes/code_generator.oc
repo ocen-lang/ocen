@@ -16,6 +16,7 @@ struct CodeGenerator {
     out: Buffer
     indent: u32
     yield_vars: &Vector<str>
+    uid: u32
 }
 
 def CodeGenerator::gen_indent(&this) {
@@ -638,15 +639,17 @@ def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST) {
     }
 }
 
-def CodeGenerator::gen_match_string(&this, node: &AST) {
+def CodeGenerator::gen_custom_match(&this, node: &AST) {
     let stmt = node.u.match_stmt
     .gen_indent()
     .out += "{\n"
 
+    let match_var = `__match_var_{.uid++}`
+
     .indent += 1
     .gen_indent()
-
-    .out += "char *__match_str = "
+    .gen_type_and_name(stmt.expr.etype, match_var)
+    .out += " = "
     .gen_expression(stmt.expr)
     .out += ";\n"
 
@@ -655,9 +658,20 @@ def CodeGenerator::gen_match_string(&this, node: &AST) {
     .out += "if ("
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i)
-        .out += "!strcmp(__match_str, "
-        .gen_expression(_case.cond)
-        .out += ")"
+
+        if _case.cmp_fn? {
+            .out += _case.cmp_fn.sym.out_name()
+            .out += "("
+            .out += match_var
+            .out += ", "
+            .gen_expression(_case.cond)
+            .out += ")"
+
+        } else {
+            .out += f"({match_var} == "
+            .gen_expression(_case.cond)
+            .out += ")"
+        }
 
         if _case.body? {
             .out += ")"
@@ -683,8 +697,8 @@ def CodeGenerator::gen_match_string(&this, node: &AST) {
 def CodeGenerator::gen_match(&this, node: &AST) {
     let stmt = node.u.match_stmt
 
-    if stmt.expr.etype.is_str() {
-        .gen_match_string(node)
+    if stmt.is_custom_match {
+        .gen_custom_match(node)
         return
     }
 
@@ -1216,6 +1230,7 @@ def CodeGenerator::make(program: &Program): CodeGenerator {
         out: Buffer::make(),
         indent: 0,
         yield_vars: Vector<str>::new(),
+        uid: 0
     )
 }
 

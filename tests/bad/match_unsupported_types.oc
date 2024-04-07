@@ -1,0 +1,10 @@
+/// fail: Cannot match str with this case: u32
+
+def main() {
+    let s = "Hello"
+    match s {
+        "Hello" => println("World"),
+        34 => println("34")
+        else => println("Not Hello")
+    }
+}

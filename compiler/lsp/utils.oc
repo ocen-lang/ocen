@@ -141,9 +141,9 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
 
 def gen_error_json(err: &Error): &Value {
     let obj = Value::new(Dictionary)
-    obj["severity"] = Value::new_str("Error")
+    obj["severity"] = "Error"
     obj["span"] = gen_span_json(err.span1)
-    obj["message"] = Value::new_str(err.msg1)
+    obj["message"] = err.msg1
     return obj
 }
 
@@ -159,14 +159,14 @@ def gen_span_json(span: Span): &Value {
 def gen_span_json_with_filename(span: Span, search_loc: Location): &Value {
     let obj = gen_span_json(span)
     if not span.start.filename.eq(search_loc.filename) {
-        obj["file"] = Value::new_str(span.start.filename)
+        obj["file"] = span.start.filename
     }
     return obj
 }
 
 def gen_hover_json(sym: &Symbol): &Value {
     let obj = Value::new(Dictionary)
-    obj["hover"] = Value::new_str(gen_hover_string(sym))
+    obj["hover"] = gen_hover_string(sym)
     return obj
 }
 
@@ -175,9 +175,9 @@ def gen_type_methods_into(obj: &Value, type: &Type) {
     for it : type.methods.iter() {
         let func = it.value
         let func_doc = Value::new(Dictionary)
-        func_doc["name"] = Value::new_str(it.key)
-        func_doc["detail"] = Value::new_str(gen_hover_string(func.sym))
-        func_doc["kind"] = Value::new_str("method")
+        func_doc["name"] = it.key
+        func_doc["detail"] = gen_hover_string(func.sym)
+        func_doc["kind"] = "method"
         func_doc["range"] = gen_span_json(func.sym.span)
         func_doc["selection_range"] = gen_span_json(func.sym.span)
         func_doc["children"] = Value::new(List)
@@ -187,17 +187,17 @@ def gen_type_methods_into(obj: &Value, type: &Type) {
 
 def gen_enum_json(enum_: &Enum): &Value {
     let obj = Value::new(Dictionary)
-    obj["name"] = Value::new_str(enum_.sym.name)
-    obj["detail"] = Value::new_str(gen_hover_string(enum_.sym))
-    obj["kind"] = Value::new_str("enum")
+    obj["name"] = enum_.sym.name
+    obj["detail"] = gen_hover_string(enum_.sym)
+    obj["kind"] = "enum"
     obj["range"] = gen_span_json(enum_.sym.span)
     obj["selection_range"] = gen_span_json(enum_.sym.span)
 
     let children = Value::new(List)
     for member : enum_.fields.iter() {
         let member_obj = Value::new(Dictionary)
-        member_obj["name"] = Value::new_str(member.sym.name)
-        member_obj["kind"] = Value::new_str("enum-member")
+        member_obj["name"] = member.sym.name
+        member_obj["kind"] = "enum-member"
         member_obj["range"] = gen_span_json(member.sym.span)
         member_obj["selection_range"] = gen_span_json(member.sym.span)
         member_obj["children"] = Value::new(List)
@@ -211,9 +211,9 @@ def gen_enum_json(enum_: &Enum): &Value {
 
 def gen_struct_json(struc: &Structure): &Value {
     let obj = Value::new(Dictionary)
-    obj["name"] = Value::new_str(struc.sym.name)
-    obj["detail"] = Value::new_str(gen_hover_string(struc.sym))
-    obj["kind"] = Value::new_str("struct")
+    obj["name"] = struc.sym.name
+    obj["detail"] = gen_hover_string(struc.sym)
+    obj["kind"] = "struct"
     obj["range"] = gen_span_json(struc.sym.span)
     obj["selection_range"] = gen_span_json(struc.sym.span)
 
@@ -226,9 +226,9 @@ def gen_struct_json(struc: &Structure): &Value {
 
 def gen_variable_json(var: &Variable): &Value {
     let obj = Value::new(Dictionary)
-    obj["name"] = Value::new_str(var.sym.name)
-    obj["detail"] = Value::new_str(gen_hover_string(var.sym))
-    obj["kind"] = Value::new_str("variable")
+    obj["name"] = var.sym.name
+    obj["detail"] = gen_hover_string(var.sym)
+    obj["kind"] = "variable"
     obj["range"] = gen_span_json(var.sym.span)
     obj["selection_range"] = gen_span_json(var.sym.span)
     obj["children"] = Value::new(List)
@@ -237,9 +237,9 @@ def gen_variable_json(var: &Variable): &Value {
 
 def gen_function_json(func: &Function): &Value {
     let obj = Value::new(Dictionary)
-    obj["name"] = Value::new_str(func.sym.name)
-    obj["detail"] = Value::new_str(gen_hover_string(func.sym))
-    obj["kind"] = Value::new_str("function")
+    obj["name"] = func.sym.name
+    obj["detail"] = gen_hover_string(func.sym)
+    obj["kind"] = "function"
     obj["range"] = gen_span_json(func.sym.span)
     obj["selection_range"] = gen_span_json(func.sym.span)
     obj["children"] = Value::new(List)
@@ -248,9 +248,9 @@ def gen_function_json(func: &Function): &Value {
 
 def gen_namespace_json(ns: &Namespace): &Value {
     let obj = Value::new(Dictionary)
-    obj["name"] = Value::new_str(ns.sym.name)
-    obj["detail"] = Value::new_str(gen_hover_string(ns.sym))
-    obj["kind"] = Value::new_str("namespace")
+    obj["name"] = ns.sym.name
+    obj["detail"] = gen_hover_string(ns.sym)
+    obj["kind"] = "namespace"
     obj["range"] = gen_span_json(ns.sym.span)
     obj["selection_range"] = gen_span_json(ns.span)
 
@@ -286,18 +286,18 @@ def gen_namespace_json(ns: &Namespace): &Value {
 
 def gen_completion_from_symbol(sym: &Symbol): &Value {
     let val = Value::new(Dictionary)
-    val["label"] = Value::new_str(sym.name)
-    val["detail"] = Value::new_str(gen_hover_string(sym))
+    val["label"] = sym.name
+    val["detail"] = gen_hover_string(sym)
 
     // TODO: other types?
     match sym.type {
         Function => {
-            val["insertText"] = Value::new_str(`{sym.name}($1)`)
-            val["kind"] = Value::new_str("function")
+            val["insertText"] = `{sym.name}($1)`
+            val["kind"] = "function"
         }
         else => {
-            val["insertText"] = Value::new_str(sym.name)
-            val["kind"] = Value::new_str("field")
+            val["insertText"] = sym.name
+            val["kind"] = "field"
         }
     }
     return val

@@ -299,6 +299,7 @@ struct FormatString {
 struct MatchCase {
     cond: &AST
     body: &AST
+    cmp_fn: &Function
 }
 
 def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
@@ -313,6 +314,7 @@ struct Match {
     cases: &Vector<&MatchCase>
     defolt: &AST
     defolt_span: Span
+    is_custom_match: bool
 }
 
 struct Specialization {
