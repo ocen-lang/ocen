@@ -38,44 +38,44 @@ def next_power_of_2(x: u32): u32 {
     return y + 1
 }
 
-def fft2_impl(in: &Complex, R: u32, C: u32, out: &Complex, inv: bool) {
+def fft2_impl(inp: &Complex, R: u32, C: u32, out: &Complex, inv: bool) {
     let buf_size = if R > C then R else C
     buf_size = next_power_of_2(buf_size)
 
-    let buf_in = calloc(buf_size, sizeof(Complex)) as &Complex
+    let buf_inp = calloc(buf_size, sizeof(Complex)) as &Complex
     let buf_out = calloc(buf_size, sizeof(Complex)) as &Complex
 
     for let r = 0; r < R; r++ {
         for let c = 0; c < C; c++ {
-            buf_in[c] = in[r * C + c]
+            buf_inp[c] = inp[r * C + c]
         }
         if inv {
-            ifft(buf_in, C, buf_out)
+            ifft(buf_inp, C, buf_out)
         } else {
-            fft(buf_in, C, buf_out)
+            fft(buf_inp, C, buf_out)
         }
         for let c = 0; c < C; c++ {
             out[r * C + c] = buf_out[c]
         }
     }
 
-    memset(buf_in, 0, buf_size * sizeof(Complex))
+    memset(buf_inp, 0, buf_size * sizeof(Complex))
 
     for let c = 0; c < C; c++ {
         for let r = 0; r < R; r++ {
-            buf_in[r] = out[r * C + c]
+            buf_inp[r] = out[r * C + c]
         }
         if inv {
-            ifft(buf_in, R, buf_out)
+            ifft(buf_inp, R, buf_out)
         } else {
-            fft(buf_in, R, buf_out)
+            fft(buf_inp, R, buf_out)
         }
         for let r = 0; r < R; r++ {
             out[r * C + c] = buf_out[r]
         }
     }
 
-    free(buf_in)
+    free(buf_inp)
     free(buf_out)
 }
 
@@ -97,11 +97,11 @@ def ifft(data: &Complex, N: u32, out: &Complex) {
 }
 
 // 2D Fast Fourier Transform
-def fft2(in: &Complex, R: u32, C: u32, out: &Complex) {
-    fft2_impl(in, R, C, out, false)
+def fft2(inp: &Complex, R: u32, C: u32, out: &Complex) {
+    fft2_impl(inp, R, C, out, false)
 }
 
 // 2D Inverse Fast Fourier Transform
-def ifft2(in: &Complex, R: u32, C: u32, out: &Complex) {
-    fft2_impl(in, R, C, out, true)
+def ifft2(inp: &Complex, R: u32, C: u32, out: &Complex) {
+    fft2_impl(inp, R, C, out, true)
 }
