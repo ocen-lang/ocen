@@ -293,6 +293,7 @@ def decode(data: &Buffer): &Image {
         let r = out[idx + 0]
         let g = out[idx + 1]
         let b = out[idx + 2]
+        // Ignore alpha for now
         img.data[i] = Color(r, g, b)
     }
     out.free()

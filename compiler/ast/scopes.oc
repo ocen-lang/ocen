@@ -98,7 +98,17 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_
     let item = std::new<Symbol>()
     item.name = name
     item.display = display
+
+    // Replace invalid characters in full_name, since we codegen it to C
+    let full_name_len = full_name.len()
+    for let i = 0; i < full_name_len; i++ {
+        let c = full_name[i]
+        if (i == 0 and c.is_digit()) or (not c.is_alnum() and c != '_') {
+            full_name[i] = '_'
+        }
+    }
     item.full_name = full_name
+
     item.span = span
     item.type = type
     item.ns = ns
