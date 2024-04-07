@@ -111,6 +111,8 @@ def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
 def char::is_print(this): bool => libc::isprint(this)
 def char::is_space(this): bool => libc::isspace(this)
+def char::is_upper(this): bool => libc::isupper(this)
+def char::is_lower(this): bool => libc::islower(this)
 
 def i32::min(this, b: i32): i32 => if this < b then this else b
 def i32::max(this, b: i32): i32 => if this > b then this else b
@@ -130,4 +132,15 @@ def free(ptr: untyped_ptr) => libc::free(ptr)
 enum Endian {
     Little
     Big
+}
+
+def shift_args(argc: &i32, argv: &&str, where: str = "here"): str {
+    if *argc == 0 {
+        println(f"Expected argument but got none")
+        exit(1)
+    }
+    let arg = (*argv)[0]
+    (*argv) = (*argv) + 1
+    (*argc) = (*argc) - 1
+    return arg
 }

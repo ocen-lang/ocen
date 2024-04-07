@@ -31,6 +31,10 @@
 [extern] def isalnum(c: char): bool
 [extern] def isprint(c: char): bool
 [extern] def isspace(c: char): bool
+[extern] def toupper(c: char): char
+[extern] def tolower(c: char): char
+[extern] def islower(c: char): bool
+[extern] def isupper(c: char): bool
 
 [extern] def strtoll(s: str, endptr: &str, base: i32 = 10): i64
 [extern] def strtol(s: str, endptr: &str, base: i32 = 10): i32

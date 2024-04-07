@@ -1,0 +1,13 @@
+/// fail: Overload str_eq_u32 must return a boolean
+
+[operator "=="]
+def str_eq_u32(a: str, b: u32): u32 => 0
+
+def main() {
+    let s = "Hello"
+    match s {
+        "Hello" => println("World"),
+        34 => println("34")
+        else => println("Not Hello")
+    }
+}
