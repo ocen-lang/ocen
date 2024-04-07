@@ -1724,7 +1724,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
 void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, bool is_variadic);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *_lhs, compiler_types_Type *_rhs);
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3);
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_operators_Operator op, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_being_called);
@@ -1976,7 +1976,7 @@ char *compiler_errors_MessageType_to_color(compiler_errors_MessageType this);
 char *compiler_errors_MessageType_str(compiler_errors_MessageType this);
 void compiler_errors_display_line(void);
 void compiler_errors_display_message(compiler_errors_MessageType type, std_span_Span span, char *msg);
-void compiler_errors_display_message_span(compiler_errors_MessageType type, std_span_Span span, char *msg);
+void compiler_errors_display_message_span(compiler_errors_MessageType type, std_span_Span span, char *msg, bool line_after);
 void compiler_errors_Error_display(compiler_errors_Error *this);
 void compiler_errors_Error_panic(compiler_errors_Error *this) __attribute__((noreturn));
 compiler_errors_Error *compiler_errors_Error_new(std_span_Span span, char *msg);
@@ -2101,9 +2101,10 @@ std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s);
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size);
-void std_buffer_Buffer_puts(std_buffer_Buffer *this, char *s);
-void std_buffer_Buffer_putsf(std_buffer_Buffer *this, char *s);
-void std_buffer_Buffer_putc(std_buffer_Buffer *this, char c);
+void std_buffer_Buffer_write_str(std_buffer_Buffer *this, char *s);
+void std_buffer_Buffer_write_str_f(std_buffer_Buffer *this, char *s);
+void std_buffer_Buffer_write_char(std_buffer_Buffer *this, char c);
+void std_buffer_Buffer_write_u8(std_buffer_Buffer *this, u8 value);
 char *std_buffer_Buffer_str(std_buffer_Buffer this);
 char *std_buffer_Buffer_new_str(std_buffer_Buffer this);
 void std_buffer_Buffer_clear(std_buffer_Buffer *this);
@@ -2491,21 +2492,21 @@ void compiler_docgen_DocGenerator_gen_location(compiler_docgen_DocGenerator *thi
 char *compiler_docgen_DocGenerator_gen_templated_type(compiler_docgen_DocGenerator *this, compiler_types_Type *base, std_vector_Vector__0 *args) {
   char *base_name = compiler_docgen_DocGenerator_gen_typename_str(this, base);
   std_buffer_Buffer buf = std_buffer_Buffer_make(16);
-  std_buffer_Buffer_puts(&buf, base_name);
-  std_buffer_Buffer_puts(&buf, "<");
+  std_buffer_Buffer_write_str(&buf, base_name);
+  std_buffer_Buffer_write_str(&buf, "<");
   bool first = true;
   for (std_vector_Iterator__0 __iter = std_vector_Vector__0_iter(args); std_vector_Iterator__0_has_value(&__iter); std_vector_Iterator__0_next(&__iter)) {
     compiler_types_Type *arg_type = std_vector_Iterator__0_cur(&__iter);
     {
       if (!first) 
-      std_buffer_Buffer_puts(&buf, ", ");
+      std_buffer_Buffer_write_str(&buf, ", ");
       
       first=false;
       char *param_name = compiler_docgen_DocGenerator_gen_typename_str(this, arg_type);
-      std_buffer_Buffer_puts(&buf, param_name);
+      std_buffer_Buffer_write_str(&buf, param_name);
     }
   }
-  std_buffer_Buffer_puts(&buf, ">");
+  std_buffer_Buffer_write_str(&buf, ">");
   return std_buffer_Buffer_str(buf);
 }
 
@@ -2557,22 +2558,22 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
     } break;
     case compiler_types_BaseType_Function: {
       std_buffer_Buffer buf = std_buffer_Buffer_make(16);
-      std_buffer_Buffer_puts(&buf, "fn(");
+      std_buffer_Buffer_write_str(&buf, "fn(");
       bool first = true;
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(type->u.func.params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
         compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
         {
           if (!first) 
-          std_buffer_Buffer_puts(&buf, ", ");
+          std_buffer_Buffer_write_str(&buf, ", ");
           
           first=false;
           char *param_name = compiler_docgen_DocGenerator_gen_typename_str(this, param->type);
-          std_buffer_Buffer_putsf(&buf, param_name);
+          std_buffer_Buffer_write_str_f(&buf, param_name);
         }
       }
-      std_buffer_Buffer_puts(&buf, "): ");
+      std_buffer_Buffer_write_str(&buf, "): ");
       char *return_name = compiler_docgen_DocGenerator_gen_typename_str(this, type->u.func.return_type);
-      std_buffer_Buffer_putsf(&buf, return_name);
+      std_buffer_Buffer_write_str_f(&buf, return_name);
       return std_buffer_Buffer_str(buf);
     } break;
     case compiler_types_BaseType_Unresolved: {
@@ -2723,8 +2724,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_ns(compiler_docgen_DocGenerato
     for (std_vector_Iterator__12 __iter = std_vector_Vector__12_iter(ns->enums); std_vector_Iterator__12_has_value(&__iter); std_vector_Iterator__12_next(&__iter)) {
       compiler_ast_nodes_Enum *enum_ = std_vector_Iterator__12_cur(&__iter);
       {
-        std_value_Value *enum_doc = compiler_docgen_DocGenerator_gen_enum(this, enum_);
-        std_value_Value_insert(enums_doc, enum_->sym->name, enum_doc);
+        std_value_Value_insert(enums_doc, enum_->sym->name, compiler_docgen_DocGenerator_gen_enum(this, enum_));
       }
     }
     std_value_Value_insert(ns_doc, "enums", enums_doc);
@@ -2886,7 +2886,7 @@ char *compiler_passes_run_codegen_passes(compiler_ast_program_Program *program) 
 
 void compiler_passes_code_generator_CodeGenerator_gen_indent(compiler_passes_code_generator_CodeGenerator *this) {
   for (u32 i = 0; (i < this->indent); i+=1) {
-    std_buffer_Buffer_puts(&this->out, "  ");
+    std_buffer_Buffer_write_str(&this->out, "  ");
   }
 }
 
@@ -2909,7 +2909,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_debug_info(compiler_passes
   return ;
   
   std_span_Location loc = span.start;
-  std_buffer_Buffer_putsf(&this->out, format_string("\n#line %u \"%s\"\n", loc.line, loc.filename));
+  std_buffer_Buffer_write_str_f(&this->out, format_string("\n#line %u \"%s\"\n", loc.line, loc.filename));
 }
 
 char *compiler_passes_code_generator_CodeGenerator_get_op(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
@@ -3025,25 +3025,25 @@ char *compiler_passes_code_generator_CodeGenerator_get_op(compiler_passes_code_g
 void compiler_passes_code_generator_CodeGenerator_gen_internal_print(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
   compiler_ast_nodes_AST *callee = node->u.call.callee;
   bool newline_after = str_eq(callee->u.ident.name, "println");
-  std_buffer_Buffer_puts(&this->out, "printf(");
+  std_buffer_Buffer_write_str(&this->out, "printf(");
   std_vector_Vector__15 *args = node->u.call.args;
   compiler_ast_nodes_Argument *first = std_vector_Vector__15_at(args, 0);
   if (first->expr->type==compiler_ast_nodes_ASTType_FormatStringLiteral) {
     compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(this, first->expr, newline_after);
-    std_buffer_Buffer_puts(&this->out, ")");
+    std_buffer_Buffer_write_str(&this->out, ")");
     return ;
   } 
   for (u32 i = 0; (i < args->size); i+=1) {
     if ((i > 0)) 
-    std_buffer_Buffer_puts(&this->out, ", ");
+    std_buffer_Buffer_write_str(&this->out, ", ");
     
     compiler_ast_nodes_Argument *arg = std_vector_Vector__15_at(args, i);
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr);
     if ((i==0 && newline_after)) 
-    std_buffer_Buffer_puts(&this->out, "\"\\n\"");
+    std_buffer_Buffer_write_str(&this->out, "\"\\n\"");
     
   }
-  std_buffer_Buffer_puts(&this->out, ")");
+  std_buffer_Buffer_write_str(&this->out, ")");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_format_string_part(compiler_passes_code_generator_CodeGenerator *this, char *part) {
@@ -3057,17 +3057,17 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_part(compile
         case '}': {
         } break;
         default: {
-          std_buffer_Buffer_putc(&this->out, '\\');
+          std_buffer_Buffer_write_char(&this->out, '\\');
         } break;
       }
     }  else     if (part[i]=='"') {
-      std_buffer_Buffer_putc(&this->out, '\\');
+      std_buffer_Buffer_write_char(&this->out, '\\');
     }  else     if (part[i]=='%') {
-      std_buffer_Buffer_putc(&this->out, '%');
+      std_buffer_Buffer_write_char(&this->out, '%');
     } 
     
     
-    std_buffer_Buffer_putc(&this->out, part[i]);
+    std_buffer_Buffer_write_char(&this->out, part[i]);
   }
 }
 
@@ -3075,12 +3075,12 @@ void compiler_passes_code_generator_CodeGenerator_format_string_custom_specifier
   if (type->base==compiler_types_BaseType_Structure) {
     compiler_ast_nodes_Structure *struc = type->u.struc;
     if ((((bool)struc) && ((bool)struc->format_spec))) {
-      std_buffer_Buffer_puts(&this->out, struc->format_spec);
+      std_buffer_Buffer_write_str(&this->out, struc->format_spec);
       return ;
     } 
   } 
   compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_specifier: '%s'", compiler_types_Type_str(type))));
-  std_buffer_Buffer_puts(&this->out, "%s");
+  std_buffer_Buffer_write_str(&this->out, "%s");
 }
 
 void compiler_passes_code_generator_CodeGenerator_format_string_custom_argument(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type, compiler_ast_nodes_AST *expr) {
@@ -3091,11 +3091,11 @@ void compiler_passes_code_generator_CodeGenerator_format_string_custom_argument(
         char c = std_CharIterator_cur(&__iter);
         {
           if (c=='$') {
-            std_buffer_Buffer_puts(&this->out, "(");
+            std_buffer_Buffer_write_str(&this->out, "(");
             compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-            std_buffer_Buffer_puts(&this->out, ")");
+            std_buffer_Buffer_write_str(&this->out, ")");
           }  else {
-            std_buffer_Buffer_putc(&this->out, c);
+            std_buffer_Buffer_write_char(&this->out, c);
           } 
         }
       }
@@ -3110,15 +3110,15 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(com
   std_vector_Vector__1 *parts = node->u.fmt_str.parts;
   std_vector_Vector__13 *exprs = node->u.fmt_str.exprs;
   std_vector_Vector__1 *specs = node->u.fmt_str.specs;
-  std_buffer_Buffer_putc(&this->out, '"');
+  std_buffer_Buffer_write_char(&this->out, '"');
   for (u32 i = 0; (i < exprs->size); i+=1) {
     char *part = std_vector_Vector__1_at(parts, i);
     compiler_ast_nodes_AST *expr = std_vector_Vector__13_at(exprs, i);
     compiler_passes_code_generator_CodeGenerator_gen_format_string_part(this, part);
     char *spec = std_vector_Vector__1_at(specs, i);
     if (((bool)spec)) {
-      std_buffer_Buffer_puts(&this->out, "%");
-      std_buffer_Buffer_puts(&this->out, spec);
+      std_buffer_Buffer_write_str(&this->out, "%");
+      std_buffer_Buffer_write_str(&this->out, spec);
       continue;
     } 
     compiler_types_Type *expr_type = compiler_types_Type_unaliased(expr->etype);
@@ -3126,36 +3126,36 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(com
       case compiler_types_BaseType_I8:
       case compiler_types_BaseType_I16:
       case compiler_types_BaseType_I32: {
-        std_buffer_Buffer_puts(&this->out, "%d");
+        std_buffer_Buffer_write_str(&this->out, "%d");
       } break;
       case compiler_types_BaseType_U8:
       case compiler_types_BaseType_U16:
       case compiler_types_BaseType_U32: {
-        std_buffer_Buffer_puts(&this->out, "%u");
+        std_buffer_Buffer_write_str(&this->out, "%u");
       } break;
       case compiler_types_BaseType_I64: {
-        std_buffer_Buffer_puts(&this->out, "%\" PRId64 \"");
+        std_buffer_Buffer_write_str(&this->out, "%\" PRId64 \"");
       } break;
       case compiler_types_BaseType_U64: {
-        std_buffer_Buffer_puts(&this->out, "%\" PRIu64 \"");
+        std_buffer_Buffer_write_str(&this->out, "%\" PRIu64 \"");
       } break;
       case compiler_types_BaseType_Bool: {
-        std_buffer_Buffer_puts(&this->out, "%s");
+        std_buffer_Buffer_write_str(&this->out, "%s");
       } break;
       case compiler_types_BaseType_F32:
       case compiler_types_BaseType_F64: {
-        std_buffer_Buffer_puts(&this->out, "%f");
+        std_buffer_Buffer_write_str(&this->out, "%f");
       } break;
       case compiler_types_BaseType_Char: {
-        std_buffer_Buffer_puts(&this->out, "%c");
+        std_buffer_Buffer_write_str(&this->out, "%c");
       } break;
       case compiler_types_BaseType_Pointer: {
         switch (expr_type->u.ptr->base) {
           case compiler_types_BaseType_Char: {
-            std_buffer_Buffer_puts(&this->out, "%s");
+            std_buffer_Buffer_write_str(&this->out, "%s");
           } break;
           default: {
-            std_buffer_Buffer_puts(&this->out, "%p");
+            std_buffer_Buffer_write_str(&this->out, "%p");
           } break;
         }
       } break;
@@ -3167,14 +3167,14 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(com
   char *part = std_vector_Vector__1_back(parts, 0);
   compiler_passes_code_generator_CodeGenerator_gen_format_string_part(this, part);
   if (newline_after) 
-  std_buffer_Buffer_puts(&this->out, "\\n");
+  std_buffer_Buffer_write_str(&this->out, "\\n");
   
-  std_buffer_Buffer_putc(&this->out, '"');
+  std_buffer_Buffer_write_char(&this->out, '"');
   for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(exprs); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
     compiler_ast_nodes_AST *expr = std_vector_Iterator__13_cur(&__iter);
     {
       compiler_types_Type *expr_type = compiler_types_Type_unaliased(expr->etype);
-      std_buffer_Buffer_puts(&this->out, ", ");
+      std_buffer_Buffer_write_str(&this->out, ", ");
       switch (expr_type->base) {
         case compiler_types_BaseType_I8:
         case compiler_types_BaseType_I16:
@@ -3191,9 +3191,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(com
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
         } break;
         case compiler_types_BaseType_Bool: {
-          std_buffer_Buffer_puts(&this->out, "((");
+          std_buffer_Buffer_write_str(&this->out, "((");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-          std_buffer_Buffer_puts(&this->out, ") ? \"true\" : \"false\")");
+          std_buffer_Buffer_write_str(&this->out, ") ? \"true\" : \"false\")");
         } break;
         default: {
           compiler_passes_code_generator_CodeGenerator_format_string_custom_argument(this, expr_type, expr);
@@ -3204,29 +3204,29 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(com
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_format_string(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
-  std_buffer_Buffer_puts(&this->out, "format_string(");
+  std_buffer_Buffer_write_str(&this->out, "format_string(");
   compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(this, node, false);
-  std_buffer_Buffer_puts(&this->out, ")");
+  std_buffer_Buffer_write_str(&this->out, ")");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_yield_expression(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *expr) {
   char *yield_var = std_vector_Vector__1_back(this->yield_vars, 0);
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, yield_var);
-  std_buffer_Buffer_puts(&this->out, " = ");
+  std_buffer_Buffer_write_str(&this->out, yield_var);
+  std_buffer_Buffer_write_str(&this->out, " = ");
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-  std_buffer_Buffer_puts(&this->out, ";\n");
+  std_buffer_Buffer_write_str(&this->out, ";\n");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_constant(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
   compiler_ast_nodes_Variable *const_ = node->u.var_decl.var;
   if (!const_->sym->is_extern) {
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-    std_buffer_Buffer_puts(&this->out, "#define ");
-    std_buffer_Buffer_puts(&this->out, compiler_ast_scopes_Symbol_out_name(const_->sym));
-    std_buffer_Buffer_puts(&this->out, " (");
+    std_buffer_Buffer_write_str(&this->out, "#define ");
+    std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(const_->sym));
+    std_buffer_Buffer_write_str(&this->out, " (");
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.var_decl.init);
-    std_buffer_Buffer_puts(&this->out, ")\n");
+    std_buffer_Buffer_write_str(&this->out, ")\n");
   } 
 }
 
@@ -3252,7 +3252,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_global_variables(compiler_
       compiler_ast_nodes_Variable *var = node->u.var_decl.var;
       if (!var->sym->is_extern) {
         compiler_passes_code_generator_CodeGenerator_gen_var_declaration(this, node);
-        std_buffer_Buffer_puts(&this->out, ";\n");
+        std_buffer_Buffer_write_str(&this->out, ";\n");
       } 
     }
   }
@@ -3267,10 +3267,10 @@ void compiler_passes_code_generator_CodeGenerator_gen_global_variables(compiler_
 void compiler_passes_code_generator_CodeGenerator_gen_control_body(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *body) {
   if (body->type==compiler_ast_nodes_ASTType_Block) {
     compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
-    std_buffer_Buffer_puts(&this->out, " ");
+    std_buffer_Buffer_write_str(&this->out, " ");
   }  else {
     if ((body->type != compiler_ast_nodes_ASTType_If)) {
-      std_buffer_Buffer_puts(&this->out, "\n");
+      std_buffer_Buffer_write_str(&this->out, "\n");
     } 
     if ((((bool)node->etype) && (body->type != compiler_ast_nodes_ASTType_Yield))) {
       compiler_passes_code_generator_CodeGenerator_gen_yield_expression(this, body);
@@ -3285,9 +3285,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(compiler_
   char *yield_var = format_string("__yield_%u", this->yield_vars->size);
   std_vector_Vector__1_push(this->yield_vars, yield_var);
   compiler_types_Type *ret_type = node->etype;
-  std_buffer_Buffer_puts(&this->out, "({ ");
+  std_buffer_Buffer_write_str(&this->out, "({ ");
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, ret_type, yield_var);
-  std_buffer_Buffer_puts(&this->out, ";\n");
+  std_buffer_Buffer_write_str(&this->out, ";\n");
   if (node->type==compiler_ast_nodes_ASTType_Block) {
     compiler_passes_code_generator_CodeGenerator_gen_block(this, node, false);
   }  else {
@@ -3295,26 +3295,26 @@ void compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(compiler_
     compiler_passes_code_generator_CodeGenerator_gen_statement(this, node);
     this->indent-=1;
   } 
-  std_buffer_Buffer_puts(&this->out, ";");
-  std_buffer_Buffer_puts(&this->out, yield_var);
-  std_buffer_Buffer_puts(&this->out, "; })");
+  std_buffer_Buffer_write_str(&this->out, ";");
+  std_buffer_Buffer_write_str(&this->out, yield_var);
+  std_buffer_Buffer_write_str(&this->out, "; })");
   std_vector_Vector__1_pop(this->yield_vars);
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_Structure *struc) {
-  std_buffer_Buffer_putsf(&this->out, format_string("(%s){", compiler_ast_scopes_Symbol_out_name(struc->sym)));
+  std_buffer_Buffer_write_str_f(&this->out, format_string("(%s){", compiler_ast_scopes_Symbol_out_name(struc->sym)));
   std_vector_Vector__4 *fields = struc->fields;
   std_vector_Vector__15 *args = node->u.call.args;
   for (u32 i = 0; (i < args->size); i+=1) {
     if ((i != 0)) 
-    std_buffer_Buffer_puts(&this->out, ", ");
+    std_buffer_Buffer_write_str(&this->out, ", ");
     
     compiler_ast_nodes_Argument *arg = std_vector_Vector__15_at(args, i);
     compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(fields, i);
-    std_buffer_Buffer_putsf(&this->out, format_string(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
+    std_buffer_Buffer_write_str_f(&this->out, format_string(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr);
   }
-  std_buffer_Buffer_puts(&this->out, "}");
+  std_buffer_Buffer_write_str(&this->out, "}");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
@@ -3322,60 +3322,60 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     case compiler_ast_nodes_ASTType_IntLiteral: {
       compiler_ast_nodes_NumLiteral *num_lit = &node->u.num_literal;
       if (((node->etype->base != compiler_types_BaseType_I32) && (node->etype->base != compiler_types_BaseType_U32))) {
-        std_buffer_Buffer_puts(&this->out, "((");
+        std_buffer_Buffer_write_str(&this->out, "((");
         compiler_passes_code_generator_CodeGenerator_gen_type(this, node->etype);
-        std_buffer_Buffer_puts(&this->out, ")");
-        std_buffer_Buffer_puts(&this->out, num_lit->text);
-        std_buffer_Buffer_puts(&this->out, ")");
+        std_buffer_Buffer_write_str(&this->out, ")");
+        std_buffer_Buffer_write_str(&this->out, num_lit->text);
+        std_buffer_Buffer_write_str(&this->out, ")");
       }  else {
-        std_buffer_Buffer_puts(&this->out, num_lit->text);
+        std_buffer_Buffer_write_str(&this->out, num_lit->text);
       } 
     } break;
     case compiler_ast_nodes_ASTType_FloatLiteral: {
       compiler_ast_nodes_NumLiteral *num_lit = &node->u.num_literal;
-      std_buffer_Buffer_puts(&this->out, num_lit->text);
+      std_buffer_Buffer_write_str(&this->out, num_lit->text);
       if (node->etype->base==compiler_types_BaseType_F32) {
-        std_buffer_Buffer_puts(&this->out, "f");
+        std_buffer_Buffer_write_str(&this->out, "f");
       } 
     } break;
     case compiler_ast_nodes_ASTType_ArrayLiteral: {
       std_vector_Vector__13 *elements = node->u.array_literal.elements;
-      std_buffer_Buffer_puts(&this->out, "{");
+      std_buffer_Buffer_write_str(&this->out, "{");
       for (u32 i = 0; (i < elements->size); i+=1) {
         if ((i != 0)) 
-        std_buffer_Buffer_puts(&this->out, ", ");
+        std_buffer_Buffer_write_str(&this->out, ", ");
         
         compiler_ast_nodes_AST *expr = std_vector_Vector__13_at(elements, i);
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
       }
-      std_buffer_Buffer_puts(&this->out, "}");
+      std_buffer_Buffer_write_str(&this->out, "}");
     } break;
     case compiler_ast_nodes_ASTType_FormatStringLiteral: {
       compiler_passes_code_generator_CodeGenerator_gen_format_string(this, node);
     } break;
     case compiler_ast_nodes_ASTType_StringLiteral: {
       char *str_lit = node->u.string_literal;
-      std_buffer_Buffer_puts(&this->out, "\"");
-      std_buffer_Buffer_puts(&this->out, str_lit);
-      std_buffer_Buffer_puts(&this->out, "\"");
+      std_buffer_Buffer_write_str(&this->out, "\"");
+      std_buffer_Buffer_write_str(&this->out, str_lit);
+      std_buffer_Buffer_write_str(&this->out, "\"");
     } break;
     case compiler_ast_nodes_ASTType_CharLiteral: {
       char *char_lit = node->u.char_literal;
-      std_buffer_Buffer_puts(&this->out, "'");
-      std_buffer_Buffer_puts(&this->out, char_lit);
-      std_buffer_Buffer_puts(&this->out, "'");
+      std_buffer_Buffer_write_str(&this->out, "'");
+      std_buffer_Buffer_write_str(&this->out, char_lit);
+      std_buffer_Buffer_write_str(&this->out, "'");
     } break;
     case compiler_ast_nodes_ASTType_If: {
       compiler_ast_nodes_AST *a = node->u.if_stmt.body;
       compiler_ast_nodes_AST *b = node->u.if_stmt.els;
       if (((a->type != compiler_ast_nodes_ASTType_Block) && (b->type != compiler_ast_nodes_ASTType_Block))) {
-        std_buffer_Buffer_puts(&this->out, "(");
+        std_buffer_Buffer_write_str(&this->out, "(");
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.if_stmt.cond);
-        std_buffer_Buffer_puts(&this->out, " ? ");
+        std_buffer_Buffer_write_str(&this->out, " ? ");
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, a);
-        std_buffer_Buffer_puts(&this->out, " : ");
+        std_buffer_Buffer_write_str(&this->out, " : ");
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, b);
-        std_buffer_Buffer_puts(&this->out, ")");
+        std_buffer_Buffer_write_str(&this->out, ")");
       }  else {
         compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
       } 
@@ -3389,17 +3389,17 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     case compiler_ast_nodes_ASTType_Member: {
       compiler_ast_scopes_Symbol *sym = node->resolved_symbol;
       if ((((bool)sym) && sym->type==compiler_ast_scopes_SymbolType_Function)) {
-        std_buffer_Buffer_puts(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
+        std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
         return ;
       } 
       compiler_ast_nodes_AST *lhs = node->u.member.lhs;
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, lhs);
       if (node->u.member.is_pointer) {
-        std_buffer_Buffer_puts(&this->out, "->");
+        std_buffer_Buffer_write_str(&this->out, "->");
       }  else {
-        std_buffer_Buffer_puts(&this->out, ".");
+        std_buffer_Buffer_write_str(&this->out, ".");
       } 
-      std_buffer_Buffer_puts(&this->out, node->u.member.rhs_name);
+      std_buffer_Buffer_write_str(&this->out, node->u.member.rhs_name);
     } break;
     case compiler_ast_nodes_ASTType_Identifier:
     case compiler_ast_nodes_ASTType_NSLookup:
@@ -3414,7 +3414,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
         case compiler_ast_scopes_SymbolType_Variable:
         case compiler_ast_scopes_SymbolType_Constant:
         case compiler_ast_scopes_SymbolType_EnumVariant: {
-          std_buffer_Buffer_puts(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
+          std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
         } break;
         default: std_panic(format_string("Unhandled symbol type: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); break;
       }
@@ -3432,11 +3432,11 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
       } 
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, callee);
       bool is_variadic_format = (((((bool)sym) && sym->type==compiler_ast_scopes_SymbolType_Function) && ((bool)sym->u.func)) && sym->u.func->is_variadic_format);
-      std_buffer_Buffer_puts(&this->out, "(");
+      std_buffer_Buffer_write_str(&this->out, "(");
       std_vector_Vector__15 *args = node->u.call.args;
       for (u32 i = 0; (i < args->size); i+=1) {
         if ((i != 0)) 
-        std_buffer_Buffer_puts(&this->out, ", ");
+        std_buffer_Buffer_write_str(&this->out, ", ");
         
         compiler_ast_nodes_Argument *arg = std_vector_Vector__15_at(args, i);
         if (((i==(args->size - 1) && is_variadic_format) && arg->expr->type==compiler_ast_nodes_ASTType_FormatStringLiteral)) {
@@ -3445,55 +3445,55 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr);
         } 
       }
-      std_buffer_Buffer_puts(&this->out, ")");
+      std_buffer_Buffer_write_str(&this->out, ")");
     } break;
     case compiler_ast_nodes_ASTType_BoolLiteral: {
       bool bool_lit = node->u.bool_literal;
-      std_buffer_Buffer_puts(&this->out, (bool_lit ? "true" : "false"));
+      std_buffer_Buffer_write_str(&this->out, (bool_lit ? "true" : "false"));
     } break;
     case compiler_ast_nodes_ASTType_UnaryOp: {
       switch (node->u.unary.op) {
         case compiler_ast_operators_Operator_Address: {
           compiler_ast_nodes_AST *expr = node->u.unary.expr;
-          std_buffer_Buffer_puts(&this->out, "&");
+          std_buffer_Buffer_write_str(&this->out, "&");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
         } break;
         case compiler_ast_operators_Operator_Dereference: {
           compiler_ast_nodes_AST *expr = node->u.unary.expr;
-          std_buffer_Buffer_puts(&this->out, "(*");
+          std_buffer_Buffer_write_str(&this->out, "(*");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-          std_buffer_Buffer_puts(&this->out, ")");
+          std_buffer_Buffer_write_str(&this->out, ")");
         } break;
         case compiler_ast_operators_Operator_Negate: {
           compiler_ast_nodes_AST *expr = node->u.unary.expr;
-          std_buffer_Buffer_puts(&this->out, "-");
+          std_buffer_Buffer_write_str(&this->out, "-");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
         } break;
         case compiler_ast_operators_Operator_BitwiseNot: {
           compiler_ast_nodes_AST *expr = node->u.unary.expr;
-          std_buffer_Buffer_puts(&this->out, "~");
+          std_buffer_Buffer_write_str(&this->out, "~");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
         } break;
         case compiler_ast_operators_Operator_Not: {
           compiler_ast_nodes_AST *expr = node->u.unary.expr;
-          std_buffer_Buffer_puts(&this->out, "!");
+          std_buffer_Buffer_write_str(&this->out, "!");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
         } break;
         case compiler_ast_operators_Operator_IsNotNull: {
           compiler_ast_nodes_AST *expr = node->u.unary.expr;
-          std_buffer_Buffer_puts(&this->out, "((bool)");
+          std_buffer_Buffer_write_str(&this->out, "((bool)");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-          std_buffer_Buffer_puts(&this->out, ")");
+          std_buffer_Buffer_write_str(&this->out, ")");
         } break;
         case compiler_ast_operators_Operator_PreIncrement:
         case compiler_ast_operators_Operator_PreDecrement: {
-          std_buffer_Buffer_puts(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
+          std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.unary.expr);
         } break;
         case compiler_ast_operators_Operator_PostIncrement:
         case compiler_ast_operators_Operator_PostDecrement: {
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.unary.expr);
-          std_buffer_Buffer_puts(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
+          std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
         } break;
         default: {
           compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, format_string("Unhandled unary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
@@ -3503,19 +3503,19 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     case compiler_ast_nodes_ASTType_Cast: {
       compiler_ast_nodes_AST *expr = node->u.cast.lhs;
       compiler_types_Type *type = node->etype;
-      std_buffer_Buffer_puts(&this->out, "((");
-      std_buffer_Buffer_puts(&this->out, compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, type, "", false));
-      std_buffer_Buffer_puts(&this->out, ")");
+      std_buffer_Buffer_write_str(&this->out, "((");
+      std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, type, "", false));
+      std_buffer_Buffer_write_str(&this->out, ")");
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-      std_buffer_Buffer_puts(&this->out, ")");
+      std_buffer_Buffer_write_str(&this->out, ")");
     } break;
     case compiler_ast_nodes_ASTType_SizeOf: {
-      std_buffer_Buffer_puts(&this->out, "((u32)sizeof(");
+      std_buffer_Buffer_write_str(&this->out, "((u32)sizeof(");
       compiler_passes_code_generator_CodeGenerator_gen_type(this, node->u.size_of_type);
-      std_buffer_Buffer_puts(&this->out, "))");
+      std_buffer_Buffer_write_str(&this->out, "))");
     } break;
     case compiler_ast_nodes_ASTType_Null: {
-      std_buffer_Buffer_puts(&this->out, "NULL");
+      std_buffer_Buffer_write_str(&this->out, "NULL");
     } break;
     case compiler_ast_nodes_ASTType_BinaryOp: {
       switch (node->u.binary.op) {
@@ -3523,9 +3523,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           compiler_ast_nodes_AST *lhs = node->u.binary.lhs;
           compiler_ast_nodes_AST *rhs = node->u.binary.rhs;
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, lhs);
-          std_buffer_Buffer_puts(&this->out, "[");
+          std_buffer_Buffer_write_str(&this->out, "[");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, rhs);
-          std_buffer_Buffer_puts(&this->out, "]");
+          std_buffer_Buffer_write_str(&this->out, "]");
         } break;
         case compiler_ast_operators_Operator_And:
         case compiler_ast_operators_Operator_BitwiseAnd:
@@ -3548,13 +3548,13 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
         case compiler_ast_operators_Operator_RightShift: {
           compiler_ast_nodes_AST *lhs = node->u.binary.lhs;
           compiler_ast_nodes_AST *rhs = node->u.binary.rhs;
-          std_buffer_Buffer_puts(&this->out, "(");
+          std_buffer_Buffer_write_str(&this->out, "(");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, lhs);
-          std_buffer_Buffer_puts(&this->out, " ");
-          std_buffer_Buffer_puts(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
-          std_buffer_Buffer_puts(&this->out, " ");
+          std_buffer_Buffer_write_str(&this->out, " ");
+          std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
+          std_buffer_Buffer_write_str(&this->out, " ");
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, rhs);
-          std_buffer_Buffer_puts(&this->out, ")");
+          std_buffer_Buffer_write_str(&this->out, ")");
         } break;
         case compiler_ast_operators_Operator_Equals:
         case compiler_ast_operators_Operator_Assignment:
@@ -3564,7 +3564,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
         case compiler_ast_operators_Operator_DivideEquals:
         case compiler_ast_operators_Operator_MultiplyEquals: {
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.binary.lhs);
-          std_buffer_Buffer_puts(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
+          std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.binary.rhs);
         } break;
         default: {
@@ -3582,13 +3582,13 @@ void compiler_passes_code_generator_CodeGenerator_gen_var_declaration(compiler_p
   compiler_ast_nodes_Variable *var = node->u.var_decl.var;
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, var->type, compiler_ast_scopes_Symbol_out_name(var->sym));
   if (((bool)node->u.var_decl.init)) {
-    std_buffer_Buffer_puts(&this->out, " = ");
+    std_buffer_Buffer_write_str(&this->out, " = ");
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.var_decl.init);
   }  else {
     switch (var->type->base) {
       case compiler_types_BaseType_Array:
       case compiler_types_BaseType_Structure: {
-        std_buffer_Buffer_puts(&this->out, " = {0}");
+        std_buffer_Buffer_write_str(&this->out, " = {0}");
       } break;
       default: {
       } break;
@@ -3598,26 +3598,26 @@ void compiler_passes_code_generator_CodeGenerator_gen_var_declaration(compiler_p
 
 void compiler_passes_code_generator_CodeGenerator_gen_match_case_body(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *body) {
   if (body->type==compiler_ast_nodes_ASTType_Block) {
-    std_buffer_Buffer_puts(&this->out, " ");
+    std_buffer_Buffer_write_str(&this->out, " ");
     compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
   }  else   if ((body->type==compiler_ast_nodes_ASTType_Call && body->returns)) {
-    std_buffer_Buffer_puts(&this->out, " ");
+    std_buffer_Buffer_write_str(&this->out, " ");
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, body);
-    std_buffer_Buffer_puts(&this->out, ";");
+    std_buffer_Buffer_write_str(&this->out, ";");
   }  else   if ((((bool)node->etype) && (body->type != compiler_ast_nodes_ASTType_Yield))) {
-    std_buffer_Buffer_puts(&this->out, " {\n");
+    std_buffer_Buffer_write_str(&this->out, " {\n");
     this->indent+=1;
     compiler_passes_code_generator_CodeGenerator_gen_yield_expression(this, body);
     this->indent-=1;
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-    std_buffer_Buffer_puts(&this->out, "}");
+    std_buffer_Buffer_write_str(&this->out, "}");
   }  else {
-    std_buffer_Buffer_puts(&this->out, " {\n");
+    std_buffer_Buffer_write_str(&this->out, " {\n");
     this->indent+=1;
     compiler_passes_code_generator_CodeGenerator_gen_statement(this, body);
     this->indent-=1;
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-    std_buffer_Buffer_puts(&this->out, "}");
+    std_buffer_Buffer_write_str(&this->out, "}");
   } 
   
   
@@ -3626,49 +3626,49 @@ void compiler_passes_code_generator_CodeGenerator_gen_match_case_body(compiler_p
 void compiler_passes_code_generator_CodeGenerator_gen_custom_match(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
   compiler_ast_nodes_Match stmt = node->u.match_stmt;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "{\n");
+  std_buffer_Buffer_write_str(&this->out, "{\n");
   char *match_var = format_string("__match_var_%u", this->uid++);
   this->indent+=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, stmt.expr->etype, match_var);
-  std_buffer_Buffer_puts(&this->out, " = ");
+  std_buffer_Buffer_write_str(&this->out, " = ");
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, stmt.expr);
-  std_buffer_Buffer_puts(&this->out, ";\n");
+  std_buffer_Buffer_write_str(&this->out, ";\n");
   std_vector_Vector__17 *cases = stmt.cases;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "if (");
+  std_buffer_Buffer_write_str(&this->out, "if (");
   for (u32 i = 0; (i < cases->size); i+=1) {
     compiler_ast_nodes_MatchCase *_case = std_vector_Vector__17_at(cases, i);
     if (((bool)_case->cmp_fn)) {
-      std_buffer_Buffer_puts(&this->out, compiler_ast_scopes_Symbol_out_name(_case->cmp_fn->sym));
-      std_buffer_Buffer_puts(&this->out, "(");
-      std_buffer_Buffer_puts(&this->out, match_var);
-      std_buffer_Buffer_puts(&this->out, ", ");
+      std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(_case->cmp_fn->sym));
+      std_buffer_Buffer_write_str(&this->out, "(");
+      std_buffer_Buffer_write_str(&this->out, match_var);
+      std_buffer_Buffer_write_str(&this->out, ", ");
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, _case->cond);
-      std_buffer_Buffer_puts(&this->out, ")");
+      std_buffer_Buffer_write_str(&this->out, ")");
     }  else {
-      std_buffer_Buffer_puts(&this->out, format_string("(%s == ", match_var));
+      std_buffer_Buffer_write_str(&this->out, format_string("(%s == ", match_var));
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, _case->cond);
-      std_buffer_Buffer_puts(&this->out, ")");
+      std_buffer_Buffer_write_str(&this->out, ")");
     } 
     if (((bool)_case->body)) {
-      std_buffer_Buffer_puts(&this->out, ")");
+      std_buffer_Buffer_write_str(&this->out, ")");
       compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, _case->body);
-      std_buffer_Buffer_puts(&this->out, " else ");
+      std_buffer_Buffer_write_str(&this->out, " else ");
       if ((i != (cases->size - 1))) {
-        std_buffer_Buffer_puts(&this->out, "if (");
+        std_buffer_Buffer_write_str(&this->out, "if (");
       } 
     }  else {
-      std_buffer_Buffer_puts(&this->out, " || ");
+      std_buffer_Buffer_write_str(&this->out, " || ");
     } 
   }
   if (((bool)stmt.defolt)) {
     compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, stmt.defolt);
   } 
-  std_buffer_Buffer_puts(&this->out, "\n");
+  std_buffer_Buffer_write_str(&this->out, "\n");
   this->indent-=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "}\n");
+  std_buffer_Buffer_write_str(&this->out, "}\n");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_match(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
@@ -3678,35 +3678,35 @@ void compiler_passes_code_generator_CodeGenerator_gen_match(compiler_passes_code
     return ;
   } 
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "switch (");
+  std_buffer_Buffer_write_str(&this->out, "switch (");
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, stmt.expr);
-  std_buffer_Buffer_puts(&this->out, ") {\n");
+  std_buffer_Buffer_write_str(&this->out, ") {\n");
   std_vector_Vector__17 *cases = stmt.cases;
   this->indent+=1;
   for (std_vector_Iterator__17 __iter = std_vector_Vector__17_iter(cases); std_vector_Iterator__17_has_value(&__iter); std_vector_Iterator__17_next(&__iter)) {
     compiler_ast_nodes_MatchCase *_case = std_vector_Iterator__17_cur(&__iter);
     {
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-      std_buffer_Buffer_puts(&this->out, "case ");
+      std_buffer_Buffer_write_str(&this->out, "case ");
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, _case->cond);
-      std_buffer_Buffer_puts(&this->out, ":");
+      std_buffer_Buffer_write_str(&this->out, ":");
       if (((bool)_case->body)) {
         compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, _case->body);
-        std_buffer_Buffer_puts(&this->out, " break;\n");
+        std_buffer_Buffer_write_str(&this->out, " break;\n");
       }  else {
-        std_buffer_Buffer_puts(&this->out, "\n");
+        std_buffer_Buffer_write_str(&this->out, "\n");
       } 
     }
   }
   if (((bool)stmt.defolt)) {
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-    std_buffer_Buffer_puts(&this->out, "default:");
+    std_buffer_Buffer_write_str(&this->out, "default:");
     compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, stmt.defolt);
-    std_buffer_Buffer_puts(&this->out, " break;\n");
+    std_buffer_Buffer_write_str(&this->out, " break;\n");
   } 
   this->indent-=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "}\n");
+  std_buffer_Buffer_write_str(&this->out, "}\n");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_defers_upto(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Scope *end_scope) {
@@ -3716,7 +3716,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_defers_upto(compiler_passe
       if (first) {
         first=false;
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-        std_buffer_Buffer_puts(&this->out, "/* defers */\n");
+        std_buffer_Buffer_write_str(&this->out, "/* defers */\n");
       } 
       u32 idx = ((cur->defers->size - i) - 1);
       compiler_ast_nodes_AST *stmt = std_vector_Vector__13_at(cur->defers, idx);
@@ -3741,12 +3741,12 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       compiler_types_Type *return_type = upto->cur_func->return_type;
       if (((node->type != compiler_ast_nodes_ASTType_ArrowReturn) || (return_type->base != compiler_types_BaseType_Void))) {
-        std_buffer_Buffer_puts(&this->out, "return ");
+        std_buffer_Buffer_write_str(&this->out, "return ");
       } 
       if (((bool)node->u.child)) {
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.child);
       } 
-      std_buffer_Buffer_puts(&this->out, ";\n");
+      std_buffer_Buffer_write_str(&this->out, ";\n");
     } break;
     case compiler_ast_nodes_ASTType_Yield: {
       compiler_passes_code_generator_CodeGenerator_gen_yield_expression(this, node->u.child);
@@ -3763,20 +3763,20 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
       compiler_passes_code_generator_CodeGenerator_gen_defers_upto(this, upto);
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       if (node->type==compiler_ast_nodes_ASTType_Break) {
-        std_buffer_Buffer_puts(&this->out, "break;\n");
+        std_buffer_Buffer_write_str(&this->out, "break;\n");
       }  else {
-        std_buffer_Buffer_puts(&this->out, "continue;\n");
+        std_buffer_Buffer_write_str(&this->out, "continue;\n");
       } 
     } break;
     case compiler_ast_nodes_ASTType_VarDeclaration: {
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       compiler_passes_code_generator_CodeGenerator_gen_var_declaration(this, node);
-      std_buffer_Buffer_puts(&this->out, ";\n");
+      std_buffer_Buffer_write_str(&this->out, ";\n");
     } break;
     case compiler_ast_nodes_ASTType_Block: {
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       compiler_passes_code_generator_CodeGenerator_gen_block(this, node, true);
-      std_buffer_Buffer_puts(&this->out, "\n");
+      std_buffer_Buffer_write_str(&this->out, "\n");
     } break;
     case compiler_ast_nodes_ASTType_Defer: {
       std_vector_Vector__13_push(compiler_passes_code_generator_CodeGenerator_scope(this)->defers, node->u.child);
@@ -3786,16 +3786,16 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
       compiler_ast_nodes_AST *body = node->u.if_stmt.body;
       compiler_ast_nodes_AST *else_body = node->u.if_stmt.els;
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-      std_buffer_Buffer_puts(&this->out, "if (");
+      std_buffer_Buffer_write_str(&this->out, "if (");
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond);
-      std_buffer_Buffer_puts(&this->out, ") ");
+      std_buffer_Buffer_write_str(&this->out, ") ");
       compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, body);
       if (((bool)else_body)) {
-        std_buffer_Buffer_puts(&this->out, " else ");
+        std_buffer_Buffer_write_str(&this->out, " else ");
         compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, else_body);
-        std_buffer_Buffer_puts(&this->out, "\n");
+        std_buffer_Buffer_write_str(&this->out, "\n");
       }  else {
-        std_buffer_Buffer_puts(&this->out, "\n");
+        std_buffer_Buffer_write_str(&this->out, "\n");
       } 
     } break;
     case compiler_ast_nodes_ASTType_Match: {
@@ -3805,11 +3805,11 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
       compiler_ast_nodes_AST *cond = node->u.loop.cond;
       compiler_ast_nodes_AST *body = node->u.loop.body;
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-      std_buffer_Buffer_puts(&this->out, "while (");
+      std_buffer_Buffer_write_str(&this->out, "while (");
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond);
-      std_buffer_Buffer_puts(&this->out, ") ");
+      std_buffer_Buffer_write_str(&this->out, ") ");
       compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
-      std_buffer_Buffer_puts(&this->out, "\n");
+      std_buffer_Buffer_write_str(&this->out, "\n");
     } break;
     case compiler_ast_nodes_ASTType_For: {
       compiler_ast_nodes_AST *init = node->u.loop.init;
@@ -3817,7 +3817,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
       compiler_ast_nodes_AST *step = node->u.loop.step;
       compiler_ast_nodes_AST *body = node->u.loop.body;
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-      std_buffer_Buffer_puts(&this->out, "for (");
+      std_buffer_Buffer_write_str(&this->out, "for (");
       if (((bool)init)) {
         if (init->type==compiler_ast_nodes_ASTType_VarDeclaration) {
           compiler_passes_code_generator_CodeGenerator_gen_var_declaration(this, init);
@@ -3825,65 +3825,65 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, init);
         } 
       } 
-      std_buffer_Buffer_puts(&this->out, "; ");
+      std_buffer_Buffer_write_str(&this->out, "; ");
       if (((bool)cond)) 
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond);
       
-      std_buffer_Buffer_puts(&this->out, "; ");
+      std_buffer_Buffer_write_str(&this->out, "; ");
       if (((bool)step)) 
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, step);
       
-      std_buffer_Buffer_puts(&this->out, ") ");
+      std_buffer_Buffer_write_str(&this->out, ") ");
       compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
-      std_buffer_Buffer_puts(&this->out, "\n");
+      std_buffer_Buffer_write_str(&this->out, "\n");
     } break;
     case compiler_ast_nodes_ASTType_Assert: {
       compiler_ast_nodes_AST *expr = node->u.assertion.expr;
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-      std_buffer_Buffer_puts(&this->out, "ae_assert(");
+      std_buffer_Buffer_write_str(&this->out, "ae_assert(");
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr);
-      std_buffer_Buffer_puts(&this->out, ", ");
+      std_buffer_Buffer_write_str(&this->out, ", ");
       {
-        std_buffer_Buffer_puts(&this->out, "\"");
-        std_buffer_Buffer_putsf(&this->out, std_span_Location_str(&expr->span.start));
+        std_buffer_Buffer_write_str(&this->out, "\"");
+        std_buffer_Buffer_write_str_f(&this->out, std_span_Location_str(&expr->span.start));
         char *expr_str = compiler_ast_program_Program_get_source_text(this->o->program, expr->span);
-        std_buffer_Buffer_puts(&this->out, ": Assertion failed: `");
+        std_buffer_Buffer_write_str(&this->out, ": Assertion failed: `");
         u32 len = strlen(expr_str);
         for (u32 i = 0; (i < len); i+=1) {
           switch (expr_str[i]) {
             case '"': {
-              std_buffer_Buffer_puts(&this->out, "\\\"");
+              std_buffer_Buffer_write_str(&this->out, "\\\"");
             } break;
             default: {
-              std_buffer_Buffer_putc(&this->out, expr_str[i]);
+              std_buffer_Buffer_write_char(&this->out, expr_str[i]);
             } break;
           }
         }
-        std_buffer_Buffer_puts(&this->out, "`\"");
+        std_buffer_Buffer_write_str(&this->out, "`\"");
       }
-      std_buffer_Buffer_puts(&this->out, ", ");
+      std_buffer_Buffer_write_str(&this->out, ", ");
       if (((bool)node->u.assertion.msg)) {
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.assertion.msg);
       }  else {
-        std_buffer_Buffer_puts(&this->out, "NULL");
+        std_buffer_Buffer_write_str(&this->out, "NULL");
       } 
-      std_buffer_Buffer_puts(&this->out, ");");
+      std_buffer_Buffer_write_str(&this->out, ");");
       if ((expr->type==compiler_ast_nodes_ASTType_BoolLiteral && expr->u.bool_literal==false)) {
-        std_buffer_Buffer_puts(&this->out, " exit(1);");
+        std_buffer_Buffer_write_str(&this->out, " exit(1);");
       } 
-      std_buffer_Buffer_puts(&this->out, "\n");
+      std_buffer_Buffer_write_str(&this->out, "\n");
     } break;
     default: {
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, node);
-      std_buffer_Buffer_puts(&this->out, ";\n");
+      std_buffer_Buffer_write_str(&this->out, ";\n");
     } break;
   }
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_block(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, bool with_braces) {
   if (with_braces) 
-  std_buffer_Buffer_puts(&this->out, "{\n");
+  std_buffer_Buffer_write_str(&this->out, "{\n");
   
   compiler_ast_scopes_Scope *scope = node->u.block.scope;
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, node->u.block.scope);
@@ -3901,7 +3901,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_block(compiler_passes_code
   this->indent-=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
   if (with_braces) 
-  std_buffer_Buffer_puts(&this->out, "}");
+  std_buffer_Buffer_write_str(&this->out, "}");
   
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
@@ -3936,18 +3936,18 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
       std_buffer_Buffer args_str = std_buffer_Buffer_make(16);
       std_vector_Vector__4 *params = cur->u.func.params;
       if (params->size==0) 
-      std_buffer_Buffer_puts(&args_str, "void");
+      std_buffer_Buffer_write_str(&args_str, "void");
       
       for (u32 i = 0; (i < params->size); i+=1) {
         if ((i != 0)) 
-        std_buffer_Buffer_puts(&args_str, ", ");
+        std_buffer_Buffer_write_str(&args_str, ", ");
         
         compiler_ast_nodes_Variable *var = std_vector_Vector__4_at(params, i);
         char *arg_str = compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, var->type, compiler_ast_scopes_Symbol_out_name(var->sym), false);
-        std_buffer_Buffer_putsf(&args_str, arg_str);
+        std_buffer_Buffer_write_str_f(&args_str, arg_str);
       }
       if (cur->u.func.is_variadic) 
-      std_buffer_Buffer_puts(&args_str, ", ...");
+      std_buffer_Buffer_write_str(&args_str, ", ...");
       
       if ((is_func_def && cur==top)) {
         str_replace(&acc, format_string("%s(%s)", acc, std_buffer_Buffer_str(args_str)));
@@ -3975,7 +3975,7 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
       if (((bool)arr_typ->size_expr)) {
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, arr_typ->size_expr);
       }  else       if (arr_typ->size_known) {
-        std_buffer_Buffer_putsf(&this->out, format_string("%u", arr_typ->size));
+        std_buffer_Buffer_write_str_f(&this->out, format_string("%u", arr_typ->size));
       }  else {
         compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(cur->span, "Array size not known at compile time"));
       } 
@@ -4000,7 +4000,7 @@ char *compiler_passes_code_generator_CodeGenerator_get_type_name_string(compiler
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_type_and_name(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type, char *name) {
-  std_buffer_Buffer_putsf(&this->out, compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, type, name, false));
+  std_buffer_Buffer_write_str_f(&this->out, compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, type, name, false));
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_type(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type) {
@@ -4022,15 +4022,15 @@ void compiler_passes_code_generator_CodeGenerator_gen_function(compiler_passes_c
   
   compiler_passes_code_generator_CodeGenerator_gen_debug_info(this, func->sym->span, false);
   compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, func);
-  std_buffer_Buffer_puts(&this->out, " ");
+  std_buffer_Buffer_write_str(&this->out, " ");
   compiler_passes_code_generator_CodeGenerator_gen_block(this, func->body, true);
-  std_buffer_Buffer_puts(&this->out, "\n\n");
+  std_buffer_Buffer_write_str(&this->out, "\n\n");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_function_decl(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Function *func) {
   char *funfull_name = compiler_ast_scopes_Symbol_out_name(func->sym);
   char *s = compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, func->type, funfull_name, true);
-  std_buffer_Buffer_putsf(&this->out, s);
+  std_buffer_Buffer_write_str_f(&this->out, s);
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_functions(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_program_Namespace *ns) {
@@ -4091,9 +4091,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_function_decls(compiler_pa
             
             compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, func);
             if (func->exits) 
-            std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
+            std_buffer_Buffer_write_str(&this->out, " __attribute__((noreturn))");
             
-            std_buffer_Buffer_puts(&this->out, ";\n");
+            std_buffer_Buffer_write_str(&this->out, ";\n");
           }
         }
         continue;
@@ -4103,9 +4103,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_function_decls(compiler_pa
       
       compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, func);
       if (func->exits) 
-      std_buffer_Buffer_puts(&this->out, " __attribute__((noreturn))");
+      std_buffer_Buffer_write_str(&this->out, " __attribute__((noreturn))");
       
-      std_buffer_Buffer_puts(&this->out, ";\n");
+      std_buffer_Buffer_write_str(&this->out, ";\n");
     }
   }
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
@@ -4134,27 +4134,27 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum_types(compiler_passes
 void compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enum_) {
   compiler_ast_nodes_Function *dbg = std_map_Map__7_at(enum_->type->methods, "dbg");
   compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, dbg);
-  std_buffer_Buffer_puts(&this->out, " {\n");
+  std_buffer_Buffer_write_str(&this->out, " {\n");
   this->indent+=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "switch (this) {\n");
+  std_buffer_Buffer_write_str(&this->out, "switch (this) {\n");
   this->indent+=1;
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enum_->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
     {
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-      std_buffer_Buffer_puts(&this->out, "case ");
-      std_buffer_Buffer_puts(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
-      std_buffer_Buffer_putsf(&this->out, format_string(": return \"%s\";\n", field->sym->name));
+      std_buffer_Buffer_write_str(&this->out, "case ");
+      std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
+      std_buffer_Buffer_write_str_f(&this->out, format_string(": return \"%s\";\n", field->sym->name));
     }
   }
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_putsf(&this->out, format_string("default: return \"<unknown>\";\n"));
+  std_buffer_Buffer_write_str_f(&this->out, format_string("default: return \"<unknown>\";\n"));
   this->indent-=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_puts(&this->out, "}\n");
+  std_buffer_Buffer_write_str(&this->out, "}\n");
   this->indent-=1;
-  std_buffer_Buffer_puts(&this->out, "}\n\n");
+  std_buffer_Buffer_write_str(&this->out, "}\n\n");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_enum(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enum_) {
@@ -4163,16 +4163,16 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum(compiler_passes_code_
   
   char *enum_name = compiler_ast_scopes_Symbol_out_name(enum_->sym);
   if (!enum_->sym->is_extern) {
-    std_buffer_Buffer_putsf(&this->out, format_string("typedef enum %s {\n", enum_name));
+    std_buffer_Buffer_write_str_f(&this->out, format_string("typedef enum %s {\n", enum_name));
     for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enum_->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
       compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
       {
-        std_buffer_Buffer_puts(&this->out, "  ");
-        std_buffer_Buffer_puts(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
-        std_buffer_Buffer_puts(&this->out, ",\n");
+        std_buffer_Buffer_write_str(&this->out, "  ");
+        std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
+        std_buffer_Buffer_write_str(&this->out, ",\n");
       }
     }
-    std_buffer_Buffer_putsf(&this->out, format_string("} %s;\n\n", enum_name));
+    std_buffer_Buffer_write_str_f(&this->out, format_string("} %s;\n\n", enum_name));
   } 
   compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enum_);
 }
@@ -4183,19 +4183,19 @@ void compiler_passes_code_generator_CodeGenerator_gen_struct(compiler_passes_cod
   
   char *strufull_name = compiler_ast_scopes_Symbol_out_name(struc->sym);
   if (struc->is_union) {
-    std_buffer_Buffer_putsf(&this->out, format_string("union %s {\n", strufull_name));
+    std_buffer_Buffer_write_str_f(&this->out, format_string("union %s {\n", strufull_name));
   }  else {
-    std_buffer_Buffer_putsf(&this->out, format_string("struct %s {\n", strufull_name));
+    std_buffer_Buffer_write_str_f(&this->out, format_string("struct %s {\n", strufull_name));
   } 
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
     {
-      std_buffer_Buffer_puts(&this->out, "  ");
+      std_buffer_Buffer_write_str(&this->out, "  ");
       compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, field->type, compiler_ast_scopes_Symbol_out_name(field->sym));
-      std_buffer_Buffer_puts(&this->out, ";\n");
+      std_buffer_Buffer_write_str(&this->out, ";\n");
     }
   }
-  std_buffer_Buffer_puts(&this->out, "};\n\n");
+  std_buffer_Buffer_write_str(&this->out, "};\n\n");
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_structs_and_typedefs(compiler_passes_code_generator_CodeGenerator *this) {
@@ -4203,7 +4203,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_structs_and_typedefs(compi
   if (structs->size==0) 
   return ;
   
-  std_buffer_Buffer_puts(&this->out, "/* Struct typedefs */\n");
+  std_buffer_Buffer_write_str(&this->out, "/* Struct typedefs */\n");
   for (std_vector_Iterator__2 __iter = std_vector_Vector__2_iter(structs); std_vector_Iterator__2_has_value(&__iter); std_vector_Iterator__2_next(&__iter)) {
     compiler_ast_nodes_Structure *struc = std_vector_Iterator__2_cur(&__iter);
     {
@@ -4215,13 +4215,13 @@ void compiler_passes_code_generator_CodeGenerator_gen_structs_and_typedefs(compi
       
       char *strufull_name = compiler_ast_scopes_Symbol_out_name(struc->sym);
       if (struc->is_union) {
-        std_buffer_Buffer_putsf(&this->out, format_string("typedef union %s %s;\n", strufull_name, strufull_name));
+        std_buffer_Buffer_write_str_f(&this->out, format_string("typedef union %s %s;\n", strufull_name, strufull_name));
       }  else {
-        std_buffer_Buffer_putsf(&this->out, format_string("typedef struct %s %s;\n", strufull_name, strufull_name));
+        std_buffer_Buffer_write_str_f(&this->out, format_string("typedef struct %s %s;\n", strufull_name, strufull_name));
       } 
     }
   }
-  std_buffer_Buffer_puts(&this->out, "\n/* Struct definitions */\n");
+  std_buffer_Buffer_write_str(&this->out, "\n/* Struct definitions */\n");
   for (std_vector_Iterator__2 __iter = std_vector_Vector__2_iter(structs); std_vector_Iterator__2_has_value(&__iter); std_vector_Iterator__2_next(&__iter)) {
     compiler_ast_nodes_Structure *struc = std_vector_Iterator__2_cur(&__iter);
     {
@@ -4231,34 +4231,34 @@ void compiler_passes_code_generator_CodeGenerator_gen_structs_and_typedefs(compi
       compiler_passes_code_generator_CodeGenerator_gen_struct(this, struc);
     }
   }
-  std_buffer_Buffer_puts(&this->out, "\n");
+  std_buffer_Buffer_write_str(&this->out, "\n");
 }
 
 char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code_generator_CodeGenerator *this) {
   for (std_vector_Iterator__1 __iter = std_vector_Vector__1_iter(this->o->program->c_includes); std_vector_Iterator__1_has_value(&__iter); std_vector_Iterator__1_next(&__iter)) {
     char *include = std_vector_Iterator__1_cur(&__iter);
     {
-      std_buffer_Buffer_putsf(&this->out, format_string("#include \"%s\"\n", include));
+      std_buffer_Buffer_write_str_f(&this->out, format_string("#include \"%s\"\n", include));
     }
   }
-  std_buffer_Buffer_puts(&this->out, "\n");
+  std_buffer_Buffer_write_str(&this->out, "\n");
   for (std_map_Iterator__6 __iter = std_map_Map__6_iter(this->o->program->c_embeds); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
     std_map_Item__6 *it = std_map_Iterator__6_cur(&__iter);
     {
-      std_buffer_Buffer_putsf(&this->out, format_string("/* Embed: %s */\n", it->key));
-      std_buffer_Buffer_puts(&this->out, it->value);
-      std_buffer_Buffer_puts(&this->out, "\n\n");
+      std_buffer_Buffer_write_str_f(&this->out, format_string("/* Embed: %s */\n", it->key));
+      std_buffer_Buffer_write_str(&this->out, it->value);
+      std_buffer_Buffer_write_str(&this->out, "\n\n");
     }
   }
-  std_buffer_Buffer_puts(&this->out, "/* Enums */\n");
+  std_buffer_Buffer_write_str(&this->out, "/* Enums */\n");
   compiler_passes_code_generator_CodeGenerator_gen_enum_types(this, this->o->program->global);
-  std_buffer_Buffer_puts(&this->out, "/* Constants */\n");
+  std_buffer_Buffer_write_str(&this->out, "/* Constants */\n");
   compiler_passes_code_generator_CodeGenerator_gen_constants(this, this->o->program->global);
   compiler_passes_code_generator_CodeGenerator_gen_structs_and_typedefs(this);
   compiler_passes_code_generator_CodeGenerator_gen_global_variables(this, this->o->program->global);
-  std_buffer_Buffer_puts(&this->out, "/* function declarations */\n");
+  std_buffer_Buffer_write_str(&this->out, "/* function declarations */\n");
   compiler_passes_code_generator_CodeGenerator_gen_function_decls(this, this->o->program->global);
-  std_buffer_Buffer_puts(&this->out, "/* function implementations */\n");
+  std_buffer_Buffer_write_str(&this->out, "/* function implementations */\n");
   compiler_passes_code_generator_CodeGenerator_gen_functions(this, this->o->program->global);
   return std_buffer_Buffer_str(this->out);
 }
@@ -4611,22 +4611,22 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_temp
     return NULL;
   } 
   std_buffer_Buffer new_display_name = std_buffer_Buffer_make(16);
-  std_buffer_Buffer_puts(&new_display_name, sym->name);
-  std_buffer_Buffer_puts(&new_display_name, "<");
+  std_buffer_Buffer_write_str(&new_display_name, sym->name);
+  std_buffer_Buffer_write_str(&new_display_name, "<");
   compiler_ast_scopes_Scope *scope = compiler_ast_scopes_Scope_new(sym->ns->scope);
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, scope);
   for (u32 i = 0; (i < template_params->size); i+=1) {
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(template_params, i);
     compiler_types_Type *arg = std_vector_Vector__0_at(template_args, i);
     if ((i > 0)) 
-    std_buffer_Buffer_puts(&new_display_name, ", ");
+    std_buffer_Buffer_write_str(&new_display_name, ", ");
     
-    std_buffer_Buffer_puts(&new_display_name, compiler_types_Type_str(arg));
+    std_buffer_Buffer_write_str(&new_display_name, compiler_types_Type_str(arg));
     compiler_ast_scopes_Symbol *cur_sym = compiler_ast_scopes_Symbol_new(compiler_ast_scopes_SymbolType_TypeDef, NULL, param->sym->name, param->sym->name, param->sym->name, param->sym->span);
     cur_sym->u.type_def=arg;
     compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, cur_sym, NULL);
   }
-  std_buffer_Buffer_puts(&new_display_name, ">");
+  std_buffer_Buffer_write_str(&new_display_name, ">");
   char *new_out_name = format_string("%s__%u", sym->name, sym->template->instances->size);
   compiler_ast_scopes_Symbol *new_sym = compiler_ast_scopes_Symbol_new_with_parent(sym->type, parent_ns, parent_ns->sym, new_out_name, sym->span);
   new_sym->display=std_buffer_Buffer_str(new_display_name);
@@ -4956,8 +4956,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith
   return NULL;
 }
 
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3) {
-  compiler_ast_operators_Operator op = node->u.binary.op;
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_operators_Operator op, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3) {
   if (compiler_ast_operators_Operator_needs_lhs_pointer_for_overload(op)) {
     if ((compiler_ast_nodes_AST_is_lvalue(arg1) && (arg1->etype->base != compiler_types_BaseType_Pointer))) {
       arg1=compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Address, arg1->span, arg1);
@@ -4997,15 +4996,16 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_ov
   node->type=compiler_ast_nodes_ASTType_Call;
   node->u.call.callee=callee;
   node->u.call.args=args;
+  node->etype=func->return_type;
   return func->return_type;
 }
 
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
-  compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
+  compiler_ast_operators_Operator op = node->u.binary.op;
+  compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, op, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
   if (((bool)res)) 
   return res;
   
-  compiler_ast_operators_Operator op = node->u.binary.op;
   switch (op) {
     case compiler_ast_operators_Operator_Plus:
     case compiler_ast_operators_Operator_Minus:
@@ -5057,15 +5057,25 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
       } 
       return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
     } break;
-    case compiler_ast_operators_Operator_Equals:
-    case compiler_ast_operators_Operator_NotEquals: {
-      if (!compiler_types_Type_eq(lhs, rhs, false)) {
+    case compiler_ast_operators_Operator_Equals: {
+      if ((!compiler_types_Type_eq(lhs, rhs, false) || lhs->base==compiler_types_BaseType_Structure)) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       } 
-      if (lhs->base==compiler_types_BaseType_Structure) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
-        return NULL;
+      return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
+    } break;
+    case compiler_ast_operators_Operator_NotEquals: {
+      if ((!compiler_types_Type_eq(lhs, rhs, false) || lhs->base==compiler_types_BaseType_Structure)) {
+        compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, compiler_ast_operators_Operator_Equals, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
+        if (((bool)res)) {
+          compiler_ast_nodes_AST *copy = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_UnaryOp, node->span);
+          (*copy)=(*node);
+          (*node)=(*compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Not, node->span, copy));
+          compiler_passes_typechecker_TypeChecker_check_expression(this, node, NULL);
+        }  else {
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+          return NULL;
+        } 
       } 
       return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
     } break;
@@ -5246,7 +5256,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compile
   return NULL;
   
   if (!is_being_assigned) {
-    compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
+    compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, compiler_ast_operators_Operator_Index, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
     if (((bool)res)) 
     return res;
     
@@ -5558,7 +5568,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg3, arg3_hint))) 
           return NULL;
           
-          compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, node, arg1, arg2, arg3);
+          compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, compiler_ast_operators_Operator_IndexAssign, node, arg1, arg2, arg3);
           if (((bool)res)) 
           return res;
           
@@ -6126,7 +6136,7 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
       i++;
     } 
     if ((doc[i]==doc[(i + 1)] && doc[(i + 1)]=='{')) {
-      std_buffer_Buffer_putsf(&buffer, str_substring(doc, prev, (i - prev)));
+      std_buffer_Buffer_write_str_f(&buffer, str_substring(doc, prev, (i - prev)));
       prev=(i + 2);
       i++;
     }  else     if ((doc[i]==doc[(i + 1)] && doc[(i + 1)]=='}')) {
@@ -6182,16 +6192,16 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
           } break;
         }
 ;__yield_0; });
-      std_buffer_Buffer_puts(&buffer, "{{");
-      std_buffer_Buffer_putsf(&buffer, linked_part);
-      std_buffer_Buffer_puts(&buffer, "}}");
+      std_buffer_Buffer_write_str(&buffer, "{{");
+      std_buffer_Buffer_write_str_f(&buffer, linked_part);
+      std_buffer_Buffer_write_str(&buffer, "}}");
       std_free(part);
       prev=(i + 2);
       i++;
     } 
     
   }
-  std_buffer_Buffer_putsf(&buffer, str_substring(doc, prev, doc_len));
+  std_buffer_Buffer_write_str_f(&buffer, str_substring(doc, prev, doc_len));
   sym->comment=std_buffer_Buffer_str(buffer);
 }
 
@@ -6497,6 +6507,10 @@ void compiler_passes_typechecker_TypeChecker_check_function_declaration(compiler
             continue;
           } 
         } 
+        if ((op==compiler_ast_operators_Operator_Equals && (func->return_type->base != compiler_types_BaseType_Bool))) {
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func->sym->span, "`==` operator must return a boolean"));
+          continue;
+        } 
         std_map_Item__5 *it = std_map_Map__5_get_item(this->o->program->operator_overloads, overload);
         if (((bool)it)) {
           if ((it->value != func)) {
@@ -6521,8 +6535,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
       continue;
       
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2206:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2210:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2224:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2228:16: Assertion failed: `sym.type == TypeDef`", NULL);
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -9152,7 +9166,7 @@ void compiler_parser_Parser_parse_compiler_option(compiler_parser_Parser *this) 
 
 void compiler_parser_Parser_try_load_mod_for_namespace(compiler_parser_Parser *this, compiler_ast_program_Namespace *ns) {
   char *mod_path = format_string("%s/mod.oc", ns->path);
-  if (std_fs_file_exists(mod_path)) {
+  if ((std_fs_file_exists(mod_path) && !ns->is_top_level)) {
     ns->is_top_level=true;
     compiler_parser_Parser parser = compiler_parser_Parser_make(this->program, ns);
     compiler_parser_Parser_load_file(&parser, mod_path, NULL);
@@ -9162,6 +9176,7 @@ void compiler_parser_Parser_try_load_mod_for_namespace(compiler_parser_Parser *t
 }
 
 compiler_ast_program_Namespace *compiler_parser_Parser_load_single_import_part(compiler_parser_Parser *this, compiler_ast_program_Namespace *base, char *name, std_span_Span span) {
+  compiler_parser_Parser_try_load_mod_for_namespace(this, base);
   compiler_ast_scopes_Symbol *sym = compiler_ast_program_Namespace_find_importable_symbol(base, name);
   if (str_eq(name, "this")) 
   return base;
@@ -9257,8 +9272,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert((parts->size > 0), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2037:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2038:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2038:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2039:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
@@ -9347,8 +9362,16 @@ void compiler_parser_Parser_include_prelude_only(compiler_parser_Parser *this) {
 }
 
 void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_Parser *this, char *filename, bool single_file) {
-  char *std_lib_ns_path = std_fs_realpath(compiler_parser_Parser_find_external_library(this, "std")->path);
+  compiler_ast_program_Namespace *std_lib_ns = compiler_parser_Parser_find_external_library(this, "std");
+  if (!((bool)std_lib_ns)) 
+  compiler_parser_Parser_couldnt_find_stdlib(this);
+  
+  char *std_lib_ns_path = std_fs_realpath(std_lib_ns->path);
   char *cur = std_fs_realpath(filename);
+  if (!((bool)cur)) {
+    compiler_parser_Parser_error(this, compiler_errors_Error_new(std_span_Span_default(), format_string("Could not find file: %s", filename)));
+    longjmp(this->program->err_jmp_ctx, 1);
+  } 
   std_vector_Vector__1 *namespace_paths = std_vector_Vector__1_new(16);
   bool found_root = false;
   while (true) {
@@ -9617,12 +9640,12 @@ void compiler_lexer_Lexer_lex_comment(compiler_lexer_Lexer *this) {
   } 
   while (((this->i < this->source_len) && (compiler_lexer_Lexer_cur(this) != '\n'))) {
     if (save_comment) 
-    std_buffer_Buffer_putc(&this->comment, compiler_lexer_Lexer_cur(this));
+    std_buffer_Buffer_write_char(&this->comment, compiler_lexer_Lexer_cur(this));
     
     compiler_lexer_Lexer_inc(this);
   }
   if (save_comment) 
-  std_buffer_Buffer_putc(&this->comment, '\n');
+  std_buffer_Buffer_write_char(&this->comment, '\n');
   
 }
 
@@ -10820,15 +10843,15 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
         
         compiler_ast_scopes_TemplateInstance *instance = type->template_instance;
         std_buffer_Buffer sb = std_buffer_Buffer_make(16);
-        std_buffer_Buffer_puts(&sb, instance->parent->name);
-        std_buffer_Buffer_puts(&sb, "<");
+        std_buffer_Buffer_write_str(&sb, instance->parent->name);
+        std_buffer_Buffer_write_str(&sb, "<");
         for (u32 i = 0; (i < instance->args->size); i+=1) {
           if ((i > 0)) {
-            std_buffer_Buffer_puts(&sb, ", ");
+            std_buffer_Buffer_write_str(&sb, ", ");
           } 
-          std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(std_vector_Vector__0_at(instance->args, i), false));
+          std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(std_vector_Vector__0_at(instance->args, i), false));
         }
-        std_buffer_Buffer_puts(&sb, ">");
+        std_buffer_Buffer_write_str(&sb, ">");
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
       case compiler_types_BaseType_Function: {
@@ -10839,39 +10862,39 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
           if (func_type.orig->is_method) {
             is_non_static_method=!func_type.orig->is_static;
           } 
-          std_buffer_Buffer_puts(&sb, func_type.orig->sym->display);
+          std_buffer_Buffer_write_str(&sb, func_type.orig->sym->display);
         }  else {
-          std_buffer_Buffer_puts(&sb, "fn");
+          std_buffer_Buffer_write_str(&sb, "fn");
         } 
-        std_buffer_Buffer_puts(&sb, "(");
+        std_buffer_Buffer_write_str(&sb, "(");
         for (u32 i = 0; (i < func_type.params->size); i+=1) {
           compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(func_type.params, i);
           if ((i > 0)) {
-            std_buffer_Buffer_puts(&sb, ", ");
+            std_buffer_Buffer_write_str(&sb, ", ");
           } 
           if ((i==0 && is_non_static_method)) {
             if (!((bool)param->type->name)) {
-              std_buffer_Buffer_puts(&sb, "&");
+              std_buffer_Buffer_write_str(&sb, "&");
             } 
-            std_buffer_Buffer_puts(&sb, "this");
+            std_buffer_Buffer_write_str(&sb, "this");
           }  else {
             if (!str_eq(param->sym->name, "")) {
-              std_buffer_Buffer_puts(&sb, param->sym->name);
-              std_buffer_Buffer_puts(&sb, ": ");
+              std_buffer_Buffer_write_str(&sb, param->sym->name);
+              std_buffer_Buffer_write_str(&sb, ": ");
             } 
-            std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(param->type, false));
+            std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(param->type, false));
           } 
         }
         if (func_type.is_variadic) {
           if ((func_type.params->size > 0)) {
-            std_buffer_Buffer_puts(&sb, ", ");
+            std_buffer_Buffer_write_str(&sb, ", ");
           } 
-          std_buffer_Buffer_puts(&sb, "...");
+          std_buffer_Buffer_write_str(&sb, "...");
         } 
-        std_buffer_Buffer_puts(&sb, ")");
+        std_buffer_Buffer_write_str(&sb, ")");
         if ((func_type.return_type->base != compiler_types_BaseType_Void)) {
-          std_buffer_Buffer_puts(&sb, ": ");
-          std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(func_type.return_type, false));
+          std_buffer_Buffer_write_str(&sb, ": ");
+          std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(func_type.return_type, false));
         } 
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
@@ -10891,15 +10914,15 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
       case compiler_types_BaseType_UnresolvedTemplate: {
         compiler_types_UnresolvedTemplate unres = type->u.unresolved_spec;
         std_buffer_Buffer sb = std_buffer_Buffer_make(16);
-        std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(unres.base, full));
-        std_buffer_Buffer_puts(&sb, "<");
+        std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(unres.base, full));
+        std_buffer_Buffer_write_str(&sb, "<");
         for (u32 i = 0; (i < unres.args->size); i+=1) {
           if ((i > 0)) {
-            std_buffer_Buffer_puts(&sb, ", ");
+            std_buffer_Buffer_write_str(&sb, ", ");
           } 
-          std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(std_vector_Vector__0_at(unres.args, i), false));
+          std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(std_vector_Vector__0_at(unres.args, i), false));
         }
-        std_buffer_Buffer_puts(&sb, ">");
+        std_buffer_Buffer_write_str(&sb, ">");
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
       case compiler_types_BaseType_Error:
@@ -10921,17 +10944,17 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
       } break;
       case compiler_ast_scopes_SymbolType_Variable: {
         std_buffer_Buffer sb = std_buffer_Buffer_make(16);
-        std_buffer_Buffer_puts(&sb, sym->display);
-        std_buffer_Buffer_puts(&sb, ": ");
-        std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
+        std_buffer_Buffer_write_str(&sb, sym->display);
+        std_buffer_Buffer_write_str(&sb, ": ");
+        std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
       case compiler_ast_scopes_SymbolType_Constant: {
         std_buffer_Buffer sb = std_buffer_Buffer_make(16);
-        std_buffer_Buffer_puts(&sb, "const ");
-        std_buffer_Buffer_puts(&sb, sym->display);
-        std_buffer_Buffer_puts(&sb, ": ");
-        std_buffer_Buffer_puts(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
+        std_buffer_Buffer_write_str(&sb, "const ");
+        std_buffer_Buffer_write_str(&sb, sym->display);
+        std_buffer_Buffer_write_str(&sb, ": ");
+        std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(sym->u.var->type, true));
         __yield_0 = std_buffer_Buffer_str(sb);
       } break;
       case compiler_ast_scopes_SymbolType_Enum:
@@ -12008,11 +12031,16 @@ void compiler_errors_display_line(void) {
 
 void compiler_errors_display_message(compiler_errors_MessageType type, std_span_Span span, char *msg) {
   compiler_errors_display_line();
-  printf("%s: %s: %s""\n", std_span_Location_str(&span.start), compiler_errors_MessageType_str(type), msg);
+  char *filename = span.start.filename;
+  if ((str_eq(filename, "<default>") || span.start.line==0)) {
+    printf("%s: %s""\n", compiler_errors_MessageType_str(type), msg);
+  }  else {
+    printf("%s: %s: %s""\n", std_span_Location_str(&span.start), compiler_errors_MessageType_str(type), msg);
+  } 
   compiler_errors_display_line();
 }
 
-void compiler_errors_display_message_span(compiler_errors_MessageType type, std_span_Span span, char *msg) {
+void compiler_errors_display_message_span(compiler_errors_MessageType type, std_span_Span span, char *msg, bool line_after) {
   char *color = compiler_errors_MessageType_to_color(type);
   char *reset = "\x1b[0m";
   compiler_errors_display_message(type, span, msg);
@@ -12052,6 +12080,9 @@ void compiler_errors_display_message_span(compiler_errors_MessageType type, std_
     line_no+=1;
     cur=strsep(&lines, "\n");
   }
+  if (line_after) {
+    compiler_errors_display_line();
+  } 
   /* defers */
   std_buffer_Buffer_free(&contents);
 }
@@ -12059,16 +12090,15 @@ void compiler_errors_display_message_span(compiler_errors_MessageType type, std_
 void compiler_errors_Error_display(compiler_errors_Error *this) {
   switch (this->type) {
     case compiler_errors_ErrorType_Standard: {
-      compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1);
-      compiler_errors_display_line();
+      compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1, true);
     } break;
     case compiler_errors_ErrorType_WithNote: {
-      compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1);
+      compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1, false);
       compiler_errors_display_message(compiler_errors_MessageType_Note, this->span1, this->msg2);
     } break;
     case compiler_errors_ErrorType_WithHint: {
-      compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1);
-      compiler_errors_display_message_span(compiler_errors_MessageType_Note, this->span2, this->msg2);
+      compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1, false);
+      compiler_errors_display_message_span(compiler_errors_MessageType_Note, this->span2, this->msg2, true);
       compiler_errors_display_line();
     } break;
   }
@@ -12110,7 +12140,6 @@ void compiler_errors_display_error_messages(std_vector_Vector__11 *errors, u32 d
   char *num_errors_env = getenv("OCEN_NUM_ERRORS");
   u32 max_num_errors = (((bool)num_errors_env) ? str_to_u32(num_errors_env) : 10);
   u32 num_errors = u32_min(errors->size, max_num_errors);
-  bool first = true;
   for (u32 i = 0; (i < num_errors); i+=1) {
     compiler_errors_Error *err = std_vector_Vector__11_at(errors, ((num_errors - i) - 1));
     switch (detail_level) {
@@ -12118,13 +12147,9 @@ void compiler_errors_display_error_messages(std_vector_Vector__11 *errors, u32 d
         printf("%s: %s""\n", std_span_Location_str(&err->span1.start), err->msg1);
       } break;
       case 1: {
-        compiler_errors_display_message_span(compiler_errors_MessageType_Error, err->span1, err->msg1);
+        compiler_errors_display_message_span(compiler_errors_MessageType_Error, err->span1, err->msg1, true);
       } break;
       case 2: {
-        if (first) 
-        printf("""\n");
-        
-        first=false;
         compiler_errors_Error_display(err);
       } break;
       default: std_panic("invalid detail level"); break;
@@ -12392,28 +12417,28 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
       } break;
       case compiler_types_BaseType_Function: {
         std_buffer_Buffer buf = std_buffer_Buffer_make(16);
-        std_buffer_Buffer_puts(&buf, "fn(");
+        std_buffer_Buffer_write_str(&buf, "fn(");
         for (u32 i = 0; (i < this->u.func.params->size); i+=1) {
           compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(this->u.func.params, i);
-          std_buffer_Buffer_puts(&buf, compiler_types_Type_str(param->type));
+          std_buffer_Buffer_write_str(&buf, compiler_types_Type_str(param->type));
           if ((i < (this->u.func.params->size - 1))) {
-            std_buffer_Buffer_puts(&buf, ", ");
+            std_buffer_Buffer_write_str(&buf, ", ");
           } 
         }
-        std_buffer_Buffer_puts(&buf, "): ");
-        std_buffer_Buffer_puts(&buf, compiler_types_Type_str(this->u.func.return_type));
+        std_buffer_Buffer_write_str(&buf, "): ");
+        std_buffer_Buffer_write_str(&buf, compiler_types_Type_str(this->u.func.return_type));
         return std_buffer_Buffer_str(buf);
       } break;
       case compiler_types_BaseType_Array: {
         std_buffer_Buffer buf = std_buffer_Buffer_make(16);
-        std_buffer_Buffer_puts(&buf, compiler_types_Type_str(this->u.arr.elem_type));
-        std_buffer_Buffer_puts(&buf, "[");
+        std_buffer_Buffer_write_str(&buf, compiler_types_Type_str(this->u.arr.elem_type));
+        std_buffer_Buffer_write_str(&buf, "[");
         if (this->u.arr.size_known) {
-          std_buffer_Buffer_puts(&buf, format_string("%u", this->u.arr.size));
+          std_buffer_Buffer_write_str(&buf, format_string("%u", this->u.arr.size));
         }  else {
-          std_buffer_Buffer_puts(&buf, format_string("?%p", this));
+          std_buffer_Buffer_write_str(&buf, format_string("?%p", this));
         } 
-        std_buffer_Buffer_puts(&buf, "]");
+        std_buffer_Buffer_write_str(&buf, "]");
         return std_buffer_Buffer_str(buf);
       } break;
       case compiler_types_BaseType_Structure: {
@@ -13081,31 +13106,36 @@ std_buffer_Buffer std_buffer_Buffer_from_str(char *s) {
 }
 
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size) {
-  if ((new_size >= this->capacity)) {
-    u32 new_capacity = u32_max(this->capacity, new_size);
+  u32 new_size_nt = (new_size + 1);
+  if ((new_size_nt >= this->capacity)) {
+    u32 new_capacity = u32_max(this->capacity, new_size_nt);
     this->data=((u8 *)realloc(this->data, ((u32)new_capacity)));
+    memset((this->data + this->capacity), ((u8)0), (new_capacity - this->capacity));
     this->capacity=((u32)new_capacity);
-    ae_assert(((bool)this->data), "std/buffer.oc:59:16: Assertion failed: `.data?`", "Out of memory!");
+    ae_assert(((bool)this->data), "std/buffer.oc:66:16: Assertion failed: `.data?`", "Out of memory!");
   } 
 }
 
-void std_buffer_Buffer_puts(std_buffer_Buffer *this, char *s) {
+void std_buffer_Buffer_write_str(std_buffer_Buffer *this, char *s) {
   u32 len = ((u32)strlen(s));
-  std_buffer_Buffer_resize_if_necessary(this, ((this->size + ((u32)len)) + 1));
-  memcpy((this->data + this->size), s, (len + 1));
+  std_buffer_Buffer_resize_if_necessary(this, (this->size + len));
+  memcpy((this->data + this->size), s, len);
   this->size+=len;
 }
 
-void std_buffer_Buffer_putsf(std_buffer_Buffer *this, char *s) {
-  std_buffer_Buffer_puts(this, s);
+void std_buffer_Buffer_write_str_f(std_buffer_Buffer *this, char *s) {
+  std_buffer_Buffer_write_str(this, s);
   free(s);
 }
 
-void std_buffer_Buffer_putc(std_buffer_Buffer *this, char c) {
-  std_buffer_Buffer_resize_if_necessary(this, (this->size + 2));
-  this->data[this->size]=((u8)c);
+void std_buffer_Buffer_write_char(std_buffer_Buffer *this, char c) {
+  std_buffer_Buffer_write_u8(this, ((u8)c));
+}
+
+void std_buffer_Buffer_write_u8(std_buffer_Buffer *this, u8 value) {
+  std_buffer_Buffer_resize_if_necessary(this, (this->size + 1));
+  this->data[this->size]=value;
   this->size+=1;
-  this->data[this->size]=((u8)'\0');
 }
 
 char *std_buffer_Buffer_str(std_buffer_Buffer this) {
@@ -15508,85 +15538,85 @@ void std_vector_Vector__20_push(std_vector_Vector__20 *this, u32 value) {
 void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
   switch (val->type) {
     case std_value_ValueType_Null: {
-      std_buffer_Buffer_puts(sb, "null");
+      std_buffer_Buffer_write_str(sb, "null");
     } break;
     case std_value_ValueType_Bool: {
-      std_buffer_Buffer_puts(sb, (val->u.as_bool ? "true" : "false"));
+      std_buffer_Buffer_write_str(sb, (val->u.as_bool ? "true" : "false"));
     } break;
     case std_value_ValueType_Integer: {
-      std_buffer_Buffer_putsf(sb, format_string("%" PRId64 "", val->u.as_int));
+      std_buffer_Buffer_write_str_f(sb, format_string("%" PRId64 "", val->u.as_int));
     } break;
     case std_value_ValueType_Float: {
-      std_buffer_Buffer_putsf(sb, format_string("%f", val->u.as_float));
+      std_buffer_Buffer_write_str_f(sb, format_string("%f", val->u.as_float));
     } break;
     case std_value_ValueType_String: {
-      std_buffer_Buffer_puts(sb, "\"");
+      std_buffer_Buffer_write_str(sb, "\"");
       std_buffer_Buffer buf = val->u.as_str;
       for (u32 i = 0; (i < buf.size); i+=1) {
         char c = ((char)buf.data[i]);
         switch (c) {
           case '\b': {
-            std_buffer_Buffer_puts(sb, "\\b");
+            std_buffer_Buffer_write_str(sb, "\\b");
           } break;
           case '\f': {
-            std_buffer_Buffer_puts(sb, "\\f");
+            std_buffer_Buffer_write_str(sb, "\\f");
           } break;
           case '\n': {
-            std_buffer_Buffer_puts(sb, "\\n");
+            std_buffer_Buffer_write_str(sb, "\\n");
           } break;
           case '\r': {
-            std_buffer_Buffer_puts(sb, "\\r");
+            std_buffer_Buffer_write_str(sb, "\\r");
           } break;
           case '\t': {
-            std_buffer_Buffer_puts(sb, "\\t");
+            std_buffer_Buffer_write_str(sb, "\\t");
           } break;
           case '\\': {
-            std_buffer_Buffer_puts(sb, "\\\\");
+            std_buffer_Buffer_write_str(sb, "\\\\");
           } break;
           case '"': {
-            std_buffer_Buffer_puts(sb, "\\\"");
+            std_buffer_Buffer_write_str(sb, "\\\"");
           } break;
           default: {
             if (char_is_print(c)) {
-              std_buffer_Buffer_putc(sb, c);
+              std_buffer_Buffer_write_char(sb, c);
             }  else {
-              std_buffer_Buffer_putsf(sb, format_string("\\x%02x", buf.data[i]));
+              std_buffer_Buffer_write_str_f(sb, format_string("\\x%02x", buf.data[i]));
             } 
           } break;
         }
       }
-      std_buffer_Buffer_puts(sb, "\"");
+      std_buffer_Buffer_write_str(sb, "\"");
     } break;
     case std_value_ValueType_List: {
-      std_buffer_Buffer_puts(sb, "[");
+      std_buffer_Buffer_write_str(sb, "[");
       std_vector_Vector__18 *lst = val->u.as_list;
       for (u32 i = 0; (i < lst->size); i+=1) {
         std_value_Value *value = std_vector_Vector__18_at(lst, i);
         if ((i > 0)) {
-          std_buffer_Buffer_puts(sb, ",");
+          std_buffer_Buffer_write_str(sb, ",");
         } 
         std_json_serialize_into(value, sb);
       }
-      std_buffer_Buffer_puts(sb, "]");
+      std_buffer_Buffer_write_str(sb, "]");
     } break;
     case std_value_ValueType_Dictionary: {
-      std_buffer_Buffer_puts(sb, "{");
+      std_buffer_Buffer_write_str(sb, "{");
       bool first = true;
       for (std_compact_map_Iterator__0 __iter = std_compact_map_Map__0_iter(val->u.as_dict); std_compact_map_Iterator__0_has_value(&__iter); std_compact_map_Iterator__0_next(&__iter)) {
         std_compact_map_Item__0 iter = std_compact_map_Iterator__0_cur(&__iter);
         {
           if (!first) {
-            std_buffer_Buffer_puts(sb, ",");
+            std_buffer_Buffer_write_str(sb, ",");
           } 
           first=false;
-          std_buffer_Buffer_puts(sb, "\"");
-          std_buffer_Buffer_puts(sb, iter.key);
-          std_buffer_Buffer_puts(sb, "\":");
+          std_buffer_Buffer_write_str(sb, "\"");
+          std_buffer_Buffer_write_str(sb, iter.key);
+          std_buffer_Buffer_write_str(sb, "\":");
           std_value_Value *value = iter.value;
           std_json_serialize_into(value, sb);
         }
       }
-      std_buffer_Buffer_puts(sb, "}");
+      std_buffer_Buffer_write_str(sb, "}");
     } break;
   }
 }

@@ -32,3 +32,78 @@ def sort_by<T>(data: &T, size: u32, cmp: fn(T,T): i8) {
     sort_by<T>(data, j + 1, cmp)
     sort_by<T>(data + i, size - i, cmp)
 }
+
+def nth_element<T>(data: &T, size: u32, n: u32) => nth_element_by<T>(data, size, n, T::compare)
+
+def nth_element_by<T>(data: &T, size: u32, n: u32, cmp: fn(T,T): i8): T {
+    if size <= 1 return data[0]
+
+    let pivot = data[size / 2]
+    let i = 0
+    let j = size - 1
+
+    while i <= j {
+        while cmp(data[i], pivot) < 0 {
+            i += 1
+        }
+        while cmp(data[j], pivot) > 0 {
+            j -= 1
+        }
+        if i <= j {
+            let tmp = data[i]
+            data[i] = data[j]
+            data[j] = tmp
+            i += 1
+            j -= 1
+        }
+    }
+
+    if n < j {
+        return nth_element_by<T>(data, j + 1, n, cmp)
+    } else if n >= i {
+        return nth_element_by<T>(data + i, size - i, n - i, cmp)
+    } else {
+        return pivot
+    }
+}
+
+def partition<T>(data: &T, size: u32) => partition_by<T>(data, size, T::compare)
+
+// template<class ForwardIt, class UnaryPred>
+// ForwardIt partition(ForwardIt first, ForwardIt last, UnaryPred p)
+// {
+//     first = std::find_if_not(first, last, p);
+//     if (first == last)
+//         return first;
+ 
+//     for (auto i = std::next(first); i != last; ++i)
+//         if (p(*i))
+//         {
+//             std::iter_swap(i, first);
+//             ++first;
+//         }
+ 
+//     return first;
+// }
+
+def partition_by<T>(data: &T, size: u32, cmp: fn(T): bool): u32 {
+    let first = size
+    for let i = 0; i < size; i += 1 {
+        if not cmp(data[i]) {
+            first = i
+            break
+        }
+    }
+    
+
+    for let i = first; i < size; i += 1 {
+        if cmp(data[i]) {
+            let tmp = data[i]
+            data[i] = data[first]
+            data[first] = tmp
+            first += 1
+        }
+    }
+
+    return first
+}

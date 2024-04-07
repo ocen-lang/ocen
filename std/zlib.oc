@@ -53,8 +53,9 @@ def decompress_bytes(data: &u8, size: u32, bytes_consumed: &u32): Buffer {
     let done = false
     while not done {
         if stream.avail_out == 0 {
-            res.resize_if_necessary(res.capacity * 2)
-            stream.avail_out = res.capacity - stream.total_out
+            let new_size = res.capacity * 2
+            res.resize_if_necessary(new_size)
+            stream.avail_out = new_size - stream.total_out
             stream.next_out = res.data + stream.total_out
         }
 

@@ -1,14 +1,10 @@
-import std::image::Image
+import std::image::{ Image, Color }
 import std::buffer::Buffer
-import std::bufferio::BufferIO
 
 def encode(img: &Image, data: &Buffer) {
-    let io = BufferIO::make(data)
-    let header = `P6 {img.width} {img.height} 255\n`
-    defer free(header)
-
-    io.write_bytes(header, header.len())
-    io.write_bytes(img.data, img.width * img.height * 3)
+    assert sizeof(Color) == 3, "Color size must be 3 bytes for PPM encoding"
+    data <<= `P6 {img.width} {img.height} 255\n`
+    data.write_bytes(img.data, img.width * img.height * 3)
 }
 
 def decode(data: &Buffer): &Image {

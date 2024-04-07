@@ -4,10 +4,11 @@
 //! It can be used as a string builder, or as a string itself. It is also useful
 //! to hold binary data.
 
-import std::libc::{ realloc, calloc, memcpy, free, exit }
+import std::libc::{ realloc, calloc, memcpy, memset, free, exit }
 import std::sv::{ SV }
+import std::{ Endian }
 
-// Maybe abstract away the resizing with a `Buffer` type, 
+// Maybe abstract away the resizing with a `Buffer` type,
 // and share this with `OldVector`
 [formatting "%.*s" "$.size, $.data"]
 struct Buffer {
@@ -52,9 +53,15 @@ def Buffer::from_sized_str(s: str, size: u32): Buffer {
 }
 
 def Buffer::resize_if_necessary(&this, new_size: u32) {
-    if new_size >= .capacity {
-        let new_capacity = u32::max(.capacity, new_size)
+    // NOTE: To make a buffer trivially usable as a C-style string,
+    // we always allocate one extra byte for the null terminator, and
+    // ensure that any unused bytes are zeroed out.
+    let new_size_nt = new_size + 1
+    if new_size_nt >= .capacity {
+        let new_capacity = u32::max(.capacity, new_size_nt)
         .data = realloc(.data, new_capacity as u32) as &u8
+        // Zero out the new capacity
+        memset(.data + .capacity, 0, new_capacity - .capacity)
         .capacity = new_capacity as u32
         assert .data?, "Out of memory!"
     }
@@ -78,54 +85,96 @@ def Buffer::get_byte_at(this, index: u32): u8 {
 }
 
 [operator "+="]
-def Buffer::putb(&this, buf: &Buffer) {
-    .resize_if_necessary(new_size: .size + buf.size + 1)
+def Buffer::write_buf(&this, buf: &Buffer) {
+    .resize_if_necessary(new_size: .size + buf.size)
     memcpy(.data + .size, buf.data, buf.size)
-    .data[.size + buf.size] = '\0' as u8
     .size += buf.size
 }
 
 [operator "<<="]
-def Buffer::putbf(&this, buf: &Buffer) {
-    .putb(buf)
+def Buffer::write_buf_f(&this, buf: &Buffer) {
+    .write_buf(buf)
     buf.free()
 }
 
 [operator "+="]
-def Buffer::puts(&this, s: str) {
+def Buffer::write_str(&this, s: str) {
     let len = s.len() as u32
-    .resize_if_necessary(new_size: .size + len as u32 + 1) // +1 for null terminator
-    memcpy(.data + .size, s, len + 1) // Copy over null terminator
+    .resize_if_necessary(new_size: .size + len) // +1 for null terminator
+    memcpy(.data + .size, s, len)
     .size += len
 }
 
 [operator "<<="]
 // Put and free the string
-def Buffer::putsf(&this, s: str) {
-    .puts(s)
+def Buffer::write_str_f(&this, s: str) {
+    .write_str(s)
     free(s)
 }
 
 [operator "+="]
-def Buffer::putc(&this, c: char) {
-    .resize_if_necessary(new_size: .size + 2) // +1 for null terminator
-    .data[.size] = c as u8
-    .size += 1
-    .data[.size] = '\0' as u8
-}
+def Buffer::write_char(&this, c: char) => .write_u8(c as u8)
 
-[operator "+="]
-def Buffer::put_u8(&this, val: u8) => .putc(val as char)
-
-def Buffer::put_bytes(&this, bytes: &u8, size: u32) {
-    .resize_if_necessary(new_size: .size + size + 1)
+def Buffer::write_bytes(&this, bytes: untyped_ptr, size: u32) {
+    .resize_if_necessary(new_size: .size + size)
     memcpy(.data + .size, bytes, size)
     .size += size
-    .data[.size] = '\0' as u8
 }
 
 [operator "+="]
-def Buffer::putsv(&this, sv: SV) => .put_bytes(sv.data as &u8, sv.len)
+def Buffer::write_sv(&this, sv: SV) => .write_bytes(sv.data as &u8, sv.len)
+
+//* Write a signed 64-bit integer with the given endianness
+def Buffer::write_i64(&this, value: i64, endian: Endian = Big) { .write_u64(value as u64, endian) }
+//* Write an unsigned 64-bit integer with the given endianness
+def Buffer::write_u64(&this, value: u64, endian: Endian = Big) {
+    .resize_if_necessary(.size + 8)
+    for let i = 0; i < 8; i += 1 {
+        let shift = if endian == Big then i else 7 - i
+        .data[.size + i] = ((value >> (56u64 - shift as u64 * 8)) & 0xff) as u8
+    }
+    .size += 8
+}
+
+//* Write a signed 32-bit integer with the given endianness
+def Buffer::write_i32(&this, value: i32, endian: Endian = Big) { .write_u32(value as u32, endian) }
+
+//* Write an unsigned 32-bit integer with the given endianness
+def Buffer::write_u32(&this, value: u32, endian: Endian = Big) {
+    .resize_if_necessary(.size + 4)
+    for let i = 0; i < 4; i += 1 {
+        let shift = if endian == Big then i else 3 - i
+        .data[.size + i] = ((value >> (24u32 - shift * 8)) & 0xff) as u8
+    }
+    .size += 4
+}
+
+//* Write a signed 16-bit integer with the given endianness
+def Buffer::write_i16(&this, value: i16, endian: Endian = Big) { .write_u16(value as u16, endian) }
+
+//* Write an unsigned 16-bit integer with the given endianness
+def Buffer::write_u16(&this, value: u16, endian: Endian = Big) {
+    .resize_if_necessary(.size + 2)
+    for let i = 0; i < 2; i += 1 {
+        let shift = if endian == Big then i else 1 - i
+        .data[.size + i] = ((value >> (8u16 - shift as u16 * 8)) & 0xff) as u8
+    }
+    .size += 2
+}
+
+[operator "+="]
+//* Write a signed 8-bit integer with the given endianness
+def Buffer::write_i8(&this, value: i8) { .write_u8(value as u8) }
+
+[operator "+="]
+//* Write an unsigned 8-bit integer with the given endianness
+def Buffer::write_u8(&this, value: u8) {
+    .resize_if_necessary(.size + 1)
+    .data[.size] = value
+    .size += 1
+}
+
+def Buffer::reader(this): BytesReader => BytesReader::make(.data, .size)
 
 def Buffer::str(this): str => .data as str
 def Buffer::new_str(this): str => (.data as str).copy()
@@ -148,3 +197,86 @@ def Buffer::clear(&this) {
 def Buffer::free(&this) {
     free(.data)
 }
+
+//! Wrapper for reading binary data from a a series of bytes.
+//!
+//! This can be used along with the {{Buffer}} and {{SV}} types
+//! to read binary data from a series of bytes.
+struct BytesReader {
+    data: &u8
+    size: u32
+    index: u32
+}
+
+def BytesReader::make(data: &u8, size: u32): BytesReader {
+    return BytesReader(data, size, 0)
+}
+
+//* Read a signed 64-bit integer with the given endianness
+def BytesReader::read_i64(&this, endian: Endian = Big): i64 { return .read_u64(endian) as i64 }
+//* Read an unsigned 64-bit integer with the given endianness
+def BytesReader::read_u64(&this, endian: Endian = Big): u64 {
+    let value = 0u64
+    for let i = 0; i < 8; i += 1 {
+        let shift = if endian == Big then i else 7 - i
+        value = value | .data[.index + i] as u64 << (56u64 - shift as u64 * 8)
+    }
+    .index += 8
+    return value as u64
+}
+
+//* Read a signed 32-bit integer with the given endianness
+def BytesReader::read_i32(&this, endian: Endian = Big): i32 { return .read_u32(endian) as i32 }
+//* Read an unsigned 32-bit integer with the given endianness
+def BytesReader::read_u32(&this, endian: Endian = Big): u32 {
+    let value = 0
+    for let i = 0; i < 4; i += 1 {
+        let shift = if endian == Big then i else 3 - i
+        value = value | .data[.index + i] as u32 << (24u32 - shift * 8)
+    }
+    .index += 4
+    return value
+}
+
+//* Read a signed 16-bit integer with the given endianness
+def BytesReader::read_i16(&this, endian: Endian = Big): i16 { return .read_u16(endian) as i16 }
+//* Read an unsigned 16-bit integer with the given endianness
+def BytesReader::read_u16(&this, endian: Endian = Big): u16 {
+    let value = 0u16
+    for let i = 0; i < 2; i += 1 {
+        let shift = if endian == Big then i else 1 - i
+        value = value | .data[.index + i] as u16 << (8u16 - shift as u16 * 8)
+    }
+    .index += 2
+    return value as u16
+}
+
+//* Read a signed 8-bit integer
+def BytesReader::read_i8(&this): i8 { return .read_u8() as i8 }
+//* Read an unsigned 8-bit integer
+def BytesReader::read_u8(&this): u8 {
+    let value = .data[.index]
+    .index += 1
+    return value
+}
+
+//* Read `count` bytes from the buffer.
+def BytesReader::read_bytes(&this, _dst: untyped_ptr, count: u32) {
+    let dst = _dst as &u8
+    if dst? {
+        for let i = 0; i < count; i += 1 {
+            dst[i] = .data[.index as u32 + i]
+        }
+    }
+    .index += count
+}
+
+//* Read `count` bytes from the buffer and return them as a view
+def BytesReader::read_bytes_sv(&this, count: u32): SV {
+    let sv = SV((.data + .index) as str, count)
+    .index += count
+    return sv
+}
+
+//* Returns if the buffer is empty.
+def BytesReader::is_empty(&this): bool => .index >= .size

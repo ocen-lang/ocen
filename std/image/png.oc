@@ -1,5 +1,4 @@
-import std::buffer::{ Buffer }
-import std::bufferio::{ BufferIO }
+import std::buffer::{ Buffer, BytesReader }
 import std::sv::{ SV }
 import std::fs
 import std::zlib
@@ -42,7 +41,7 @@ struct Chunk {
     is_private: bool
 }
 
-def Chunk::parse(io: &BufferIO): Chunk {
+def Chunk::parse(io: &BytesReader): Chunk {
     let length = io.read_u32()
     let type = io.read_bytes_sv(4)
     let data_sv = io.read_bytes_sv(length)
@@ -58,15 +57,14 @@ def Chunk::parse(io: &BufferIO): Chunk {
 
 def Chunk::encode(&this, out: &Buffer) {
     let chunk_buf = Buffer::make()
-    let io = BufferIO::make(&chunk_buf)
-    io.write_u32(.data.size)
-    io.write_bytes(.type.data, .type.len)
+    chunk_buf.write_u32(.data.size)
+    chunk_buf.write_bytes(.type.data, .type.len)
     if .data.size > 0 {
-        io.write_bytes(.data.data, .data.size)
+        chunk_buf += &.data
     }
     // NOTE: We skip the 4 bytes for the length field
     let crc = get_crc(chunk_buf.data + 4, chunk_buf.size - 4)
-    io.write_u32(crc)
+    chunk_buf.write_u32(crc)
     out <<= &chunk_buf
 }
 
@@ -123,7 +121,7 @@ def PNG::decode_scanline(&this, out: &Buffer, scanline: u32, sv: SV) {
     let prev_scanline_idx = cur_scanline_idx - .width * .S
 
     match filter {
-        0 => out.put_bytes(line, size),
+        0 => out.write_bytes(line, size),
         1 => {
             for let i = 0; i < sv.len; i++ {
                 let x = line[i]
@@ -163,17 +161,15 @@ def PNG::decode_scanline(&this, out: &Buffer, scanline: u32, sv: SV) {
 def encode(img: &Image, data: &Buffer) {
     data += "\x89PNG\r\n\x1a\n"
 
-    {
+    { // IHDR chunk
         let buf = Buffer::make()
-        let io = BufferIO::make(&buf)
-
-        io.write_u32(img.width)
-        io.write_u32(img.height)
-        io.write_u8(8)                    // Bit depth
-        io.write_u8(ColorType::RGB as u8) // Color type
-        io.write_u8(0)                    // Compression method
-        io.write_u8(0)                    // Filter method
-        io.write_u8(InterlaceMethod::None as u8)  // Interlace method
+        buf.write_u32(img.width)
+        buf.write_u32(img.height)
+        buf.write_u8(8)                    // Bit depth
+        buf.write_u8(ColorType::RGB as u8) // Color type
+        buf.write_u8(0)                    // Compression method
+        buf.write_u8(0)                    // Filter method
+        buf.write_u8(InterlaceMethod::None as u8)  // Interlace method
 
         let chunk = Chunk(
             type: SV::from_str("IHDR"),
@@ -185,13 +181,13 @@ def encode(img: &Image, data: &Buffer) {
         buf.free()
     }
 
-    {
+    { // IDAT chunk
         let chunk_data = Buffer::make()
 
         for let row = 0; row < img.height; row++ {
             // Use no filter
             chunk_data += 0u8
-            chunk_data.put_bytes(&img.data[row * img.width] as &u8, img.width * 3)
+            chunk_data.write_bytes(&img.data[row * img.width] as &u8, img.width * 3)
         }
 
         let compressed = zlib::compress(chunk_data)
@@ -207,7 +203,7 @@ def encode(img: &Image, data: &Buffer) {
         compressed.free()
     }
 
-    {
+    { // IEND
         let chunk = Chunk(
             type: SV::from_str("IEND"),
             data: Buffer::make(),
@@ -220,11 +216,11 @@ def encode(img: &Image, data: &Buffer) {
 }
 
 def decode(data: &Buffer): &Image {
-    let io = BufferIO::make(data)
+    let io = data.reader()
     let header = io.read_bytes_sv(8)
 
     // PNG header
-    if not (header == "\x89PNG\r\n\x1a\n") {
+    if header != "\x89PNG\r\n\x1a\n" {
         println("Not a PNG file")
         std::exit(1)
     }
@@ -238,7 +234,7 @@ def decode(data: &Buffer): &Image {
         let chunk = Chunk::parse(&io)
         match chunk.type {
             "IHDR" => {
-                let io = BufferIO::make(&chunk.data)
+                let io = chunk.data.reader()
                 png.width = io.read_u32()
                 png.height = io.read_u32()
                 png.bit_depth = io.read_u8()
@@ -270,7 +266,7 @@ def decode(data: &Buffer): &Image {
 
                 out.resize_if_necessary(png.width * png.height * png.S + 1)
 
-                let io = BufferIO::make(&decompressed)
+                let io = decompressed.reader()
                 for let h = 0; h < png.height; h++ {
                     let scanline = io.read_bytes_sv(png.width * png.S + 1)
                     png.decode_scanline(&out, h, scanline)
@@ -278,10 +274,7 @@ def decode(data: &Buffer): &Image {
                 decompressed.free()
             }
             else => {
-                if not chunk.is_critical {
-                    println(`Skipping non-critical chunk {chunk.type}`)
-                    continue
-                }
+                if not chunk.is_critical continue
                 std::panic(`Unsupported critical chunk {chunk.type}`)
             }
         }

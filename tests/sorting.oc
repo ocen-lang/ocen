@@ -1,6 +1,7 @@
 /// exit: 0
 
-import std::sort::sort
+import std::sort::{ sort, nth_element_by }
+import std::random::{ randu32 }
 
 def main() {
     let foo: [str; 4]
@@ -15,4 +16,21 @@ def main() {
     assert foo[1].eq("baz")
     assert foo[2].eq("foo")
     assert foo[3].eq("quux")
+
+    let arr: [u32; 100]
+    for let i = 0; i < 100; i = i + 1 {
+        arr[i] = randu32() % 10000
+    }
+
+    nth_element_by<u32>(arr, 100, 25, u32::compare)
+    let n = arr[25]
+
+    for let i = 0; i < 100; i = i + 1 {
+        if i < 25 {
+            assert arr[i] <= n
+        } else {
+            assert arr[i] >= n
+        }
+    }
+
 }

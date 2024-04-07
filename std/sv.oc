@@ -5,7 +5,7 @@
 //!
 //! Inspired by https://github.com/tsoding/sv
 
-import std::buffer::{ Buffer }
+import std::buffer::{ Buffer, BytesReader }
 import std::libc::{ memcmp, strtoul, strtoll }
 
 [formatting "%.*s" "$.len, $.data"]
@@ -272,6 +272,9 @@ def SV::iter_i64(this): SVNumberIterator<i64> => SVNumberIterator<i64>::make(thi
 
 //* Iterator over the string view based on a predicate
 def SV::iter_pred(this, pred: fn(SV): u32): SVPredicateIterator => SVPredicateIterator::make(this, pred)
+
+//* Return a BytesReader for the string view to read binary data
+def SV::reader(this): BytesReader => BytesReader::make(.data as &u8, .len)
 
 //* Iterator over the lines of a string view
 struct SVLineIterator {

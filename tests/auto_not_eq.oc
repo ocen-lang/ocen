@@ -1,0 +1,18 @@
+/// out: "OK"
+
+struct Foo {
+    x: u32
+}
+
+[operator "=="]
+def Foo::eq(this, other: Foo): bool => .x == other.x
+
+def main() {
+    let a = Foo(5)
+    let b = Foo(6)
+    if a != b {
+        println("OK")
+    } else {
+        println("NO")
+    }
+}

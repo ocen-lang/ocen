@@ -231,11 +231,11 @@ def Lexer::lex_comment(&this) {
 
     // Read the comment and store it into the buffer
     while .i < .source_len and .cur() != '\n' {
-        if save_comment then .comment.putc(.cur())
+        if save_comment then .comment += .cur()
         .inc()
     }
 
-    if save_comment then .comment.putc('\n')
+    if save_comment then .comment += '\n'
 }
 
 def Lexer::lex(&this): &Vector<&Token> {

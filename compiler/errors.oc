@@ -49,11 +49,16 @@ def display_line() {
 
 def display_message(type: MessageType, span: Span, msg: str) {
     display_line()
-    println("%s: %s: %s", span.start.str(), type.str(), msg)
+    let filename = span.start.filename
+    if filename == "<default>" or span.start.line == 0 {
+        println("%s: %s", type.str(), msg)
+    } else {
+        println("%s: %s: %s", span.start.str(), type.str(), msg)
+    }
     display_line()
 }
 
-def display_message_span(type: MessageType, span: Span, msg: str) {
+def display_message_span(type: MessageType, span: Span, msg: str, line_after: bool = true) {
     let color = MessageType::to_color(type)
     let reset = "\x1b[0m"
 
@@ -98,20 +103,22 @@ def display_message_span(type: MessageType, span: Span, msg: str) {
         line_no += 1
         cur = strsep(&lines, "\n")
     }
+    if line_after {
+        display_line()
+    }
 }
 
 def Error::display(&this) {
     match .type {
         Standard => {
             display_message_span(MessageType::Error, .span1, .msg1)
-            display_line()
         }
         WithNote => {
-            display_message_span(MessageType::Error, .span1, .msg1)
+            display_message_span(MessageType::Error, .span1, .msg1, line_after: false)
             display_message(MessageType::Note, .span1, .msg2)
         }
         WithHint => {
-            display_message_span(MessageType::Error, .span1, .msg1)
+            display_message_span(MessageType::Error, .span1, .msg1, line_after: false)
             display_message_span(MessageType::Note, .span2, .msg2)
             display_line()
         }
@@ -156,18 +163,13 @@ def display_error_messages(errors: &Vector<&Error>, detail_level: u32) {
     let max_num_errors = if num_errors_env? then num_errors_env.to_u32() else 10
 
     let num_errors = errors.size.min(max_num_errors)
-    let first = true
     for let i = 0; i < num_errors; i += 1 {
         let err = errors.at(num_errors - i - 1)
 
         match detail_level {
             0 => println("%s: %s", err.span1.start.str(), err.msg1)
             1 => display_message_span(MessageType::Error, err.span1, err.msg1)
-            2 => {
-                if first then println("")
-                first = false
-                err.display()
-            }
+            2 => err.display()
             else => std::panic("invalid detail level")
         }
     }
