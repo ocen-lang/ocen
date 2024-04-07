@@ -30,10 +30,14 @@ def Token::from_ident(text: str, span: Span): &Token {
 
 def Token::str(&this): str => `{.span.str()}: {.type.str()}`
 
-
 def Token::is_word(this): bool => match .type {
     TokenType::Identifier => true
     else => .type as u64 > TokenType::BEGIN_KEYWORDS as u64
+}
+
+def Token::is_identifier(this, name: str): bool => match .type {
+    TokenType::Identifier => name == .text
+    else => false
 }
 
 enum TokenType {

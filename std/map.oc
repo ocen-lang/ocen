@@ -104,6 +104,7 @@ def Map::get(&this, key: K, defolt: V): V {
     return node.value
 }
 
+[operator "in"]
 //* Checks if the map contains the given key
 def Map::contains(&this, key: K): bool {
     return .get_item(key)?

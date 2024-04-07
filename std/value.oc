@@ -150,6 +150,7 @@ def Value::push(&this, value: &Value) {
 [operator "+="] def Value::push_f32(&this, f: f32) => .push(Value::new_float(f as f64))
 [operator "+="] def Value::push_f64(&this, f: f64) => .push(Value::new_float(f))
 
+[operator "in"]
 def Value::contains(&this, key: str): bool {
     if .type != Dictionary return false
     return .u.as_dict.contains(key)

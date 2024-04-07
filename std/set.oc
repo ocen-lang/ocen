@@ -45,8 +45,10 @@ def Set::subtract(&this, other: &Set<T>) {
     .size = .map.size
 }
 
-def Set::iter(&this): Iterator<T> => Iterator<T>::make(this)
+[operator "in"]
 def Set::contains(&this, key: T): bool => .map.contains(key)
+
+def Set::iter(&this): Iterator<T> => Iterator<T>::make(this)
 def Set::is_empty(&this): bool => .map.size == 0
 
 def Set::free(&this) {
