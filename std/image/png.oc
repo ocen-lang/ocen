@@ -1,0 +1,300 @@
+import std::buffer::{ Buffer }
+import std::bufferio::{ BufferIO }
+import std::sv::{ SV }
+import std::fs
+import std::zlib
+import std::math
+import std::{ shift_args }
+import std::image::{ Image, Color }
+
+let crc_table: [u32; 256]
+let crc_table_computed: bool = false
+
+def make_crc_table() {
+    for let n = 0; n < 256; n++ {
+        let c = n
+        for let k = 0; k < 8; k++ {
+            if c & 1 > 0 {
+                c = 0xedb88320 ^ (c >> 1)
+            } else {
+                c = c >> 1
+            }
+        }
+        crc_table[n] = c
+    }
+    crc_table_computed = true
+}
+
+def get_crc(buf: &u8, len: u32, init: u32 = 0xffffffff): u32 {
+    if not crc_table_computed then make_crc_table()
+
+    let c = init
+    for let n = 0; n < len; n++ {
+        c = crc_table[(c ^ buf[n] as u32) & 0xff] ^ (c >> 8)
+    }
+    return c ^ 0xffffffff
+}
+
+struct Chunk {
+    type: SV
+    data: Buffer
+    is_critical: bool
+    is_private: bool
+}
+
+def Chunk::parse(io: &BufferIO): Chunk {
+    let length = io.read_u32()
+    let type = io.read_bytes_sv(4)
+    let data_sv = io.read_bytes_sv(length)
+    let crc = io.read_u32() // ignore for now
+
+    return Chunk(
+        type: type,
+        data: Buffer::from_sized_str(data_sv.data, data_sv.len),
+        is_critical: type[0].is_upper(),
+        is_private: type[1].is_upper(),
+    )
+}
+
+def Chunk::encode(&this, out: &Buffer) {
+    let chunk_buf = Buffer::make()
+    let io = BufferIO::make(&chunk_buf)
+    io.write_u32(.data.size)
+    io.write_bytes(.type.data, .type.len)
+    if .data.size > 0 {
+        io.write_bytes(.data.data, .data.size)
+    }
+    // NOTE: We skip the 4 bytes for the length field
+    let crc = get_crc(chunk_buf.data + 4, chunk_buf.size - 4)
+    io.write_u32(crc)
+    out <<= &chunk_buf
+}
+
+[extern "int"]
+enum ColorType {
+    Grayscale = extern("0")
+    RGB = extern("2")
+    Palette = extern("3")
+    GrayscaleAlpha = extern("4")
+    RGBA = extern("6")
+}
+
+[extern "int"]
+enum InterlaceMethod {
+    None = extern("0")
+    Adam7 = extern("1")
+}
+
+def paeth_predictor(ua: u8, ub: u8, uc: u8): u8 {
+    let a = ua as u32 as i32  // Don't sign extend
+    let b = ub as u32 as i32
+    let c = uc as u32 as i32
+
+    let p = a + b - c
+    let pa = (p - a).abs()
+    let pb = (p - b).abs()
+    let pc = (p - c).abs()
+    return if pa <= pb and pa <= pc {
+        yield ua
+    } else if  pb <= pc {
+        yield ub
+    } else {
+        yield uc
+    }
+}
+
+struct PNG {
+    width: u32
+    height: u32
+    bit_depth: u8
+    color_type: ColorType
+    interlace_method: InterlaceMethod
+    S: u32  // Pixel Stride (bytes per pixel)
+}
+
+def PNG::decode_scanline(&this, out: &Buffer, scanline: u32, sv: SV) {
+    assert sv.len == .width * .S + 1, "Invalid scanline length"
+    let filter = sv.chop_left(1)[0] as u32
+
+    let line = sv.data as &u8
+    let size = sv.len as u32
+
+    let cur_scanline_idx = out.size
+    let prev_scanline_idx = cur_scanline_idx - .width * .S
+
+    match filter {
+        0 => out.put_bytes(line, size),
+        1 => {
+            for let i = 0; i < sv.len; i++ {
+                let x = line[i]
+                let a = if i >= .S then out.data[cur_scanline_idx + i - .S] else 0u8
+                out += x + a
+            }
+        }
+        2 => {
+            for let i = 0; i < sv.len; i++ {
+                let x = line[i]
+                let b = if scanline > 0 then out.data[prev_scanline_idx + i] else 0u8
+                out += x + b
+            }
+        }
+        3 => {
+            for let i = 0; i < sv.len; i++ {
+                let x = line[i]
+                let a = if i >= .S      then out.data[ cur_scanline_idx + i - .S] as u32 else 0
+                let b = if scanline > 0 then out.data[prev_scanline_idx + i     ] as u32 else 0
+                out += x + ((a + b) / 2) as u8
+            }
+        }
+        4 => {
+            for let i = 0; i < sv.len; i++ {
+                let x = line[i]
+                let a = if i >= .S                  then out.data[ cur_scanline_idx + i - .S] else 0u8
+                let b = if scanline > 0             then out.data[prev_scanline_idx + i     ] else 0u8
+                let c = if scanline > 0 and i >= .S then out.data[prev_scanline_idx + i - .S] else 0u8
+                out += x + paeth_predictor(a, b, c)
+            }
+        }
+        else => std::panic(`Unsupported filter {filter}`)
+    }
+}
+
+
+def encode(img: &Image, data: &Buffer) {
+    data += "\x89PNG\r\n\x1a\n"
+
+    {
+        let buf = Buffer::make()
+        let io = BufferIO::make(&buf)
+
+        io.write_u32(img.width)
+        io.write_u32(img.height)
+        io.write_u8(8)                    // Bit depth
+        io.write_u8(ColorType::RGB as u8) // Color type
+        io.write_u8(0)                    // Compression method
+        io.write_u8(0)                    // Filter method
+        io.write_u8(InterlaceMethod::None as u8)  // Interlace method
+
+        let chunk = Chunk(
+            type: SV::from_str("IHDR"),
+            data: buf,
+            is_critical: true,
+            is_private: false,
+        )
+        chunk.encode(data)
+        buf.free()
+    }
+
+    {
+        let chunk_data = Buffer::make()
+
+        for let row = 0; row < img.height; row++ {
+            // Use no filter
+            chunk_data += 0u8
+            chunk_data.put_bytes(&img.data[row * img.width] as &u8, img.width * 3)
+        }
+
+        let compressed = zlib::compress(chunk_data)
+        chunk_data.free()
+
+        let chunk = Chunk(
+            type: SV::from_str("IDAT"),
+            data: compressed,
+            is_critical: true,
+            is_private: false,
+        )
+        chunk.encode(data)
+        compressed.free()
+    }
+
+    {
+        let chunk = Chunk(
+            type: SV::from_str("IEND"),
+            data: Buffer::make(),
+            is_critical: true,
+            is_private: false,
+        )
+        chunk.encode(data)
+        chunk.data.free()
+    }
+}
+
+def decode(data: &Buffer): &Image {
+    let io = BufferIO::make(data)
+    let header = io.read_bytes_sv(8)
+
+    // PNG header
+    if not (header == "\x89PNG\r\n\x1a\n") {
+        println("Not a PNG file")
+        std::exit(1)
+    }
+
+    let png: PNG
+
+    let datastream = Buffer::make() // Compressed data
+    let out = Buffer::make()        // Final Image data
+
+    while not io.is_empty() {
+        let chunk = Chunk::parse(&io)
+        match chunk.type {
+            "IHDR" => {
+                let io = BufferIO::make(&chunk.data)
+                png.width = io.read_u32()
+                png.height = io.read_u32()
+                png.bit_depth = io.read_u8()
+                png.color_type = io.read_u8() as ColorType
+
+                let compression_method = io.read_u8()
+                let filter_method = io.read_u8()
+                assert compression_method == 0, "Unsupported compression method"
+                assert filter_method == 0, "Unsupported filter method"
+
+                png.interlace_method = io.read_u8() as InterlaceMethod
+
+                // One case only for now
+                assert png.bit_depth == 8, "Unsupported bit depth"
+                assert png.interlace_method == None, "Unsupported interlace method"
+
+                png.S = match png.color_type {
+                    RGB => 3
+                    RGBA => 4
+                    else => std::panic(`Unsupported color type {png.color_type}`)
+                }
+            }
+            "IDAT" => {
+                datastream += &chunk.data
+            }
+            "IEND" => {
+                let decompressed = zlib::decompress(datastream)
+                datastream.free()
+
+                out.resize_if_necessary(png.width * png.height * png.S + 1)
+
+                let io = BufferIO::make(&decompressed)
+                for let h = 0; h < png.height; h++ {
+                    let scanline = io.read_bytes_sv(png.width * png.S + 1)
+                    png.decode_scanline(&out, h, scanline)
+                }
+                decompressed.free()
+            }
+            else => {
+                if not chunk.is_critical {
+                    println(`Skipping non-critical chunk {chunk.type}`)
+                    continue
+                }
+                std::panic(`Unsupported critical chunk {chunk.type}`)
+            }
+        }
+    }
+
+    let img = Image::new(png.width, png.height)
+    for let i = 0; i < png.width * png.height; i++ {
+        let idx = i * png.S
+        let r = out[idx + 0]
+        let g = out[idx + 1]
+        let b = out[idx + 2]
+        img.data[i] = Color(r, g, b)
+    }
+    out.free()
+    return img
+}
