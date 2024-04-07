@@ -56,7 +56,6 @@ def Finder::set_usage(&this, sym: &Symbol): bool {
 def Finder::find_in_literal(&this, node: &AST): bool {
     if node.span.contains_loc(.loc) {
         // FIXME: Properly set the literal type
-        // FIXME: Format string expressions?
         if node.etype? {
             return .set_usage(node.etype.sym)
         }

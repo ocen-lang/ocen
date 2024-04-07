@@ -58,7 +58,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
             }
 
             if i == 0 and is_non_static_method {
-                if not param.type.name? {
+                if param.type.base == Pointer {
                     sb += "&"
                 }
                 sb += "this"
@@ -68,6 +68,14 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
                     sb += ": "
                 }
                 sb += gen_type_string(param.type, full: false)
+            }
+
+            if param.default_value? {
+                let expr_str = try_gen_expr_string(param.default_value)
+                if expr_str? {
+                    sb += " = "
+                    sb += expr_str
+                }
             }
         }
         if func_type.is_variadic {
@@ -105,6 +113,27 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         yield sb.str()
     }
     Error | NUM_BASE_TYPES => "ERROR"
+}
+
+def try_gen_expr_string(expr: &AST): str => match expr.type {
+    BoolLiteral => if expr.u.bool_literal then "true" else "false"
+    IntLiteral | FloatLiteral => {
+        let literal = &expr.u.num_literal
+        yield if literal.suffix? {
+            yield `{literal.text}{literal.suffix.str()}`
+        } else {
+            yield literal.text
+        }
+    }
+    StringLiteral | CharLiteral => expr.u.string_literal
+    Null => "null"
+    Identifier => expr.u.ident.name
+    NSLookup => {
+        let lhs_str = try_gen_expr_string(expr.u.lookup.lhs)
+        if not lhs_str? return null
+        yield `{lhs_str}::{expr.u.lookup.rhs_name}`
+    }
+    else => null
 }
 
 def gen_hover_string(sym: &Symbol): str => match sym.type {

@@ -782,12 +782,6 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             let node = AST::new_unop(Negate, minus.span.join(expr.span), expr)
             return node
         }
-        TokenType::Not => {
-            let tok = .consume(TokenType::Not)
-            let expr = .parse_prefix(end_type)
-            let node = AST::new_unop(Not, tok.span.join(expr.span), expr)
-            return node
-        }
         TokenType::Tilde => {
             let tok = .consume(TokenType::Tilde)
             let expr = .parse_prefix(end_type)
@@ -939,13 +933,22 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
     return root
 }
 
+def Parser::parse_logical_not(&this, end_type: TokenType): &AST {
+    if .token_is(TokenType::Not) {
+        let tok = .consume(TokenType::Not)
+        let expr = .parse_logical_not(end_type)
+        return AST::new_unop(Not, tok.span.join(expr.span), expr)
+    }
+    return .parse_relational(end_type)
+}
+
 def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
-    let lhs = .parse_relational(end_type)
+    let lhs = .parse_logical_not(end_type)
     while .token_is(TokenType::And) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
         let op = Operator::from_token(op_tok.type)
-        let rhs = .parse_relational(end_type)
+        let rhs = .parse_logical_not(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
     return lhs
