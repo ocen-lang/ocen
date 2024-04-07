@@ -35,6 +35,7 @@ enum Operator {
     Equals
     GreaterThan
     GreaterThanEquals
+    In
     Index
     LeftShift
     LessThan
@@ -78,10 +79,11 @@ def Operator::from_operator_overload_str(s: str): Operator => match s {
     "<<=" => LeftShiftEquals
     ">>=" => RightShiftEquals
     "%" => Modulus
+    "in" => In
     else => Error
 }
 
-def Operator::from_token(type: TokenType): Operator => match type {
+def Operator::from_token(tok: &Token): Operator => match tok.type {
     Ampersand => BitwiseAnd
     And => And
     Caret => BitwiseXor
@@ -103,7 +105,11 @@ def Operator::from_token(type: TokenType): Operator => match type {
     SlashEquals => DivideEquals
     Star => Multiply
     StarEquals => MultiplyEquals
-    else => std::panic(`Unhandled token type in Operator::from_token: {type.str()}`)
+    Identifier => match tok.text {
+        "in" => In
+        else => std::panic(`Unhandled identifier in Operator::from_token: {tok.text}`)
+    }
+    else => std::panic(`Unhandled token type in Operator::from_token: {tok.type.str()}`)
 }
 
 def Operator::num_overload_params(this): u32 => match this {
@@ -114,7 +120,7 @@ def Operator::num_overload_params(this): u32 => match this {
     RightShiftEquals | BitwiseXor | DivideEquals | Equals | GreaterThan |
     GreaterThanEquals | Index | LeftShift | LessThan | LessThanEquals |
     Minus | MinusEquals | Modulus | Multiply | MultiplyEquals | Or | Plus |
-    NotEquals | PlusEquals | RightShift => 2
+    NotEquals | PlusEquals | RightShift | In => 2
 
     IndexAssign => 3
 

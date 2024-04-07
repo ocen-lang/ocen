@@ -82,6 +82,7 @@ typedef enum compiler_ast_operators_Operator {
   compiler_ast_operators_Operator_Equals,
   compiler_ast_operators_Operator_GreaterThan,
   compiler_ast_operators_Operator_GreaterThanEquals,
+  compiler_ast_operators_Operator_In,
   compiler_ast_operators_Operator_Index,
   compiler_ast_operators_Operator_LeftShift,
   compiler_ast_operators_Operator_LessThan,
@@ -124,6 +125,7 @@ char *compiler_ast_operators_Operator_dbg(compiler_ast_operators_Operator this) 
     case compiler_ast_operators_Operator_Equals: return "Equals";
     case compiler_ast_operators_Operator_GreaterThan: return "GreaterThan";
     case compiler_ast_operators_Operator_GreaterThanEquals: return "GreaterThanEquals";
+    case compiler_ast_operators_Operator_In: return "In";
     case compiler_ast_operators_Operator_Index: return "Index";
     case compiler_ast_operators_Operator_LeftShift: return "LeftShift";
     case compiler_ast_operators_Operator_LessThan: return "LessThan";
@@ -1799,6 +1801,7 @@ compiler_errors_Error *compiler_parser_Parser_error(compiler_parser_Parser *this
 void compiler_parser_Parser_unhandled_type(compiler_parser_Parser *this, char *func);
 compiler_tokens_Token *compiler_parser_Parser_token(compiler_parser_Parser *this);
 bool compiler_parser_Parser_token_is(compiler_parser_Parser *this, compiler_tokens_TokenType type);
+bool compiler_parser_Parser_token_is_identifier(compiler_parser_Parser *this, char *name);
 bool compiler_parser_Parser_peek_token_is(compiler_parser_Parser *this, u32 off, compiler_tokens_TokenType type);
 bool compiler_parser_Parser_consume_if(compiler_parser_Parser *this, compiler_tokens_TokenType type);
 void compiler_parser_Parser_consume_newline_or(compiler_parser_Parser *this, compiler_tokens_TokenType type);
@@ -1829,6 +1832,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_bw_and(compiler_parser_Pars
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_bw_xor(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_bw_or(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_relational(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
+compiler_ast_nodes_AST *compiler_parser_Parser_parse_logical_not(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_logical_and(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_logical_or(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_expression(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
@@ -1892,7 +1896,7 @@ bool compiler_ast_program_NSIterator_has_value(compiler_ast_program_NSIterator *
 void compiler_ast_program_NSIterator_next(compiler_ast_program_NSIterator *this);
 compiler_ast_program_Namespace *compiler_ast_program_NSIterator_cur(compiler_ast_program_NSIterator *this);
 compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_overload_str(char *s);
-compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compiler_tokens_TokenType type);
+compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compiler_tokens_Token *tok);
 u32 compiler_ast_operators_Operator_num_overload_params(compiler_ast_operators_Operator this);
 bool compiler_ast_operators_Operator_needs_lhs_pointer_for_overload(compiler_ast_operators_Operator this);
 u32 compiler_ast_operators_OperatorOverload_hash(compiler_ast_operators_OperatorOverload this);
@@ -1935,6 +1939,7 @@ char *compiler_lsp_shift_args(i32 *argc, char ***argv);
 void compiler_lsp_lsp_usage(i32 code, bool full);
 i32 compiler_lsp_lsp_main(i32 argc, char **argv);
 char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full);
+char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr);
 char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym);
 compiler_types_Type *compiler_lsp_utils_get_symbol_typedef(compiler_ast_scopes_Symbol *sym);
 std_value_Value *compiler_lsp_utils_gen_error_json(compiler_errors_Error *err);
@@ -1970,6 +1975,7 @@ compiler_tokens_Token *compiler_tokens_Token_new(compiler_tokens_TokenType type,
 compiler_tokens_Token *compiler_tokens_Token_from_type(compiler_tokens_TokenType type, std_span_Span span);
 compiler_tokens_Token *compiler_tokens_Token_from_ident(char *text, std_span_Span span);
 bool compiler_tokens_Token_is_word(compiler_tokens_Token this);
+bool compiler_tokens_Token_is_identifier(compiler_tokens_Token this, char *name);
 compiler_tokens_TokenType compiler_tokens_TokenType_from_text(char *text);
 char *compiler_tokens_TokenType_str(compiler_tokens_TokenType this);
 char *compiler_errors_MessageType_to_color(compiler_errors_MessageType this);
@@ -5538,6 +5544,15 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           
           return compiler_passes_typechecker_TypeChecker_check_binary_op(this, node, compiler_types_Type_unaliased(lhs), compiler_types_Type_unaliased(rhs));
         } break;
+        case compiler_ast_operators_Operator_In: {
+          compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
+          compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, NULL);
+          if ((!((bool)lhs) || !((bool)rhs))) 
+          return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
+          
+          compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_binary_op(this, compiler_ast_operators_Operator_In, node, node->u.binary.rhs, node->u.binary.lhs, NULL);
+          return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
+        } break;
         case compiler_ast_operators_Operator_Index: {
           return compiler_passes_typechecker_TypeChecker_check_index(this, node, hint, false);
         } break;
@@ -6535,8 +6550,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
       continue;
       
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2224:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2228:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2232:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2236:16: Assertion failed: `sym.type == TypeDef`", NULL);
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) 
       continue;
@@ -7381,6 +7396,10 @@ bool compiler_parser_Parser_token_is(compiler_parser_Parser *this, compiler_toke
   return compiler_parser_Parser_token(this)->type==type;
 }
 
+bool compiler_parser_Parser_token_is_identifier(compiler_parser_Parser *this, char *name) {
+  return compiler_tokens_Token_is_identifier((*compiler_parser_Parser_token(this)), name);
+}
+
 bool compiler_parser_Parser_peek_token_is(compiler_parser_Parser *this, u32 off, compiler_tokens_TokenType type) {
   if (((this->curr + off) >= this->tokens->size)) 
   return false;
@@ -8087,12 +8106,6 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_prefix(compiler_parser_Pars
       compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Negate, std_span_Span_join(minus->span, expr->span), expr);
       return node;
     } break;
-    case compiler_tokens_TokenType_Not: {
-      compiler_tokens_Token *tok = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Not);
-      compiler_ast_nodes_AST *expr = compiler_parser_Parser_parse_prefix(this, end_type);
-      compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Not, std_span_Span_join(tok->span, expr->span), expr);
-      return node;
-    } break;
     case compiler_tokens_TokenType_Tilde: {
       compiler_tokens_Token *tok = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Tilde);
       compiler_ast_nodes_AST *expr = compiler_parser_Parser_parse_prefix(this, end_type);
@@ -8128,7 +8141,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_term(compiler_parser_Parser
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
     compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_cast(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
@@ -8142,7 +8155,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_additive(compiler_parser_Pa
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
     compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_term(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
@@ -8173,7 +8186,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_bw_and(compiler_parser_Pars
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
     compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_shift(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
@@ -8187,7 +8200,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_bw_xor(compiler_parser_Pars
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
     compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_bw_and(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
@@ -8201,7 +8214,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_bw_or(compiler_parser_Parse
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
     compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_bw_xor(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
@@ -8212,7 +8225,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_relational(compiler_parser_
   std_vector_Vector__13 *operands = std_vector_Vector__13_new(16);
   std_vector_Vector__9 *operators = std_vector_Vector__9_new(16);
   std_vector_Vector__13_push(operands, compiler_parser_Parser_parse_bw_or(this, end_type));
-  while ((((((compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_LessThan) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_GreaterThan)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_LessThanEquals)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_GreaterThanEquals)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_EqualEquals)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_NotEquals))) {
+  while (((((((compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_LessThan) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_GreaterThan)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_LessThanEquals)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_GreaterThanEquals)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_EqualEquals)) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_NotEquals)) || compiler_parser_Parser_token_is_identifier(this, "in"))) {
     if (compiler_parser_Parser_token_is(this, end_type)) 
     break;
     
@@ -8245,7 +8258,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_relational(compiler_parser_
     compiler_tokens_Token *tok = std_vector_Vector__9_at(operators, i);
     compiler_ast_nodes_AST *lhs = std_vector_Vector__13_at(operands, i);
     compiler_ast_nodes_AST *rhs = std_vector_Vector__13_at(operands, (i + 1));
-    compiler_ast_nodes_AST *op = compiler_ast_nodes_AST_new_binop(compiler_ast_operators_Operator_from_token(tok->type), lhs, rhs, tok->span);
+    compiler_ast_nodes_AST *op = compiler_ast_nodes_AST_new_binop(compiler_ast_operators_Operator_from_token(tok), lhs, rhs, tok->span);
     if (((bool)root)) {
       root=compiler_ast_nodes_AST_new_binop(compiler_ast_operators_Operator_And, root, op, tok->span);
     }  else {
@@ -8257,15 +8270,24 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_relational(compiler_parser_
   return root;
 }
 
+compiler_ast_nodes_AST *compiler_parser_Parser_parse_logical_not(compiler_parser_Parser *this, compiler_tokens_TokenType end_type) {
+  if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Not)) {
+    compiler_tokens_Token *tok = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Not);
+    compiler_ast_nodes_AST *expr = compiler_parser_Parser_parse_logical_not(this, end_type);
+    return compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Not, std_span_Span_join(tok->span, expr->span), expr);
+  } 
+  return compiler_parser_Parser_parse_relational(this, end_type);
+}
+
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_logical_and(compiler_parser_Parser *this, compiler_tokens_TokenType end_type) {
-  compiler_ast_nodes_AST *lhs = compiler_parser_Parser_parse_relational(this, end_type);
+  compiler_ast_nodes_AST *lhs = compiler_parser_Parser_parse_logical_not(this, end_type);
   while (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_And)) {
     if (compiler_parser_Parser_token_is(this, end_type)) 
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
-    compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_relational(this, end_type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
+    compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_logical_not(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
   return lhs;
@@ -8278,7 +8300,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_logical_or(compiler_parser_
     break;
     
     compiler_tokens_Token *op_tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
-    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok->type);
+    compiler_ast_operators_Operator op = compiler_ast_operators_Operator_from_token(op_tok);
     compiler_ast_nodes_AST *rhs = compiler_parser_Parser_parse_logical_and(this, end_type);
     lhs=compiler_ast_nodes_AST_new_binop(op, lhs, rhs, op_tok->span);
   }
@@ -8305,7 +8327,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_expression(compiler_parser_
         default: {
           compiler_tokens_Token *tok = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
           op_span=tok->span;
-          __yield_0 = compiler_ast_operators_Operator_from_token(tok->type);
+          __yield_0 = compiler_ast_operators_Operator_from_token(tok);
         } break;
       }
 ;__yield_0; });
@@ -8339,7 +8361,11 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_if(compiler_parser_Parser *
 
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_for_each(compiler_parser_Parser *this, std_span_Span start_span) {
   compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
-  compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Colon);
+  if (!(compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Colon) || compiler_parser_Parser_token_is_identifier(this, "in"))) {
+    compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Expected `:` of `in` after for-each loop variable"));
+    return compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Error, start_span);
+  } 
+  compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
   compiler_ast_nodes_AST *expr = compiler_parser_Parser_parse_expression(this, compiler_tokens_TokenType_Newline);
   char *iter_var_name = "__iter";
   compiler_ast_nodes_AST *init = ({ compiler_ast_nodes_AST *__yield_0;
@@ -8407,7 +8433,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_for_each(compiler_parser_Pa
 
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_for(compiler_parser_Parser *this) {
   compiler_tokens_Token *tok = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_For);
-  if ((compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Identifier) && compiler_parser_Parser_peek(this, 1)->type==compiler_tokens_TokenType_Colon)) {
+  if ((compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Identifier) && (compiler_parser_Parser_peek(this, 1)->type==compiler_tokens_TokenType_Colon || compiler_tokens_Token_is_identifier((*compiler_parser_Parser_peek(this, 1)), "in")))) {
     return compiler_parser_Parser_parse_for_each(this, tok->span);
   } 
   compiler_ast_nodes_AST *init = ((compiler_ast_nodes_AST *)NULL);
@@ -8736,7 +8762,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1486:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1500:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if ((attr->args->size > 0)) {
     sym->extern_name=std_vector_Vector__1_at(attr->args, 0);
@@ -9272,8 +9298,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert((parts->size > 0), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2038:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2039:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert((parts->size > 0), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2052:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2053:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
@@ -10119,6 +10145,8 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_ov
         __yield_0 = compiler_ast_operators_Operator_RightShiftEquals;
       } else if (str_eq(__match_var_1, "%")) {
         __yield_0 = compiler_ast_operators_Operator_Modulus;
+      } else if (str_eq(__match_var_1, "in")) {
+        __yield_0 = compiler_ast_operators_Operator_In;
       } else  {
         __yield_0 = compiler_ast_operators_Operator_Error;
       }
@@ -10126,9 +10154,9 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_ov
 ;__yield_0; });
 }
 
-compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compiler_tokens_TokenType type) {
+compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compiler_tokens_Token *tok) {
   return ({ compiler_ast_operators_Operator __yield_0;
-    switch (type) {
+    switch (tok->type) {
       case compiler_tokens_TokenType_Ampersand: {
         __yield_0 = compiler_ast_operators_Operator_BitwiseAnd;
       } break;
@@ -10192,7 +10220,17 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compi
       case compiler_tokens_TokenType_StarEquals: {
         __yield_0 = compiler_ast_operators_Operator_MultiplyEquals;
       } break;
-      default: std_panic(format_string("Unhandled token type in Operator::from_token: %s", compiler_tokens_TokenType_str(type))); break;
+      case compiler_tokens_TokenType_Identifier: {
+        __yield_0 = ({ compiler_ast_operators_Operator __yield_1;
+          {
+            char *__match_var_2 = tok->text;
+            if (str_eq(__match_var_2, "in")) {
+              __yield_1 = compiler_ast_operators_Operator_In;
+            } else  std_panic(format_string("Unhandled identifier in Operator::from_token: %s", tok->text));
+          }
+;__yield_1; });
+      } break;
+      default: std_panic(format_string("Unhandled token type in Operator::from_token: %s", compiler_tokens_TokenType_str(tok->type))); break;
     }
 ;__yield_0; });
 }
@@ -10237,7 +10275,8 @@ u32 compiler_ast_operators_Operator_num_overload_params(compiler_ast_operators_O
       case compiler_ast_operators_Operator_Plus:
       case compiler_ast_operators_Operator_NotEquals:
       case compiler_ast_operators_Operator_PlusEquals:
-      case compiler_ast_operators_Operator_RightShift: {
+      case compiler_ast_operators_Operator_RightShift:
+      case compiler_ast_operators_Operator_In: {
         __yield_0 = 2;
       } break;
       case compiler_ast_operators_Operator_IndexAssign: {
@@ -10718,33 +10757,33 @@ i32 compiler_lsp_lsp_main(i32 argc, char **argv) {
   while ((argc > 0)) {
     char *arg = compiler_lsp_shift_args(&argc, &argv);
     {
-      char *__match_var_2 = arg;
-      if (str_eq(__match_var_2, "--help")) {
+      char *__match_var_3 = arg;
+      if (str_eq(__match_var_3, "--help")) {
         compiler_lsp_lsp_usage(0, true);
-      } else if (str_eq(__match_var_2, "-h") || str_eq(__match_var_2, "-d") || str_eq(__match_var_2, "-t") || str_eq(__match_var_2, "-c")) {
+      } else if (str_eq(__match_var_3, "-h") || str_eq(__match_var_3, "-d") || str_eq(__match_var_3, "-t") || str_eq(__match_var_3, "-c")) {
         cmd_type=({ compiler_lsp_CommandType __yield_0;
           {
-            char *__match_var_3 = arg;
-            if (str_eq(__match_var_3, "-h")) {
+            char *__match_var_4 = arg;
+            if (str_eq(__match_var_4, "-h")) {
               __yield_0 = compiler_lsp_CommandType_Hover;
-            } else if (str_eq(__match_var_3, "-d")) {
+            } else if (str_eq(__match_var_4, "-d")) {
               __yield_0 = compiler_lsp_CommandType_GoToDefinition;
-            } else if (str_eq(__match_var_3, "-t")) {
+            } else if (str_eq(__match_var_4, "-t")) {
               __yield_0 = compiler_lsp_CommandType_GoToType;
-            } else if (str_eq(__match_var_3, "-c")) {
+            } else if (str_eq(__match_var_4, "-c")) {
               __yield_0 = compiler_lsp_CommandType_Completions;
             } else  std_panic("Invalid command type");
           }
 ;__yield_0; });
         line=str_to_u32(compiler_lsp_shift_args(&argc, &argv));
         col=str_to_u32(compiler_lsp_shift_args(&argc, &argv));
-      } else if (str_eq(__match_var_2, "--validate")) {
+      } else if (str_eq(__match_var_3, "--validate")) {
         cmd_type=compiler_lsp_CommandType_Validate;
-      } else if (str_eq(__match_var_2, "--doc-symbols")) {
+      } else if (str_eq(__match_var_3, "--doc-symbols")) {
         cmd_type=compiler_lsp_CommandType_DocumentSymbols;
-      } else if (str_eq(__match_var_2, "-v")) {
+      } else if (str_eq(__match_var_3, "-v")) {
         compiler_lsp_utils_verbose=true;
-      } else if (str_eq(__match_var_2, "--show-path")) {
+      } else if (str_eq(__match_var_3, "--show-path")) {
         show_path=compiler_lsp_shift_args(&argc, &argv);
       } else  {
         if (((bool)file_path)) {
@@ -10873,7 +10912,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
             std_buffer_Buffer_write_str(&sb, ", ");
           } 
           if ((i==0 && is_non_static_method)) {
-            if (!((bool)param->type->name)) {
+            if (param->type->base==compiler_types_BaseType_Pointer) {
               std_buffer_Buffer_write_str(&sb, "&");
             } 
             std_buffer_Buffer_write_str(&sb, "this");
@@ -10883,6 +10922,13 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
               std_buffer_Buffer_write_str(&sb, ": ");
             } 
             std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(param->type, false));
+          } 
+          if (((bool)param->default_value)) {
+            char *expr_str = compiler_lsp_utils_try_gen_expr_string(param->default_value);
+            if (((bool)expr_str)) {
+              std_buffer_Buffer_write_str(&sb, " = ");
+              std_buffer_Buffer_write_str(&sb, expr_str);
+            } 
           } 
         }
         if (func_type.is_variadic) {
@@ -10928,6 +10974,47 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
       case compiler_types_BaseType_Error:
       case compiler_types_BaseType_NUM_BASE_TYPES: {
         __yield_0 = "ERROR";
+      } break;
+    }
+;__yield_0; });
+}
+
+char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr) {
+  return ({ char *__yield_0;
+    switch (expr->type) {
+      case compiler_ast_nodes_ASTType_BoolLiteral: {
+        __yield_0 = (expr->u.bool_literal ? "true" : "false");
+      } break;
+      case compiler_ast_nodes_ASTType_IntLiteral:
+      case compiler_ast_nodes_ASTType_FloatLiteral: {
+        compiler_ast_nodes_NumLiteral *literal = &expr->u.num_literal;
+        __yield_0 = ({ char *__yield_1;
+          if (((bool)literal->suffix)) {
+            __yield_1 = format_string("%s%s", literal->text, compiler_types_Type_str(literal->suffix));
+          }  else {
+            __yield_1 = literal->text;
+          } 
+;__yield_1; });
+      } break;
+      case compiler_ast_nodes_ASTType_StringLiteral:
+      case compiler_ast_nodes_ASTType_CharLiteral: {
+        __yield_0 = expr->u.string_literal;
+      } break;
+      case compiler_ast_nodes_ASTType_Null: {
+        __yield_0 = "null";
+      } break;
+      case compiler_ast_nodes_ASTType_Identifier: {
+        __yield_0 = expr->u.ident.name;
+      } break;
+      case compiler_ast_nodes_ASTType_NSLookup: {
+        char *lhs_str = compiler_lsp_utils_try_gen_expr_string(expr->u.lookup.lhs);
+        if (!((bool)lhs_str)) 
+        return NULL;
+        
+        __yield_0 = format_string("%s::%s", lhs_str, expr->u.lookup.rhs_name);
+      } break;
+      default: {
+        __yield_0 = NULL;
       } break;
     }
 ;__yield_0; });
@@ -11703,18 +11790,18 @@ compiler_ast_scopes_Symbol *compiler_lsp_finder_Finder_find(compiler_lsp_finder_
 compiler_attributes_AttributeType compiler_attributes_AttributeType_from_str(char *s) {
   return ({ compiler_attributes_AttributeType __yield_0;
     {
-      char *__match_var_4 = s;
-      if (str_eq(__match_var_4, "extern")) {
+      char *__match_var_5 = s;
+      if (str_eq(__match_var_5, "extern")) {
         __yield_0 = compiler_attributes_AttributeType_Extern;
-      } else if (str_eq(__match_var_4, "exits")) {
+      } else if (str_eq(__match_var_5, "exits")) {
         __yield_0 = compiler_attributes_AttributeType_Exits;
-      } else if (str_eq(__match_var_4, "variadic_format")) {
+      } else if (str_eq(__match_var_5, "variadic_format")) {
         __yield_0 = compiler_attributes_AttributeType_VariadicFormat;
-      } else if (str_eq(__match_var_4, "export")) {
+      } else if (str_eq(__match_var_5, "export")) {
         __yield_0 = compiler_attributes_AttributeType_Export;
-      } else if (str_eq(__match_var_4, "formatting")) {
+      } else if (str_eq(__match_var_5, "formatting")) {
         __yield_0 = compiler_attributes_AttributeType_Formatting;
-      } else if (str_eq(__match_var_4, "operator")) {
+      } else if (str_eq(__match_var_5, "operator")) {
         __yield_0 = compiler_attributes_AttributeType_Operator;
       } else  {
         __yield_0 = compiler_attributes_AttributeType_Invalid;
@@ -11812,73 +11899,86 @@ bool compiler_tokens_Token_is_word(compiler_tokens_Token this) {
 ;__yield_0; });
 }
 
+bool compiler_tokens_Token_is_identifier(compiler_tokens_Token this, char *name) {
+  return ({ bool __yield_0;
+    switch (this.type) {
+      case compiler_tokens_TokenType_Identifier: {
+        __yield_0 = str_eq(name, this.text);
+      } break;
+      default: {
+        __yield_0 = false;
+      } break;
+    }
+;__yield_0; });
+}
+
 compiler_tokens_TokenType compiler_tokens_TokenType_from_text(char *text) {
   return ({ compiler_tokens_TokenType __yield_0;
     {
-      char *__match_var_5 = text;
-      if (str_eq(__match_var_5, "and")) {
+      char *__match_var_6 = text;
+      if (str_eq(__match_var_6, "and")) {
         __yield_0 = compiler_tokens_TokenType_And;
-      } else if (str_eq(__match_var_5, "as")) {
+      } else if (str_eq(__match_var_6, "as")) {
         __yield_0 = compiler_tokens_TokenType_As;
-      } else if (str_eq(__match_var_5, "assert")) {
+      } else if (str_eq(__match_var_6, "assert")) {
         __yield_0 = compiler_tokens_TokenType_Assert;
-      } else if (str_eq(__match_var_5, "break")) {
+      } else if (str_eq(__match_var_6, "break")) {
         __yield_0 = compiler_tokens_TokenType_Break;
-      } else if (str_eq(__match_var_5, "const")) {
+      } else if (str_eq(__match_var_6, "const")) {
         __yield_0 = compiler_tokens_TokenType_Const;
-      } else if (str_eq(__match_var_5, "continue")) {
+      } else if (str_eq(__match_var_6, "continue")) {
         __yield_0 = compiler_tokens_TokenType_Continue;
-      } else if (str_eq(__match_var_5, "def")) {
+      } else if (str_eq(__match_var_6, "def")) {
         __yield_0 = compiler_tokens_TokenType_Def;
-      } else if (str_eq(__match_var_5, "defer")) {
+      } else if (str_eq(__match_var_6, "defer")) {
         __yield_0 = compiler_tokens_TokenType_Defer;
-      } else if (str_eq(__match_var_5, "else")) {
+      } else if (str_eq(__match_var_6, "else")) {
         __yield_0 = compiler_tokens_TokenType_Else;
-      } else if (str_eq(__match_var_5, "enum")) {
+      } else if (str_eq(__match_var_6, "enum")) {
         __yield_0 = compiler_tokens_TokenType_Enum;
-      } else if (str_eq(__match_var_5, "extern")) {
+      } else if (str_eq(__match_var_6, "extern")) {
         __yield_0 = compiler_tokens_TokenType_Extern;
-      } else if (str_eq(__match_var_5, "false")) {
+      } else if (str_eq(__match_var_6, "false")) {
         __yield_0 = compiler_tokens_TokenType_False;
-      } else if (str_eq(__match_var_5, "for")) {
+      } else if (str_eq(__match_var_6, "for")) {
         __yield_0 = compiler_tokens_TokenType_For;
-      } else if (str_eq(__match_var_5, "fn")) {
+      } else if (str_eq(__match_var_6, "fn")) {
         __yield_0 = compiler_tokens_TokenType_Fn;
-      } else if (str_eq(__match_var_5, "if")) {
+      } else if (str_eq(__match_var_6, "if")) {
         __yield_0 = compiler_tokens_TokenType_If;
-      } else if (str_eq(__match_var_5, "let")) {
+      } else if (str_eq(__match_var_6, "let")) {
         __yield_0 = compiler_tokens_TokenType_Let;
-      } else if (str_eq(__match_var_5, "match")) {
+      } else if (str_eq(__match_var_6, "match")) {
         __yield_0 = compiler_tokens_TokenType_Match;
-      } else if (str_eq(__match_var_5, "namespace")) {
+      } else if (str_eq(__match_var_6, "namespace")) {
         __yield_0 = compiler_tokens_TokenType_Namespace;
-      } else if (str_eq(__match_var_5, "not")) {
+      } else if (str_eq(__match_var_6, "not")) {
         __yield_0 = compiler_tokens_TokenType_Not;
-      } else if (str_eq(__match_var_5, "null")) {
+      } else if (str_eq(__match_var_6, "null")) {
         __yield_0 = compiler_tokens_TokenType_Null;
-      } else if (str_eq(__match_var_5, "or")) {
+      } else if (str_eq(__match_var_6, "or")) {
         __yield_0 = compiler_tokens_TokenType_Or;
-      } else if (str_eq(__match_var_5, "return")) {
+      } else if (str_eq(__match_var_6, "return")) {
         __yield_0 = compiler_tokens_TokenType_Return;
-      } else if (str_eq(__match_var_5, "sizeof")) {
+      } else if (str_eq(__match_var_6, "sizeof")) {
         __yield_0 = compiler_tokens_TokenType_SizeOf;
-      } else if (str_eq(__match_var_5, "struct")) {
+      } else if (str_eq(__match_var_6, "struct")) {
         __yield_0 = compiler_tokens_TokenType_Struct;
-      } else if (str_eq(__match_var_5, "true")) {
+      } else if (str_eq(__match_var_6, "true")) {
         __yield_0 = compiler_tokens_TokenType_True;
-      } else if (str_eq(__match_var_5, "then")) {
+      } else if (str_eq(__match_var_6, "then")) {
         __yield_0 = compiler_tokens_TokenType_Then;
-      } else if (str_eq(__match_var_5, "typedef")) {
+      } else if (str_eq(__match_var_6, "typedef")) {
         __yield_0 = compiler_tokens_TokenType_TypeDef;
-      } else if (str_eq(__match_var_5, "union")) {
+      } else if (str_eq(__match_var_6, "union")) {
         __yield_0 = compiler_tokens_TokenType_Union;
-      } else if (str_eq(__match_var_5, "import")) {
+      } else if (str_eq(__match_var_6, "import")) {
         __yield_0 = compiler_tokens_TokenType_Import;
-      } else if (str_eq(__match_var_5, "void")) {
+      } else if (str_eq(__match_var_6, "void")) {
         __yield_0 = compiler_tokens_TokenType_Void;
-      } else if (str_eq(__match_var_5, "yield")) {
+      } else if (str_eq(__match_var_6, "yield")) {
         __yield_0 = compiler_tokens_TokenType_Yield;
-      } else if (str_eq(__match_var_5, "while")) {
+      } else if (str_eq(__match_var_6, "while")) {
         __yield_0 = compiler_tokens_TokenType_While;
       } else  {
         __yield_0 = compiler_tokens_TokenType_Identifier;
@@ -12540,36 +12640,36 @@ void parse_args(i32 argc, char **argv, compiler_ast_program_Program *program) {
   while ((argc > 0)) {
     char *arg = shift_args(&argc, &argv, "here");
     {
-      char *__match_var_6 = arg;
-      if (str_eq(__match_var_6, "--help")) {
+      char *__match_var_7 = arg;
+      if (str_eq(__match_var_7, "--help")) {
         usage(0, true);
-      } else if (str_eq(__match_var_6, "-s")) {
+      } else if (str_eq(__match_var_7, "-s")) {
         silent=true;
-      } else if (str_eq(__match_var_6, "-d")) {
+      } else if (str_eq(__match_var_7, "-d")) {
         debug=true;
-      } else if (str_eq(__match_var_6, "-n")) {
+      } else if (str_eq(__match_var_7, "-n")) {
         compile_c=false;
         program->keep_all_code=true;
-      } else if (str_eq(__match_var_6, "--no-dce")) {
+      } else if (str_eq(__match_var_7, "--no-dce")) {
         program->keep_all_code=true;
-      } else if (str_eq(__match_var_6, "-o")) {
+      } else if (str_eq(__match_var_7, "-o")) {
         exec_path=shift_args(&argc, &argv, "here");
-      } else if (str_eq(__match_var_6, "-c")) {
+      } else if (str_eq(__match_var_7, "-c")) {
         c_path=shift_args(&argc, &argv, "here");
-      } else if (str_eq(__match_var_6, "-l")) {
+      } else if (str_eq(__match_var_7, "-l")) {
         std_vector_Vector__1_push(program->library_paths, shift_args(&argc, &argv, "here"));
-      } else if (str_eq(__match_var_6, "-e0")) {
+      } else if (str_eq(__match_var_7, "-e0")) {
         error_level=0;
-      } else if (str_eq(__match_var_6, "-e1")) {
+      } else if (str_eq(__match_var_7, "-e1")) {
         error_level=1;
-      } else if (str_eq(__match_var_6, "-e2")) {
+      } else if (str_eq(__match_var_7, "-e2")) {
         error_level=2;
-      } else if (str_eq(__match_var_6, "--docs")) {
+      } else if (str_eq(__match_var_7, "--docs")) {
         docs_path=shift_args(&argc, &argv, "here");
         program->check_doc_links=true;
-      } else if (str_eq(__match_var_6, "--no-stdlib")) {
+      } else if (str_eq(__match_var_7, "--no-stdlib")) {
         include_stdlib=false;
-      } else if (str_eq(__match_var_6, "--cflags") || str_eq(__match_var_6, "-cf")) {
+      } else if (str_eq(__match_var_7, "--cflags") || str_eq(__match_var_7, "-cf")) {
         std_vector_Vector__1_push(extra_c_flags, shift_args(&argc, &argv, "here"));
       } else  {
         if (arg[0]=='-') {

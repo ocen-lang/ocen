@@ -83,6 +83,8 @@ def Parser::token_is(&this, type: TokenType): bool {
     return .token().type == type
 }
 
+def Parser::token_is_identifier(&this, name: str): bool => .token().is_identifier(name)
+
 def Parser::peek_token_is(&this, off: u32, type: TokenType): bool {
     if .curr + off >= .tokens.size return false
     let tok = .tokens.at(.curr + off)
@@ -813,7 +815,7 @@ def Parser::parse_term(&this, end_type: TokenType): &AST {
             .token_is(TokenType::Percent) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_cast(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -826,7 +828,7 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_term(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -855,7 +857,7 @@ def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Ampersand) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_shift(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -867,7 +869,7 @@ def Parser::parse_bw_xor(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Caret) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_bw_and(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -879,7 +881,7 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Line) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_bw_xor(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -896,7 +898,9 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
             .token_is(TokenType::LessThanEquals) or
             .token_is(TokenType::GreaterThanEquals) or
             .token_is(TokenType::EqualEquals) or
-            .token_is(TokenType::NotEquals) {
+            .token_is(TokenType::NotEquals) or
+            .token_is_identifier("in") {
+
         if .token_is(end_type) break
 
         let done = match .token().type {
@@ -919,7 +923,7 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
         let tok = operators.at(i)
         let lhs = operands.at(i)
         let rhs = operands.at(i+1)
-        let op = AST::new_binop(Operator::from_token(tok.type), lhs, rhs, tok.span)
+        let op = AST::new_binop(Operator::from_token(tok), lhs, rhs, tok.span)
         if root? {
             root = AST::new_binop(And, root, op, tok.span)
         } else {
@@ -947,7 +951,7 @@ def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::And) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_logical_not(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -959,7 +963,7 @@ def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
     while .token_is(TokenType::Or) {
         if .token_is(end_type) break
         let op_tok = .consume(.token().type)
-        let op = Operator::from_token(op_tok.type)
+        let op = Operator::from_token(op_tok)
         let rhs = .parse_logical_and(end_type)
         lhs = AST::new_binop(op, lhs, rhs, op_tok.span)
     }
@@ -990,7 +994,7 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
             else => {
                 let tok = .consume(.token().type)
                 op_span = tok.span
-                yield Operator::from_token(tok.type)
+                yield Operator::from_token(tok)
             }
         }
 
@@ -1047,7 +1051,11 @@ def Parser::parse_if(&this): &AST {
 def Parser::parse_for_each(&this, start_span: Span): &AST {
 
     let name = .consume(Identifier)
-    .consume(TokenType::Colon)
+    if not (.token_is(TokenType::Colon) or .token_is_identifier("in")) {
+        .error(Error::new(.token().span, "Expected `:` of `in` after for-each loop variable"))
+        return AST::new(ASTType::Error, start_span)
+    }
+    .consume(.token().type)
 
     let expr = .parse_expression(end_type: TokenType::Newline)
     let iter_var_name = "__iter"
@@ -1137,7 +1145,10 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
 def Parser::parse_for(&this): &AST {
     let tok = .consume(TokenType::For)
 
-    if .token_is(Identifier) and .peek(1).type == TokenType::Colon {
+    if .token_is(Identifier) and (
+        .peek(1).type == TokenType::Colon or
+        .peek(1).is_identifier("in")
+    ) {
         return .parse_for_each(start_span: tok.span)
     }
 

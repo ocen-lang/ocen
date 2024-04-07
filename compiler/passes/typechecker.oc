@@ -1198,6 +1198,14 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     if not lhs? or not rhs? return null
                     return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
                 }
+                In => {
+                    // Swap the order of the operands for the potential overload
+                    let lhs = .check_expression(node.u.binary.lhs)
+                    let rhs = .check_expression(node.u.binary.rhs)
+                    if not lhs? or not rhs? return .get_base_type(Bool, node.span)
+                    .find_and_replace_overloaded_binary_op(In, node, node.u.binary.rhs, node.u.binary.lhs)
+                    return .get_base_type(Bool, node.span)
+                }
                 Index => return .check_index(node, hint, is_being_assigned: false)
                 Assignment => {
                     let lhs = .check_expression(node.u.binary.lhs)

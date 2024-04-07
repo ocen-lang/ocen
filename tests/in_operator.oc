@@ -1,0 +1,31 @@
+/// compile
+import std::set::{ Set }
+
+struct Foo {
+    x: u32
+    y: u32
+    z: u32
+}
+
+[operator "in"]
+def Foo::contains(this, x: u32): bool {
+    return .x == x or .y == x or .z == x
+}
+
+def main() {
+    let f = Foo(10, 20, 30)
+    println(`10 in f: {10 in f}`)
+    println(`15 in f: {15 in f}`)
+    println(`20 in f: {20 in f}`)
+
+    for c in "hello".chars() {
+        println(`{c}`)
+    }
+
+    let s = Set<u32>::new()
+    s += 10
+    let c = 10 in s
+
+    let j = 30
+    let d = j in s
+}

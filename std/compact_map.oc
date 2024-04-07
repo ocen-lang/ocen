@@ -158,6 +158,7 @@ def Map::at(&this, key: K): V {
 
 def Map::size(&this): u32 => .items.size
 
+[operator "in"]
 def Map::contains(&this, key: K): bool {
     let hash = key.hash()
     let index = .get_index(key, hash)
