@@ -1,7 +1,6 @@
 //* Definitions for Tokens
 
 import std::span::{ Span, Location }
-import std::libc::calloc
 
 struct Token {
     type: TokenType
@@ -17,7 +16,15 @@ struct Token {
 
 def Token::new(type: TokenType, span: Span, text: str): &Token {
     let tok = std::new<Token>()
-    *tok = Token(type, span, text, suffix: null, seen_newline: false, comment: null, comment_loc: Location::default())
+    *tok = Token(
+        type,
+        span,
+        text,
+        suffix: null,
+        seen_newline: false,
+        comment: null,
+        comment_loc: Location::default()
+    )
     return tok
 }
 
@@ -130,39 +137,39 @@ enum TokenType {
 }
 
 def TokenType::from_text(text: str): TokenType => match text {
-    "and" => TokenType::And
-    "as" => TokenType::As
-    "assert" => TokenType::Assert
-    "break" => TokenType::Break
-    "const" => TokenType::Const
-    "continue" => TokenType::Continue
-    "def" => TokenType::Def
-    "defer" => TokenType::Defer
-    "else" => TokenType::Else
-    "enum" => TokenType::Enum
-    "extern" => TokenType::Extern
-    "false" => TokenType::False
-    "for" => TokenType::For
-    "fn" => TokenType::Fn
-    "if" => TokenType::If
-    "let" => TokenType::Let
-    "match" => TokenType::Match
-    "namespace" => TokenType::Namespace
-    "not" => TokenType::Not
-    "null" => TokenType::Null
-    "or" => TokenType::Or
-    "return" => TokenType::Return
-    "sizeof" => TokenType::SizeOf
-    "struct" => TokenType::Struct
-    "true" => TokenType::True
-    "then" => TokenType::Then
-    "typedef" => TokenType::TypeDef
-    "union" => TokenType::Union
-    "import" => TokenType::Import
-    "void" => TokenType::Void
-    "yield" => TokenType::Yield
-    "while" => TokenType::While
-    else => TokenType::Identifier
+    "and" => And
+    "as" => As
+    "assert" => Assert
+    "break" => Break
+    "const" => Const
+    "continue" => Continue
+    "def" => Def
+    "defer" => Defer
+    "else" => Else
+    "enum" => Enum
+    "extern" => Extern
+    "false" => False
+    "for" => For
+    "fn" => Fn
+    "if" => If
+    "let" => Let
+    "match" => Match
+    "namespace" => Namespace
+    "not" => Not
+    "null" => Null
+    "or" => Or
+    "return" => Return
+    "sizeof" => SizeOf
+    "struct" => Struct
+    "true" => True
+    "then" => Then
+    "typedef" => TypeDef
+    "union" => Union
+    "import" => Import
+    "void" => Void
+    "yield" => Yield
+    "while" => While
+    else => Identifier
 }
 
 def TokenType::str(this): str => match this {

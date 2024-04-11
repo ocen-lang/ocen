@@ -5,7 +5,7 @@
 
 import @passes::generic_pass::GenericPass
 import std::vector::Vector
-import std::map::Map
+import std::set::{ Set }
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable }
 import @ast::scopes::{ TemplateInstance }
@@ -14,7 +14,7 @@ import std::libc::{ calloc, free }
 struct ReorderStructs {
     o: &GenericPass
     all_structs: &Vector<&Structure>
-    done: &Map<str, &Structure>
+    done: &Set<str>
 }
 
 def ReorderStructs::new(program: &Program): &ReorderStructs {
@@ -22,7 +22,7 @@ def ReorderStructs::new(program: &Program): &ReorderStructs {
     *pass = ReorderStructs(
         o: GenericPass::new(program),
         all_structs: Vector<&Structure>::new(),
-        done: Map<str, &Structure>::new(),
+        done: Set<str>::new(),
     )
     return pass
 }
@@ -41,11 +41,11 @@ def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
             for instance : struc.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Structure
-                .all_structs.push(sym.u.struc)
+                .all_structs += sym.u.struc
             }
 
         } else {
-            .all_structs.push(struc)
+            .all_structs += struc
         }
     }
     for child : ns.namespaces.iter_values() {
@@ -54,8 +54,8 @@ def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
 }
 
 def ReorderStructs::dfs(&this, struc: &Structure) {
-    if .done.get(struc.sym.full_name, null)? return
-    .done.insert(struc.sym.full_name, struc)
+    if struc.sym.full_name in .done return
+    .done += struc.sym.full_name
 
     for field : struc.fields.iter() {
         if field.type? and field.type.base == Structure {
@@ -63,7 +63,7 @@ def ReorderStructs::dfs(&this, struc: &Structure) {
             .dfs(other)
         }
     }
-    .o.program.ordered_structs.push(struc)
+    .o.program.ordered_structs += struc
 }
 
 // This function topologically sorts the structs based on depedencies, and stores

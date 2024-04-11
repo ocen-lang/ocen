@@ -6,13 +6,6 @@ import std::buffer::Buffer
 import @errors::Error
 import @tokens::{Token, TokenType}
 
-def is_hex_digit(c: char): bool {
-    if c.is_digit() return true
-    if 'a' <= c <= 'f' return true
-    if 'A' <= c <= 'F' return true
-    return false
-}
-
 struct Lexer {
     source: str
     source_len: u32
@@ -145,7 +138,7 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
     match .cur() {
         'x' => {
             .inc()
-            while .i < .source_len and is_hex_digit(.cur()) {
+            while .i < .source_len and .cur().is_hex_digit() {
                 .inc()
             }
         }

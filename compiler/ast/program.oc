@@ -161,8 +161,8 @@ struct Program {
 
     //* Mapping from file name to file contents
     c_embeds: &Map<str, str>
-
     sources: &Map<str, str>
+
     library_paths: &Vector<str>
 
     errors: &Vector<&Error>
@@ -201,9 +201,11 @@ def Program::new(): &Program {
     return prog
 }
 
-def Program::exit_with_errors(&this) {
-    display_error_messages(.errors, .error_level)
-    exit(1)
+def Program::exit_with_errors_if_any(&this) {
+    if not .errors.is_empty() {
+        display_error_messages(.errors, .error_level)
+        exit(1)
+    }
 }
 
 def Program::get_source_text(&this, span: Span): str {

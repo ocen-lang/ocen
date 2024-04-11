@@ -8,6 +8,20 @@ def encode(img: &Image, data: &Buffer) {
 }
 
 def decode(data: &Buffer): &Image {
-    assert false, "PPM decoding not implemented yet"
+    let data_sv = data.sv()
+    assert data_sv.chop_word() == "P6", "Unsupported PPM format"
+    let width = data_sv.chop_u32()
+    let height = data_sv.chop_u32()
+    assert data_sv.chop_u32() == 255, "Unsupported PPM Color depth"
+
+    let img = Image::new(width, height)
+    let io = data_sv.reader()
+    for let i = 0; i < width * height; i++ {
+        let r = io.read_u8()
+        let g = io.read_u8()
+        let b = io.read_u8()
+        img.data[i] = Color(r, g, b)
+    }
+    return img
 }
 

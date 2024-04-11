@@ -10,13 +10,18 @@ bootstrap/*
 !bootstrap/stage0.c
 
 test.oc
-./*.c
+/*.c
+/*.cc
 
 a.out
 out
 ocen
 find
 test.txt
+/*.oc
+/*.json
+/*.txt
+/*.py
 
 out.c
 out
@@ -26,3 +31,6 @@ out
 *.qoi
 
 tmp/**
+
+docs/build/
+docs/source/_build/

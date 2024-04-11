@@ -102,7 +102,7 @@ def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = nul
 }
 
 def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, error: bool): &Symbol => match sym.type {
-    SymbolType::Namespace => {
+    Namespace => {
         let ns = sym.u.ns
         let res = ns.find_importable_symbol(name)
         if error and not res? {
@@ -113,7 +113,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
         }
         yield res
     }
-    SymbolType::Structure => {
+    Structure => {
         let struc = sym.u.struc
         if sym.is_templated() {
             .error(Error::new_hint(
@@ -128,7 +128,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
         if not method? return null
         yield method.sym
     }
-    SymbolType::TypeDef => {
+    TypeDef => {
         let type_def = sym.u.type_def
         let method = type_def.methods.get(name, null)
         if error and not method? {
@@ -137,7 +137,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
         if not method? return null
         yield method.sym
     }
-    SymbolType::Enum => {
+    Enum => {
         let enum_ = sym.u.enum_
         let field = enum_.get_field(name)
         if field? then return field.sym
@@ -198,18 +198,18 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) 
 
 def GenericPass::import_all_from_symbol(&this, sym: &Symbol, export: bool) {
     match sym.type {
-        SymbolType::Namespace => .import_all_from_namespace(sym.u.ns, export)
-        SymbolType::TypeDef => {
+        Namespace => .import_all_from_namespace(sym.u.ns, export)
+        TypeDef => {
             for method : sym.u.type_def.methods.iter_values() {
                 .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
-        SymbolType::Structure => {
+        Structure => {
             for method : sym.u.struc.type.methods.iter_values() {
                 .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
-        SymbolType::Enum => {
+        Enum => {
             for field : sym.u.enum_.fields.iter() {
                 .insert_into_scope_checked_and_export(export, field.sym)
             }

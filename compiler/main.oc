@@ -2,24 +2,15 @@
 
 import std::fs
 import std::libc::{ exit, calloc, system }
-import std::vector::Vector
+import std::vector::{ Vector }
+import std::buffer::{ Buffer }
+import std::{ shift_args }
 
-import .ast::program::Program
-import .parser::Parser
+import .ast::program::{ Program }
+import .parser::{ Parser }
 import .passes::{ run_typecheck_passes, run_codegen_passes }
-import .docgen::generate_doc_json
-import .lsp::lsp_main
-
-def shift_args(argc: &i32, argv: &&str, where: str = "here"): str {
-    if *argc == 0 {
-        println(f"Expected argument but got none")
-        exit(1)
-    }
-    let arg = (*argv)[0]
-    (*argv) = (*argv) + 1
-    (*argc) = (*argc) - 1
-    return arg
-}
+import .docgen::{ generate_doc_json }
+import .lsp::{ lsp_main }
 
 def usage(code: i32, full: bool) {
     println("Usage:")
@@ -66,29 +57,29 @@ def save_and_compile_code(program: &Program, code: str) {
 
     if not compile_c then return
 
-    let cmdbuf = calloc(1, 1024) as str
+    let cmd = Buffer::make()
     let c_compiler = std::libc::getenv("CC")
     if not c_compiler? then c_compiler = "gcc"
-    cmdbuf.concat(`{c_compiler} -o {exec_path} {c_path}`)
+
+    cmd <<= `{c_compiler} -o {exec_path} {c_path}`
+
     for flag : program.c_flags.iter() {
-        cmdbuf.concat(" ")
-        cmdbuf.concat(flag)
+        cmd += " "
+        cmd += flag
     }
     for flag : extra_c_flags.iter() {
-        cmdbuf.concat(" ")
-        cmdbuf.concat(flag)
+        cmd += " "
+        cmd += flag
     }
-    if debug {
-        cmdbuf.concat(" -ggdb3")
-    }
+    if debug then cmd += " -ggdb3"
 
     if not silent {
-        println("[+] %s", cmdbuf)
+        println(f"[+] {cmd}")
     }
-    let exit_code = system(cmdbuf)
+    let exit_code = system(cmd.str())
     if exit_code != 0 {
         println("[-] Compilation failed")
-        exit(1)
+        std::exit(1)
     }
 }
 
@@ -140,7 +131,7 @@ def parse_args(argc: i32, argv: &str, program: &Program) {
 
 def main(argc: i32, argv: &str) {
     shift_args(&argc, &argv)
-    if argc > 1 and argv[0].eq("lsp") {
+    if argc > 1 and argv[0] == "lsp" {
         return lsp_main(argc, argv)
     }
 
@@ -158,20 +149,17 @@ def main(argc: i32, argv: &str) {
     program.gen_debug_info = debug
     Parser::parse_toplevel(program, filename, include_stdlib)
 
-    if not program.errors.is_empty() then program.exit_with_errors()
-
+    program.exit_with_errors_if_any()
     run_typecheck_passes(program)
 
-    if not program.errors.is_empty() then program.exit_with_errors()
-
+    program.exit_with_errors_if_any()
     if docs_path? {
         generate_doc_json(program, docs_path)
 
     } else {
         let code = run_codegen_passes(program)
 
-        if not program.errors.is_empty() then program.exit_with_errors()
-
+        program.exit_with_errors_if_any()
         save_and_compile_code(program, code)
     }
 }

@@ -340,7 +340,7 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
     .out += "}"
 }
 
-def CodeGenerator::gen_expression(&this, node: &AST) {
+def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false) {
     match node.type {
         IntLiteral => {
             let num_lit = &node.u.num_literal
@@ -568,13 +568,13 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             RightShift => {
                 let lhs = node.u.binary.lhs
                 let rhs = node.u.binary.rhs
-                .out += "("
+                if not is_top_level then .out += "("
                 .gen_expression(lhs)
                 .out += " "
                 .out += .get_op(node)
                 .out += " "
                 .gen_expression(rhs)
-                .out += ")"
+                if not is_top_level then .out += ")"
             }
             Equals |
             Assignment |
@@ -770,7 +770,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             }
 
             if node.u.child? {
-                .gen_expression(node.u.child)
+                .gen_expression(node.u.child, is_top_level: true)
             }
             .out += ";\n"
         }
@@ -810,7 +810,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             let else_body = node.u.if_stmt.els
             .gen_indent()
             .out += "if ("
-            .gen_expression(cond)
+            .gen_expression(cond, is_top_level: true)
             .out += ") "
             .gen_control_body(node, body)
 
@@ -828,7 +828,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             let body = node.u.loop.body
             .gen_indent()
             .out += "while ("
-            .gen_expression(cond)
+            .gen_expression(cond, is_top_level: true)
             .out += ") "
             .gen_block(body)
             .out += "\n"
@@ -844,13 +844,13 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
                 if init.type == ASTType::VarDeclaration {
                     .gen_var_declaration(init)
                 } else {
-                    .gen_expression(init)
+                    .gen_expression(init, is_top_level: true)
                 }
             }
             .out += "; "
-            if cond? then .gen_expression(cond)
+            if cond? then .gen_expression(cond, is_top_level: true)
             .out += "; "
-            if step? then .gen_expression(step)
+            if step? then .gen_expression(step, is_top_level: true)
             .out += ") "
             .gen_block(body)
             .out += "\n"
@@ -859,7 +859,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             let expr = node.u.assertion.expr
             .gen_indent()
             .out += "ae_assert("
-            .gen_expression(expr)
+            .gen_expression(expr, is_top_level: true)
             .out += ", "
             {
                 .out += "\""
@@ -892,7 +892,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         }
         else => {
             .gen_indent()
-            .gen_expression(node)
+            .gen_expression(node, is_top_level: true)
             .out += ";\n"
         }
     }

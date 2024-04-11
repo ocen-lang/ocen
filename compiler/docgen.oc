@@ -1,13 +1,15 @@
 
-import @ast::program::{ Program, Namespace }
-import @types::{ Type, BaseType }
-import @ast::nodes::*
-import @ast::scopes::Symbol
-import std::value::Value
-import std::vector::Vector
+import std::buffer::{ Buffer }
 import std::json
-import std::buffer::Buffer
-import std::span::Span
+import std::span::{ Span }
+import std::value::{ Value }
+import std::vector::{ Vector }
+
+import @ast::nodes::*
+import @ast::program::{ Program, Namespace }
+import @ast::scopes::Symbol
+import @errors::{ Error }
+import @types::{ Type, BaseType }
 
 struct DocGenerator {
     program: &Program
@@ -131,13 +133,17 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
                     return node.u.ident.name.copy()
                 }
                 else => {
-                    assert false, `Unhandled type in gen_typename_str: {node.type}`
+                    .program.error(Error::new(
+                        node.span, f"Unhandled node in gen_typename_str: {node.type}"
+                    ))
                     return "<unknown>"
                 }
             }
         }
         else => {
-            assert false, `Unhandled type in gen_typename_str: {type.base}`
+            .program.error(Error::new(
+                type.span, f"Unhandled type in gen_typename_str: {type.base}"
+            ))
             return "<unknown>"
         }
     }

@@ -2,6 +2,7 @@
 
 import std::value::{ Value }
 import std::buffer::Buffer
+import std::sv::SV
 import std::span::{ Span, Location }
 
 import @ast::nodes::*
@@ -196,6 +197,19 @@ def gen_span_json_with_filename(span: Span, search_loc: Location): &Value {
 def gen_hover_json(sym: &Symbol): &Value {
     let obj = Value::new(Dictionary)
     obj["hover"] = gen_hover_string(sym)
+    return obj
+}
+
+def gen_hover_string_with_docs(sym: &Symbol): &Value {
+    let sb = Buffer::make()
+    sb += gen_hover_string(sym)
+    if sym.comment? {
+        sb += "\n"
+        sb += sym.comment
+    }
+
+    let obj = Value::new(Dictionary)
+    obj["hover"] = sb.str()
     return obj
 }
 

@@ -74,7 +74,7 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
     }
 
     let resp = match type {
-        Hover => utils::gen_hover_json(usage)
+        Hover => utils::gen_hover_string_with_docs(usage)
         GoToDefinition => utils::gen_span_json_with_filename(usage.span, loc)
         GoToType => {
             let typ = utils::get_symbol_typedef(usage)

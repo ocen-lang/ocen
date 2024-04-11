@@ -660,7 +660,7 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, _lhs: &Type, _rhs: &Type
     return null
 }
 
-def TypeChecker::find_and_replace_overloaded_binary_op(&this, op: Operator, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
+def TypeChecker::find_and_replace_overloaded_op(&this, op: Operator, node: &AST, arg1: &AST, arg2: &AST, arg3: &AST = null): &Type {
     if op.needs_lhs_pointer_for_overload() {
         // Auto-address for a value if it's not a pointer
         if arg1.is_lvalue() and arg1.etype.base != Pointer {
@@ -697,7 +697,7 @@ def TypeChecker::find_and_replace_overloaded_binary_op(&this, op: Operator, node
 
 def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
     let op = node.u.binary.op
-    let res = .find_and_replace_overloaded_binary_op(op, node, node.u.binary.lhs, node.u.binary.rhs)
+    let res = .find_and_replace_overloaded_op(op, node, node.u.binary.lhs, node.u.binary.rhs)
     if res? return res
 
     match op {
@@ -769,7 +769,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
         NotEquals => {
             if not lhs.eq(rhs) or lhs.base == BaseType::Structure {
                 // Try using the == operator and negating the result
-                let res = .find_and_replace_overloaded_binary_op(Equals, node, node.u.binary.lhs, node.u.binary.rhs)
+                let res = .find_and_replace_overloaded_op(Equals, node, node.u.binary.lhs, node.u.binary.rhs)
                 if res? {
                     let copy = AST::new(UnaryOp, node.span)
                     *copy = *node
@@ -964,7 +964,7 @@ def TypeChecker::check_index(&this, node: &AST, hint: &Type, is_being_assigned: 
     if not lhs? or not rhs? return null
 
     if not is_being_assigned {
-        let res = .find_and_replace_overloaded_binary_op(Index, node, node.u.binary.lhs, node.u.binary.rhs)
+        let res = .find_and_replace_overloaded_op(Index, node, node.u.binary.lhs, node.u.binary.rhs)
         if res? return res
     }
 
@@ -1203,7 +1203,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     let lhs = .check_expression(node.u.binary.lhs)
                     let rhs = .check_expression(node.u.binary.rhs)
                     if not lhs? or not rhs? return .get_base_type(Bool, node.span)
-                    .find_and_replace_overloaded_binary_op(In, node, node.u.binary.rhs, node.u.binary.lhs)
+                    .find_and_replace_overloaded_op(In, node, node.u.binary.rhs, node.u.binary.lhs)
                     return .get_base_type(Bool, node.span)
                 }
                 Index => return .check_index(node, hint, is_being_assigned: false)
@@ -1234,7 +1234,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
 
                     if not .check_expression(arg3, hint: arg3_hint)? return null
 
-                    let res = .find_and_replace_overloaded_binary_op(IndexAssign, node, arg1, arg2, arg3)
+                    let res = .find_and_replace_overloaded_op(IndexAssign, node, arg1, arg2, arg3)
                     if res? return res
 
                     let lhs = .check_index(index, hint: null, is_being_assigned: true)
@@ -1814,7 +1814,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 
 // FIXME: This should really live somewhere else...
 def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
-    if not (sym.comment? and .o.program.check_doc_links) return
+    if not sym.comment? return
 
     let buffer = Buffer::make()
     let prev = 0
@@ -1831,6 +1831,18 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
 
         } else if doc[i] == doc[i+1] == '}' {
             let part = doc.substring(prev, i-prev)
+
+            // This means we're not generating docs, and don't need to
+            // replace the part with a unique ID. So we'll just add it
+            // to the buffer without the { and } and continue
+            if not .o.program.check_doc_links {
+                buffer += '`'
+                buffer <<= part
+                buffer += '`'
+                prev = i + 2
+                i++
+                continue
+            }
 
             // Parse a scoped-identifier
             let lexer = Lexer::make(part, sym.span.start.filename)
