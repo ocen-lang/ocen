@@ -89,7 +89,7 @@ def Map::remove(&this, key: K) {
     let last_item_index = .indices[last_index] as u32
     assert last_item_index == .items.size - 1 // Sanity check
 
-    .indices[last_index] = index as i32
+    .indices[last_index] = item_index as i32
 
     .indices[index] = INDEX_DELETED
     .items.data[item_index] = last_item
@@ -118,7 +118,7 @@ def Map::insert(&this, key: K, value: V) {
     let hash = key.hash()
     let index = .get_index(key, hash)
 
-    if .indices[index] == INDEX_FREE {
+    if .indices[index] < 0 {
         .indices[index] = .items.size as i32
         .items.push(Item<K, V>(hash, key, value))
         if .items.size as u32 >= .capacity {
