@@ -76,6 +76,7 @@ struct Symbol {
     span: Span
     //* Namespace it was defined in
     ns: &Namespace
+
     //* Comment attached to the declaration
     comment: str
     comment_loc: Location

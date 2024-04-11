@@ -1,10 +1,11 @@
 //* Contains the structs for the type system.
 
-import std::buffer::Buffer
-import std::vector::Vector
-import std::map::Map
-import std::span::Span
-import std::libc::calloc
+import std::buffer::{ Buffer }
+import std::vector::{ Vector }
+import std::map::{ Map }
+import std::span::{ Span }
+import std::libc::{ calloc }
+
 import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
 import @ast::scopes::{ Symbol, TemplateInstance }
 import @ast::program::Namespace
@@ -220,6 +221,7 @@ def Type::is_str(&this): bool {
     return .base == Alias and .sym.full_name.eq("str")
 }
 
+//* If this type is an alias, return the underlying type.
 def Type::unaliased(&this): &Type {
     if .base != Alias return this
     return .u.ptr.unaliased()

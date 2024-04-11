@@ -8,8 +8,7 @@ import std::libc::{ realloc, calloc, memcpy, memset, free, exit }
 import std::sv::{ SV }
 import std::{ Endian }
 
-// Maybe abstract away the resizing with a `Buffer` type,
-// and share this with `OldVector`
+//* A growable buffer / string-builder type holding bytes.
 [formatting "%.*s" "$.size, $.data"]
 struct Buffer {
     data: &u8
@@ -85,6 +84,7 @@ def Buffer::get_byte_at(this, index: u32): u8 {
 }
 
 [operator "+="]
+//* Write the buffer contents to this buffer
 def Buffer::write_buf(&this, buf: &Buffer) {
     .resize_if_necessary(new_size: .size + buf.size)
     memcpy(.data + .size, buf.data, buf.size)
@@ -92,12 +92,14 @@ def Buffer::write_buf(&this, buf: &Buffer) {
 }
 
 [operator "<<="]
+//* Write the buffer contents to this buffer and free it
 def Buffer::write_buf_f(&this, buf: &Buffer) {
     .write_buf(buf)
     buf.free()
 }
 
 [operator "+="]
+//* Write the string to the buffer
 def Buffer::write_str(&this, s: str) {
     let len = s.len() as u32
     .resize_if_necessary(new_size: .size + len) // +1 for null terminator
@@ -106,7 +108,7 @@ def Buffer::write_str(&this, s: str) {
 }
 
 [operator "<<="]
-// Put and free the string
+//* Write the string to the buffer and free it
 def Buffer::write_str_f(&this, s: str) {
     .write_str(s)
     free(s)
@@ -126,6 +128,7 @@ def Buffer::write_sv(&this, sv: SV) => .write_bytes(sv.data as &u8, sv.len)
 
 //* Write a signed 64-bit integer with the given endianness
 def Buffer::write_i64(&this, value: i64, endian: Endian = Big) { .write_u64(value as u64, endian) }
+
 //* Write an unsigned 64-bit integer with the given endianness
 def Buffer::write_u64(&this, value: u64, endian: Endian = Big) {
     .resize_if_necessary(.size + 8)
@@ -174,10 +177,14 @@ def Buffer::write_u8(&this, value: u8) {
     .size += 1
 }
 
+//* Get a BytesReader object for reading Binary data
 def Buffer::reader(this): BytesReader => BytesReader::make(.data, .size)
 
-def Buffer::str(this): str => .data as str
+//* Allocate a new string with the contents of the buffer and return it
 def Buffer::new_str(this): str => (.data as str).copy()
+//* Return a reference to the buffer's contents as a string
+def Buffer::str(this): str => .data as str
+//* Return a reference to the buffer's contents as an SV
 def Buffer::sv(this): SV => SV(.data as str, .size)
 
 def Buffer::copy(&this): Buffer {
@@ -192,6 +199,7 @@ def Buffer::copy(&this): Buffer {
 
 def Buffer::clear(&this) {
     .size = 0
+    memset(.data, 0, .capacity)
 }
 
 def Buffer::free(&this) {

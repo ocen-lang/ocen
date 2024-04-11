@@ -31,6 +31,7 @@ struct Parser {
 
     attrs: &Vector<&Attribute>
     attrs_span: Span
+    attrs_start_tok: &Token
 }
 
 def Parser::make(program: &Program, ns: &Namespace): Parser {
@@ -41,7 +42,8 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         program: program,
         ns: ns,
         attrs: Vector<&Attribute>::new(),
-        attrs_span: Span::default()
+        attrs_span: Span::default(),
+        attrs_start_tok: null,
     )
 }
 
@@ -138,6 +140,7 @@ def Parser::clear_attributes(&this) {
         std::free(attr)
     }
     .attrs.clear()
+    .attrs_start_tok = null
 }
 
 def Parser::is_compound_operator(&this, op: Operator): bool => match op {
@@ -1300,9 +1303,17 @@ def Parser::parse_template_params(&this, sym: &Symbol, out_span: &Span = null) {
 }
 
 def Parser::add_doc_comment(&this, sym: &Symbol, token: &Token) {
-    if not token.comment? return
-    sym.comment = token.comment
-    sym.comment_loc = token.comment_loc
+    if token.comment? {
+        sym.comment = token.comment
+        sym.comment_loc = token.comment_loc
+    }
+
+    if .attrs.size > 0 and .attrs_start_tok.comment? {
+        if not sym.comment? {
+            sym.comment = .attrs_start_tok.comment
+            sym.comment_loc = .attrs_start_tok.comment_loc
+        }
+    }
 }
 
 def Parser::parse_function(&this): &Function {
@@ -1762,6 +1773,7 @@ def Parser::parse_attribute(&this) {
     let start = .consume(TokenType::OpenSquare)
     if .attrs.size == 0 {
         .attrs_span = start.span
+        .attrs_start_tok = start
     }
 
     // FIXME: Should `extern` be a keyword once we have fully moved to attrs?
