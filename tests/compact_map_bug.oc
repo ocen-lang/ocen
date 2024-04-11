@@ -1,0 +1,37 @@
+/// out: "OK"
+
+// https://github.com/ocen-lang/ocen/issues/5
+
+import std::compact_map::Map
+
+def main() {
+    let map = Map<u32, str>::new();
+    map.insert(1, "111")
+    map.insert(2, "222")
+    assert map[1] == "111"
+    assert map.contains(2)
+
+    map.remove(1)
+
+    assert map.contains(2)
+    assert map[2] == "222"
+
+    map[1] = "333"
+    assert map[1] == "333"
+    assert map.contains(1)
+    assert map.contains(2)
+    assert map[2] == "222"
+
+    map.remove(1)
+    assert not map.contains(1)
+    assert map.contains(2)
+    assert map[2] == "222"
+
+    map[1] = "444"
+    map.remove(2)
+    assert map.contains(1)
+    assert not map.contains(2)
+    assert map[1] == "444"
+
+    println("OK")
+}
