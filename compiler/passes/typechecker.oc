@@ -367,7 +367,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 res = .scope().lookup_recursive(name)
             }
 
-            node.resolved_symbol = res
+            node.set_resolved_symbol(res)
             if error and not res? {
                 .error(Error::new(node.span, "Couldn't find this identifier"))
             }
@@ -398,7 +398,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             node.u.spec.template_args = resolved_args
 
             if not resolve_templates {
-                node.resolved_symbol = base
+                node.set_resolved_symbol(base)
                 return base
             }
 
@@ -436,6 +436,7 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type = nul
         }
         node.etype = stmt.etype
         yield_span = stmt.span
+        node.u.block.final_stmt = stmt
     }
     .o.pop_scope()
 }
@@ -580,7 +581,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             if not sym? return null
 
             sym = sym.remove_alias()
-            callee.resolved_symbol = sym
+            callee.set_resolved_symbol(sym)
 
             yield match sym.type {
                 Structure | TypeDef => {
@@ -681,7 +682,7 @@ def TypeChecker::find_and_replace_overloaded_op(&this, op: Operator, node: &AST,
     //        but we know the correct symbol so we're resolving it manually.
     let callee = AST::new(Identifier, node.u.binary.op_span)
     callee.u.ident.name = func.sym.name
-    callee.resolved_symbol = func.sym
+    callee.set_resolved_symbol(func.sym)
 
     let args = Vector<&Argument>::new()
     if arg1? args.push(Argument::new(arg1))
@@ -918,7 +919,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
         let field = struc.get_field(rhs_name)
         if field? {
             node.u.member.is_pointer = is_pointer
-            node.resolved_symbol = field.sym
+            node.set_resolved_symbol(field.sym)
             return field.type
         }
     }
@@ -935,7 +936,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
                 return null
             }
             node.u.member.is_pointer = is_pointer
-            node.resolved_symbol = method.sym
+            node.set_resolved_symbol(method.sym)
             return method.type
         }
     }
@@ -1353,10 +1354,20 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
 
     let defolt = node.u.match_stmt.defolt
     if mapping.size != enum_.fields.size {
+        let buf = Buffer::make()
+        buf += "Remaining fields: "
+        let first = true
+        for field in enum_.fields.iter() {
+            if not mapping.contains(field.sym.name) {
+                if not first then buf += " | "
+                buf += field.sym.name
+                first = false
+            }
+        }
         if not defolt? {
             .error(Error::new_note(
-                node.span, "Match does not cover all cases",
-                `Only {mapping.size} of {enum_.fields.size} cases are covered`
+                node.u.match_stmt.expr.span, f"Match does not cover all cases (Only {mapping.size} of {enum_.fields.size})",
+                buf.str()
             ))
         } else {
             .check_expression_statement(node, defolt, is_expr, hint)
@@ -1511,16 +1522,20 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
 
     // For now, we'll allow expression statements to early-return from the function.
     // Maybe this should be disallowed?
+
     let ret = body.etype
     if body.returns {
         // Do nothing
     } else if not ret? {
-        .error(Error::new(body.span, `Must yield a value in this branch, body type is {body.type}`))
+        let start_span = Span(body.span.start, body.span.start)
+        .error(Error::new(start_span, `Must yield a value in this branch, body type is {body.type}`))
     } else if not node.etype? {
         node.etype = ret
     } else if not node.etype.eq(ret) {
+        let yield_stmt = if node.type == Block then node.u.block.final_stmt else node
+        if not yield_stmt? yield_stmt = node
         .error(Error::new_note(
-            body.span, "Yield type of branch doesn't match previous branches",
+            yield_stmt.span, "Yield type of branch doesn't match previous branches",
             `Expected type '{node.etype.str()}', got '{ret.str()}'`
         ))
     }
@@ -1960,7 +1975,7 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
     return typ
 }
 
-def TypeChecker::handle_import_path_base(&this, imp: &Import, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
+def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
     for let i = start_idx as u32; i < parts.size; i += 1 {
         let part = parts.at(i)
 
@@ -1973,7 +1988,7 @@ def TypeChecker::handle_import_path_base(&this, imp: &Import, parts: &Vector<&Im
                 let paths = part.u.paths
                 for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j)
-                    .handle_import_path_base(imp, path, base, alias, 0)
+                    .handle_import_path_base(node, imp, path, base, alias, 0)
                 }
                 return
             }
@@ -1999,6 +2014,7 @@ def TypeChecker::handle_import_path_base(&this, imp: &Import, parts: &Vector<&Im
         base = new_base
         alias = part.u.single.alias
         if not alias? then alias = name
+        // Note: We don't count an imported object as a reference.
         part.resolved_symbol = base
     }
 
@@ -2060,8 +2076,9 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
-    part.resolved_symbol = base
-    .handle_import_path_base(&path, path.parts, base, alias, start_idx: 1)
+    // Imports don't count as references for LSP
+    node.set_resolved_symbol(base, add_reference: false)
+    .handle_import_path_base(node, &path, path.parts, base, alias, start_idx: 1)
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {

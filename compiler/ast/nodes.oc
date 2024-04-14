@@ -151,6 +151,7 @@ def Function::new(): &Function {
 struct Block {
     statements: &Vector<&AST>
     scope: &Scope
+    final_stmt: &AST
 }
 
 struct Identifier {
@@ -386,6 +387,13 @@ def AST::new_binop(op: Operator, lhs: &AST, rhs: &AST, op_span: Span): &AST {
     ast.u.binary.rhs = rhs
     ast.u.binary.op_span = op_span
     return ast
+}
+
+def AST::set_resolved_symbol(&this, sym: &Symbol, add_reference: bool = true) {
+    .resolved_symbol = sym
+    if sym? and add_reference {
+        sym.add_reference(.span)
+    }
 }
 
 def AST::is_identifier(&this): bool => match .type {

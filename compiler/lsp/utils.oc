@@ -174,6 +174,16 @@ def gen_error_json(err: &Error): &Value {
     obj["severity"] = "Error"
     obj["span"] = gen_span_json(err.span1)
     obj["message"] = err.msg1
+    match err.type {
+        WithHint | WithNote => {
+            let extra_info = Value::new(Dictionary)
+            let extra_span = if err.type == WithHint then err.span2 else err.span1
+            extra_info["span"] = gen_span_json(extra_span)
+            extra_info["message"] = err.msg2
+            obj["extra_info"] = extra_info
+        }
+        Standard => {}
+    }
     return obj
 }
 
@@ -344,6 +354,14 @@ def gen_completion_from_symbol(sym: &Symbol): &Value {
         }
     }
     return val
+}
+
+def gen_references_json(sym: &Symbol, loc: Location): &Value {
+    let obj = Value::new(List)
+    for ref in sym.references.iter() {
+        obj += gen_span_json_with_filename(ref, loc)
+    }
+    return obj
 }
 
 def gen_completions_json(sym: &Symbol, ns_lookup: bool = false): &Value {

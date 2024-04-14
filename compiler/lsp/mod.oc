@@ -29,6 +29,7 @@ enum CommandType {
     None
     DocumentSymbols
     Completions
+    References
     Validate
 }
 
@@ -75,7 +76,13 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
 
     let resp = match type {
         Hover => utils::gen_hover_string_with_docs(usage)
-        GoToDefinition => utils::gen_span_json_with_filename(usage.span, loc)
+        GoToDefinition => {
+            let jump_span = match usage.type {
+                Namespace => usage.u.ns.span
+                else => usage.span
+            }
+            yield utils::gen_span_json_with_filename(jump_span, loc)
+        }
         GoToType => {
             let typ = utils::get_symbol_typedef(usage)
             if typ? and not typ.can_have_methods() and typ.base == Pointer {
@@ -85,6 +92,7 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
             yield utils::gen_span_json_with_filename(typ.span, loc)
         }
         Completions => utils::gen_completions_json(usage, ns_lookup: finder.found_in_ns_lookup)
+        References => utils::gen_references_json(usage, loc)
         else => panic("Unhandled command type")
     }
     if not resp? return
@@ -145,6 +153,7 @@ def lsp_usage(code: i32, full: bool) {
     println("    -d <line> <col>    Find definition for the given location")
     println("    -t <line> <col>    Find type for the given location")
     println("    -c <line> <col>    Completions for the given location")
+    println("    -r <line> <col>    References for the given location")
     println("    -v                 Verbose output")
     println("    --doc-symbols      List all symbols in the file")
     println("    --validate         List all errors in the file")
@@ -164,12 +173,13 @@ def lsp_main(argc: i32, argv: &str): i32 {
         let arg = shift_args(&argc, &argv)
         match arg {
             "--help" => lsp_usage(0, true)
-            "-h" | "-d" | "-t" | "-c" => {
+            "-h" | "-d" | "-t" | "-c" | "-r" => {
                 cmd_type = match arg {
                     "-h" => Hover
                     "-d" => GoToDefinition
                     "-t" => GoToType
                     "-c" => Completions
+                    "-r" => References
                     else => panic("Invalid command type")
                 }
                 line = shift_args(&argc, &argv).to_u32()
@@ -215,10 +225,10 @@ def lsp_main(argc: i32, argv: &str): i32 {
     program.library_paths.push(ocen_root)
 
     let contents = fs::read_file(file_path).str()
-    Parser::parse_toplevel(program, show_path, true, contents)
+    Parser::parse_toplevel(program, show_path, true, contents, include_workspace_main: true)
 
     match cmd_type {
-        Hover | GoToDefinition | GoToType | Completions  => {
+        Hover | GoToDefinition | GoToType | Completions | References => {
             let loc = Location(show_path, line, col, 0)
             handle_location_command(program, cmd_type, loc)
         }
