@@ -34,6 +34,7 @@ def usage(code: i32, full: bool) {
     println("    --docs path    Output documentation JSON (default: none)")
     println("    --cflags flags Additional C flags (can be used multiple times)")
     println("    -h             Display this information")
+    println("    -r <args>      Run executable with arguments (can only be at the end)")
     exit(code)
 }
 
@@ -47,6 +48,7 @@ let error_level: u32 = 2
 let docs_path: str = null
 let include_stdlib: bool = true
 let extra_c_flags: &Vector<str>
+let run_after_compile: bool = false
 
 def save_and_compile_code(program: &Program, code: str) {
     if not c_path? {
@@ -83,11 +85,26 @@ def save_and_compile_code(program: &Program, code: str) {
     }
 }
 
-def parse_args(argc: i32, argv: &str, program: &Program) {
+def run_executable(argc: i32, argv: &str) {
+    let cmd = Buffer::make()
+    cmd += exec_path
+    for let i = 0i32; i < argc; i++ {
+        cmd += " "
+        cmd += argv[i]
+    }
+
+    if not silent {
+        println(f"[+] {cmd}")
+    }
+    let exit_code = system(cmd.str())
+    std::exit(exit_code)
+}
+
+def parse_args(argc: &i32, argv: &&str, program: &Program) {
     extra_c_flags = Vector<str>::new()
 
-    while argc > 0 {
-        let arg = shift_args(&argc, &argv)
+    while *argc > 0 {
+        let arg = shift_args(argc, argv)
         match arg {
             "--help" => usage(code: 0, true)
             "-s" => silent = true
@@ -97,18 +114,23 @@ def parse_args(argc: i32, argv: &str, program: &Program) {
                 program.keep_all_code = true
             }
             "--no-dce" => program.keep_all_code = true
-            "-o" => exec_path = shift_args(&argc, &argv)
-            "-c" => c_path = shift_args(&argc, &argv)
-            "-l" => program.library_paths.push(shift_args(&argc, &argv))
+            "-o" => exec_path = shift_args(argc, argv)
+            "-c" => c_path = shift_args(argc, argv)
+            "-l" => program.library_paths.push(shift_args(argc, argv))
             "-e0" => error_level = 0
             "-e1" => error_level = 1
             "-e2" => error_level = 2
             "--docs" => {
-                docs_path = shift_args(&argc, &argv)
+                docs_path = shift_args(argc, argv)
                 program.check_doc_links = true
             }
             "--no-stdlib" => include_stdlib = false
-            "--cflags" | "-cf" => extra_c_flags.push(shift_args(&argc, &argv))
+            "--cflags" | "-cf" => extra_c_flags.push(shift_args(argc, argv))
+            "-r" | "--run" => {
+                run_after_compile = true
+                // All remaining arguments are for the executable
+                break
+            }
             else => {
                 if arg[0] == '-' {
                     println("Unknown option: %s", arg)
@@ -127,6 +149,10 @@ def parse_args(argc: i32, argv: &str, program: &Program) {
         println("No file specified")
         usage(code: 1, false)
     }
+    if run_after_compile and not compile_c {
+        println("Cannot run without compiling")
+        usage(code: 1, false)
+    }
 }
 
 def main(argc: i32, argv: &str) {
@@ -143,7 +169,7 @@ def main(argc: i32, argv: &str) {
         program.library_paths.push(ocen_root)
     }
 
-    parse_args(argc, argv, program)
+    parse_args(&argc, &argv, program)
 
     program.error_level = error_level
     program.gen_debug_info = debug
@@ -161,5 +187,7 @@ def main(argc: i32, argv: &str) {
 
         program.exit_with_errors_if_any()
         save_and_compile_code(program, code)
+
+        if run_after_compile then run_executable(argc, argv)
     }
 }

@@ -2051,6 +2051,7 @@ def Parser::find_external_library(&this, name: str): &Namespace {
     )
     ns.sym.u.ns = ns
     ns.always_add_to_scope = true
+    ns.internal_project_root = ns
     .try_load_mod_for_namespace(ns)
     return ns
 }
@@ -2110,8 +2111,6 @@ def Parser::load_file(&this, filename: str, contents: str = null) {
     let span = Span(loc, loc)
     .ns.span = span
     .ns.sym.span = span
-
-    // println(f"Loading file: {filename} into {.ns.sym.display}")
 
     if not contents? {
         contents = fs::read_file(filename).str()
@@ -2233,6 +2232,11 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
         let loc = Location(path, 0, 0, 0)
         new_ns.sym = Symbol::new_with_parent(Namespace, cur_ns, cur_ns.sym, base, Span(loc, loc))
         new_ns.sym.u.ns = new_ns
+
+        if i == (start - 1) {
+            new_ns.internal_project_root = new_ns
+        }
+
         cur_ns.namespaces.insert(base, new_ns)
         cur_ns = new_ns
     }
@@ -2276,7 +2280,7 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     .ns = child_ns
 }
 
-def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool, file_contents: str = null) {
+def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool, file_contents: str = null, include_workspace_main: bool = true) {
     if program.err_jmp_ctx.set_jump_point() > 0 return
 
     let parser = Parser::make(program, program.global)
@@ -2287,4 +2291,28 @@ def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: boo
     }
     parser.create_namespaces_for_initial_file(filename, false)
     parser.load_file(filename, file_contents)
+
+
+    let file_ns = parser.ns
+    if include_workspace_main and file_ns.internal_project_root? {
+        let potential_main = f"{file_ns.internal_project_root.path}/main.oc"
+        if fs::file_exists(potential_main) {
+            let main_ns = file_ns.internal_project_root.namespaces.get("main", null)
+            if main_ns == file_ns return
+
+            if not main_ns? {
+                // FIXME: why am I having to create the namespace here manually?
+                let root = file_ns.internal_project_root
+                main_ns = Namespace::new(parent: root, path: "main")
+                main_ns.sym = Symbol::new_with_parent(Namespace, root, root.sym, "main", Span::default())
+                main_ns.sym.u.ns = main_ns
+                root.namespaces.insert("main", main_ns)
+            }
+
+            parser.ns = main_ns
+            parser.load_file(potential_main)
+        } else {
+            potential_main.free()
+        }
+    }
 }

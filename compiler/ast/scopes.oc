@@ -81,6 +81,9 @@ struct Symbol {
     comment: str
     comment_loc: Location
 
+    //* Span of the references to this symbol (for LSP)
+    references: &Vector<Span>
+
     type: SymbolType
     u: SymbolUnion
 
@@ -99,6 +102,7 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_
     let item = std::new<Symbol>()
     item.name = name
     item.display = display
+    item.references = Vector<Span>::new(capacity: 4)  // Keep the capacity low by default
 
     // Replace invalid characters in full_name, since we codegen it to C
     let full_name_len = full_name.len()
@@ -155,6 +159,28 @@ def Symbol::remove_alias(&this): &Symbol => match .type {
         return this
     }
     else => this
+}
+
+def Symbol::add_reference(&this, span: Span) {
+    if not this? return
+    .references.push(span)
+
+    if .type == TypeDef and .u.type_def.sym != this {
+        .u.type_def.sym.add_reference(span)
+        return
+    }
+
+    // Also add a reference to the original symbol if this is a template instance
+    let parent_type = match .type {
+        Structure => .u.struc.type
+        Function => .u.func.type
+        else => null
+    }
+
+    if not parent_type? return
+    if not parent_type.template_instance? return
+    let child_sym = parent_type.template_instance.parent
+    child_sym.add_reference(span)
 }
 
 struct Scope {

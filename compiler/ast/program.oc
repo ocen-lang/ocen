@@ -56,6 +56,8 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     let ns = std::new<Namespace>()
     ns.parent = parent
     let parent_scope = if parent? then parent.scope else null
+    let parent_root = if parent? then parent.internal_project_root else null
+
     ns.scope = Scope::new(parent_scope)
     ns.functions = Vector<&Function>::new()
     ns.structs = Vector<&Structure>::new()
@@ -68,6 +70,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.exported_symbols = Map<str, &Symbol>::new()
     ns.path = path
     ns.is_a_file = false
+    ns.internal_project_root = parent_root
     return ns
 }
 
@@ -110,42 +113,13 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
 
 // FIXME: There's logic here that is already in Parser, need to refactor these
 def Namespace::get_project_root(&this, span: Span, program_for_errors: &Program): &Namespace {
-    if .checked_project_root then return .internal_project_root
-    .checked_project_root = true
-
-    let cur = this
-    let root: &Namespace = null
-
-    while cur? {
-        // Short circuit if we've already found the project root
-        if cur.internal_project_root? {
-            root = cur.internal_project_root
-            break
-        }
-        if not cur.is_a_file {
-            let potential_main_path = `{cur.path}/main.oc`
-            if std::fs::file_exists(potential_main_path) {
-                if root? {
-                    program_for_errors.error(Error::new_note(
-                        span,
-                        f"Multiple project roots found: {root.path} and {cur.path}",
-                        f"Only one `main.oc` file is allowed per project, in the root."
-                    ))
-                }
-                root = cur
-            }
-            potential_main_path.free()
-        }
-        cur = cur.parent
-    }
-    .internal_project_root = root
-    if not root? {
+    if not .internal_project_root? {
         program_for_errors.error(Error::new_note(
             span, "No project root found, can't use a Project Namespace import",
             "A project root is a top-level directory containing a `main.oc` file."
         ))
     }
-    return root
+    return .internal_project_root
 }
 
 struct Program {
