@@ -1,6 +1,7 @@
 //! Represents locations / spans in source code
 
 import std // This is just here to separate docs for modules and structs
+import std::traits::hash::{ pair_hash }
 
 //* A location in a source file
 [formatting "%s:%u:%u" "$.filename, $.line, $.col"]
@@ -19,6 +20,9 @@ def Location::default(): Location {
     loc.index = 0
     return loc
 }
+
+def Location::hash(this): u32 => pair_hash(.filename.hash(), .index.hash())
+def Location::eq(this, other: Location): bool => .filename.eq(other.filename) and .index == other.index
 
 def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}
 
@@ -51,6 +55,9 @@ def Span::default(): Span {
     span.end = Location(filename: "<default>", line: 0, col: 0, index: 0)
     return span
 }
+
+def Span::hash(this): u32 => pair_hash(.start.hash(), .end.index.hash())
+def Span::eq(this, other: Span): bool => .start.eq(other.start) and .end.eq(other.end)
 
 def Span::is_valid(this): bool {
     return .start.is_valid() and .end.is_valid()

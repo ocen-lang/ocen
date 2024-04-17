@@ -249,15 +249,21 @@ def Finder::find_in_type(&this, type: &Type): bool {
 }
 
 def Finder::find_in_function(&this, func: &Function): bool {
+    // If this is a template instance, we skip checking it at all.
+    // The original template (which should be checked separately) will
+    // have the same span as this instance, and is what we are looking for.
+    if func.is_template_instance() return false
+
     if func.sym.span.contains_loc(.loc) {
         return .set_usage(func.sym)
     }
+    if .find_in_expression(func.name_ast) return true
 
     for param : func.params.iter() {
         if .find_in_var(param) return true
     }
 
-    let ret_type = func.return_type
+    let ret_type = func.parsed_return_type
     if ret_type? and .find_in_type(ret_type) return true
 
     return func.body? and .find_in_statement(func.body)
@@ -265,6 +271,11 @@ def Finder::find_in_function(&this, func: &Function): bool {
 
 def Finder::find_in_program(&this, ns: &Namespace): bool {
     for struc : ns.structs.iter() {
+        // If this is a template instance, we skip checking it at all.
+        // The original template (which should be checked separately) will
+        // have the same span as this instance, and is what we are looking for.
+        if struc.type? and struc.type.template_instance? continue
+
         if struc.sym.span.contains_loc(.loc) return .set_usage(struc.sym)
         for field : struc.fields.iter() {
             if .find_in_var(field) return true

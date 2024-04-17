@@ -25,6 +25,7 @@ enum ASTType {
     IntLiteral
     Member
     NSLookup
+    OverloadedOperator
     Return
     ArrowReturn
     Yield
@@ -122,11 +123,16 @@ def Enum::get_field(&this, name: str): &Variable {
 struct Function {
     sym: &Symbol
     params: &Vector<&Variable>
+    //! (Eventually) resolved return type of the function
     return_type: &Type
     body: &AST
-    exits: bool
-    span: Span
     scope: &Scope
+
+    span: Span
+    //! Used for LSP, to know span of (unresolved) return type
+    parsed_return_type: &Type
+    //! Store full AST for methods `Foo::bar()`
+    name_ast: &AST
 
     type: &Type
     checked: bool
@@ -135,6 +141,7 @@ struct Function {
     is_variadic_format: bool
     operator_overloads: &Vector<Operator>
 
+    exits: bool
     is_method: bool
     is_static: bool
     parent_type: &Type
@@ -146,6 +153,14 @@ def Function::new(): &Function {
     let func = std::new<Function>()
     func.params = Vector<&Variable>::new()
     return func
+}
+
+//! Checks if this is an instance of a template function, or if it's
+//! a method of an instance of a templated struct.
+def Function::is_template_instance(&this): bool {
+    if .type? and .type.template_instance? return true
+    if .parent_type? and .parent_type.template_instance? return true
+    return false
 }
 
 struct Block {
@@ -192,6 +207,7 @@ enum ImportPartType {
 
 struct ImportPartSingle {
     name: str
+    name_span: Span
     alias: str
     alias_span: Span
 }
@@ -387,13 +403,6 @@ def AST::new_binop(op: Operator, lhs: &AST, rhs: &AST, op_span: Span): &AST {
     ast.u.binary.rhs = rhs
     ast.u.binary.op_span = op_span
     return ast
-}
-
-def AST::set_resolved_symbol(&this, sym: &Symbol, add_reference: bool = true) {
-    .resolved_symbol = sym
-    if sym? and add_reference {
-        sym.add_reference(.span)
-    }
 }
 
 def AST::is_identifier(&this): bool => match .type {

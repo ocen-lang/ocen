@@ -22,6 +22,9 @@ import @types::{ Type, BaseType, FunctionType, UnresolvedTemplate, ArrayType }
 struct TypeChecker {
     o: &GenericPass
     unchecked_functions: &Vector<&Function>
+
+    //! Used for checking if we should add a reference to a symbol when resolving it
+    in_template_instance: bool
 }
 
 // Some convenience accessors from the GenericPass
@@ -30,6 +33,31 @@ def TypeChecker::scope(&this): &Scope => .o.scope()
 
 def TypeChecker::get_base_type(&this, base: BaseType, span: Span): &Type => .o.program.get_base_type(base, span)
 def TypeChecker::get_type_by_name(&this, name: str, span: Span): &Type => .o.program.get_type_by_name(name, span)
+
+def TypeChecker::set_resolved_symbol(&this, node: &AST, sym: &Symbol) {
+    node.resolved_symbol = sym
+
+    // Import statements themselves don't add a reference to the symbol
+    if node.type == Import return
+
+    let span = match node.type {
+        Identifier => node.span
+        Import | OverloadedOperator | Specialization => {
+            // Don't add references for these
+            return
+        }
+        // Want to find the span of the actual identifier
+        NSLookup => node.u.lookup.rhs_span
+        Member => node.u.member.rhs_span
+        else => {
+            assert false, `Unhandled node type in set_resolved_symbol: {node.type}`
+        }
+    }
+
+    if sym? and not .in_template_instance {
+        sym.add_reference(span)
+    }
+}
 
 def TypeChecker::resolve_type(
     &this,
@@ -255,6 +283,8 @@ def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &T
     resolved_func.scope = .scope()
 
     .check_function_declaration(resolved_func)
+    resolved_func.type.template_instance = instance
+
     .unchecked_functions.push(resolved_func)
 }
 
@@ -290,6 +320,14 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
     // This is the scope that we'll use to resolve the template parameters
     let scope = Scope::new(sym.ns.scope)
     .o.push_scope(scope)
+
+    // NOTE: If we have Foo<T> and we instantiate Foo<Bar>, we don't want to add to `Bar` for all the
+    //       `T`s we see in the struct members, and in all attached methods. This is completely unhelpful
+    //       since this is not an explicit usage of `Bar` in the source, and is not what the user intended
+    //       to find when they search for references to `Bar`.
+    let was_in_template_instance = .in_template_instance
+    .in_template_instance = true
+    defer .in_template_instance = was_in_template_instance
 
     // Add the template arguments to the scope with corresponding names
     for let i = 0; i < template_params.size; i += 1 {
@@ -367,7 +405,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 res = .scope().lookup_recursive(name)
             }
 
-            node.set_resolved_symbol(res)
+            .set_resolved_symbol(node, res)
             if error and not res? {
                 .error(Error::new(node.span, "Couldn't find this identifier"))
             }
@@ -398,7 +436,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             node.u.spec.template_args = resolved_args
 
             if not resolve_templates {
-                node.set_resolved_symbol(base)
+                .set_resolved_symbol(node, base)
                 return base
             }
 
@@ -581,7 +619,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             if not sym? return null
 
             sym = sym.remove_alias()
-            callee.set_resolved_symbol(sym)
+            .set_resolved_symbol(callee, sym)
 
             yield match sym.type {
                 Structure | TypeDef => {
@@ -678,11 +716,9 @@ def TypeChecker::find_and_replace_overloaded_op(&this, op: Operator, node: &AST,
     let func = .o.program.operator_overloads.get(overload, defolt: null)
     if not func? return null
 
-    // NOTE: This is a little hacky; it's not actually an identifier
-    //        but we know the correct symbol so we're resolving it manually.
-    let callee = AST::new(Identifier, node.u.binary.op_span)
+    let callee = AST::new(OverloadedOperator, node.u.binary.op_span)
     callee.u.ident.name = func.sym.name
-    callee.set_resolved_symbol(func.sym)
+    .set_resolved_symbol(callee, func.sym)
 
     let args = Vector<&Argument>::new()
     if arg1? args.push(Argument::new(arg1))
@@ -919,7 +955,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
         let field = struc.get_field(rhs_name)
         if field? {
             node.u.member.is_pointer = is_pointer
-            node.set_resolved_symbol(field.sym)
+            .set_resolved_symbol(node, field.sym)
             return field.type
         }
     }
@@ -936,7 +972,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
                 return null
             }
             node.u.member.is_pointer = is_pointer
-            node.set_resolved_symbol(method.sym)
+            .set_resolved_symbol(node, method.sym)
             return method.type
         }
     }
@@ -1710,6 +1746,14 @@ def TypeChecker::check_function(&this, func: &Function) {
     let new_scope = Scope::new(func.scope)
     let params = func.params
 
+    // NOTE: If we have Foo<T> and we instantiate Foo<Bar>, we don't want to add to `Bar` for all the
+    //       `T`s we see in the struct members, and in all attached methods. This is completely unhelpful
+    //       since this is not an explicit usage of `Bar` in the source, and is not what the user intended
+    //       to find when they search for references to `Bar`.
+    let was_in_template_instance = .in_template_instance
+    .in_template_instance = .in_template_instance or func.is_template_instance()
+    defer .in_template_instance = was_in_template_instance
+
     // NOTE: If this is a (not-yet-specialized) template function, we're going to get a
     //       whole bunch of errors from type-checking. We don't want to report those errors
     //       to the user, because they're not really errors in the user's code, we're just
@@ -2014,8 +2058,9 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
         base = new_base
         alias = part.u.single.alias
         if not alias? then alias = name
-        // Note: We don't count an imported object as a reference.
+
         part.resolved_symbol = base
+        base.add_reference(part.u.single.name_span)
     }
 
     .o.insert_into_scope_checked(base, name: alias)
@@ -2076,8 +2121,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
-    // Imports don't count as references for LSP
-    node.set_resolved_symbol(base, add_reference: false)
+    .set_resolved_symbol(node, base)
     .handle_import_path_base(node, &path, path.parts, base, alias, start_idx: 1)
 }
 
@@ -2175,6 +2219,54 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
     }
 }
 
+//! Check if this is a valid overload: do the number of params and types match expected? If yes,
+//! add it to the list.
+def TypeChecker::check_operator_overload_function(&this, func: &Function, op: Operator) {
+    let num_params_needed = op.num_overload_params()
+    if num_params_needed != func.params.size {
+        .error(Error::new(func.sym.span, `Operator overload for {op} must have {num_params_needed} parameters`))
+        return
+    }
+
+    if op.needs_lhs_pointer_for_overload() {
+        let lhs = func.params.at(0)
+        let lhs_type = lhs.type.unaliased()
+        if lhs_type.base != BaseType::Pointer {
+            .error(Error::new(lhs.sym.span, f"First parameter of {op} operator must be a pointer-type"))
+            return
+        }
+    }
+
+    // Operator specific checks
+    match op {
+        // Equals and NotEquals should return a boolean
+        Equals | NotEquals | IsNotNull => if func.return_type.base != BaseType::Bool {
+            .error(Error::new(func.sym.span, "`==` operator must return a boolean"))
+            return
+        },
+        else => {}
+    }
+
+    let overload: OperatorOverload
+    overload.op = op
+    if num_params_needed > 0 then overload.type1 = func.params.at(0).type
+    if num_params_needed > 1 then overload.type2 = func.params.at(1).type
+    if num_params_needed > 2 then overload.type3 = func.params.at(2).type
+
+    let it = .o.program.operator_overloads.get_item(overload)
+    if it? {
+        if it.value != func {
+            .error(Error::new_hint(
+                func.sym.span, `Operator overload for {op} already exists ({func.sym.display})`,
+                it.value.sym.span, `Previous definition here ({it.value.sym.display})`
+            ))
+        }
+        return
+    }
+
+    .o.program.operator_overloads.insert(overload, func)
+}
+
 def TypeChecker::check_function_declaration(&this, func: &Function) {
     let allow_incomplete = false
     let error = true
@@ -2205,46 +2297,15 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
     if func.operator_overloads? {
         for op : func.operator_overloads.iter() {
-            let num_params_needed = op.num_overload_params()
-            if num_params_needed != func.params.size {
-                .error(Error::new(func.sym.span, `Operator overload for {op} must have {num_params_needed} parameters`))
-                continue
-            }
-
-            let overload: OperatorOverload
-            overload.op = op
-            if num_params_needed > 0 then overload.type1 = func.params.at(0).type
-            if num_params_needed > 1 then overload.type2 = func.params.at(1).type
-            if num_params_needed > 2 then overload.type3 = func.params.at(2).type
-
-            if op.needs_lhs_pointer_for_overload() {
-                let type1 = overload.type1.unaliased()
-                if type1.base != Pointer {
-                    .error(Error::new(func.sym.span, f"First parameter of {op} operator must be a pointer-type"))
-                    continue
-                }
-            }
-
-            if op == Equals and func.return_type.base != BaseType::Bool {
-                .error(Error::new(func.sym.span, "`==` operator must return a boolean"))
-                continue
-            }
-
-            let it = .o.program.operator_overloads.get_item(overload)
-            if it? {
-                if it.value != func {
-                    .error(Error::new_hint(
-                        func.sym.span, `Operator overload for {op} already exists ({func.sym.display})`,
-                        it.value.sym.span, `Previous definition here ({it.value.sym.display})`
-                    ))
-                }
-                continue
-            }
-
-            .o.program.operator_overloads.insert(overload, func)
+            .check_operator_overload_function(func, op)
         }
     }
 
+    // NOTE: This is NOT needed for regular compilation. We do this just to get better hover
+    //       information in the IDE, especially for the parent struct.
+    if func.name_ast? and func.name_ast.type == NSLookup {
+        .resolve_scoped_identifier(func.name_ast.u.lookup.lhs, error: false, hint: null, resolve_templates: false)
+    }
 
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
@@ -2342,7 +2403,8 @@ def TypeChecker::check_pre_import(&this, ns: &Namespace) {
 def TypeChecker::run(program: &Program) {
     let pass = TypeChecker(
         o: GenericPass::new(program),
-        unchecked_functions: Vector<&Function>::new()
+        unchecked_functions: Vector<&Function>::new(),
+        in_template_instance: false
     )
     pass.check_pre_import(program.global)
     pass.handle_imports(program.global, is_global: true)

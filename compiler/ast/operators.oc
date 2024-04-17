@@ -7,7 +7,7 @@ import @tokens::{ TokenType, Token }
 import @ast::scopes::{ Scope, Symbol }
 import @ast::program::Namespace
 import @types::Type
-import @ast::nodes::{ AST, ASTType }
+import @ast::nodes::{ AST, ASTType, Variable }
 import std::traits::hash
 
 //! Used for operator overloading
@@ -59,9 +59,14 @@ enum Operator {
     Error
 }
 
-def Operator::from_operator_overload_str(s: str): Operator => match s {
+//! This takes in the parameters of the (potentially) overloaded function to determine
+//! whether this is a unary/binary operator, and what the operator is.
+def Operator::from_operator_overload(s: str, params: &Vector<&Variable>): Operator => match s {
     "+" => Plus
-    "-" => Minus
+    "-" => match params.size {
+        1 => Negate
+        else => Minus
+    }
     "*" => Multiply
     "/" => Divide
     "==" => Equals
@@ -69,7 +74,10 @@ def Operator::from_operator_overload_str(s: str): Operator => match s {
     "[]" => Index
     "<<" => LeftShift
     ">>" => RightShift
-    "&" => BitwiseAnd
+    "&" => match params.size {
+        1 => Address
+        else => BitwiseAnd
+    }
     "|" => BitwiseOr
     "+=" => PlusEquals
     "-=" => MinusEquals
@@ -80,6 +88,8 @@ def Operator::from_operator_overload_str(s: str): Operator => match s {
     ">>=" => RightShiftEquals
     "%" => Modulus
     "in" => In
+    "not" => Not
+    "?" => IsNotNull
     else => Error
 }
 

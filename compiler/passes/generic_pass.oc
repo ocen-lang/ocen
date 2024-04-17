@@ -108,7 +108,7 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
         if error and not res? {
             .error(Error::new_hint(
                 span, `Could not find symbol {name} in namespace {sym.display}`,
-                sym.span, `Namespace was defined here`
+                ns.span, `Namespace was defined here`
             ))
         }
         yield res

@@ -30,6 +30,7 @@ enum CommandType {
     DocumentSymbols
     Completions
     References
+    Renames
     Validate
 }
 
@@ -93,6 +94,7 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
         }
         Completions => utils::gen_completions_json(usage, ns_lookup: finder.found_in_ns_lookup)
         References => utils::gen_references_json(usage, loc)
+        Renames => utils::gen_renames_json(usage, loc)
         else => panic("Unhandled command type")
     }
     if not resp? return
@@ -173,13 +175,14 @@ def lsp_main(argc: i32, argv: &str): i32 {
         let arg = shift_args(&argc, &argv)
         match arg {
             "--help" => lsp_usage(0, true)
-            "-h" | "-d" | "-t" | "-c" | "-r" => {
+            "-h" | "-d" | "-t" | "-c" | "-r" | "--refs" | "--renames" => {
                 cmd_type = match arg {
                     "-h" => Hover
                     "-d" => GoToDefinition
                     "-t" => GoToType
                     "-c" => Completions
-                    "-r" => References
+                    "-r" | "--refs" => References
+                    "--renames" => Renames
                     else => panic("Invalid command type")
                 }
                 line = shift_args(&argc, &argv).to_u32()
@@ -228,7 +231,7 @@ def lsp_main(argc: i32, argv: &str): i32 {
     Parser::parse_toplevel(program, show_path, true, contents, include_workspace_main: true)
 
     match cmd_type {
-        Hover | GoToDefinition | GoToType | Completions | References => {
+        Hover | GoToDefinition | GoToType | Completions | References | Renames => {
             let loc = Location(show_path, line, col, 0)
             handle_location_command(program, cmd_type, loc)
         }
