@@ -33,6 +33,8 @@ typedef Vec2u64 = Vec2<u64>
 [operator "/"] def Vec2::divs(this, val: T): Vec2<T> => Vec2<T>(.x / val, .y / val)
 [operator "/"] def Vec2::divrs(val: T, this: Vec2<T>): Vec2<T> => Vec2<T>(val / this.x, val / this.y)
 
+[operator "-"] def Vec2::negate(this): Vec2<T> => Vec2<T>(-.x, -.y)
+
 def Vec2::dot(this, other: Vec2<T>): T => .x * other.x + .y * other.y
 
 def Vec2::cross(this, other: Vec2<T>): T {
@@ -100,6 +102,8 @@ typedef Vec3u64 = Vec3<u64>
 [operator "/"] def Vec3::div(this, other: Vec3<T>): Vec3<T> => Vec3<T>(.x / other.x, .y / other.y, .z / other.z)
 [operator "/"] def Vec3::divs(this, val: T): Vec3<T> => Vec3<T>(.x / val, .y / val, .z / val)
 [operator "/"] def Vec3::divrs(val: T, this: Vec3<T>): Vec3<T> => Vec3<T>(val / this.x, val / this.y, val / this.z)
+
+[operator "-"] def Vec3::negate(this): Vec3<T> => Vec3<T>(-.x, -.y, -.z)
 
 def Vec3::dot(this, other: Vec3<T>): T => .x * other.x + .y * other.y + .z * other.z
 

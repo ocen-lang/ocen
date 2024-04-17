@@ -146,7 +146,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Member => {
             .mark(node.u.member.lhs)
         }
-        Identifier | NSLookup | Specialization => {}
+        Identifier | NSLookup | Specialization | OverloadedOperator => {}
         Call => {
             .mark(node.u.call.callee)
             for arg : node.u.call.args.iter() {

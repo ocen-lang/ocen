@@ -973,6 +973,7 @@ def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
     return lhs
 }
 
+//! Parse and return the AST for an expression
 def Parser::parse_expression(&this, end_type: TokenType): &AST {
     let lhs = .parse_logical_or(end_type)
     while .token_is(TokenType::Equals) or
@@ -1329,12 +1330,14 @@ def Parser::parse_function(&this): &Function {
     let name_span = ident.span
 
     let func = Function::new()
+    func.name_ast = ident
     let name = match ident.type {
         ASTType::Identifier => ident.u.ident.name
         ASTType::NSLookup => {
             parent_type = Type::new_unresolved("<unresolved>", ident.span)
             parent_type.u.unresolved = ident.u.lookup.lhs
             is_method = true
+            name_span = ident.u.lookup.rhs_span
             yield ident.u.lookup.rhs_name
         }
         else => {
@@ -1427,6 +1430,7 @@ def Parser::parse_function(&this): &Function {
 
     func.is_static = is_static
     func.parent_type = parent_type
+    func.parsed_return_type = func.return_type
 
     // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(func.sym)
@@ -1444,7 +1448,7 @@ def Parser::parse_function(&this): &Function {
                 func.is_variadic_format = true
             }
             Operator => {
-                let op = Operator::from_operator_overload_str(attr.args.at(0))
+                let op = Operator::from_operator_overload(attr.args.at(0), func.params)
                 if op == Error {
                     .error(Error::new(attr.span, "Invalid operator"))
                     continue
@@ -1528,6 +1532,7 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 
             let part = ImportPart::new(Single, word.span)
             part.u.single.name = word.text
+            part.u.single.name_span = word.span
 
             if .consume_if(TokenType::As) {
                 let alias = .consume(TokenType::Identifier)

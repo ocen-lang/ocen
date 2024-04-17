@@ -2,6 +2,8 @@
 
 import std::value::{ Value }
 import std::buffer::Buffer
+import std::vector::Vector
+import std::set::Set
 import std::sv::SV
 import std::span::{ Span, Location }
 
@@ -47,6 +49,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
             if func_type.orig.is_method {
                 is_non_static_method = not func_type.orig.is_static
             }
+            sb += "def "
             sb += func_type.orig.sym.display
         } else {
             sb += "fn"
@@ -155,7 +158,9 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
         sb += gen_type_string(sym.u.var.type)
         yield sb.str()
     }
-    Enum | Namespace | Structure | EnumVariant => sym.display
+    Enum | EnumVariant => `enum {sym.display}`
+    Structure => `struct {sym.display}`
+    Namespace => `namespace {sym.display}`
 }
 
 def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
@@ -177,7 +182,10 @@ def gen_error_json(err: &Error): &Value {
     match err.type {
         WithHint | WithNote => {
             let extra_info = Value::new(Dictionary)
-            let extra_span = if err.type == WithHint then err.span2 else err.span1
+            let extra_span = match err.type {
+                WithHint => if err.span2.is_valid() then err.span2 else err.span1
+                else => err.span1
+            }
             extra_info["span"] = gen_span_json(extra_span)
             extra_info["message"] = err.msg2
             obj["extra_info"] = extra_info
@@ -356,9 +364,43 @@ def gen_completion_from_symbol(sym: &Symbol): &Value {
     return val
 }
 
+def get_unique_reference_spans(sym: &Symbol): &Vector<Span> {
+    let set = Set<Span>::new()
+    for ref in sym.references.iter() {
+        set += ref
+    }
+    set += sym.span
+    let vec = Vector<Span>::new()
+    for span in set.iter() {
+        vec.push(span)
+    }
+    set.free()
+    return vec
+}
+
 def gen_references_json(sym: &Symbol, loc: Location): &Value {
     let obj = Value::new(List)
-    for ref in sym.references.iter() {
+    let spans = get_unique_reference_spans(sym)
+    for ref in spans.iter() {
+        obj += gen_span_json_with_filename(ref, loc)
+    }
+    spans.free()
+    return obj
+}
+
+def gen_renames_json(sym: &Symbol, loc: Location): &Value {
+    let obj = Value::new(List)
+    let spans = get_unique_reference_spans(sym)
+    for ref in spans.iter() {
+        let size = ref.end.index - ref.start.index
+        // FIXME: This is a bit hacky, but it's to accomodate the `this` shorthand `.foo` syntax.
+        //        We want to add a reference to the `.` for discoverability, but don't want to replace
+        //        it with the new name. Instead, we decrease the span to not include the `.`, causing the
+        //        editor to insert the new name before the `.`.
+        if sym.name == "this" and size == 1 {
+            ref = Span(ref.start, ref.start)
+        }
+
         obj += gen_span_json_with_filename(ref, loc)
     }
     return obj
