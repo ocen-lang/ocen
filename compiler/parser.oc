@@ -337,60 +337,64 @@ def Parser::parse_format_string(&this): &AST {
     let cur_start = 0
 
     for let i = 0; i < fstr_len; i += 1 {
-        if fstr.text[i] == '\\' {
-            i += 1
-        } else if fstr.text[i] == '{' {
-            if count == 0 {
-                let part = fstr.text.substring(cur_start, i - cur_start)
-                format_parts.push(part)
-                cur_start = i + 1
-            }
-            count += 1
-        } else if fstr.text[i] == '}' {
-            count -= 1
-            if count == 0 {
-                if specifier_loc > 0 {
-                    let len = specifier_loc - cur_start
-                    let part = fstr.text.substring(cur_start, len)
-                    expr_parts.push(part)
-                    expr_start.push(cur_start)
-
-                    specifier_loc += 1
-                    while specifier_loc < i and fstr.text[specifier_loc] == ' ' {
-                        specifier_loc += 1
-                    }
-
-                    if specifier_loc == i {
-                        let loc = fstr.span.start;
-                        loc.col += specifier_loc + 1
-                        let span = Span(loc, loc)
-                        .error(Error::new(span, "Expected format specifier"))
-                        return null
-                    }
-
-                    let spec = fstr.text.substring(specifier_loc, i - specifier_loc)
-                    specifiers.push(spec)
-                } else {
+        match fstr.text[i] {
+            '\\' =>  i += 1
+            '{' => {
+                if count == 0 {
                     let part = fstr.text.substring(cur_start, i - cur_start)
-                    expr_parts.push(part)
-                    expr_start.push(cur_start)
-                    specifiers.push(null)
+                    format_parts.push(part)
+                    cur_start = i + 1
                 }
-                cur_start = i + 1
-                specifier_loc = 0
-                specifier_found = false
-
-            } else if count < 0 {
-                .error(Error::new(fstr.span, "Unmatched '}' in format string"))
-                return null
+                count += 1
             }
+            '}' => {
+                count -= 1
+                if count == 0 {
+                    if specifier_loc > 0 {
+                        let len = specifier_loc - cur_start
+                        let part = fstr.text.substring(cur_start, len)
+                        expr_parts.push(part)
+                        expr_start.push(cur_start)
 
-        } else if fstr.text[i] == ':' {
-            // TODO: Handle errors properly (actually, maybe just add an assert)
-            if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
-                specifier_loc = i
-                specifier_found = true
+                        specifier_loc += 1
+                        while specifier_loc < i and fstr.text[specifier_loc] == ' ' {
+                            specifier_loc += 1
+                        }
+
+                        if specifier_loc == i {
+                            let loc = fstr.span.start;
+                            loc.col += specifier_loc + 1
+                            let span = Span(loc, loc)
+                            .error(Error::new(span, "Expected format specifier"))
+                            return null
+                        }
+
+                        let spec = fstr.text.substring(specifier_loc, i - specifier_loc)
+                        specifiers.push(spec)
+                    } else {
+                        let part = fstr.text.substring(cur_start, i - cur_start)
+                        expr_parts.push(part)
+                        expr_start.push(cur_start)
+                        specifiers.push(null)
+                    }
+                    cur_start = i + 1
+                    specifier_loc = 0
+                    specifier_found = false
+
+                } else if count < 0 {
+                    .error(Error::new(fstr.span, "Unmatched '}' in format string"))
+                    return null
+                }
+
             }
+            ':' => {
+                // TODO: Handle errors properly (actually, maybe just add an assert)
+                if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
+                    specifier_loc = i
+                    specifier_found = true
+                }
+            }
+            else => {}
         }
     }
     if count != 0 {
@@ -467,6 +471,7 @@ def Parser::parse_match(&this): &AST {
             let _case = MatchCase::new(cond, body)
             cases.push(_case)
         }
+        .consume_if(TokenType::Comma)
     }
     node.span = op.span.join(.token().span)
     .consume(TokenType::CloseCurly)
@@ -666,6 +671,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
 
             node = AST::new(ASTType::Member, tok.span)
             node.u.member.lhs = lhs
+            node.u.member.dot_shorthand = true
 
             if not .token_is(TokenType::Identifier) {
                 .error(Error::new(.token().span, "Expected identifier after `.`"))
@@ -1040,6 +1046,7 @@ def Parser::parse_multi_if(&this, start_tok: &Token): &AST {
             let body = .parse_statement()
             branches.push(IfBranch(cond, body))
         }
+        .consume_if(TokenType::Comma)
     }
     let end_span = .consume(TokenType::CloseCurly).span
     node.span = start_span.join(end_span)
