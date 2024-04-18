@@ -5926,7 +5926,7 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passe
     }
   }
   if (is_expr && !((bool)node->etype)) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Expression-match must yield a value"));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.match_stmt.match_span, "Expression-match must yield a value"));
   }
   /* defers */
   std_map_Map__8_free(mapping);

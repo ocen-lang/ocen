@@ -1,0 +1,7 @@
+/// fail: Match for bool must have exactly `true` and `false` cases
+
+def main() {
+    match 1 == 2 {
+        true => 5
+    }
+}
