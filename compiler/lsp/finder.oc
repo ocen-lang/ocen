@@ -138,8 +138,10 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         SizeOf => return .find_in_type(node.u.size_of_type)
         If => {
             let stmt = &node.u.if_stmt
-            if .find_in_expression(stmt.cond) return true
-            if .find_in_statement(stmt.body) return true
+            for branch in stmt.branches.iter() {
+                if .find_in_expression(branch.cond) return true
+                if .find_in_statement(branch.body) return true
+            }
             if stmt.els? and .find_in_statement(stmt.els) return true
         }
         Match => {
@@ -153,7 +155,6 @@ def Finder::find_in_expression(&this, node: &AST): bool {
             if stmt.defolt? and .find_in_statement(stmt.defolt) return true
         }
         Break | Continue => {}
-        ArrowReturn => return .find_in_expression(node.u.child)
         Assert => return .find_in_expression(node.u.assertion.expr)
         Specialization => {
             let spec = &node.u.spec

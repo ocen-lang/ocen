@@ -1,0 +1,15 @@
+/// out: "1 2 3 4"
+
+def foo(x: u32) => if {
+    x == 100 => print("1 ")
+    x == 200 => print("2 ")
+    x < 400 => print("3 ")
+    else => print("4 ")
+}
+
+def main() {
+    foo(100)
+    foo(200)
+    foo(300)
+    foo(500)
+}

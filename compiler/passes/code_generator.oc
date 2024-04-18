@@ -281,7 +281,6 @@ def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
 def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST) {
     if body.type == ASTType::Block {
         .gen_block(body)
-        .out += " "
 
     } else {
         let is_elif = body.type == ASTType::If
@@ -340,6 +339,7 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
     .out += "}"
 }
 
+//! Generate an expression. If `is_top_level` is true, don't put parens around it.
 def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false) {
     match node.type {
         IntLiteral => {
@@ -385,20 +385,27 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             .out += "'"
         }
         If => {
-            let a = node.u.if_stmt.body
-            let b = node.u.if_stmt.els
+            let branches = node.u.if_stmt.branches
+            let els = node.u.if_stmt.els
 
-            // If we've gotten past type checking, this should only be a block/match/if/expression
-            if a.type != ASTType::Block and b.type != ASTType::Block {
+            // If we only have 1 branch, an else statemenet, and both the
+            // bodies are expressions (not blocks), we can generate the
+            // ternary operator for code simplicity.
+            if (
+                branches.size == 1 and
+                branches[0].body.type != Block and
+                els? and els.type != Block
+            ) {
+                let branch = branches[0]
                 .out += "("
-                .gen_expression(node.u.if_stmt.cond)
+                .gen_expression(branch.cond)
                 .out += " ? "
-                .gen_expression(a)
+                .gen_expression(branch.body)
                 .out += " : "
-                .gen_expression(b)
+                .gen_expression(els)
                 .out += ")"
 
-            // We tried our best, let's fall back:
+            // We tried our best to make code nice, let's fall back:
             } else {
                 .gen_in_yield_context(node)
             }
@@ -755,24 +762,21 @@ def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
 def CodeGenerator::gen_statement(&this, node: &AST) {
     .gen_debug_info(node.span)
     match node.type {
-        ASTType::Return | ASTType::ArrowReturn => {
+        ASTType::Return => {
             let upto = .scope()
             for let cur = .scope(); cur? and cur.cur_func?; cur = cur.parent {
                 upto = cur
             }
             .gen_defers_upto(upto)
-
             .gen_indent()
 
-            let return_type = upto.cur_func.return_type
-            if node.type != ArrowReturn or return_type.base != Void {
-                .out += "return "
-            }
-
             if node.u.child? {
+                .out += "return "
                 .gen_expression(node.u.child, is_top_level: true)
+                .out += ";\n"
+            } else {
+                .out += "return;\n"
             }
-            .out += ";\n"
         }
         ASTType::Yield => .gen_yield_expression(node.u.child)
         ASTType::Import => {}
@@ -805,14 +809,19 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .scope().defers.push(node.u.child)
         }
         ASTType::If => {
-            let cond = node.u.if_stmt.cond
-            let body = node.u.if_stmt.body
-            let else_body = node.u.if_stmt.els
             .gen_indent()
-            .out += "if ("
-            .gen_expression(cond, is_top_level: true)
-            .out += ") "
-            .gen_control_body(node, body)
+
+            let branches = node.u.if_stmt.branches
+            for let i = 0; i < branches.size; i += 1 {
+                let branch = branches[i]
+                if i > 0 then .out += " else "
+                .out += "if ("
+                .gen_expression(branch.cond, is_top_level: true)
+                .out += ") "
+                .gen_control_body(node, branch.body)
+            }
+
+            let else_body = node.u.if_stmt.els
 
             if else_body? {
                 .out += " else "

@@ -1511,18 +1511,19 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
 }
 
 def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type = null) {
-    let cond_type = .check_expression(node.u.if_stmt.cond, hint: .get_base_type(BaseType::Bool, node.span))
-    if cond_type? and cond_type.base != BaseType::Bool {
-        .error(Error::new_note(
-            node.u.if_stmt.cond.span, "Condition must be a boolean",
-            `Got type '{cond_type.str()}'`
-        ))
-    }
-    let body = node.u.if_stmt.body
-
-    // `check_expression_statement` will modify this
+    // NOTE: `check_expression_statement` will modify this
     node.returns = true
-    .check_expression_statement(node, body, is_expr, hint)
+
+    for branch in node.u.if_stmt.branches.iter() {
+        let cond_type = .check_expression(branch.cond, hint: .get_base_type(BaseType::Bool, node.span))
+        if cond_type? and cond_type.base != BaseType::Bool {
+            .error(Error::new_note(
+                branch.cond.span, "Condition must be a boolean",
+                `Got type '{cond_type.str()}'`
+            ))
+        }
+        .check_expression_statement(node, branch.body, is_expr, hint)
+    }
 
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
@@ -1627,7 +1628,7 @@ def TypeChecker::check_for(&this, node: &AST) {
 
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
-        ASTType::Return | ASTType::ArrowReturn => {
+        ASTType::Return => {
             let cur_func = .scope().cur_func
             if not cur_func? {
                 .error(Error::new(node.span, "Cannot return from outside a function"))
@@ -1641,7 +1642,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
 
             if expected.base == BaseType::Void {
                 // We allow using arrow returns in void functions, they just don't return anything.
-                if node.u.child? and node.type != ASTType::ArrowReturn {
+                if node.u.child? {
                     .error(Error::new(node.span, "Cannot return a value from a void function"))
                 }
             } else if node.u.child? {
