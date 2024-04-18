@@ -443,6 +443,7 @@ def Parser::parse_match(&this): &AST {
     let expr = .parse_expression(end_type: TokenType::OpenCurly)
     let node = AST::new(ASTType::Match, op.span.join(expr.span))
     node.u.match_stmt.expr = expr
+    node.u.match_stmt.match_span = op.span
 
     let cases = Vector<&MatchCase>::new()
     .consume(TokenType::OpenCurly)

@@ -1,0 +1,9 @@
+/// out: "x is not 2\n"
+
+def main() {
+    let x = 1
+    match x == 2 {
+        true => println("x is 2")
+        false => println("x is not 2")
+    }
+}

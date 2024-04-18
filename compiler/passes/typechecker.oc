@@ -1349,7 +1349,7 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
     return .check_expression(call)
 }
 
-
+//! Special case for handling a case where we match against an Enum
 def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: bool, hint: &Type = null) {
     let mapping = Map<str, &MatchCase>::new()
     defer mapping.free()
@@ -1415,7 +1415,45 @@ def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: 
     }
 
     if is_expr and not node.etype? {
-        .error(Error::new(node.span, "Expression-match must yield a value"))
+        .error(Error::new(node.u.match_stmt.match_span, "Expression-match must yield a value"))
+    }
+}
+
+//! Special case for handling a case where we match against a boolean
+def TypeChecker::check_match_for_bool(&this, node: &AST, is_expr: bool, hint: &Type = null) {
+    let match_stmt = &node.u.match_stmt
+    if match_stmt.cases.size != 2 or match_stmt.defolt? {
+        .error(Error::new(match_stmt.match_span, "Match for bool must have exactly `true` and `false` cases"))
+    }
+
+    let seen_true = false
+    let seen_false = false
+    node.returns = true  // NOTE: `check_expression_statement` will modify this
+
+    for _case in match_stmt.cases.iter() {
+        .check_expression(_case.cond)
+        if _case.cond.type != ASTType::BoolLiteral {
+            .error(Error::new(_case.cond.span, "Expected either `true` or `false`"))
+        } else {
+            if _case.cond.u.bool_literal {
+                seen_true = true
+            } else {
+                seen_false = true
+            }
+        }
+        if _case.body? {
+            .check_expression_statement(node,  _case.body, is_expr, hint)
+
+        } else {
+            .error(Error::new(_case.cond.span, "Case must have a body"))
+        }
+    }
+
+    if not seen_true then .error(Error::new(match_stmt.match_span, "Missing `true` case"))
+    if not seen_false then .error(Error::new(match_stmt.match_span, "Missing `false` case"))
+
+    if is_expr and not node.etype? {
+        .error(Error::new(match_stmt.match_span, "Expression-match must yield a value"))
     }
 }
 
@@ -1465,12 +1503,17 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
         return
     }
 
-    if expr_type.base == BaseType::Enum {
-        let enum_ = expr_type.u.enum_
-        .check_match_for_enum(enum_, node, is_expr, hint)
-        return
+    match expr_type.base {
+        Enum => {
+            .check_match_for_enum(expr_type.u.enum_, node, is_expr, hint)
+            return
+        }
+        Bool => {
+            .check_match_for_bool(node, is_expr, hint)
+            return
+        }
+        else => {}
     }
-
 
     let cases = match_stmt.cases
     node.returns = (cases.size > 0)
