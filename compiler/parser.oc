@@ -1016,23 +1016,68 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
     return lhs
 }
 
-def Parser::parse_if(&this): &AST {
-    let start_span = .token().span
-    .consume(TokenType::If)
-    let cond = .parse_expression(end_type: TokenType::Newline)
-    .consume_if(TokenType::Then)
-    let body = .parse_statement()
+def Parser::parse_multi_if(&this, start_tok: &Token): &AST {
+    let start_span = start_tok.span
 
-    let end_span = body.span
-    let els = null as &AST
-    if .consume_if(TokenType::Else) {
-        els = .parse_statement()
-        end_span = els.span
+    let node = AST::new(ASTType::If, start_span)
+    .consume(TokenType::OpenCurly)
+    let branches = Vector<IfBranch>::new()
+    node.u.if_stmt.branches = branches
+
+    while not .token_is(TokenType::CloseCurly) {
+        if .token_is(TokenType::Else) {
+            node.u.if_stmt.els_span = .token().span
+            .consume(TokenType::Else)
+            .consume(TokenType::FatArrow)
+            node.u.if_stmt.els = .parse_statement()
+
+        } else {
+            let cond = .parse_expression(end_type: FatArrow)
+            if not .consume_if(TokenType::FatArrow) {
+                .error(Error::new(.token().span, "Expected `=>` after condition"))
+            }
+            let body = .parse_statement()
+            branches.push(IfBranch(cond, body))
+        }
+    }
+    let end_span = .consume(TokenType::CloseCurly).span
+    node.span = start_span.join(end_span)
+    return node
+}
+
+def Parser::parse_if(&this): &AST {
+    let start_tok = .consume(TokenType::If)
+    let start_span = start_tok.span
+
+    if .token_is(OpenCurly) return .parse_multi_if(start_tok)
+
+    let cases = Vector<IfBranch>::new()
+    let end_span = start_span
+    while true {
+        let cond = .parse_expression(end_type: TokenType::Newline)
+        .consume_if(TokenType::Then)
+        let body = .parse_statement()
+        cases.push(IfBranch(cond, body))
+        end_span = body.span
+
+        if .token_is(Else) and .peek_token_is(1, If) {
+            .consume(TokenType::Else)
+            .consume(TokenType::If)
+
+        } else {
+            break
+        }
     }
     let node = AST::new(ASTType::If, start_span.join(end_span))
-    node.u.if_stmt.cond = cond
-    node.u.if_stmt.body = body
-    node.u.if_stmt.els = els
+    node.u.if_stmt.branches = cases
+
+    if .token_is(TokenType::Else) {
+        let els_tok = .consume(TokenType::Else)
+        node.u.if_stmt.els = .parse_statement()
+        node.u.if_stmt.els_span = els_tok.span
+    }
+
+    node.span = start_span.join(end_span)
     return node
 }
 
@@ -1410,12 +1455,16 @@ def Parser::parse_function(&this): &Function {
     }
     let end_span = .consume(TokenType::CloseParen).span
 
+    let returns = false
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
         end_span = func.return_type.span
+        returns = true
 
     } else if func.sym.full_name.eq("main") {
         func.return_type = Type::new_unresolved_base(BaseType::I32, name_span)
+        returns = true
+
     } else {
         func.return_type = Type::new_unresolved_base(BaseType::Void, name_span)
 
@@ -1477,14 +1526,17 @@ def Parser::parse_function(&this): &Function {
             return null
         }
 
-        let expr = .parse_expression(end_type: TokenType::Newline)
-        let ret = AST::new(ASTType::ArrowReturn, expr.span)
-        ret.u.child = expr
+        let stmt = .parse_expression(end_type: TokenType::Newline)
+        if returns {
+            let ret = AST::new(ASTType::Return, stmt.span)
+            ret.u.child = stmt
+            stmt = ret
+        }
 
-        let body = AST::new(ASTType::Block, ret.span)
+        let body = AST::new(ASTType::Block, stmt.span)
 
         let statements = Vector<&AST>::new()
-        statements.push(ret)
+        statements.push(stmt)
         body.u.block.statements = statements
 
         func.body = body

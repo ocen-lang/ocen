@@ -27,7 +27,6 @@ enum ASTType {
     NSLookup
     OverloadedOperator
     Return
-    ArrowReturn
     Yield
     StringLiteral
     SizeOf
@@ -288,10 +287,18 @@ struct Assertion {
     msg: &AST
 }
 
-struct IfStatement {
+struct IfBranch {
     cond: &AST
     body: &AST
+}
+
+struct IfStatement {
+    branches: &Vector<IfBranch>
     els: &AST
+
+    //! Span of the `else` token if we have an else branch
+    //! (for error messages)
+    els_span: Span
 }
 
 struct Loop {

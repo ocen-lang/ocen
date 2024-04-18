@@ -99,7 +99,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Import | Break | Continue | IntLiteral | FloatLiteral |
         BoolLiteral | StringLiteral | CharLiteral | Null => {}
 
-        Return | ArrowReturn | Yield | Defer => .mark(node.u.child)
+        Return | Yield | Defer => .mark(node.u.child)
         UnaryOp => .mark(node.u.unary.expr)
 
         SizeOf => .mark_type(node.u.size_of_type)
@@ -113,8 +113,10 @@ def MarkDeadCode::mark(&this, node: &AST) {
             }
         }
         If => {
-            .mark(node.u.if_stmt.cond)
-            .mark(node.u.if_stmt.body)
+            for branch in node.u.if_stmt.branches.iter() {
+                .mark(branch.cond)
+                .mark(branch.body)
+            }
             .mark(node.u.if_stmt.els)
         }
         Match => {
