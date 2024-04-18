@@ -55,6 +55,20 @@ def Template::new(params: &Vector<&Variable>): &Template {
     return templ
 }
 
+enum ReferenceType {
+    //! Normal reference, explicitly specifying the symbol
+    Normal
+    //! Symbol invoked as part of an operator overload
+    OperatorOverload
+    //! `this` symbol when used with the `.foo` shorthand
+    DotShorthand
+}
+
+struct Reference {
+    type: ReferenceType
+    span: Span
+}
+
 union SymbolUnion {
     func: &Function
     struc: &Structure
@@ -82,7 +96,7 @@ struct Symbol {
     comment_loc: Location
 
     //* Span of the references to this symbol (for LSP)
-    references: &Vector<Span>
+    references: &Vector<Reference>
 
     type: SymbolType
     u: SymbolUnion
@@ -102,7 +116,7 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_
     let item = std::new<Symbol>()
     item.name = name
     item.display = display
-    item.references = Vector<Span>::new(capacity: 4)  // Keep the capacity low by default
+    item.references = Vector<Reference>::new(capacity: 4)  // Keep the capacity low by default
 
     // Replace invalid characters in full_name, since we codegen it to C
     let full_name_len = full_name.len()
@@ -161,12 +175,12 @@ def Symbol::remove_alias(&this): &Symbol => match .type {
     else => this
 }
 
-def Symbol::add_reference(&this, span: Span) {
+def Symbol::add_reference(&this, type: ReferenceType, span: Span) {
     if not this? return
-    .references.push(span)
+    .references.push(Reference(type, span))
 
     if .type == TypeDef and .u.type_def.sym != this {
-        .u.type_def.sym.add_reference(span)
+        .u.type_def.sym.add_reference(type, span)
         return
     }
 
@@ -180,7 +194,7 @@ def Symbol::add_reference(&this, span: Span) {
     if not parent_type? return
     if not parent_type.template_instance? return
     let child_sym = parent_type.template_instance.parent
-    child_sym.add_reference(span)
+    child_sym.add_reference(type, span)
 }
 
 struct Scope {

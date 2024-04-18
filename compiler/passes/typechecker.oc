@@ -12,7 +12,7 @@ import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
 import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase }
 import @ast::program::{ Program, Namespace }
-import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance }
+import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType }
 import @errors::{ Error }
 import @lexer::{ Lexer }
 import @parser::{ Parser }
@@ -39,23 +39,33 @@ def TypeChecker::set_resolved_symbol(&this, node: &AST, sym: &Symbol) {
 
     // Import statements themselves don't add a reference to the symbol
     if node.type == Import return
+    let ref_type = ReferenceType::Normal
 
     let span = match node.type {
         Identifier => node.span
-        Import | OverloadedOperator | Specialization => {
+        Import | Specialization => {
             // Don't add references for these
             return
         }
+        OverloadedOperator => {
+            ref_type = OperatorOverload
+            yield node.u.operator_span
+        }
         // Want to find the span of the actual identifier
         NSLookup => node.u.lookup.rhs_span
-        Member => node.u.member.rhs_span
+        Member => {
+            if node.u.member.dot_shorthand {
+                ref_type = DotShorthand
+            }
+            yield node.u.member.rhs_span
+        }
         else => {
             assert false, `Unhandled node type in set_resolved_symbol: {node.type}`
         }
     }
 
     if sym? and not .in_template_instance {
-        sym.add_reference(span)
+        sym.add_reference(ref_type, span)
     }
 }
 
@@ -717,7 +727,11 @@ def TypeChecker::find_and_replace_overloaded_op(&this, op: Operator, node: &AST,
     if not func? return null
 
     let callee = AST::new(OverloadedOperator, node.u.binary.op_span)
-    callee.u.ident.name = func.sym.name
+    callee.u.operator_span = match node.type {
+        BinaryOp => node.u.binary.op_span
+        UnaryOp => node.u.unary.op_span
+        else => node.span
+    }
     .set_resolved_symbol(callee, func.sym)
 
     let args = Vector<&Argument>::new()
@@ -1543,7 +1557,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     let defolt = node.u.match_stmt.defolt
 
     if not defolt? {
-        .error(Error::new(node.span, "`else` case is missing"))
+        .error(Error::new(node.u.match_stmt.match_span, "`else` case is missing"))
     } else {
         .check_expression_statement(node, defolt, is_expr, hint)
     }
@@ -2104,7 +2118,7 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
         if not alias? then alias = name
 
         part.resolved_symbol = base
-        base.add_reference(part.u.single.name_span)
+        base.add_reference(Normal, part.u.single.name_span)
     }
 
     .o.insert_into_scope_checked(base, name: alias)

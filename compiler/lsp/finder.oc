@@ -164,6 +164,13 @@ def Finder::find_in_expression(&this, node: &AST): bool {
             }
         }
         Block => return .find_in_block(node)
+        OverloadedOperator => {
+            let op_span = node.u.operator_span
+            if op_span.contains_loc(.loc) {
+                return .set_usage(node.resolved_symbol)
+            }
+        }
+
         else => {
             if verbose println("Unhandled node type in Finder::find_in_expression: %s", node.type)
         }

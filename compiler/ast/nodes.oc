@@ -279,6 +279,7 @@ struct Member {
     lhs: &AST
     rhs_name: str
     rhs_span: Span
+    dot_shorthand: bool
     is_pointer: bool
 }
 
@@ -372,6 +373,7 @@ union ASTUnion {
     string_literal: str
     char_literal: str
     unary: Unary
+    operator_span: Span
     var_decl: VarDeclaration
     fmt_str: FormatString
     size_of_type: &Type

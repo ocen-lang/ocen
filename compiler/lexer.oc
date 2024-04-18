@@ -305,26 +305,28 @@ def Lexer::lex(&this): &Vector<&Token> {
             else => {
                 let start_loc = .loc
 
-                if c == 'f' and .peek(1) == '"' {
-                    .inc()
-                    .lex_string_literal(has_seen_f: true)
+                if {
+                    c == 'f' and .peek(1) == '"' => {
+                        .inc()
+                        .lex_string_literal(has_seen_f: true)
 
-                } else if c.is_digit() {
-                    .lex_numeric_literal()
+                    }
+                    c.is_digit() => .lex_numeric_literal()
+                    c.is_alpha() or c == '_' => {
+                        let start = .i
+                        while .cur().is_alnum() or .cur() == '_' {
+                            .inc()
+                        }
+                        let len = .i - start
+                        let text = .source.substring(start, len)
 
-                } else if c.is_alpha() or c == '_' {
-                    let start = .i
-                    while .cur().is_alnum() or .cur() == '_' {
+                        .push(Token::from_ident(text, Span(start_loc, .loc)))
+
+                    }
+                    else => {
+                        .errors.push(Error::new(Span(.loc, .loc), `Unrecognized char in lexer: '{c}'`))
                         .inc()
                     }
-                    let len = .i - start
-                    let text = .source.substring(start, len)
-
-                    .push(Token::from_ident(text, Span(start_loc, .loc)))
-
-                } else {
-                    .errors.push(Error::new(Span(.loc, .loc), `Unrecognized char in lexer: '{c}'`))
-                    .inc()
                 }
             }
         }

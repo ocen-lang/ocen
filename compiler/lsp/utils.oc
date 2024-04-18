@@ -364,10 +364,11 @@ def gen_completion_from_symbol(sym: &Symbol): &Value {
     return val
 }
 
-def get_unique_reference_spans(sym: &Symbol): &Vector<Span> {
+def get_unique_reference_spans(sym: &Symbol, for_rename: bool): &Vector<Span> {
     let set = Set<Span>::new()
     for ref in sym.references.iter() {
-        set += ref
+        if for_rename and ref.type != Normal continue
+        set += ref.span
     }
     set += sym.span
     let vec = Vector<Span>::new()
@@ -380,7 +381,7 @@ def get_unique_reference_spans(sym: &Symbol): &Vector<Span> {
 
 def gen_references_json(sym: &Symbol, loc: Location): &Value {
     let obj = Value::new(List)
-    let spans = get_unique_reference_spans(sym)
+    let spans = get_unique_reference_spans(sym, for_rename: false)
     for ref in spans.iter() {
         obj += gen_span_json_with_filename(ref, loc)
     }
@@ -390,7 +391,7 @@ def gen_references_json(sym: &Symbol, loc: Location): &Value {
 
 def gen_renames_json(sym: &Symbol, loc: Location): &Value {
     let obj = Value::new(List)
-    let spans = get_unique_reference_spans(sym)
+    let spans = get_unique_reference_spans(sym, for_rename: true)
     for ref in spans.iter() {
         let size = ref.end.index - ref.start.index
         // FIXME: This is a bit hacky, but it's to accomodate the `this` shorthand `.foo` syntax.
