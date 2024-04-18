@@ -1094,8 +1094,9 @@ struct compiler_ast_nodes_Match {
   compiler_ast_nodes_AST *expr;
   std_vector_Vector__18 *cases;
   compiler_ast_nodes_AST *defolt;
-  std_span_Span defolt_span;
   bool is_custom_match;
+  std_span_Span defolt_span;
+  std_span_Span match_span;
 };
 
 struct compiler_ast_nodes_Specialization {
@@ -1831,6 +1832,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_assignment(co
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_helper(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_value(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST **node_ptr);
 void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enum_, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
+void compiler_passes_typechecker_TypeChecker_check_match_for_bool(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
 compiler_ast_nodes_Function *compiler_passes_typechecker_TypeChecker_check_match_case_and_find_overload(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *expr, compiler_ast_nodes_MatchCase *mcase);
 void compiler_passes_typechecker_TypeChecker_check_match(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
 void compiler_passes_typechecker_TypeChecker_check_if(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
@@ -5930,6 +5932,45 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passe
   std_map_Map__8_free(mapping);
 }
 
+void compiler_passes_typechecker_TypeChecker_check_match_for_bool(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
+  compiler_ast_nodes_Match *match_stmt = &node->u.match_stmt;
+  if ((match_stmt->cases->size != 2) || ((bool)match_stmt->defolt)) {
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Match for bool must have exactly `true` and `false` cases"));
+  }
+  bool seen_true = false;
+  bool seen_false = false;
+  node->returns=true;
+  for (std_vector_Iterator__18 __iter = std_vector_Vector__18_iter(match_stmt->cases); std_vector_Iterator__18_has_value(&__iter); std_vector_Iterator__18_next(&__iter)) {
+    compiler_ast_nodes_MatchCase *_case = std_vector_Iterator__18_cur(&__iter);
+    {
+      compiler_passes_typechecker_TypeChecker_check_expression(this, _case->cond, NULL);
+      if (_case->cond->type != compiler_ast_nodes_ASTType_BoolLiteral) {
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(_case->cond->span, "Expected either `true` or `false`"));
+      } else {
+        if (_case->cond->u.bool_literal) {
+          seen_true=true;
+        } else {
+          seen_false=true;
+        }
+      }
+      if (((bool)_case->body)) {
+        compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, _case->body, is_expr, hint);
+      } else {
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(_case->cond->span, "Case must have a body"));
+      }
+    }
+  }
+  if (!seen_true) {
+  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Missing `true` case"));
+  }
+  if (!seen_false) {
+  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Missing `false` case"));
+  }
+  if (is_expr && !((bool)node->etype)) {
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Expression-match must yield a value"));
+  }
+}
+
 compiler_ast_nodes_Function *compiler_passes_typechecker_TypeChecker_check_match_case_and_find_overload(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *expr, compiler_ast_nodes_MatchCase *mcase) {
   compiler_types_Type *lhs = expr->etype;
   compiler_types_Type *rhs = mcase->cond->etype;
@@ -5967,10 +6008,17 @@ void compiler_passes_typechecker_TypeChecker_check_match(compiler_passes_typeche
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Match statement must have a valid expression"));
     return;
   }
-  if (expr_type->base==compiler_types_BaseType_Enum) {
-    compiler_ast_nodes_Enum *enum_ = expr_type->u.enum_;
-    compiler_passes_typechecker_TypeChecker_check_match_for_enum(this, enum_, node, is_expr, hint);
-    return;
+  switch (expr_type->base) {
+    case compiler_types_BaseType_Enum: {
+      compiler_passes_typechecker_TypeChecker_check_match_for_enum(this, expr_type->u.enum_, node, is_expr, hint);
+      return;
+    } break;
+    case compiler_types_BaseType_Bool: {
+      compiler_passes_typechecker_TypeChecker_check_match_for_bool(this, node, is_expr, hint);
+      return;
+    } break;
+    default: {
+    } break;
   }
   std_vector_Vector__18 *cases = match_stmt->cases;
   node->returns=(cases->size > 0);
@@ -6801,8 +6849,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
       continue;
       }
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2323:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2327:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2366:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2370:16: Assertion failed: `sym.type == TypeDef`", NULL);
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) {
       continue;
@@ -8013,6 +8061,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_match(compiler_parser_Parse
   compiler_ast_nodes_AST *expr = compiler_parser_Parser_parse_expression(this, compiler_tokens_TokenType_OpenCurly);
   compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Match, std_span_Span_join(op->span, expr->span));
   node->u.match_stmt.expr=expr;
+  node->u.match_stmt.match_span=op->span;
   std_vector_Vector__18 *cases = std_vector_Vector__18_new(16);
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
   while (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_CloseCurly)) {
@@ -9064,7 +9113,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1567:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1568:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if (attr->args->size > 0) {
     sym->extern_name=std_vector_Vector__1_at(attr->args, 0);
@@ -9601,8 +9650,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2122:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2123:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2123:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2124:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {

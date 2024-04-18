@@ -337,8 +337,12 @@ struct Match {
     expr: &AST
     cases: &Vector<&MatchCase>
     defolt: &AST
-    defolt_span: Span
     is_custom_match: bool
+
+    //! Span of `default` token if we have a default case
+    defolt_span: Span
+    //! Span of `match` token
+    match_span: Span
 }
 
 struct Specialization {
