@@ -44,11 +44,11 @@ def TemplateInstance::matches(&this, other: &Vector<&Type>): bool {
 }
 
 struct Template {
-    params: &Vector<&Variable>
+    params: &Vector<&Symbol>
     instances: &Vector<&TemplateInstance>
 }
 
-def Template::new(params: &Vector<&Variable>): &Template {
+def Template::new(params: &Vector<&Symbol>): &Template {
     let templ = std::new<Template>()
     templ.params = params
     templ.instances = Vector<&TemplateInstance>::new()
@@ -208,7 +208,7 @@ struct Scope {
     parent: &Scope
 }
 
-def Scope::new(parent: &Scope): &Scope {
+def Scope::new(parent: &Scope = null): &Scope {
     let scope = std::new<Scope>()
     scope.items = Map<str, &Symbol>::new()
     scope.defers = Vector<&AST>::new()

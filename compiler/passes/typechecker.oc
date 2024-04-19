@@ -334,7 +334,7 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
 
     // Add the template arguments to the scope with corresponding names
     for let i = 0; i < template_params.size; i += 1 {
-        let param = template_params.at(i)
+        let sym = template_params.at(i)
         let arg = template_args.at(i)
 
         if i > 0 then new_display_name += ", "
@@ -343,10 +343,10 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
         let cur_sym = Symbol::new(
             TypeDef,
             ns: null,
-            param.sym.name, // name
-            param.sym.name, // display
-            param.sym.name, // out_name
-            param.sym.span,
+            sym.name, // name
+            sym.name, // display
+            sym.name, // out_name
+            sym.span,
         )
         cur_sym.u.type_def = arg
         .o.insert_into_scope_checked(cur_sym)
@@ -1838,7 +1838,6 @@ def TypeChecker::check_function(&this, func: &Function) {
     //       function, and if there are more errors after, we're going to remove them.
     let error_count_before = .o.program.errors.size
 
-    .o.push_scope(func.scope)
     for param : params.iter() {
         if not param.type? then continue  // Error should be reported already
         let default_expr = param.default_value
@@ -1855,8 +1854,6 @@ def TypeChecker::check_function(&this, func: &Function) {
 
         new_scope.items.insert(param.sym.name, param.sym)
     }
-    .o.pop_scope()
-
     new_scope.cur_func = func
 
     if func.sym.is_extern then return
@@ -1909,7 +1906,7 @@ def TypeChecker::check_globals(&this, node: &AST, is_const: bool) {
         if not init_type? or not var.type? return
 
         if not init_type.eq(var.type) {
-            .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {init_type.str()}`))
+            .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but got {init_type.str()}`))
         }
     }
 
