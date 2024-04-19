@@ -194,6 +194,9 @@ struct FuncCall {
     args: &Vector<&Argument>
     func: &Function
 
+    open_paren_span: Span
+    close_paren_span: Span
+
     is_constructor: bool
     is_function_pointer: bool
 }

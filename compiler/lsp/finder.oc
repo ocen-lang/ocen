@@ -19,13 +19,21 @@ import .utils::{ verbose }
 
 // Namespace thing again
 struct Finder {
+    cmd: CommandType
     loc: Location // Location we are looking for
-    usage: &Symbol
+
+    found_sym: &Symbol
+
+    // For SignatureHelp
+    active_param: u32
+    call: &AST
+
     found_in_ns_lookup: bool
 }
 
-def Finder::make(loc: Location): Finder {
+def Finder::make(cmd: CommandType, loc: Location): Finder {
     let finder: Finder
+    finder.cmd = cmd
     finder.loc = loc
     return finder
 }
@@ -49,7 +57,7 @@ def Finder::find_in_var(&this, var: &Variable): bool {
 }
 
 def Finder::set_usage(&this, sym: &Symbol): bool {
-    .usage = sym
+    .found_sym = sym
     return sym?
 }
 
@@ -64,7 +72,54 @@ def Finder::find_in_literal(&this, node: &AST): bool {
     return false
 }
 
-def Finder::find_in_call_args(&this, args: &Vector<&Argument>): bool {
+def Finder::find_signature_help(&this, node: &AST, args: &Vector<&Argument>, param_idx: u32): bool {
+    if .cmd != CommandType::SignatureHelp return false
+    if not node.span.contains_loc(.loc) return false
+
+    let func = node.u.call.callee.resolved_symbol
+    if not func? or func.type != Function return false
+    let func_sym = func.u.func.sym
+
+    let params = func.u.func.params
+    if param_idx > params.size return false
+
+    if {
+        (param_idx == 0) => {
+            let open_paren_span = node.u.call.open_paren_span
+            open_paren_span.end.col += 1  // Include room for the next char
+            if open_paren_span.contains_loc(.loc) {
+                .active_param = 0
+                .call = node
+                return true
+            }
+        }
+        else => {
+            let prev_arg = args.at(param_idx - 1)
+            let arg_span = if {
+                prev_arg.label? => prev_arg.label_span.join(prev_arg.expr.span)
+                else => prev_arg.expr.span
+            }
+            if arg_span.contains_loc(.loc) {
+                .active_param = param_idx - 1
+                .call = node
+                return true
+            }
+            let close_paren_span = node.u.call.close_paren_span
+            let mid_span = Span(arg_span.end, close_paren_span.start)
+            if mid_span.contains_loc(.loc) {
+                .active_param = param_idx
+                .call = node
+                return true
+            }
+        }
+    }
+    return false
+}
+
+def Finder::find_in_call_args(&this, node: &AST, args: &Vector<&Argument>): bool {
+    // Do this first, since if we are in a signature help context, we don't care about the rest
+    if .find_signature_help(node, args, args.size) return true
+
     for let i = 0; i < args.size; i += 1 {
         let arg = args.at(i)
         if arg.label_span.contains_loc(.loc) {
@@ -129,7 +184,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         Call => {
             let call = &node.u.call
             if .find_in_expression(call.callee) return true
-            if .find_in_call_args(call.args) return true
+            if .find_in_call_args(node, call.args) return true
         }
         Cast => {
             if .find_in_expression(node.u.cast.lhs) return true
@@ -314,7 +369,6 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
     return false
 }
 
-def Finder::find(&this, program: &Program): &Symbol {
-    .find_in_program(program.global)
-    return .usage
+def Finder::find(&this, program: &Program): bool {
+    return .find_in_program(program.global)
 }

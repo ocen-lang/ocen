@@ -6,6 +6,7 @@
 import std::buffer::Buffer
 import std::span::{ Span, Location }
 import std::vector::Vector
+import std::value::Value
 import std::libc::{ calloc, free }
 import std::{ panic, exit }
 import std::fs
@@ -31,6 +32,7 @@ enum CommandType {
     Completions
     References
     Renames
+    SignatureHelp
     Validate
 }
 
@@ -67,17 +69,17 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
     typecheck_and_log_errors(program, loc.filename)
 
     if verbose then println(`Looking for location: {loc}`)
-    let finder = Finder::make(loc)
+    let finder = Finder::make(cmd: type, loc)
 
-    let usage = finder.find(program)
-    if not usage? {
+    if not finder.find(program) {
         if verbose then println("No result found")
         return
     }
 
     let resp = match type {
-        Hover => utils::gen_hover_string_with_docs(usage)
+        Hover => utils::gen_hover_string_with_docs(finder.found_sym)
         GoToDefinition => {
+            let usage = finder.found_sym
             let jump_span = match usage.type {
                 Namespace => usage.u.ns.span
                 else => usage.span
@@ -85,16 +87,17 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
             yield utils::gen_span_json_with_filename(jump_span, loc)
         }
         GoToType => {
-            let typ = utils::get_symbol_typedef(usage)
+            let typ = utils::get_symbol_typedef(finder.found_sym)
             if typ? and not typ.can_have_methods() and typ.base == Pointer {
                 typ = typ.u.ptr
             }
             if not typ? return
             yield utils::gen_span_json_with_filename(typ.span, loc)
         }
-        Completions => utils::gen_completions_json(usage, ns_lookup: finder.found_in_ns_lookup)
-        References => utils::gen_references_json(usage, loc)
-        Renames => utils::gen_renames_json(usage, loc)
+        Completions => utils::gen_completions_json(finder.found_sym, ns_lookup: finder.found_in_ns_lookup)
+        References => utils::gen_references_json(finder.found_sym, loc)
+        Renames => utils::gen_renames_json(finder.found_sym, loc)
+        SignatureHelp => utils::gen_signature_help(finder.call, finder.active_param)
         else => panic("Unhandled command type")
     }
     if not resp? return
@@ -156,6 +159,7 @@ def lsp_usage(code: i32, full: bool) {
     println("    -t <line> <col>    Find type for the given location")
     println("    -c <line> <col>    Completions for the given location")
     println("    -r <line> <col>    References for the given location")
+    println("    -s <line> <col>    Signature Help for the given location")
     println("    -v                 Verbose output")
     println("    --doc-symbols      List all symbols in the file")
     println("    --validate         List all errors in the file")
@@ -175,12 +179,13 @@ def lsp_main(argc: i32, argv: &str) {
         let arg = shift_args(&argc, &argv)
         match arg {
             "--help" => lsp_usage(0, true)
-            "-h" | "-d" | "-t" | "-c" | "-r" | "--refs" | "--renames" => {
+            "-h" | "-d" | "-t" | "-c" | "-r" | "-s" | "--refs" | "--renames" => {
                 cmd_type = match arg {
                     "-h" => Hover
                     "-d" => GoToDefinition
                     "-t" => GoToType
                     "-c" => Completions
+                    "-s" => SignatureHelp
                     "-r" | "--refs" => References
                     "--renames" => Renames
                     else => panic("Invalid command type")
@@ -231,12 +236,11 @@ def lsp_main(argc: i32, argv: &str) {
     Parser::parse_toplevel(program, show_path, true, contents, include_workspace_main: true)
 
     match cmd_type {
-        Hover | GoToDefinition | GoToType | Completions | References | Renames => {
+        DocumentSymbols => handle_document_symbols(program, show_path)
+        Validate => handle_validate(program, show_path)
+        else => {
             let loc = Location(show_path, line, col, 0)
             handle_location_command(program, cmd_type, loc)
         }
-        DocumentSymbols => handle_document_symbols(program, show_path)
-        Validate => handle_validate(program, show_path)
-        else => panic("Unhandled command type")
     }
 }

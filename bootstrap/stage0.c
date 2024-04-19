@@ -306,6 +306,7 @@ typedef enum compiler_lsp_CommandType {
   compiler_lsp_CommandType_Completions,
   compiler_lsp_CommandType_References,
   compiler_lsp_CommandType_Renames,
+  compiler_lsp_CommandType_SignatureHelp,
   compiler_lsp_CommandType_Validate,
 } compiler_lsp_CommandType;
 
@@ -319,6 +320,7 @@ char *compiler_lsp_CommandType_dbg(compiler_lsp_CommandType this) {
     case compiler_lsp_CommandType_Completions: return "Completions";
     case compiler_lsp_CommandType_References: return "References";
     case compiler_lsp_CommandType_Renames: return "Renames";
+    case compiler_lsp_CommandType_SignatureHelp: return "SignatureHelp";
     case compiler_lsp_CommandType_Validate: return "Validate";
     default: return "<unknown>";
   }
@@ -1008,6 +1010,8 @@ struct compiler_ast_nodes_FuncCall {
   compiler_ast_nodes_AST *callee;
   std_vector_Vector__15 *args;
   compiler_ast_nodes_Function *func;
+  std_span_Span open_paren_span;
+  std_span_Span close_paren_span;
   bool is_constructor;
   bool is_function_pointer;
 };
@@ -1216,8 +1220,11 @@ struct compiler_ast_scopes_Scope {
 };
 
 struct compiler_lsp_finder_Finder {
+  compiler_lsp_CommandType cmd;
   std_span_Location loc;
-  compiler_ast_scopes_Symbol *usage;
+  compiler_ast_scopes_Symbol *found_sym;
+  u32 active_param;
+  compiler_ast_nodes_AST *call;
   bool found_in_ns_lookup;
 };
 
@@ -2087,6 +2094,7 @@ void compiler_lsp_handle_document_symbols(compiler_ast_program_Program *program,
 char *compiler_lsp_shift_args(i32 *argc, char ***argv);
 void compiler_lsp_lsp_usage(i32 code, bool full);
 void compiler_lsp_lsp_main(i32 argc, char **argv);
+char *compiler_lsp_utils_gen_func_param_string(u32 i, compiler_ast_nodes_Variable *param, bool is_non_static_method);
 char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full);
 char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr);
 char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym);
@@ -2104,14 +2112,16 @@ std_value_Value *compiler_lsp_utils_gen_namespace_json(compiler_ast_program_Name
 std_value_Value *compiler_lsp_utils_gen_completion_from_symbol(compiler_ast_scopes_Symbol *sym);
 std_vector_Vector__21 *compiler_lsp_utils_get_unique_reference_spans(compiler_ast_scopes_Symbol *sym, bool for_rename);
 std_value_Value *compiler_lsp_utils_gen_references_json(compiler_ast_scopes_Symbol *sym, std_span_Location loc);
+std_value_Value *compiler_lsp_utils_gen_signature_help(compiler_ast_nodes_AST *node, u32 active_param);
 std_value_Value *compiler_lsp_utils_gen_renames_json(compiler_ast_scopes_Symbol *sym, std_span_Location loc);
 std_value_Value *compiler_lsp_utils_gen_completions_json(compiler_ast_scopes_Symbol *sym, bool ns_lookup);
-compiler_lsp_finder_Finder compiler_lsp_finder_Finder_make(std_span_Location loc);
+compiler_lsp_finder_Finder compiler_lsp_finder_Finder_make(compiler_lsp_CommandType cmd, std_span_Location loc);
 bool compiler_lsp_finder_Finder_find_in_identifier(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node);
 bool compiler_lsp_finder_Finder_find_in_var(compiler_lsp_finder_Finder *this, compiler_ast_nodes_Variable *var);
 bool compiler_lsp_finder_Finder_set_usage(compiler_lsp_finder_Finder *this, compiler_ast_scopes_Symbol *sym);
 bool compiler_lsp_finder_Finder_find_in_literal(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node);
-bool compiler_lsp_finder_Finder_find_in_call_args(compiler_lsp_finder_Finder *this, std_vector_Vector__15 *args);
+bool compiler_lsp_finder_Finder_find_signature_help(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node, std_vector_Vector__15 *args, u32 param_idx);
+bool compiler_lsp_finder_Finder_find_in_call_args(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node, std_vector_Vector__15 *args);
 bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node);
 bool compiler_lsp_finder_Finder_find_in_import_part(compiler_lsp_finder_Finder *this, compiler_ast_nodes_ImportPart *part);
 bool compiler_lsp_finder_Finder_find_in_statement(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node);
@@ -2119,7 +2129,7 @@ bool compiler_lsp_finder_Finder_find_in_block(compiler_lsp_finder_Finder *this, 
 bool compiler_lsp_finder_Finder_find_in_type(compiler_lsp_finder_Finder *this, compiler_types_Type *type);
 bool compiler_lsp_finder_Finder_find_in_function(compiler_lsp_finder_Finder *this, compiler_ast_nodes_Function *func);
 bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this, compiler_ast_program_Namespace *ns);
-compiler_ast_scopes_Symbol *compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program);
+bool compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program);
 compiler_attributes_AttributeType compiler_attributes_AttributeType_from_str(char *s);
 compiler_attributes_Attribute *compiler_attributes_Attribute_new(compiler_attributes_AttributeType type, std_span_Span span);
 bool compiler_attributes_Attribute_validate(compiler_attributes_Attribute *this, compiler_parser_Parser *parser_for_errors);
@@ -2265,6 +2275,7 @@ std_sv_SVLineIterator std_sv_SV_lines(std_sv_SV this);
 bool std_sv_SVLineIterator_has_value(std_sv_SVLineIterator *this);
 std_sv_SV std_sv_SVLineIterator_cur(std_sv_SVLineIterator *this);
 void std_sv_SVLineIterator_next(std_sv_SVLineIterator *this);
+bool std_compact_map_Map__0_contains(std_compact_map_Map__0 *this, char *key);
 std_compact_map_Iterator__0 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this);
 std_compact_map_Item__0 std_compact_map_Iterator__0_cur(std_compact_map_Iterator__0 *this);
 void std_compact_map_Iterator__0_next(std_compact_map_Iterator__0 *this);
@@ -2328,10 +2339,12 @@ std_value_Value *std_value_Value_new_str(char *s);
 std_value_Value *std_value_Value_new_bool(bool bul);
 std_value_Value *std_value_Value_new_int(i64 num);
 void std_value_Value_ensure(std_value_Value *this, std_value_ValueType type);
+std_value_Value *std_value_Value_at_key(std_value_Value *this, char *key);
 void std_value_Value_push(std_value_Value *this, std_value_Value *value);
 std_value_Value *std_value_Value_get(std_value_Value *this, char *key, std_value_Value *defolt);
 void std_value_Value_insert(std_value_Value *this, char *key, std_value_Value *value);
 void std_value_Value_insert_str(std_value_Value *this, char *key, char *s);
+void std_value_Value_insert_u32(std_value_Value *this, char *key, u32 i);
 std_compact_map_Map__0 *std_value_Value_as_dict(std_value_Value *this);
 char *std_value_Value_dbg(std_value_Value *this);
 char *std_fs_realpath(char *path);
@@ -6536,8 +6549,7 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
   for (u32 i = 0; i < (doc_len - 1); i++) {
     if (doc[i]=='\\') {
       i++;
-    }
-    if (doc[i]==doc[(i + 1)] && doc[(i + 1)]=='{') {
+    } else if (doc[i]==doc[(i + 1)] && doc[(i + 1)]=='{') {
       std_buffer_Buffer_write_str_f(&buffer, str_substring(doc, prev, (i - prev)));
       prev=(i + 2);
       i++;
@@ -6961,8 +6973,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
       continue;
       }
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2395:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
-      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2399:16: Assertion failed: `sym.type == TypeDef`", NULL);
+      ae_assert(((bool)sym), "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2394:16: Assertion failed: `sym?`", "Should have added the symbol into scope already");
+      ae_assert(sym->type==compiler_ast_scopes_SymbolType_TypeDef, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2398:16: Assertion failed: `sym.type == TypeDef`", NULL);
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) {
       continue;
@@ -8222,7 +8234,7 @@ compiler_types_Type *compiler_parser_Parser_parse_literal_suffix_type(compiler_p
 }
 
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_call(compiler_parser_Parser *this, compiler_ast_nodes_AST *callee) {
-  compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenParen);
+  compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenParen);
   std_vector_Vector__15 *args = std_vector_Vector__15_new(16);
   while (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_CloseParen)) {
     compiler_tokens_Token *label_tok = NULL;
@@ -8241,6 +8253,8 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_call(compiler_parser_Parser
   compiler_ast_nodes_AST *call = compiler_ast_nodes_AST_new(call_type, std_span_Span_join(callee->span, end->span));
   call->u.call.callee=callee;
   call->u.call.args=args;
+  call->u.call.open_paren_span=start->span;
+  call->u.call.close_paren_span=end->span;
   return call;
 }
 
@@ -8433,11 +8447,14 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_postfix(compiler_parser_Par
         node=compiler_parser_Parser_parse_call(this, node);
       } break;
       case compiler_tokens_TokenType_Dot: {
+        if (compiler_parser_Parser_token_is(this, end_type)) {
+        break;
+        }
         compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Dot);
         compiler_ast_nodes_AST *member = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Member, node->span);
         member->u.member.lhs=node;
         node=member;
-        if (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Identifier)) {
+        if (compiler_parser_Parser_token_is(this, end_type) || !compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Identifier)) {
           compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Expected identifier after `.`"));
           node->span.end=compiler_parser_Parser_token(this)->span.start;
         } else {
@@ -8848,6 +8865,8 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_for_each(compiler_parser_Pa
     compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Call, start_span);
     node->u.call.callee=member;
     node->u.call.args=std_vector_Vector__15_new(16);
+    node->u.call.open_paren_span=name->span;
+    node->u.call.close_paren_span=name->span;
     __yield_0 = node;
   ;__yield_0; });
   compiler_ast_nodes_AST *step = ({ compiler_ast_nodes_AST *__yield_0;
@@ -8860,6 +8879,8 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_for_each(compiler_parser_Pa
     compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Call, start_span);
     node->u.call.callee=member;
     node->u.call.args=std_vector_Vector__15_new(16);
+    node->u.call.open_paren_span=name->span;
+    node->u.call.close_paren_span=name->span;
     __yield_0 = node;
   ;__yield_0; });
   compiler_ast_nodes_AST *loop_var_decl = ({ compiler_ast_nodes_AST *__yield_0;
@@ -8874,6 +8895,8 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_for_each(compiler_parser_Pa
     compiler_ast_nodes_AST *call = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Call, start_span);
     call->u.call.callee=member;
     call->u.call.args=std_vector_Vector__15_new(16);
+    call->u.call.open_paren_span=name->span;
+    call->u.call.close_paren_span=name->span;
     compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_VarDeclaration, start_span);
     node->u.var_decl.var=var;
     node->u.var_decl.init=call;
@@ -9237,7 +9260,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1577:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1586:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if (attr->args->size > 0) {
     sym->extern_name=std_vector_Vector__1_at(attr->args, 0);
@@ -9774,8 +9797,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2132:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2133:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2141:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2142:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
@@ -11173,9 +11196,8 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
   if (compiler_lsp_utils_verbose) {
   printf("Looking for location: %s:%u:%u\n", (loc).filename, (loc).line, (loc).col);
   }
-  compiler_lsp_finder_Finder finder = compiler_lsp_finder_Finder_make(loc);
-  compiler_ast_scopes_Symbol *usage = compiler_lsp_finder_Finder_find(&finder, program);
-  if (!((bool)usage)) {
+  compiler_lsp_finder_Finder finder = compiler_lsp_finder_Finder_make(type, loc);
+  if (!compiler_lsp_finder_Finder_find(&finder, program)) {
     if (compiler_lsp_utils_verbose) {
     printf("No result found""\n");
     }
@@ -11184,9 +11206,10 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
   std_value_Value *resp = ({ std_value_Value *__yield_0;
     switch (type) {
       case compiler_lsp_CommandType_Hover: {
-        __yield_0 = compiler_lsp_utils_gen_hover_string_with_docs(usage);
+        __yield_0 = compiler_lsp_utils_gen_hover_string_with_docs(finder.found_sym);
       } break;
       case compiler_lsp_CommandType_GoToDefinition: {
+        compiler_ast_scopes_Symbol *usage = finder.found_sym;
         std_span_Span jump_span = ({ std_span_Span __yield_1;
           switch (usage->type) {
             case compiler_ast_scopes_SymbolType_Namespace: {
@@ -11200,7 +11223,7 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
         __yield_0 = compiler_lsp_utils_gen_span_json_with_filename(jump_span, loc);
       } break;
       case compiler_lsp_CommandType_GoToType: {
-        compiler_types_Type *typ = compiler_lsp_utils_get_symbol_typedef(usage);
+        compiler_types_Type *typ = compiler_lsp_utils_get_symbol_typedef(finder.found_sym);
         if ((((bool)typ) && !compiler_types_Type_can_have_methods(typ)) && typ->base==compiler_types_BaseType_Pointer) {
           typ=typ->u.ptr;
         }
@@ -11210,13 +11233,16 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
         __yield_0 = compiler_lsp_utils_gen_span_json_with_filename(typ->span, loc);
       } break;
       case compiler_lsp_CommandType_Completions: {
-        __yield_0 = compiler_lsp_utils_gen_completions_json(usage, finder.found_in_ns_lookup);
+        __yield_0 = compiler_lsp_utils_gen_completions_json(finder.found_sym, finder.found_in_ns_lookup);
       } break;
       case compiler_lsp_CommandType_References: {
-        __yield_0 = compiler_lsp_utils_gen_references_json(usage, loc);
+        __yield_0 = compiler_lsp_utils_gen_references_json(finder.found_sym, loc);
       } break;
       case compiler_lsp_CommandType_Renames: {
-        __yield_0 = compiler_lsp_utils_gen_renames_json(usage, loc);
+        __yield_0 = compiler_lsp_utils_gen_renames_json(finder.found_sym, loc);
+      } break;
+      case compiler_lsp_CommandType_SignatureHelp: {
+        __yield_0 = compiler_lsp_utils_gen_signature_help(finder.call, finder.active_param);
       } break;
       default: std_panic("Unhandled command type"); break;
     }
@@ -11286,6 +11312,7 @@ void compiler_lsp_lsp_usage(i32 code, bool full) {
   printf("    -t <line> <col>    Find type for the given location""\n");
   printf("    -c <line> <col>    Completions for the given location""\n");
   printf("    -r <line> <col>    References for the given location""\n");
+  printf("    -s <line> <col>    Signature Help for the given location""\n");
   printf("    -v                 Verbose output""\n");
   printf("    --doc-symbols      List all symbols in the file""\n");
   printf("    --validate         List all errors in the file""\n");
@@ -11305,7 +11332,7 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
       char *__match_var_3 = arg;
       if (str_eq(__match_var_3, "--help")) {
         compiler_lsp_lsp_usage(0, true);
-      } else if (str_eq(__match_var_3, "-h") || str_eq(__match_var_3, "-d") || str_eq(__match_var_3, "-t") || str_eq(__match_var_3, "-c") || str_eq(__match_var_3, "-r") || str_eq(__match_var_3, "--refs") || str_eq(__match_var_3, "--renames")) {
+      } else if (str_eq(__match_var_3, "-h") || str_eq(__match_var_3, "-d") || str_eq(__match_var_3, "-t") || str_eq(__match_var_3, "-c") || str_eq(__match_var_3, "-r") || str_eq(__match_var_3, "-s") || str_eq(__match_var_3, "--refs") || str_eq(__match_var_3, "--renames")) {
         cmd_type=({ compiler_lsp_CommandType __yield_0;
           {
             char *__match_var_4 = arg;
@@ -11317,6 +11344,8 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
               __yield_0 = compiler_lsp_CommandType_GoToType;
             } else if (str_eq(__match_var_4, "-c")) {
               __yield_0 = compiler_lsp_CommandType_Completions;
+            } else if (str_eq(__match_var_4, "-s")) {
+              __yield_0 = compiler_lsp_CommandType_SignatureHelp;
             } else if (str_eq(__match_var_4, "-r") || str_eq(__match_var_4, "--refs")) {
               __yield_0 = compiler_lsp_CommandType_References;
             } else if (str_eq(__match_var_4, "--renames")) {
@@ -11366,23 +11395,41 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
   char *contents = std_buffer_Buffer_str(std_fs_read_file(file_path));
   compiler_parser_Parser_parse_toplevel(program, show_path, true, contents, true);
   switch (cmd_type) {
-    case compiler_lsp_CommandType_Hover:
-    case compiler_lsp_CommandType_GoToDefinition:
-    case compiler_lsp_CommandType_GoToType:
-    case compiler_lsp_CommandType_Completions:
-    case compiler_lsp_CommandType_References:
-    case compiler_lsp_CommandType_Renames: {
-      std_span_Location loc = (std_span_Location){.filename=show_path, .line=line, .col=col, .index=0};
-      compiler_lsp_handle_location_command(program, cmd_type, loc);
-    } break;
     case compiler_lsp_CommandType_DocumentSymbols: {
       compiler_lsp_handle_document_symbols(program, show_path);
     } break;
     case compiler_lsp_CommandType_Validate: {
       compiler_lsp_handle_validate(program, show_path);
     } break;
-    default: std_panic("Unhandled command type"); break;
+    default: {
+      std_span_Location loc = (std_span_Location){.filename=show_path, .line=line, .col=col, .index=0};
+      compiler_lsp_handle_location_command(program, cmd_type, loc);
+    } break;
   }
+}
+
+char *compiler_lsp_utils_gen_func_param_string(u32 i, compiler_ast_nodes_Variable *param, bool is_non_static_method) {
+  std_buffer_Buffer sb = std_buffer_Buffer_make(16);
+  if (i==0 && is_non_static_method) {
+    if (param->type->base==compiler_types_BaseType_Pointer) {
+      std_buffer_Buffer_write_str(&sb, "&");
+    }
+    std_buffer_Buffer_write_str(&sb, "this");
+  } else {
+    if (!str_eq(param->sym->name, "")) {
+      std_buffer_Buffer_write_str(&sb, param->sym->name);
+      std_buffer_Buffer_write_str(&sb, ": ");
+    }
+    std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(param->type, false));
+  }
+  if (((bool)param->default_value)) {
+    char *expr_str = compiler_lsp_utils_try_gen_expr_string(param->default_value);
+    if (((bool)expr_str)) {
+      std_buffer_Buffer_write_str(&sb, " = ");
+      std_buffer_Buffer_write_str(&sb, expr_str);
+    }
+  }
+  return std_buffer_Buffer_str(sb);
 }
 
 char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
@@ -11462,25 +11509,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
           if (i > 0) {
             std_buffer_Buffer_write_str(&sb, ", ");
           }
-          if (i==0 && is_non_static_method) {
-            if (param->type->base==compiler_types_BaseType_Pointer) {
-              std_buffer_Buffer_write_str(&sb, "&");
-            }
-            std_buffer_Buffer_write_str(&sb, "this");
-          } else {
-            if (!str_eq(param->sym->name, "")) {
-              std_buffer_Buffer_write_str(&sb, param->sym->name);
-              std_buffer_Buffer_write_str(&sb, ": ");
-            }
-            std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_type_string(param->type, false));
-          }
-          if (((bool)param->default_value)) {
-            char *expr_str = compiler_lsp_utils_try_gen_expr_string(param->default_value);
-            if (((bool)expr_str)) {
-              std_buffer_Buffer_write_str(&sb, " = ");
-              std_buffer_Buffer_write_str(&sb, expr_str);
-            }
-          }
+          std_buffer_Buffer_write_str(&sb, compiler_lsp_utils_gen_func_param_string(i, param, is_non_static_method));
         }
         if (func_type.is_variadic) {
           if (func_type.params->size > 0) {
@@ -11835,12 +11864,25 @@ std_value_Value *compiler_lsp_utils_gen_completion_from_symbol(compiler_ast_scop
   std_value_Value_insert_str(val, "detail", compiler_lsp_utils_gen_hover_string(sym));
   switch (sym->type) {
     case compiler_ast_scopes_SymbolType_Function: {
-      std_value_Value_insert_str(val, "insertText", format_string("%s($1)", sym->name));
+      std_value_Value_insert_str(val, "insertText", sym->name);
       std_value_Value_insert_str(val, "kind", "function");
+      std_value_Value_insert_str(val, "labelDetails", compiler_lsp_utils_gen_hover_string(sym));
+      if (((bool)sym->comment)) {
+        std_value_Value_insert_str(val, "documentation", sym->comment);
+      }
     } break;
-    default: {
+    case compiler_ast_scopes_SymbolType_Variable: {
       std_value_Value_insert_str(val, "insertText", sym->name);
       std_value_Value_insert_str(val, "kind", "field");
+      std_value_Value_insert_str(val, "labelDetails", compiler_lsp_utils_gen_hover_string(sym));
+      if (((bool)sym->comment)) {
+        std_value_Value_insert_str(val, "documentation", sym->comment);
+      }
+    } break;
+    default: {
+      if (compiler_lsp_utils_verbose) {
+        printf("gen_completion_from_symbol: unhandled symbol type: %s\n", compiler_ast_scopes_SymbolType_dbg(sym->type));
+      }
     } break;
   }
   return val;
@@ -11880,6 +11922,32 @@ std_value_Value *compiler_lsp_utils_gen_references_json(compiler_ast_scopes_Symb
   }
   std_vector_Vector__21_free(spans);
   return obj;
+}
+
+std_value_Value *compiler_lsp_utils_gen_signature_help(compiler_ast_nodes_AST *node, u32 active_param) {
+  std_value_Value *obj = std_value_Value_new(std_value_ValueType_Dictionary);
+  compiler_ast_scopes_Symbol *callee_sym = node->u.call.callee->resolved_symbol;
+  if (!((bool)callee_sym) || (callee_sym->type != compiler_ast_scopes_SymbolType_Function)) {
+  return obj;
+  }
+  compiler_ast_nodes_Function *func = callee_sym->u.func;
+  std_value_Value_insert_str(obj, "label", compiler_lsp_utils_gen_type_string(func->type, true));
+  std_vector_Vector__4 *params = func->params;
+  std_value_Value *params_obj = std_value_Value_new(std_value_ValueType_List);
+  bool is_non_static_method = (func->is_method && !func->is_static);
+  for (u32 i = 0; i < params->size; i+=1) {
+    compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
+    std_value_Value *param_obj = std_value_Value_new(std_value_ValueType_Dictionary);
+    std_value_Value_insert_str(param_obj, "label", compiler_lsp_utils_gen_func_param_string(i, param, is_non_static_method));
+    std_value_Value_push(params_obj, param_obj);
+  }
+  std_value_Value_insert(obj, "parameters", params_obj);
+  std_value_Value *sig_help = std_value_Value_new(std_value_ValueType_Dictionary);
+  std_value_Value_insert(sig_help, "signatures", std_value_Value_new(std_value_ValueType_List));
+  std_value_Value_push(std_value_Value_at_key(sig_help, "signatures"), obj);
+  std_value_Value_insert_u32(sig_help, "activeSignature", 0);
+  std_value_Value_insert_u32(sig_help, "activeParameter", active_param);
+  return sig_help;
 }
 
 std_value_Value *compiler_lsp_utils_gen_renames_json(compiler_ast_scopes_Symbol *sym, std_span_Location loc) {
@@ -12002,8 +12070,9 @@ std_value_Value *compiler_lsp_utils_gen_completions_json(compiler_ast_scopes_Sym
   return obj;
 }
 
-compiler_lsp_finder_Finder compiler_lsp_finder_Finder_make(std_span_Location loc) {
+compiler_lsp_finder_Finder compiler_lsp_finder_Finder_make(compiler_lsp_CommandType cmd, std_span_Location loc) {
   compiler_lsp_finder_Finder finder = {0};
+  finder.cmd=cmd;
   finder.loc=loc;
   return finder;
 }
@@ -12027,7 +12096,7 @@ bool compiler_lsp_finder_Finder_find_in_var(compiler_lsp_finder_Finder *this, co
 }
 
 bool compiler_lsp_finder_Finder_set_usage(compiler_lsp_finder_Finder *this, compiler_ast_scopes_Symbol *sym) {
-  this->usage=sym;
+  this->found_sym=sym;
   return ((bool)sym);
 }
 
@@ -12040,7 +12109,53 @@ bool compiler_lsp_finder_Finder_find_in_literal(compiler_lsp_finder_Finder *this
   return false;
 }
 
-bool compiler_lsp_finder_Finder_find_in_call_args(compiler_lsp_finder_Finder *this, std_vector_Vector__15 *args) {
+bool compiler_lsp_finder_Finder_find_signature_help(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node, std_vector_Vector__15 *args, u32 param_idx) {
+  if (this->cmd != compiler_lsp_CommandType_SignatureHelp) {
+  return false;
+  }
+  if (!std_span_Span_contains_loc(node->span, this->loc)) {
+  return false;
+  }
+  compiler_ast_scopes_Symbol *func = node->u.call.callee->resolved_symbol;
+  if (!((bool)func) || (func->type != compiler_ast_scopes_SymbolType_Function)) {
+  return false;
+  }
+  compiler_ast_scopes_Symbol *func_sym = func->u.func->sym;
+  std_vector_Vector__4 *params = func->u.func->params;
+  if (param_idx > params->size) {
+  return false;
+  }
+  if (param_idx==0) {
+    std_span_Span open_paren_span = node->u.call.open_paren_span;
+    open_paren_span.end.col+=1;
+    if (std_span_Span_contains_loc(open_paren_span, this->loc)) {
+      this->active_param=0;
+      this->call=node;
+      return true;
+    }
+  } else {
+    compiler_ast_nodes_Argument *prev_arg = std_vector_Vector__15_at(args, (param_idx - 1));
+    std_span_Span arg_span = (((bool)prev_arg->label) ? std_span_Span_join(prev_arg->label_span, prev_arg->expr->span) : prev_arg->expr->span);
+    if (std_span_Span_contains_loc(arg_span, this->loc)) {
+      this->active_param=(param_idx - 1);
+      this->call=node;
+      return true;
+    }
+    std_span_Span close_paren_span = node->u.call.close_paren_span;
+    std_span_Span mid_span = (std_span_Span){.start=arg_span.end, .end=close_paren_span.start};
+    if (std_span_Span_contains_loc(mid_span, this->loc)) {
+      this->active_param=param_idx;
+      this->call=node;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool compiler_lsp_finder_Finder_find_in_call_args(compiler_lsp_finder_Finder *this, compiler_ast_nodes_AST *node, std_vector_Vector__15 *args) {
+  if (compiler_lsp_finder_Finder_find_signature_help(this, node, args, args->size)) {
+  return true;
+  }
   for (u32 i = 0; i < args->size; i+=1) {
     compiler_ast_nodes_Argument *arg = std_vector_Vector__15_at(args, i);
     if (std_span_Span_contains_loc(arg->label_span, this->loc)) {
@@ -12123,7 +12238,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
       if (compiler_lsp_finder_Finder_find_in_expression(this, call->callee)) {
       return true;
       }
-      if (compiler_lsp_finder_Finder_find_in_call_args(this, call->args)) {
+      if (compiler_lsp_finder_Finder_find_in_call_args(this, node, call->args)) {
       return true;
       }
     } break;
@@ -12433,9 +12548,8 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
   return false;
 }
 
-compiler_ast_scopes_Symbol *compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program) {
-  compiler_lsp_finder_Finder_find_in_program(this, program->global);
-  return this->usage;
+bool compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program) {
+  return compiler_lsp_finder_Finder_find_in_program(this, program->global);
 }
 
 compiler_attributes_AttributeType compiler_attributes_AttributeType_from_str(char *s) {
@@ -13859,6 +13973,12 @@ std_sv_SV std_sv_SVLineIterator_cur(std_sv_SVLineIterator *this) {
 void std_sv_SVLineIterator_next(std_sv_SVLineIterator *this) {
 }
 
+bool std_compact_map_Map__0_contains(std_compact_map_Map__0 *this, char *key) {
+  u32 hash = str_hash(key);
+  u32 index = std_compact_map_Map__0_get_index(this, key, hash);
+  return this->indices[index] >= 0;
+}
+
 std_compact_map_Iterator__0 std_compact_map_Map__0_iter(std_compact_map_Map__0 *this) {
   return (std_compact_map_Iterator__0){.iter=std_vector_Vector__23_iter(this->items)};
 }
@@ -14256,6 +14376,15 @@ void std_value_Value_ensure(std_value_Value *this, std_value_ValueType type) {
   }
 }
 
+std_value_Value *std_value_Value_at_key(std_value_Value *this, char *key) {
+  std_value_Value_ensure(this, std_value_ValueType_Dictionary);
+  if (!std_compact_map_Map__0_contains(this->u.as_dict, key)) {
+    printf("%s:%u:%u: Key not found: %s\n", (this->span.start).filename, (this->span.start).line, (this->span.start).col, key);
+    exit(1);
+  }
+  return std_compact_map_Map__0_get(this->u.as_dict, key, NULL);
+}
+
 void std_value_Value_push(std_value_Value *this, std_value_Value *value) {
   std_value_Value_ensure(this, std_value_ValueType_List);
   std_vector_Vector__22_push(this->u.as_list, value);
@@ -14273,6 +14402,10 @@ void std_value_Value_insert(std_value_Value *this, char *key, std_value_Value *v
 
 void std_value_Value_insert_str(std_value_Value *this, char *key, char *s) {
   std_value_Value_insert(this, key, std_value_Value_new_str(s));
+}
+
+void std_value_Value_insert_u32(std_value_Value *this, char *key, u32 i) {
+  std_value_Value_insert(this, key, std_value_Value_new_int(((i64)i)));
 }
 
 std_compact_map_Map__0 *std_value_Value_as_dict(std_value_Value *this) {
