@@ -15,6 +15,31 @@ import @errors::{ Error }
 
 let verbose: bool = false
 
+def gen_func_param_string(i: u32, param: &Variable, is_non_static_method: bool): str {
+    let sb = Buffer::make()
+    if i == 0 and is_non_static_method {
+        if param.type.base == Pointer {
+            sb += "&"
+        }
+        sb += "this"
+    } else {
+        if not param.sym.name.eq("") {
+            sb += param.sym.name
+            sb += ": "
+        }
+        sb += gen_type_string(param.type, full: false)
+    }
+
+    if param.default_value? {
+        let expr_str = try_gen_expr_string(param.default_value)
+        if expr_str? {
+            sb += " = "
+            sb += expr_str
+        }
+    }
+    return sb.str()
+}
+
 def gen_type_string(type: &Type, full: bool = true): str => match type.base {
     Char | Bool | Void | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => type.base.str()
     Pointer => match type.u.ptr.base {
@@ -60,27 +85,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
             if i > 0 {
                 sb += ", "
             }
-
-            if i == 0 and is_non_static_method {
-                if param.type.base == Pointer {
-                    sb += "&"
-                }
-                sb += "this"
-            } else {
-                if not param.sym.name.eq("") {
-                    sb += param.sym.name
-                    sb += ": "
-                }
-                sb += gen_type_string(param.type, full: false)
-            }
-
-            if param.default_value? {
-                let expr_str = try_gen_expr_string(param.default_value)
-                if expr_str? {
-                    sb += " = "
-                    sb += expr_str
-                }
-            }
+            sb += gen_func_param_string(i, param, is_non_static_method)
         }
         if func_type.is_variadic {
             if func_type.params.size > 0 {
@@ -353,12 +358,23 @@ def gen_completion_from_symbol(sym: &Symbol): &Value {
     // TODO: other types?
     match sym.type {
         Function => {
-            val["insertText"] = `{sym.name}($1)`
+            val["insertText"] = sym.name
             val["kind"] = "function"
+            val["labelDetails"] = gen_hover_string(sym)
+            if sym.comment? {
+                val["documentation"] = sym.comment
+            }
         }
-        else => {
+        Variable => {
             val["insertText"] = sym.name
             val["kind"] = "field"
+            val["labelDetails"] = gen_hover_string(sym)
+            if sym.comment? {
+                val["documentation"] = sym.comment
+            }
+        }
+        else => if verbose {
+            println(f"gen_completion_from_symbol: unhandled symbol type: {sym.type}")
         }
     }
     return val
@@ -387,6 +403,35 @@ def gen_references_json(sym: &Symbol, loc: Location): &Value {
     }
     spans.free()
     return obj
+}
+
+def gen_signature_help(node: &AST, active_param: u32): &Value {
+    let obj = Value::new(Dictionary)
+    let callee_sym = node.u.call.callee.resolved_symbol
+    if not callee_sym? or callee_sym.type != Function return obj
+
+    let func = callee_sym.u.func
+    obj["label"] = gen_type_string(func.type)
+
+    let params = func.params
+    let params_obj = Value::new(List)
+
+    let is_non_static_method = func.is_method and not func.is_static
+    for let i = 0; i < params.size; i += 1 {
+        let param = params.at(i)
+        let param_obj = Value::new(Dictionary)
+        param_obj["label"] = gen_func_param_string(i, param, is_non_static_method)
+        params_obj += param_obj
+    }
+    obj["parameters"] = params_obj
+
+    let sig_help = Value::new(Dictionary)
+    sig_help["signatures"] = Value::new(List)
+    sig_help["signatures"] += obj
+
+    sig_help["activeSignature"] = 0
+    sig_help["activeParameter"] = active_param
+    return sig_help
 }
 
 def gen_renames_json(sym: &Symbol, loc: Location): &Value {

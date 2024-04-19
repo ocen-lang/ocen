@@ -493,7 +493,7 @@ def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
 }
 
 def Parser::parse_call(&this, callee: &AST): &AST {
-    .consume(TokenType::OpenParen)
+    let start = .consume(TokenType::OpenParen)
     let args = Vector<&Argument>::new()
     while not .token_is(TokenType::CloseParen) {
         let label_tok: &Token = null
@@ -514,6 +514,8 @@ def Parser::parse_call(&this, callee: &AST): &AST {
     let call = AST::new(call_type, callee.span.join(end.span))
     call.u.call.callee = callee
     call.u.call.args = args
+    call.u.call.open_paren_span = start.span
+    call.u.call.close_paren_span = end.span
     return call
 }
 
@@ -1141,6 +1143,8 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let node = AST::new(ASTType::Call, start_span)
         node.u.call.callee = member
         node.u.call.args = Vector<&Argument>::new()
+        node.u.call.open_paren_span = name.span
+        node.u.call.close_paren_span = name.span
         yield node
     }
 
@@ -1156,6 +1160,8 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let node = AST::new(ASTType::Call, start_span)
         node.u.call.callee = member
         node.u.call.args = Vector<&Argument>::new()
+        node.u.call.open_paren_span = name.span
+        node.u.call.close_paren_span = name.span
         yield node
     }
 
@@ -1175,6 +1181,8 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let call = AST::new(ASTType::Call, start_span)
         call.u.call.callee = member
         call.u.call.args = Vector<&Argument>::new()
+        call.u.call.open_paren_span = name.span
+        call.u.call.close_paren_span = name.span
 
         let node = AST::new(ASTType::VarDeclaration, start_span)
         node.u.var_decl.var = var
