@@ -1163,10 +1163,10 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let var = Variable::new(null)
         var.sym = Symbol::from_local_variable(name.text, var, name.span)
 
-        let iter_name = AST::new(ASTType::Identifier, name.span)
+        let iter_name = AST::new(ASTType::Identifier, start_span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member, name.span)
+        let member = AST::new(ASTType::Member, start_span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "cur"
         member.u.member.rhs_span = expr.span

@@ -701,11 +701,38 @@ def CodeGenerator::gen_custom_match(&this, node: &AST) {
     .out += "}\n"
 }
 
+//! Generate an if-else statement when we are matching a boolean
+def CodeGenerator::gen_match_bool(&this, node: &AST) {
+    let stmt = node.u.match_stmt
+
+    let true_case = stmt.cases[0]
+    let false_case = stmt.cases[1]
+
+    if not true_case.cond.u.bool_literal {
+        let tmp = true_case
+        true_case = false_case
+        false_case = tmp
+    }
+
+    .gen_indent()
+    .out += "if ("
+    .gen_expression(stmt.expr)
+    .out += ") "
+    .gen_control_body(node, true_case.body)
+    .out += " else "
+    .gen_control_body(node, false_case.body)
+}
+
 def CodeGenerator::gen_match(&this, node: &AST) {
     let stmt = node.u.match_stmt
 
     if stmt.is_custom_match {
         .gen_custom_match(node)
+        return
+    }
+
+    if stmt.expr.etype.base == Bool {
+        .gen_match_bool(node)
         return
     }
 

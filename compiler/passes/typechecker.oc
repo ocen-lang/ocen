@@ -98,7 +98,6 @@ def TypeChecker::resolve_type(
         }
         Alias => {
             if not old.u.ptr? {
-                println(f"Got unresolved type: {old:p}")
                 .error(Error::new_note(
                     old.span, "This type does not point to anything",
                     "Cannot use a typedef for a type when defining any of it's members.\nUse fully qualified type for all field / method definitions."
@@ -136,7 +135,6 @@ def TypeChecker::resolve_type(
                         if res.is_templated() and not allow_incomplete {
                             if error {
                                 .error(Error::new(old.span, `Cannot use templated struct {struc.sym.name} as a type`))
-                                return null
                             }
                             return resolved
                         }
@@ -153,7 +151,6 @@ def TypeChecker::resolve_type(
                         if res.is_templated() and not allow_incomplete {
                             if error {
                                 .error(Error::new(old.span, `Cannot use templated function {func.sym.name} as a type`))
-                                return null
                             }
                             return resolved
                         }
@@ -183,11 +180,7 @@ def TypeChecker::resolve_type(
         Array => {
             let arr = old.u.arr
             let elem_type = .resolve_type(arr.elem_type, p_a, p_e, p_r)
-            if not elem_type? return null
-
             let res = .check_expression(arr.size_expr)
-            if not res? return null
-
             resolved = Type::shallow_copy(old)
             resolved.u.arr.elem_type = elem_type
 
@@ -626,27 +619,46 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         Member => .check_member(callee, is_being_called: true)
         Identifier | NSLookup | Specialization => {
             let sym = .resolve_scoped_identifier(callee, error: true)
-            if not sym? return null
+            yield match sym? {
+                true => {
+                    sym = sym.remove_alias()
+                    .set_resolved_symbol(callee, sym)
 
-            sym = sym.remove_alias()
-            .set_resolved_symbol(callee, sym)
-
-            yield match sym.type {
-                Structure | TypeDef => {
-                    return .check_constructor(node)
+                    yield match sym.type {
+                        Structure | TypeDef => {
+                            return .check_constructor(node)
+                        }
+                        else => .check_expression(callee)
+                    }
                 }
-                else => .check_expression(callee)
+                false => .o.error_type
             }
         }
         else => .check_expression(callee)
     }
-    if not res? return null
 
-    if res.base == BaseType::Pointer and res.u.ptr.base == BaseType::Function {
-        res = res.u.ptr
+    if res? {
+        if res.base == BaseType::Pointer and res.u.ptr.base == BaseType::Function {
+            res = res.u.ptr
 
-    } else if res.base != BaseType::Function {
-        .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
+        } else if res.base != BaseType::Function {
+            .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
+            // Mark this node as an error, we'll exit after checking the arguments
+            res = .o.error_type
+        }
+
+    // Don't exit quite yet... we need to check the call args
+    } else {
+        res = .o.error_type
+    }
+
+
+    // If we have an error, still type-check the arguments, but don't try to
+    // compare them against anything.
+    if res.base == Error {
+        for arg : args.iter() {
+            .check_expression(arg.expr)
+        }
         return null
     }
 
@@ -959,6 +971,12 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
             return null
         }
         lhs = lhs.u.ptr
+    }
+
+    // We've already error'd if this is the case, but for better LSP support,
+    // we should try to look into the type here to get more information.
+    if lhs.base == UnresolvedTemplate {
+        lhs = lhs.u.unresolved_spec.base
     }
 
     let rhs_name = node.u.member.rhs_name
@@ -1335,8 +1353,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         }
 
         else => {
-            .error(Error::new(node.span, "Invalid expression in TypeChecker::check_expression"))
-            return .o.error_type
+            .error(Error::new(node.span, f"Invalid expression in TypeChecker::check_expression: {node.type}"))
+            return null
         }
     }
 }

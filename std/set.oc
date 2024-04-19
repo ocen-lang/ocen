@@ -66,5 +66,3 @@ def Iterator::cur(&this): T => .map_iter.cur().key
 def Iterator::next(&this) {
     .map_iter.next()
 }
-
-// TODO: implement intersection as in-place operation
