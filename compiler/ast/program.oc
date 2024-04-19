@@ -48,7 +48,6 @@ struct Namespace {
     //        from the same folder will go into a new namespace as per usual.
     is_top_level: bool
 
-    checked_project_root: bool
     internal_project_root: &Namespace
 }
 

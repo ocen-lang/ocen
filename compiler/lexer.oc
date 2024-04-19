@@ -51,7 +51,7 @@ def Lexer::push(&this, token: &Token) {
     .in_comment = false
 }
 
-def Lexer::push_type(&this, type: TokenType, len: u32) {
+def Lexer::push_type(&this, type: TokenType, len: u32 = 1) {
     let start_loc = .loc
     for let i = 0; i < len; i += 1 {
         .inc()
@@ -124,10 +124,9 @@ def Lexer::lex_string_literal(&this, has_seen_f: bool) {
         .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
     }
 
-    if end_char == '`' or has_seen_f {
-        .push(Token::new(TokenType::FormatStringLiteral, Span(start_loc, .loc), text))
-    } else {
-        .push(Token::new(TokenType::StringLiteral, Span(start_loc, .loc), text))
+    match end_char == '`' or has_seen_f {
+        true => .push(Token::new(FormatStringLiteral, Span(start_loc, .loc), text))
+        false => .push(Token::new(StringLiteral, Span(start_loc, .loc), text))
     }
 }
 
@@ -152,7 +151,7 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
     }
     let len = .i - start
     let text = .source.substring(start, len)
-    return Token::new(TokenType::IntLiteral, Span(start_loc, .loc), text)
+    return Token::new(IntLiteral, Span(start_loc, .loc), text)
 }
 
 def Lexer::lex_numeric_literal_helper(&this): &Token {
@@ -238,67 +237,64 @@ def Lexer::lex(&this): &Vector<&Token> {
             ' ' | '\t' | '\v' | '\r' | '\b'| '\n' => {
                 .inc()
             }
-            ';' => .push_type(TokenType::Semicolon, len: 1)
-            ',' => .push_type(TokenType::Comma, len: 1)
-            '(' => .push_type(TokenType::OpenParen, len: 1)
-            ')' => .push_type(TokenType::CloseParen, len: 1)
-            '[' => .push_type(TokenType::OpenSquare, len: 1)
-            ']' => .push_type(TokenType::CloseSquare, len: 1)
-            '{' => .push_type(TokenType::OpenCurly, len: 1)
-            '}' => .push_type(TokenType::CloseCurly, len: 1)
-            '@' => .push_type(TokenType::AtSign, len: 1)
-            '%' => .push_type(TokenType::Percent, len: 1)
-            '^' => .push_type(TokenType::Caret, len: 1)
-            '&' => .push_type(TokenType::Ampersand, len: 1)
-            '|' => .push_type(TokenType::Line, len: 1)
-            '?' => .push_type(TokenType::Question, len: 1)
-            '~' => .push_type(TokenType::Tilde, len: 1)
-            '.' => {
-                if .peek(1) == '.' and .peek(2) == '.' {
-                    .push_type(TokenType::Ellipsis, len: 3)
-                } else {
-                    .push_type(TokenType::Dot, len: 1)
-                }
+            ';' => .push_type(Semicolon)
+            ',' => .push_type(Comma)
+            '(' => .push_type(OpenParen)
+            ')' => .push_type(CloseParen)
+            '[' => .push_type(OpenSquare)
+            ']' => .push_type(CloseSquare)
+            '{' => .push_type(OpenCurly)
+            '}' => .push_type(CloseCurly)
+            '@' => .push_type(AtSign)
+            '%' => .push_type(Percent)
+            '^' => .push_type(Caret)
+            '&' => .push_type(Ampersand)
+            '|' => .push_type(Line)
+            '?' => .push_type(Question)
+            '~' => .push_type(Tilde)
+            '.' => match .peek(1) == '.' and .peek(2) == '.' {
+                true => .push_type(Ellipsis, len: 3)
+                false => .push_type(Dot)
             }
             '!' => match .peek(1) {
-                '='  => .push_type(TokenType::NotEquals, len: 2)
-                else => .push_type(TokenType::Exclamation, len: 1)
+                '='  => .push_type(NotEquals, len: 2)
+                else => .push_type(Exclamation)
             }
             ':' => match .peek(1) {
-                ':'  => .push_type(TokenType::ColonColon, len: 2)
-                else => .push_type(TokenType::Colon, len: 1)
+                ':'  => .push_type(ColonColon, len: 2)
+                else => .push_type(Colon)
             }
             '=' => match .peek(1) {
-                '='  => .push_type(TokenType::EqualEquals, len: 2)
-                '>'  => .push_type(TokenType::FatArrow, len: 2)
-                else => .push_type(TokenType::Equals, len: 1)
+                '='  => .push_type(EqualEquals, len: 2)
+                '>'  => .push_type(FatArrow, len: 2)
+                else => .push_type(Equals)
             }
             '*' => match .peek(1) {
-                '='  => .push_type(TokenType::StarEquals, len: 2)
-                else => .push_type(TokenType::Star, len: 1)
+                '='  => .push_type(StarEquals, len: 2)
+                else => .push_type(Star)
             }
             '+' => match .peek(1) {
-                '='  => .push_type(TokenType::PlusEquals, len: 2)
-                '+' => .push_type(TokenType::PlusPlus, len: 2)
-                else => .push_type(TokenType::Plus, len: 1)
+                '='  => .push_type(PlusEquals, len: 2)
+                '+' => .push_type(PlusPlus, len: 2)
+                else => .push_type(Plus)
             }
             '-' => match .peek(1) {
-                '='  => .push_type(TokenType::MinusEquals, len: 2)
-                '-' => .push_type(TokenType::MinusMinus, len: 2)
-                else => .push_type(TokenType::Minus, len: 1)
+                '='  => .push_type(MinusEquals, len: 2)
+                '-' => .push_type(MinusMinus, len: 2)
+                else => .push_type(Minus)
             }
             '<' => match .peek(1) {
-                '='  => .push_type(TokenType::LessThanEquals, len: 2)
-                else => .push_type(TokenType::LessThan, len: 1)
+                '='  => .push_type(LessThanEquals, len: 2)
+                else => .push_type(LessThan)
             }
             '>' => match .peek(1) {
-                '='  => .push_type(TokenType::GreaterThanEquals, len: 2)
-                else => .push_type(TokenType::GreaterThan, len: 1)
+                '='  => .push_type(GreaterThanEquals, len: 2)
+                else => .push_type(GreaterThan)
             }
             '/' => match .peek(1) {
                 '/' => .lex_comment()
-                '='  => .push_type(TokenType::SlashEquals, len: 2)
-                else => .push_type(TokenType::Slash, len: 1)
+                '='  => .push_type(SlashEquals, len: 2)
+                else => .push_type(Slash)
             }
             '\'' => .lex_char_literal()
             '"' | '`' => .lex_string_literal(has_seen_f: false)
@@ -309,7 +305,6 @@ def Lexer::lex(&this): &Vector<&Token> {
                     c == 'f' and .peek(1) == '"' => {
                         .inc()
                         .lex_string_literal(has_seen_f: true)
-
                     }
                     c.is_digit() => .lex_numeric_literal()
                     c.is_alpha() or c == '_' => {
@@ -321,7 +316,6 @@ def Lexer::lex(&this): &Vector<&Token> {
                         let text = .source.substring(start, len)
 
                         .push(Token::from_ident(text, Span(start_loc, .loc)))
-
                     }
                     else => {
                         .errors.push(Error::new(Span(.loc, .loc), `Unrecognized char in lexer: '{c}'`))
@@ -334,6 +328,6 @@ def Lexer::lex(&this): &Vector<&Token> {
 
     // We can assume EOF acts like a newline
     .seen_newline = true
-    .push_type(TokenType::EOF, len: 0)
+    .push_type(EOF, len: 0)
     return .tokens
 }

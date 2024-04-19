@@ -143,9 +143,6 @@ def RegisterTypes::register_builtin_types(&this) {
     }
 
     .o.pop_scope()
-
-    // For internal compiler use
-    .o.error_type = Type::new_resolved(BaseType::Error, Span::default())
 }
 
 struct Finder {

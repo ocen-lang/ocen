@@ -35,6 +35,8 @@ def GenericPass::new(program: &Program): &GenericPass {
     pass.scope_stack = Vector<&Scope>::new()
     pass.namespace_stack = Vector<&Namespace>::new()
     pass.program = program
+    // For internal compiler use
+    pass.error_type = Type::new_resolved(BaseType::Error, Span::default())
     return pass
 }
 
