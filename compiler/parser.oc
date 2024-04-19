@@ -701,12 +701,13 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
         match .token().type {
             TokenType::OpenParen => node = .parse_call(node)
             TokenType::Dot => {
+                if .token_is(end_type) break
                 .consume(TokenType::Dot)
                 let member = AST::new(ASTType::Member, node.span)
                 member.u.member.lhs = node
                 node = member
 
-                if not .token_is(TokenType::Identifier) {
+                if .token_is(end_type) or not .token_is(TokenType::Identifier) {
                     .error(Error::new(.token().span, "Expected identifier after `.`"))
                     node.span.end = .token().span.start
 
@@ -1336,13 +1337,15 @@ def Parser::parse_block(&this): &AST {
 
 def Parser::parse_template_params(&this, sym: &Symbol, out_span: &Span = null) {
     let start = .consume(TokenType::LessThan).span
-    let params = Vector<&Variable>::new()
+    let params = Vector<&Symbol>::new()
     while not .token_is(TokenType::GreaterThan) {
         let type = .consume(TokenType::Identifier)
-        let var = Variable::new(Type::new_unresolved(type.text, type.span))
-        var.sym = Symbol::from_local_variable(type.text, var, type.span)
+        let name = type.text
+        let sym = Symbol::new(TypeDef, .ns, name, name, name, type.span)
+        sym.u.type_def = Type::new_unresolved(name, type.span)
+        sym.u.type_def.sym = sym
 
-        params.push(var)
+        params.push(sym)
 
         if not .token_is(TokenType::GreaterThan) {
             .consume(TokenType::Comma)

@@ -229,9 +229,8 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
 
     if struc.sym.is_templated() {
         let params_doc = Value::new(List)
-        for var : struc.sym.template.params.iter() {
-            let name = var.sym.name
-            params_doc.push(Value::new_str(name))
+        for sym : struc.sym.template.params.iter() {
+            params_doc.push(Value::new_str(sym.name))
         }
         struc_doc["template_params"] = params_doc
     }
