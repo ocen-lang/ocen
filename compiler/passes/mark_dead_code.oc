@@ -142,6 +142,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
             .mark(node.u.assertion.msg)
         }
         FormatStringLiteral => {
+            .mark_sym(.o.program.cached_symbols.fmt_string_fn)
             for expr : node.u.fmt_str.exprs.iter() {
                 .mark(expr)
             }

@@ -6,5 +6,6 @@
 [extern "va_start"] def VarArgs::start(this, ...)
 [extern "va_end"] def VarArgs::end(this)
 
-[extern] def vprintf(format: str, args: VarArgs)
-[extern] def vsprintf(buffer: str, format: str, args: VarArgs)
+[extern] def vprintf(format: str, args: VarArgs): u32
+[extern] def vsprintf(buffer: str, format: str, args: VarArgs): u32
+[extern] def vsnprintf(buffer: str, size: u32, format: str, args: VarArgs): u32

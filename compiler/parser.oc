@@ -1530,6 +1530,7 @@ def Parser::parse_function(&this): &Function {
             else => .error(Error::new(attr.span, f"Invalid attribute for function: {attr.type}"))
         }
     }
+    .clear_attributes()
 
     if func.sym.is_extern {
         func.span = start.span.join(end_span)

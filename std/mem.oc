@@ -1,0 +1,68 @@
+//! Defines the allocator we use for all memory management.
+//!
+//! By default, we use `calloc` and `free` from the C standard library,
+//! but functions here allow you to change this. Currently, this is a
+//! global toggle for anything using mem::alloc(), and does not allow
+//! for per-object allocation strategies.
+
+typedef State = untyped_ptr
+
+namespace impl {
+    [extern] def malloc(size: u32): untyped_ptr
+    [extern] def realloc(old: untyped_ptr, size: u32): untyped_ptr
+    [extern] def calloc(size: u32, elem_size: u32): untyped_ptr
+    [extern] def free(ptr: untyped_ptr)
+
+    def my_calloc(state: State, size: u32): untyped_ptr                                   => calloc(size, 1)
+    def my_realloc(state: State, ptr: untyped_ptr, old_size: u32, size: u32): untyped_ptr => realloc(ptr, size)
+    def my_free(state: State, ptr: untyped_ptr)                                           => free(ptr)
+}
+
+namespace state {
+    let allocator: State = null
+    let alloc_fn: fn(State, u32): untyped_ptr                     = impl::my_calloc
+    let realloc_fn: fn(State, untyped_ptr, u32, u32): untyped_ptr = impl::my_realloc
+    let free_fn: fn(State, untyped_ptr)                           = impl::my_free
+}
+
+def set_allocator(
+    allocator: State,
+    alloc_fn: fn(State, u32): untyped_ptr,
+    free_fn: fn(State, untyped_ptr) = null,
+    realloc_fn: fn(State, untyped_ptr, u32, u32): untyped_ptr = null
+) {
+    state::allocator = allocator
+    state::alloc_fn = alloc_fn
+    state::realloc_fn = realloc_fn
+    state::free_fn = free_fn
+}
+
+def reset_to_default_allocator() {
+    set_allocator(null, impl::my_calloc, impl::my_free, impl::my_realloc)
+}
+
+def alloc<T>(count: u32 = 1): &T {
+    // println(f"Allocating {count*sizeof(T)} bytes")
+    return state::alloc_fn(state::allocator, count * sizeof(T)) as &T
+}
+
+def free(ptr: untyped_ptr) {
+    if state::free_fn != null {
+        state::free_fn(state::allocator, ptr)
+        return
+    }
+    // Do nothing if we have no free function
+}
+
+def realloc<T>(ptr: &T, old_count: u32, new_count: u32): &T {
+    let old_size = old_count * sizeof(T)
+    let new_size = new_count * sizeof(T)
+    if state::realloc_fn != null {
+        return state::realloc_fn(state::allocator, ptr, old_size, new_size)
+    }
+    assert new_size >= old_size, "Cannot shrink memory in default allocator"
+    let new_ptr = alloc<T>(new_count)
+    std::libc::memcpy(new_ptr, ptr, old_size)
+    free(ptr)
+    return new_ptr
+}

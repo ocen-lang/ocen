@@ -3,6 +3,7 @@
 #include "sys/wait.h"
 #include "unistd.h"
 #include "errno.h"
+#include "stdarg.h"
 #include "dirent.h"
 #include "unistd.h"
 #include "sys/stat.h"
@@ -655,7 +656,7 @@ typedef struct std_span_Span std_span_Span;
 typedef struct compiler_parser_Parser compiler_parser_Parser;
 typedef struct compiler_lexer_Lexer compiler_lexer_Lexer;
 typedef struct compiler_ast_program_Namespace compiler_ast_program_Namespace;
-typedef struct compiler_ast_program_CachedTypes compiler_ast_program_CachedTypes;
+typedef struct compiler_ast_program_CachedSymbols compiler_ast_program_CachedSymbols;
 typedef struct compiler_ast_program_Program compiler_ast_program_Program;
 typedef struct compiler_ast_program_NSIterator compiler_ast_program_NSIterator;
 typedef struct compiler_ast_operators_OperatorOverload compiler_ast_operators_OperatorOverload;
@@ -900,9 +901,8 @@ struct compiler_ast_program_Namespace {
   compiler_ast_program_Namespace *internal_project_root;
 };
 
-struct compiler_ast_program_CachedTypes {
-  compiler_types_Type *sv_type;
-  compiler_types_Type *buffer_type;
+struct compiler_ast_program_CachedSymbols {
+  compiler_ast_scopes_Symbol *fmt_string_fn;
 };
 
 struct compiler_ast_program_Program {
@@ -916,7 +916,7 @@ struct compiler_ast_program_Program {
   std_vector_Vector__1 *library_paths;
   std_vector_Vector__11 *errors;
   u32 error_level;
-  compiler_ast_program_CachedTypes cached_types;
+  compiler_ast_program_CachedSymbols cached_symbols;
   jmp_buf err_jmp_ctx;
   bool check_doc_links;
   bool gen_debug_info;
@@ -2164,6 +2164,7 @@ bool compiler_utils_directory_exists(char *path);
 void std_panic(char *msg) __attribute__((noreturn));
 u32 str_to_u32(char *this);
 bool str_eq(char *this, char *other);
+char *std_format(char *fmt, ...);
 char *str_substring(char *this, u32 start, u32 len);
 bool str_ends_with(char *this, char *suffix);
 void str_strip_trailing_whitespace(char *this);
@@ -2777,7 +2778,7 @@ void (*std_mem_state_free_fn)(void *, void *) = std_mem_impl_my_free;
 /* function implementations */
 std_value_Value *compiler_docgen_DocGenerator_gen_enum(compiler_docgen_DocGenerator *this, compiler_ast_nodes_Enum *enum_) {
   std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert_str(enum_doc, "id", format_string("%x", enum_->type));
+  std_value_Value_insert_str(enum_doc, "id", std_format("%x", enum_->type));
   std_value_Value_insert_str(enum_doc, "name", enum_->sym->name);
   if (((bool)enum_->sym->comment)) {
     std_value_Value_insert_str(enum_doc, "description", enum_->sym->comment);
@@ -2812,7 +2813,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_enum(compiler_docgen_DocGenera
 void compiler_docgen_DocGenerator_gen_location(compiler_docgen_DocGenerator *this, std_value_Value *obj, std_span_Span span) {
   std_span_Location start = span.start;
   if (std_span_Location_is_valid(&start)) {
-    char *src_str = format_string("%s#L%u", start.filename, start.line);
+    char *src_str = std_format("%s#L%u", start.filename, start.line);
     std_value_Value_insert_str(obj, "source", src_str);
   }
 }
@@ -2856,11 +2857,11 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
     case compiler_types_BaseType_F64:
     case compiler_types_BaseType_Alias:
     case compiler_types_BaseType_Enum: {
-      return format_string("{{%x}}", type);
+      return std_format("{{%x}}", type);
     } break;
     case compiler_types_BaseType_Structure: {
       if (!((bool)type->template_instance)) {
-        return format_string("{{%x}}", type);
+        return std_format("{{%x}}", type);
       } else {
         compiler_ast_nodes_Structure *struc = type->u.struc;
         compiler_ast_scopes_TemplateInstance *instance = type->template_instance;
@@ -2876,12 +2877,12 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
     } break;
     case compiler_types_BaseType_Pointer: {
       char *sub = compiler_docgen_DocGenerator_gen_typename_str(this, type->u.ptr);
-      str_replace_with(&sub, format_string("&%s", sub));
+      str_replace_with(&sub, std_format("&%s", sub));
       return sub;
     } break;
     case compiler_types_BaseType_Array: {
       char *sub = compiler_docgen_DocGenerator_gen_typename_str(this, type->u.arr.elem_type);
-      str_replace_with(&sub, format_string("[%s]", sub));
+      str_replace_with(&sub, std_format("[%s]", sub));
       return sub;
     } break;
     case compiler_types_BaseType_Function: {
@@ -2911,13 +2912,13 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
           return strdup(node->u.ident.name);
         } break;
         default: {
-          compiler_ast_program_Program_error(this->program, compiler_errors_Error_new(node->span, format_string("Unhandled node in gen_typename_str: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
+          compiler_ast_program_Program_error(this->program, compiler_errors_Error_new(node->span, std_format("Unhandled node in gen_typename_str: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
           return "<unknown>";
         } break;
       }
     } break;
     default: {
-      compiler_ast_program_Program_error(this->program, compiler_errors_Error_new(type->span, format_string("Unhandled type in gen_typename_str: %s", compiler_types_BaseType_dbg(type->base))));
+      compiler_ast_program_Program_error(this->program, compiler_errors_Error_new(type->span, std_format("Unhandled type in gen_typename_str: %s", compiler_types_BaseType_dbg(type->base))));
       return "<unknown>";
     } break;
   }
@@ -2943,8 +2944,8 @@ std_value_Value *compiler_docgen_DocGenerator_gen_methods(compiler_docgen_DocGen
 
 std_value_Value *compiler_docgen_DocGenerator_gen_function(compiler_docgen_DocGenerator *this, compiler_ast_nodes_Function *func) {
   std_value_Value *func_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert_str(func_doc, "id", format_string("%x", func));
-  std_value_Value_insert_str(func_doc, "name", format_string("%s", func->sym->name));
+  std_value_Value_insert_str(func_doc, "id", std_format("%x", func));
+  std_value_Value_insert_str(func_doc, "name", std_format("%s", func->sym->name));
   if (((bool)func->sym->comment)) {
     std_value_Value_insert_str(func_doc, "description", func->sym->comment);
   }
@@ -2967,7 +2968,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_function(compiler_docgen_DocGe
     compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
     {
       std_value_Value *param_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-      std_value_Value_insert_str(param_doc, "name", format_string("%s", param->sym->name));
+      std_value_Value_insert_str(param_doc, "name", std_format("%s", param->sym->name));
       if (((bool)param->sym->comment)) {
         std_value_Value_insert_str(param_doc, "description", param->sym->comment);
       }
@@ -2987,8 +2988,8 @@ std_value_Value *compiler_docgen_DocGenerator_gen_function(compiler_docgen_DocGe
 
 std_value_Value *compiler_docgen_DocGenerator_gen_struct(compiler_docgen_DocGenerator *this, compiler_ast_nodes_Structure *struc) {
   std_value_Value *struc_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert_str(struc_doc, "id", format_string("%x", struc->type));
-  std_value_Value_insert_str(struc_doc, "name", format_string("%s", struc->sym->name));
+  std_value_Value_insert_str(struc_doc, "id", std_format("%x", struc->type));
+  std_value_Value_insert_str(struc_doc, "name", std_format("%s", struc->sym->name));
   if (((bool)struc->sym->comment)) {
     std_value_Value_insert_str(struc_doc, "description", struc->sym->comment);
   }
@@ -3037,7 +3038,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_struct(compiler_docgen_DocGene
 
 std_value_Value *compiler_docgen_DocGenerator_gen_ns(compiler_docgen_DocGenerator *this, compiler_ast_program_Namespace *ns) {
   std_value_Value *ns_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert_str(ns_doc, "id", format_string("%x", ns));
+  std_value_Value_insert_str(ns_doc, "id", std_format("%x", ns));
   if (((bool)ns->sym->comment)) {
     std_value_Value_insert_str(ns_doc, "description", ns->sym->comment);
   }
@@ -3084,7 +3085,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_ns(compiler_docgen_DocGenerato
       {
         compiler_ast_nodes_Variable *var = node->u.var_decl.var;
         std_value_Value *var_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-        std_value_Value_insert_str(var_doc, "id", format_string("%x", var));
+        std_value_Value_insert_str(var_doc, "id", std_format("%x", var));
         if (((bool)var->sym->comment)) {
           std_value_Value_insert_str(var_doc, "description", var->sym->comment);
         }
@@ -3107,7 +3108,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_ns(compiler_docgen_DocGenerato
       {
         compiler_ast_nodes_Variable *var = node->u.var_decl.var;
         std_value_Value *const_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-        std_value_Value_insert_str(const_doc, "id", format_string("%x", var));
+        std_value_Value_insert_str(const_doc, "id", std_format("%x", var));
         if (((bool)var->sym->comment)) {
           std_value_Value_insert_str(const_doc, "description", var->sym->comment);
         }
@@ -3167,9 +3168,9 @@ std_value_Value *compiler_docgen_DocGenerator_gen_ns(compiler_docgen_DocGenerato
 
 std_value_Value *compiler_docgen_DocGenerator_gen_builtin(compiler_docgen_DocGenerator *this, compiler_types_Type *type) {
   std_value_Value *type_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert_str(type_doc, "id", format_string("%x", type));
-  std_value_Value_insert_str(type_doc, "name", format_string("%s", type->sym->name));
-  std_value_Value_insert_str(type_doc, "description", format_string("Built-in type %s", type->sym->name));
+  std_value_Value_insert_str(type_doc, "id", std_format("%x", type));
+  std_value_Value_insert_str(type_doc, "name", std_format("%s", type->sym->name));
+  std_value_Value_insert_str(type_doc, "description", std_format("Built-in type %s", type->sym->name));
   std_value_Value_insert_str(type_doc, "kind", "builtin");
   std_value_Value *methods_doc = compiler_docgen_DocGenerator_gen_methods(this, type);
   std_value_Value_insert(type_doc, "methods", methods_doc);
@@ -3236,7 +3237,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_debug_info(compiler_passes
   return;
   }
   std_span_Location loc = span.start;
-  std_buffer_Buffer_write_str_f(&this->out, format_string("\n#line %u \"%s\"\n", loc.line, loc.filename));
+  std_buffer_Buffer_write_str_f(&this->out, std_format("\n#line %u \"%s\"\n", loc.line, loc.filename));
 }
 
 char *compiler_passes_code_generator_CodeGenerator_get_op(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
@@ -3321,7 +3322,7 @@ char *compiler_passes_code_generator_CodeGenerator_get_op(compiler_passes_code_g
             case compiler_ast_operators_Operator_RightShiftEquals: {
               __yield_1 = ">>=";
             } break;
-            default: std_panic(format_string("Unknown binary op type in get_op: %s", compiler_ast_operators_Operator_dbg(node->u.binary.op))); break;
+            default: std_panic(std_format("Unknown binary op type in get_op: %s", compiler_ast_operators_Operator_dbg(node->u.binary.op))); break;
           }
 ;__yield_1; });
       } break;
@@ -3340,11 +3341,11 @@ char *compiler_passes_code_generator_CodeGenerator_get_op(compiler_passes_code_g
             case compiler_ast_operators_Operator_PostIncrement: {
               __yield_1 = "++";
             } break;
-            default: std_panic(format_string("Unknown unary op type in get_op: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))); break;
+            default: std_panic(std_format("Unknown unary op type in get_op: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))); break;
           }
 ;__yield_1; });
       } break;
-      default: std_panic(format_string("Unknown op type in get_op: %s", compiler_ast_nodes_ASTType_dbg(node->type))); break;
+      default: std_panic(std_format("Unknown op type in get_op: %s", compiler_ast_nodes_ASTType_dbg(node->type))); break;
     }
 ;__yield_0; });
 }
@@ -3404,7 +3405,7 @@ void compiler_passes_code_generator_CodeGenerator_format_string_custom_specifier
       return;
     }
   }
-  compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_specifier: '%s'", compiler_types_Type_str(type))));
+  compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(expr->span, std_format("Invalid type in CodeGenerator::format_string_custom_specifier: '%s'", compiler_types_Type_str(type))));
   std_buffer_Buffer_write_str(&this->out, "%s");
 }
 
@@ -3427,7 +3428,7 @@ void compiler_passes_code_generator_CodeGenerator_format_string_custom_argument(
       return;
     }
   }
-  compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(expr->span, format_string("Invalid type in CodeGenerator::format_string_custom_argument: '%s'", compiler_types_Type_str(type))));
+  compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(expr->span, std_format("Invalid type in CodeGenerator::format_string_custom_argument: '%s'", compiler_types_Type_str(type))));
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
 }
 
@@ -3529,7 +3530,8 @@ void compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(com
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_format_string(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
-  std_buffer_Buffer_write_str(&this->out, "format_string(");
+  std_buffer_Buffer_write_str(&this->out, this->o->program->cached_symbols.fmt_string_fn->full_name);
+  std_buffer_Buffer_write_str(&this->out, "(");
   compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(this, node, false);
   std_buffer_Buffer_write_str(&this->out, ")");
 }
@@ -3610,7 +3612,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_control_body(compiler_pass
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
-  char *yield_var = format_string("__yield_%u", this->yield_vars->size);
+  char *yield_var = std_format("__yield_%u", this->yield_vars->size);
   std_vector_Vector__1_push(this->yield_vars, yield_var);
   compiler_types_Type *ret_type = node->etype;
   std_buffer_Buffer_write_str(&this->out, "({ ");
@@ -3630,7 +3632,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(compiler_
 }
 
 void compiler_passes_code_generator_CodeGenerator_gen_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_Structure *struc) {
-  std_buffer_Buffer_write_str_f(&this->out, format_string("(%s){", compiler_ast_scopes_Symbol_out_name(struc->sym)));
+  std_buffer_Buffer_write_str_f(&this->out, std_format("(%s){", compiler_ast_scopes_Symbol_out_name(struc->sym)));
   std_vector_Vector__4 *fields = struc->fields;
   std_vector_Vector__15 *args = node->u.call.args;
   for (u32 i = 0; i < args->size; i+=1) {
@@ -3639,7 +3641,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_constructor(compiler_passe
     }
     compiler_ast_nodes_Argument *arg = std_vector_Vector__15_at(args, i);
     compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(fields, i);
-    std_buffer_Buffer_write_str_f(&this->out, format_string(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
+    std_buffer_Buffer_write_str_f(&this->out, std_format(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr, false);
   }
   std_buffer_Buffer_write_str(&this->out, "}");
@@ -3746,7 +3748,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
         case compiler_ast_scopes_SymbolType_EnumVariant: {
           std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
         } break;
-        default: std_panic(format_string("Unhandled symbol type: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); break;
+        default: std_panic(std_format("Unhandled symbol type: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); break;
       }
     } break;
     case compiler_ast_nodes_ASTType_Call: {
@@ -3826,7 +3828,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
         } break;
         default: {
-          compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, format_string("Unhandled unary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
+          compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, std_format("Unhandled unary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
         } break;
       }
     } break;
@@ -3902,12 +3904,12 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.binary.rhs, false);
         } break;
         default: {
-          compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, format_string("Unhandled binary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.binary.op))));
+          compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, std_format("Unhandled binary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.binary.op))));
         } break;
       }
     } break;
     default: {
-      compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, format_string("Unhandled expression type in CodeGenerator: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
+      compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, std_format("Unhandled expression type in CodeGenerator: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
     } break;
   }
 }
@@ -3959,7 +3961,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_custom_match(compiler_pass
   compiler_ast_nodes_Match stmt = node->u.match_stmt;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
   std_buffer_Buffer_write_str(&this->out, "{\n");
-  char *match_var = format_string("__match_var_%u", this->uid++);
+  char *match_var = std_format("__match_var_%u", this->uid++);
   this->indent+=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, stmt.expr->etype, match_var);
@@ -3979,7 +3981,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_custom_match(compiler_pass
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, _case->cond, false);
       std_buffer_Buffer_write_str(&this->out, ")");
     } else {
-      std_buffer_Buffer_write_str(&this->out, format_string("(%s == ", match_var));
+      std_buffer_Buffer_write_str(&this->out, std_format("(%s == ", match_var));
       compiler_passes_code_generator_CodeGenerator_gen_expression(this, _case->cond, false);
       std_buffer_Buffer_write_str(&this->out, ")");
     }
@@ -4278,13 +4280,13 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
     case compiler_types_BaseType_U64:
     case compiler_types_BaseType_F32:
     case compiler_types_BaseType_F64: {
-      str_replace(&acc, format_string("%s %s", compiler_types_BaseType_str(cur->base), acc));
+      str_replace(&acc, std_format("%s %s", compiler_types_BaseType_str(cur->base), acc));
     } break;
     case compiler_types_BaseType_Structure: {
-      str_replace(&acc, format_string("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.struc->sym), acc));
+      str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.struc->sym), acc));
     } break;
     case compiler_types_BaseType_Enum: {
-      str_replace(&acc, format_string("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.enum_->sym), acc));
+      str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.enum_->sym), acc));
     } break;
     case compiler_types_BaseType_Alias: {
       acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.ptr, acc, false);
@@ -4307,9 +4309,9 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
       std_buffer_Buffer_write_str(&args_str, ", ...");
       }
       if (is_func_def && cur==top) {
-        str_replace(&acc, format_string("%s(%s)", acc, std_buffer_Buffer_str(args_str)));
+        str_replace(&acc, std_format("%s(%s)", acc, std_buffer_Buffer_str(args_str)));
       } else {
-        str_replace(&acc, format_string("(*%s)(%s)", acc, std_buffer_Buffer_str(args_str)));
+        str_replace(&acc, std_format("(*%s)(%s)", acc, std_buffer_Buffer_str(args_str)));
       }
       std_mem_free(args_str.data);
       acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.func.return_type, acc, false);
@@ -4318,9 +4320,9 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
       bool needs_parens = (((bool)cur->u.ptr) && cur->u.ptr->base==compiler_types_BaseType_Array);
       if (cur->u.ptr->base==compiler_types_BaseType_Function) {
       } else if (needs_parens) {
-        str_replace(&acc, format_string("(*%s)", acc));
+        str_replace(&acc, std_format("(*%s)", acc));
       } else {
-        str_replace(&acc, format_string("*%s", acc));
+        str_replace(&acc, std_format("*%s", acc));
       }
       acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.ptr, acc, false);
     } break;
@@ -4331,24 +4333,24 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
       if (((bool)arr_typ->size_expr)) {
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, arr_typ->size_expr, false);
       } else if (arr_typ->size_known) {
-        std_buffer_Buffer_write_str_f(&this->out, format_string("%u", arr_typ->size));
+        std_buffer_Buffer_write_str_f(&this->out, std_format("%u", arr_typ->size));
       } else {
         compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(cur->span, "Array size not known at compile time"));
       }
-      str_replace(&acc, format_string("%s[%s]", acc, std_buffer_Buffer_str(this->out)));
+      str_replace(&acc, std_format("%s[%s]", acc, std_buffer_Buffer_str(this->out)));
       std_mem_free(this->out.data);
       this->out=prev_buffer;
       acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.arr.elem_type, acc, false);
     } break;
     default: {
-      compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(cur->span, format_string("Unhandled type found in CodeGenerator::helper_gen_type: %s: %s", compiler_types_BaseType_dbg(cur->base), compiler_types_Type_str(cur))));
+      compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(cur->span, std_format("Unhandled type found in CodeGenerator::helper_gen_type: %s: %s", compiler_types_BaseType_dbg(cur->base), compiler_types_Type_str(cur))));
     } break;
   }
   return acc;
 }
 
 char *compiler_passes_code_generator_CodeGenerator_get_type_name_string(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type, char *name, bool is_func_def) {
-  ae_assert(type != NULL, "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1040:12: Assertion failed: `type != null`", NULL);
+  ae_assert(type != NULL, "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1041:12: Assertion failed: `type != null`", NULL);
   char *final = compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
   str_strip_trailing_whitespace(final);
   return final;
@@ -4402,7 +4404,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_functions(compiler_passes_
           compiler_ast_scopes_TemplateInstance *instance = std_vector_Iterator__3_cur(&__iter);
           {
             compiler_ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==compiler_ast_scopes_SymbolType_Function, "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1085:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==compiler_ast_scopes_SymbolType_Function, "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1086:24: Assertion failed: `sym.type == Function`", NULL);
             compiler_ast_nodes_Function *func = sym->u.func;
             compiler_passes_code_generator_CodeGenerator_gen_function(this, func);
           }
@@ -4439,7 +4441,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_function_decls(compiler_pa
           compiler_ast_scopes_TemplateInstance *instance = std_vector_Iterator__3_cur(&__iter);
           {
             compiler_ast_scopes_Symbol *sym = instance->resolved;
-            ae_assert(sym->type==compiler_ast_scopes_SymbolType_Function, "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1112:24: Assertion failed: `sym.type == Function`", NULL);
+            ae_assert(sym->type==compiler_ast_scopes_SymbolType_Function, "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1113:24: Assertion failed: `sym.type == Function`", NULL);
             compiler_ast_nodes_Function *func = sym->u.func;
             if (func->is_dead) {
             continue;
@@ -4500,11 +4502,11 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(compiler_p
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       std_buffer_Buffer_write_str(&this->out, "case ");
       std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
-      std_buffer_Buffer_write_str_f(&this->out, format_string(": return \"%s\";\n", field->sym->name));
+      std_buffer_Buffer_write_str_f(&this->out, std_format(": return \"%s\";\n", field->sym->name));
     }
   }
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  std_buffer_Buffer_write_str_f(&this->out, format_string("default: return \"<unknown>\";\n"));
+  std_buffer_Buffer_write_str_f(&this->out, std_format("default: return \"<unknown>\";\n"));
   this->indent-=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
   std_buffer_Buffer_write_str(&this->out, "}\n");
@@ -4518,7 +4520,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum(compiler_passes_code_
   }
   char *enum_name = compiler_ast_scopes_Symbol_out_name(enum_->sym);
   if (!enum_->sym->is_extern) {
-    std_buffer_Buffer_write_str_f(&this->out, format_string("typedef enum %s {\n", enum_name));
+    std_buffer_Buffer_write_str_f(&this->out, std_format("typedef enum %s {\n", enum_name));
     for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enum_->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
       compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
       {
@@ -4527,7 +4529,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum(compiler_passes_code_
         std_buffer_Buffer_write_str(&this->out, ",\n");
       }
     }
-    std_buffer_Buffer_write_str_f(&this->out, format_string("} %s;\n\n", enum_name));
+    std_buffer_Buffer_write_str_f(&this->out, std_format("} %s;\n\n", enum_name));
   }
   compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enum_);
 }
@@ -4538,9 +4540,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_struct(compiler_passes_cod
   }
   char *strufull_name = compiler_ast_scopes_Symbol_out_name(struc->sym);
   if (struc->is_union) {
-    std_buffer_Buffer_write_str_f(&this->out, format_string("union %s {\n", strufull_name));
+    std_buffer_Buffer_write_str_f(&this->out, std_format("union %s {\n", strufull_name));
   } else {
-    std_buffer_Buffer_write_str_f(&this->out, format_string("struct %s {\n", strufull_name));
+    std_buffer_Buffer_write_str_f(&this->out, std_format("struct %s {\n", strufull_name));
   }
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
@@ -4570,9 +4572,9 @@ void compiler_passes_code_generator_CodeGenerator_gen_structs_and_typedefs(compi
       }
       char *strufull_name = compiler_ast_scopes_Symbol_out_name(struc->sym);
       if (struc->is_union) {
-        std_buffer_Buffer_write_str_f(&this->out, format_string("typedef union %s %s;\n", strufull_name, strufull_name));
+        std_buffer_Buffer_write_str_f(&this->out, std_format("typedef union %s %s;\n", strufull_name, strufull_name));
       } else {
-        std_buffer_Buffer_write_str_f(&this->out, format_string("typedef struct %s %s;\n", strufull_name, strufull_name));
+        std_buffer_Buffer_write_str_f(&this->out, std_format("typedef struct %s %s;\n", strufull_name, strufull_name));
       }
     }
   }
@@ -4593,14 +4595,14 @@ char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code
   for (std_vector_Iterator__1 __iter = std_vector_Vector__1_iter(this->o->program->c_includes); std_vector_Iterator__1_has_value(&__iter); std_vector_Iterator__1_next(&__iter)) {
     char *include = std_vector_Iterator__1_cur(&__iter);
     {
-      std_buffer_Buffer_write_str_f(&this->out, format_string("#include \"%s\"\n", include));
+      std_buffer_Buffer_write_str_f(&this->out, std_format("#include \"%s\"\n", include));
     }
   }
   std_buffer_Buffer_write_str(&this->out, "\n");
   for (std_map_Iterator__6 __iter = std_map_Map__6_iter(this->o->program->c_embeds); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
     std_map_Item__6 *it = std_map_Iterator__6_cur(&__iter);
     {
-      std_buffer_Buffer_write_str_f(&this->out, format_string("/* Embed: %s */\n", it->key));
+      std_buffer_Buffer_write_str_f(&this->out, std_format("/* Embed: %s */\n", it->key));
       std_buffer_Buffer_write_str(&this->out, it->value);
       std_buffer_Buffer_write_str(&this->out, "\n\n");
     }
@@ -4744,7 +4746,7 @@ void compiler_passes_typechecker_TypeChecker_set_resolved_symbol(compiler_passes
         __yield_0 = node->u.member.rhs_span;
       } break;
       default: {
-        ae_assert(false, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:64:20: Assertion failed: `false`", format_string("Unhandled node type in set_resolved_symbol: %s", compiler_ast_nodes_ASTType_dbg(node->type))); exit(1);
+        ae_assert(false, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:64:20: Assertion failed: `false`", std_format("Unhandled node type in set_resolved_symbol: %s", compiler_ast_nodes_ASTType_dbg(node->type))); exit(1);
       } break;
     }
 ;__yield_0; });
@@ -4816,7 +4818,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_resolve_type(compil
             compiler_ast_nodes_Structure *struc = res->u.struc;
             if (compiler_ast_scopes_Symbol_is_templated(res) && !allow_incomplete) {
               if (error) {
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(old->span, format_string("Cannot use templated struct %s as a type", struc->sym->name)));
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(old->span, std_format("Cannot use templated struct %s as a type", struc->sym->name)));
               }
               return resolved;
             }
@@ -4832,7 +4834,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_resolve_type(compil
             compiler_ast_nodes_Function *func = res->u.func;
             if (compiler_ast_scopes_Symbol_is_templated(res) && !allow_incomplete) {
               if (error) {
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(old->span, format_string("Cannot use templated function %s as a type", func->sym->name)));
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(old->span, std_format("Cannot use templated function %s as a type", func->sym->name)));
               }
               return resolved;
             }
@@ -4849,7 +4851,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_resolve_type(compil
           } break;
           default: {
             if (error) {
-              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(res->span, format_string("Cannot use %s as a type", res->display)));
+              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(res->span, std_format("Cannot use %s as a type", res->display)));
               resolved=NULL;
             }
           } break;
@@ -4887,7 +4889,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_resolve_type(compil
     } break;
     default: {
       if (error) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(old->span, format_string("Unhandled type in resolve %s", compiler_types_BaseType_str(old->base))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(old->span, std_format("Unhandled type in resolve %s", compiler_types_BaseType_str(old->base))));
         resolved=NULL;
       }
     } break;
@@ -4992,7 +4994,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_temp
   std_vector_Vector__0 *template_args = node->u.spec.template_args;
   std_vector_Vector__19 *template_params = sym->template->params;
   if (template_params->size != template_args->size) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Invalid number of template arguments for %s", sym->name)));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Invalid number of template arguments for %s", sym->name)));
     return NULL;
   }
   std_buffer_Buffer new_display_name = std_buffer_Buffer_make(16);
@@ -5014,7 +5016,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_temp
     compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, cur_sym, NULL);
   }
   std_buffer_Buffer_write_str(&new_display_name, ">");
-  char *new_out_name = format_string("%s__%u", sym->name, sym->template->instances->size);
+  char *new_out_name = std_format("%s__%u", sym->name, sym->template->instances->size);
   compiler_ast_scopes_Symbol *new_sym = compiler_ast_scopes_Symbol_new_with_parent(sym->type, parent_ns, parent_ns->sym, new_out_name, sym->span);
   new_sym->display=std_buffer_Buffer_str(new_display_name);
   compiler_ast_scopes_TemplateInstance *instance = compiler_ast_scopes_TemplateInstance_new(template_args, sym, new_sym);
@@ -5027,7 +5029,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_temp
       compiler_passes_typechecker_TypeChecker_resolve_templated_function(this, sym->u.func, instance);
     } break;
     default: {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot specialize non-templated symbol %s", sym->name)));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot specialize non-templated symbol %s", sym->name)));
       /* defers */
       this->in_template_instance=was_in_template_instance;
       return NULL;
@@ -5081,7 +5083,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_scop
       }
       base=compiler_ast_scopes_Symbol_remove_alias(base);
       if (!compiler_ast_scopes_Symbol_is_templated(base)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot specialize non-templated symbol %s", base->name)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot specialize non-templated symbol %s", base->name)));
         return NULL;
       }
       std_vector_Vector__0 *args = node->u.spec.parsed_template_args;
@@ -5107,7 +5109,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_scop
     } break;
     default: {
       if (error) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Don't know how to resolve node type %s", compiler_ast_nodes_ASTType_dbg(node->type))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Don't know how to resolve node type %s", compiler_ast_nodes_ASTType_dbg(node->type))));
       }
       return NULL;
     } break;
@@ -5178,7 +5180,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_internal_prin
   compiler_ast_nodes_Argument *first = std_vector_Vector__15_at(args, 0);
   compiler_types_Type *first_type = compiler_passes_typechecker_TypeChecker_check_expression(this, first->expr, NULL);
   if (((bool)first_type) && !compiler_types_Type_is_str(first_type)) {
-    compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(first->expr->span, format_string("First argument must be a string literal, got %s", compiler_types_Type_str(first_type))));
+    compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(first->expr->span, std_format("First argument must be a string literal, got %s", compiler_types_Type_str(first_type))));
   }
   for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(args); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
     compiler_ast_nodes_Argument *arg = std_vector_Iterator__15_cur(&__iter);
@@ -5194,7 +5196,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
   node->u.call.is_constructor=true;
   compiler_ast_nodes_AST *callee = node->u.call.callee;
   compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
-  ae_assert(type_sym->type==compiler_ast_scopes_SymbolType_Structure, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:542:12: Assertion failed: `type_sym.type == Structure`", format_string("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type)));
+  ae_assert(type_sym->type==compiler_ast_scopes_SymbolType_Structure, "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:542:12: Assertion failed: `type_sym.type == Structure`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type)));
   compiler_ast_nodes_Structure *struc = type_sym->u.struc;
   std_vector_Vector__4 *params = struc->fields;
   compiler_passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
@@ -5204,27 +5206,27 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
 void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, bool is_variadic) {
   std_vector_Vector__15 *args = node->u.call.args;
   if ((params->size < args->size) && !is_variadic) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Too many arguments, expected %u but got %u", params->size, args->size)));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Too many arguments, expected %u but got %u", params->size, args->size)));
   }
   for (u32 i = 0; i < params->size; i+=1) {
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
     if (i < args->size) {
       compiler_ast_nodes_Argument *arg = std_vector_Vector__15_at(args, i);
       if (((bool)arg->label) && !str_eq(arg->label, param->sym->name)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->label_span, format_string("Argument label '%s' does not match parameter name '%s'", arg->label, param->sym->name)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->label_span, std_format("Argument label '%s' does not match parameter name '%s'", arg->label, param->sym->name)));
       }
       compiler_types_Type *arg_type = compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, param->type);
       if (!((bool)arg_type) || !((bool)param->type)) {
       continue;
       }
       if (!compiler_types_Type_eq(arg_type, param->type, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, format_string("Argument %s has type %s but expected %s", param->sym->name, compiler_types_Type_str(arg_type), compiler_types_Type_str(param->type))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, std_format("Argument %s has type %s but expected %s", param->sym->name, compiler_types_Type_str(arg_type), compiler_types_Type_str(param->type))));
       }
     } else if (((bool)param->default_value)) {
       compiler_ast_nodes_Argument *new_arg = compiler_ast_nodes_Argument_new(param->default_value, NULL);
       std_vector_Vector__15_push(args, new_arg);
     } else {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Missing required argument %s", param->sym->name)));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Missing required argument %s", param->sym->name)));
       return;
     }
   }
@@ -5290,7 +5292,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler
     if (res->base==compiler_types_BaseType_Pointer && res->u.ptr->base==compiler_types_BaseType_Function) {
       res=res->u.ptr;
     } else if (res->base != compiler_types_BaseType_Function) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(callee->span, format_string("Cannot call a non-function type: %s", compiler_types_Type_str(res))));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(callee->span, std_format("Cannot call a non-function type: %s", compiler_types_Type_str(res))));
       res=this->o->error_type;
     }
   } else {
@@ -5427,10 +5429,10 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
       if (lhs->base==compiler_types_BaseType_Pointer || rhs->base==compiler_types_BaseType_Pointer) {
         return compiler_passes_typechecker_TypeChecker_check_pointer_arith(this, node, lhs, rhs);
       } else if (!compiler_types_Type_is_numeric(lhs) || !compiler_types_Type_is_numeric(rhs)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       } else if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       } else {
         return lhs;
@@ -5446,11 +5448,11 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
         return NULL;
       }
       if (!compiler_types_Type_is_numeric(lhs) || !compiler_types_Type_is_numeric(rhs)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       return lhs;
@@ -5460,17 +5462,17 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_operators_Operator_GreaterThan:
     case compiler_ast_operators_Operator_GreaterThanEquals: {
       if (!compiler_types_Type_is_numeric_or_char(lhs) || !compiler_types_Type_is_numeric_or_char(rhs)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
       }
       return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
     } break;
     case compiler_ast_operators_Operator_Equals: {
       if (!compiler_types_Type_eq(lhs, rhs, false) || lhs->base==compiler_types_BaseType_Structure) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
@@ -5484,7 +5486,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
           (*node)=(*compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Not, node->span, copy));
           compiler_passes_typechecker_TypeChecker_check_expression(this, node, NULL);
         } else {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
           return NULL;
         }
       }
@@ -5493,14 +5495,14 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_operators_Operator_And:
     case compiler_ast_operators_Operator_Or: {
       if (!compiler_types_Type_eq(lhs, rhs, false) || (lhs->base != compiler_types_BaseType_Bool)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
     } break;
     case compiler_ast_operators_Operator_BitwiseXor: {
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       if ((lhs->base != compiler_types_BaseType_Bool) && !compiler_types_Type_is_integer(lhs)) {
@@ -5516,18 +5518,18 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     case compiler_ast_operators_Operator_LeftShiftEquals:
     case compiler_ast_operators_Operator_RightShiftEquals: {
       if (!compiler_types_Type_is_integer(lhs) || !compiler_types_Type_is_integer(rhs)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         return NULL;
       }
       if (!compiler_types_Type_eq(lhs, rhs, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
       }
       compiler_ast_nodes_AST *lhs_node = node->u.binary.lhs;
       switch (op) {
         case compiler_ast_operators_Operator_LeftShiftEquals:
         case compiler_ast_operators_Operator_RightShiftEquals: {
           if (!compiler_ast_nodes_AST_is_lvalue(lhs_node)) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs_node->span, format_string("Must be an l-value")));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs_node->span, std_format("Must be an l-value")));
             return NULL;
           }
         } break;
@@ -5536,7 +5538,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
       }
       return lhs;
     } break;
-    default: std_panic(format_string("Internal error: unhandled op in check_binary_op: %s", compiler_ast_nodes_ASTType_dbg(node->type))); break;
+    default: std_panic(std_format("Internal error: unhandled op in check_binary_op: %s", compiler_ast_nodes_ASTType_dbg(node->type))); break;
   }
 }
 
@@ -5589,11 +5591,11 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string
               continue;
             } break;
             default: {
-              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(expr->span, format_string("Can only format %s in simple expressions", typ->sym->display), "Try moving the expression into a variable and formatting that instead"));
+              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(expr->span, std_format("Can only format %s in simple expressions", typ->sym->display), "Try moving the expression into a variable and formatting that instead"));
             } break;
           }
         } else {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, format_string("Type '%s' cannot be formatted automatically", compiler_types_Type_str(typ))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, std_format("Type '%s' cannot be formatted automatically", compiler_types_Type_str(typ))));
         }
       } break;
     }
@@ -5647,7 +5649,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compil
       return method->type;
     }
   }
-  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Type %s has no member named '%s'", compiler_types_Type_str(lhs), rhs_name)));
+  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Type %s has no member named '%s'", compiler_types_Type_str(lhs), rhs_name)));
   return NULL;
 }
 
@@ -5676,7 +5678,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compile
     }
   }
   if (!compiler_types_Type_is_integer(rhs)) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Index must be an integer, got %s", compiler_types_Type_str(rhs))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Index must be an integer, got %s", compiler_types_Type_str(rhs))));
     return NULL;
   }
   lhs=compiler_types_Type_unaliased(lhs);
@@ -5688,7 +5690,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compile
       return lhs->u.ptr;
     } break;
     default: {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot index type %s", compiler_types_Type_str(lhs))));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot index type %s", compiler_types_Type_str(lhs))));
       return NULL;
     } break;
   }
@@ -5699,7 +5701,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_assignment(co
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.binary.lhs->span, "Must be an l-value"));
   }
   if (!compiler_types_Type_eq(lhs, rhs, false)) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.binary.rhs->span, format_string("Variable type does not match assignment type, Expected type '%s', got '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.binary.rhs->span, std_format("Variable type does not match assignment type, Expected type '%s', got '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
   }
   return lhs;
 }
@@ -5770,11 +5772,11 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           return NULL;
           }
           if (!compiler_types_Type_is_integer(lhs)) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot increment or decrement non-integer type: %s", compiler_types_Type_str(lhs))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot increment or decrement non-integer type: %s", compiler_types_Type_str(lhs))));
             return NULL;
           }
           if (!compiler_ast_nodes_AST_is_lvalue(node->u.unary.expr)) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Can't perform %s on a non-lvalue", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can't perform %s on a non-lvalue", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
           }
           return lhs;
         } break;
@@ -5787,7 +5789,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           return NULL;
           }
           if (!compiler_types_Type_is_numeric(typ)) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
             return NULL;
           }
           return typ;
@@ -5798,7 +5800,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           return NULL;
           }
           if (!compiler_types_Type_is_integer(typ)) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot do bitwise-not on non-integer type: %s", compiler_types_Type_str(typ))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot do bitwise-not on non-integer type: %s", compiler_types_Type_str(typ))));
             return NULL;
           }
           return typ;
@@ -5810,7 +5812,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           }
           typ=compiler_types_Type_unaliased(typ);
           if (typ->base != compiler_types_BaseType_Pointer) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Can only use ? on pointer types, got %s", compiler_types_Type_str(typ))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only use ? on pointer types, got %s", compiler_types_Type_str(typ))));
           }
           return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
         } break;
@@ -5820,7 +5822,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           return NULL;
           }
           if (typ->base != compiler_types_BaseType_Bool) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot negate non-boolean type: %s", compiler_types_Type_str(typ))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-boolean type: %s", compiler_types_Type_str(typ))));
             return NULL;
           }
           return typ;
@@ -5850,13 +5852,13 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           return NULL;
           }
           if (typ->base != compiler_types_BaseType_Pointer) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot dereference non-pointer type: %s", compiler_types_Type_str(typ))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot dereference non-pointer type: %s", compiler_types_Type_str(typ))));
             return NULL;
           }
           return typ->u.ptr;
         } break;
         default: {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Unknown unary operator in check_expression: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Unknown unary operator in check_expression: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
           return NULL;
         } break;
       }
@@ -5902,13 +5904,13 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           return item->u.var->type;
         } break;
         case compiler_ast_scopes_SymbolType_TypeDef: {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot use type `%s` as an expression", item->name)));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot use type `%s` as an expression", item->name)));
           return NULL;
         } break;
         case compiler_ast_scopes_SymbolType_Structure:
         case compiler_ast_scopes_SymbolType_Enum:
         case compiler_ast_scopes_SymbolType_Namespace: {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot use %s `%s` as an expression", compiler_ast_scopes_SymbolType_dbg(item->type), item->name)));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot use %s `%s` as an expression", compiler_ast_scopes_SymbolType_dbg(item->type), item->name)));
           return NULL;
         } break;
       }
@@ -6002,7 +6004,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           }
           return compiler_passes_typechecker_TypeChecker_check_assignment(this, node, lhs, rhs);
         } break;
-        default: std_panic(format_string("Internal error: unhandled op in check_expression binary_op: %s", compiler_ast_nodes_ASTType_dbg(node->type))); break;
+        default: std_panic(std_format("Internal error: unhandled op in check_expression binary_op: %s", compiler_ast_nodes_ASTType_dbg(node->type))); break;
       }
     } break;
     case compiler_ast_nodes_ASTType_ArrayLiteral: {
@@ -6024,7 +6026,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
             hint_elem_type=elem_type;
             first_span=elem->span;
           } else if (!compiler_types_Type_eq(elem_type, typ, false)) {
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(elem->span, format_string("Expected type %s, but got %s", compiler_types_Type_str(elem_type), compiler_types_Type_str(typ)), first_span, format_string("First element was of type %s", compiler_types_Type_str(elem_type))));
+            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(elem->span, std_format("Expected type %s, but got %s", compiler_types_Type_str(elem_type), compiler_types_Type_str(typ)), first_span, std_format("First element was of type %s", compiler_types_Type_str(elem_type))));
             return NULL;
           }
         }
@@ -6040,7 +6042,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
       return arr;
     } break;
     default: {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Invalid expression in TypeChecker::check_expression: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Invalid expression in TypeChecker::check_expression: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
       return NULL;
     } break;
   }
@@ -6079,7 +6081,7 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passe
       continue;
       }
       if (!compiler_types_Type_eq(cond_type, enum_->type, false)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(cond->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", compiler_types_Type_str(enum_->type))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(cond->span, "Condition does not match expression type", node->u.match_stmt.expr->span, std_format("Match expression is of type '%s'", compiler_types_Type_str(enum_->type))));
       }
       if (cond_type->base != compiler_types_BaseType_Enum) {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(cond->span, "Expected an enum value"));
@@ -6114,7 +6116,7 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passe
       }
     }
     if (!((bool)defolt)) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->u.match_stmt.expr->span, format_string("Match does not cover all cases (Only %u of %u)", mapping->size, enum_->fields->size), std_buffer_Buffer_str(buf)));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->u.match_stmt.expr->span, std_format("Match does not cover all cases (Only %u of %u)", mapping->size, enum_->fields->size), std_buffer_Buffer_str(buf)));
     } else {
       compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, defolt, is_expr, hint);
     }
@@ -6186,12 +6188,12 @@ compiler_ast_nodes_Function *compiler_passes_typechecker_TypeChecker_check_match
   overload.type2=rhs;
   compiler_ast_nodes_Function *func = std_map_Map__5_get(this->o->program->operator_overloads, overload, NULL);
   if (!((bool)func)) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(mcase->cond->span, format_string("Cannot match %s with this case: %s", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs)), expr->span, format_string("Match expression is of type %s", compiler_types_Type_str(lhs))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(mcase->cond->span, std_format("Cannot match %s with this case: %s", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs)), expr->span, std_format("Match expression is of type %s", compiler_types_Type_str(lhs))));
     return NULL;
   }
   compiler_types_Type *ret = compiler_types_Type_unaliased(func->return_type);
   if (ret->base != compiler_types_BaseType_Bool) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(mcase->cond->span, format_string("Overload %s must return a boolean", func->sym->display), func->sym->span, format_string("Defined here, return type is %s", compiler_types_Type_str(ret))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(mcase->cond->span, std_format("Overload %s must return a boolean", func->sym->display), func->sym->span, std_format("Defined here, return type is %s", compiler_types_Type_str(ret))));
     return NULL;
   }
   mcase->cmp_fn=func;
@@ -6259,7 +6261,7 @@ void compiler_passes_typechecker_TypeChecker_check_if(compiler_passes_typechecke
     {
       compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, branch.cond, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
       if (((bool)cond_type) && (cond_type->base != compiler_types_BaseType_Bool)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(branch.cond->span, "Condition must be a boolean", format_string("Got type '%s'", compiler_types_Type_str(cond_type))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(branch.cond->span, "Condition must be a boolean", std_format("Got type '%s'", compiler_types_Type_str(cond_type))));
       }
       compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, branch.body, is_expr, hint);
     }
@@ -6301,7 +6303,7 @@ void compiler_passes_typechecker_TypeChecker_check_expression_statement(compiler
   if (body->returns) {
   } else if (!((bool)ret)) {
     std_span_Span start_span = (std_span_Span){.start=body->span.start, .end=body->span.start};
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(start_span, format_string("Must yield a value in this branch, body type is %s", compiler_ast_nodes_ASTType_dbg(body->type))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(start_span, std_format("Must yield a value in this branch, body type is %s", compiler_ast_nodes_ASTType_dbg(body->type))));
   } else if (!((bool)node->etype)) {
     node->etype=ret;
   } else if (!compiler_types_Type_eq(node->etype, ret, false)) {
@@ -6309,7 +6311,7 @@ void compiler_passes_typechecker_TypeChecker_check_expression_statement(compiler
     if (!((bool)yield_stmt)) {
     yield_stmt=node;
     }
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(yield_stmt->span, "Yield type of branch doesn't match previous branches", format_string("Expected type '%s', got '%s'", compiler_types_Type_str(node->etype), compiler_types_Type_str(ret))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(yield_stmt->span, "Yield type of branch doesn't match previous branches", std_format("Expected type '%s', got '%s'", compiler_types_Type_str(node->etype), compiler_types_Type_str(ret))));
   }
 }
 
@@ -6321,7 +6323,7 @@ void compiler_passes_typechecker_TypeChecker_check_while(compiler_passes_typeche
   compiler_ast_nodes_AST *body = node->u.loop.body;
   compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, cond, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
   if (((bool)cond_type) && (cond_type->base != compiler_types_BaseType_Bool)) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(cond->span, "Condition must be a boolean", format_string("Got type '%s'", compiler_types_Type_str(cond_type))));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(cond->span, "Condition must be a boolean", std_format("Got type '%s'", compiler_types_Type_str(cond_type))));
   }
   compiler_passes_typechecker_TypeChecker_check_statement(this, body);
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
@@ -6341,7 +6343,7 @@ void compiler_passes_typechecker_TypeChecker_check_for(compiler_passes_typecheck
   if (((bool)cond)) {
     compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, cond, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
     if (((bool)cond_type) && (cond_type->base != compiler_types_BaseType_Bool)) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(cond->span, "Condition must be a boolean", format_string("Got type '%s'", compiler_types_Type_str(cond_type))));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(cond->span, "Condition must be a boolean", std_format("Got type '%s'", compiler_types_Type_str(cond_type))));
     }
   }
   if (((bool)step)) {
@@ -6372,7 +6374,7 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
         }
       } else if (((bool)node->u.child)) {
         if (((bool)res) && !compiler_types_Type_eq(res, expected, false)) {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Return type %s does not match function return type %s", compiler_types_Type_str(res), compiler_types_Type_str(expected))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Return type %s does not match function return type %s", compiler_types_Type_str(res), compiler_types_Type_str(expected))));
         }
       } else {
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Expected a return value for non-void function"));
@@ -6383,12 +6385,12 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
       compiler_ast_nodes_AST *expr = node->u.assertion.expr;
       compiler_types_Type *expr_typ = compiler_passes_typechecker_TypeChecker_check_expression(this, expr, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
       if (((bool)expr_typ) && (expr_typ->base != compiler_types_BaseType_Bool)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Can only assert boolean types, got %s", compiler_types_Type_str(expr_typ))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only assert boolean types, got %s", compiler_types_Type_str(expr_typ))));
       }
       if (((bool)node->u.assertion.msg)) {
         compiler_types_Type *msg_typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.assertion.msg, NULL);
         if (((bool)msg_typ) && (msg_typ != compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span))) {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Can only assert strings, got %s", compiler_types_Type_str(msg_typ))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only assert strings, got %s", compiler_types_Type_str(msg_typ))));
         }
       }
       if (expr->type==compiler_ast_nodes_ASTType_BoolLiteral && expr->u.bool_literal==false) {
@@ -6410,7 +6412,7 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
     case compiler_ast_nodes_ASTType_Break:
     case compiler_ast_nodes_ASTType_Continue: {
       if (compiler_passes_typechecker_TypeChecker_scope(this)->loop_count==0) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("%s statement outside of loop", compiler_ast_nodes_ASTType_dbg(node->type))));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("%s statement outside of loop", compiler_ast_nodes_ASTType_dbg(node->type))));
       }
     } break;
     case compiler_ast_nodes_ASTType_If: {
@@ -6432,7 +6434,7 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
       compiler_ast_nodes_Variable *var = node->u.var_decl.var;
       compiler_ast_scopes_Symbol *res = compiler_ast_scopes_Scope_lookup_local(compiler_passes_typechecker_TypeChecker_scope(this), var->sym->name);
       if (((bool)res)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Variable %s already exists in this scope", var->sym->name)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Variable %s already exists in this scope", var->sym->name)));
         return;
       }
       compiler_ast_scopes_Symbol *sym = var->sym;
@@ -6455,10 +6457,10 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
         if (is_inferred) {
           var->type=res;
         } else if (!compiler_types_Type_eq(res, var->type, false)) {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(init->span, format_string("Variable %s has type %s but initializer has type %s", var->sym->name, compiler_types_Type_str(var->type), compiler_types_Type_str(res))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(init->span, std_format("Variable %s has type %s but initializer has type %s", var->sym->name, compiler_types_Type_str(var->type), compiler_types_Type_str(res))));
         }
       } else if (is_inferred) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Variable %s has no type and no initializer", var->sym->name)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Variable %s has no type and no initializer", var->sym->name)));
       }
     } break;
     default: {
@@ -6498,7 +6500,7 @@ void compiler_passes_typechecker_TypeChecker_check_function(compiler_passes_type
       if (((bool)default_expr)) {
         compiler_types_Type *default_type = compiler_passes_typechecker_TypeChecker_check_expression(this, default_expr, param->type);
         if (((bool)default_type) && !compiler_types_Type_eq(default_type, param->type, false)) {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(default_expr->span, format_string("Default argument has type %s but expected %s", compiler_types_Type_str(default_type), compiler_types_Type_str(param->type))));
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(default_expr->span, std_format("Default argument has type %s but expected %s", compiler_types_Type_str(default_type), compiler_types_Type_str(param->type))));
         }
       }
       std_map_Map__4_insert(new_scope->items, param->sym->name, param->sym);
@@ -6560,7 +6562,7 @@ void compiler_passes_typechecker_TypeChecker_check_globals(compiler_passes_typec
     return;
     }
     if (!compiler_types_Type_eq(init_type, var->type, false)) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(init->span, format_string("Variable %s has type %s but got %s", var->sym->name, compiler_types_Type_str(var->type), compiler_types_Type_str(init_type))));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(init->span, std_format("Variable %s has type %s but got %s", var->sym->name, compiler_types_Type_str(var->type), compiler_types_Type_str(init_type))));
     }
   }
 }
@@ -6638,7 +6640,7 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
       std_span_Span span = (std_span_Span){.start=sym->comment_loc, .end=sym->comment_loc};
       std_vector_Vector__9 *tokens = compiler_lexer_Lexer_lex(&lexer);
       if (lexer.errors->size > 0) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, format_string("Invalid link: '%s' in this doc", part)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Invalid link: '%s' in this doc", part)));
         return;
       }
       compiler_parser_Parser parser = compiler_parser_Parser_make(this->o->program, compiler_passes_generic_pass_GenericPass_ns(this->o));
@@ -6646,12 +6648,12 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
       parser.curr=0;
       compiler_ast_nodes_AST *ident = compiler_parser_Parser_parse_scoped_identifier(&parser, true);
       if (!((bool)ident)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, format_string("Invalid link: '%s' in this doc", part)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Invalid link: '%s' in this doc", part)));
         return;
       }
       compiler_ast_scopes_Symbol *sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, ident, false, NULL, true);
       if (!((bool)sym)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, format_string("Couldn't find symbol '%s' in this doc link", part)));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Couldn't find symbol '%s' in this doc link", part)));
         return;
       }
       char *linked_part = ({ char *__yield_0;
@@ -6659,29 +6661,29 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
           case compiler_ast_scopes_SymbolType_Structure: {
             compiler_types_Type *typ = sym->u.struc->type;
             if (((bool)typ->template_instance)) {
-              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(span, format_string("Cannot link directly to specialezed type '%s'", part), "Try doing `{{A}}<{{B}}>` instead of `{{A<B>}}`"));
+              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(span, std_format("Cannot link directly to specialezed type '%s'", part), "Try doing `{{A}}<{{B}}>` instead of `{{A<B>}}`"));
               return;
             }
-            __yield_0 = format_string("%x", sym->u.struc->type);
+            __yield_0 = std_format("%x", sym->u.struc->type);
           } break;
           case compiler_ast_scopes_SymbolType_Function: {
-            __yield_0 = format_string("%x", sym->u.func);
+            __yield_0 = std_format("%x", sym->u.func);
           } break;
           case compiler_ast_scopes_SymbolType_Enum: {
-            __yield_0 = format_string("%x", sym->u.enum_->type);
+            __yield_0 = std_format("%x", sym->u.enum_->type);
           } break;
           case compiler_ast_scopes_SymbolType_TypeDef: {
-            __yield_0 = format_string("%x", sym->u.type_def);
+            __yield_0 = std_format("%x", sym->u.type_def);
           } break;
           case compiler_ast_scopes_SymbolType_Variable:
           case compiler_ast_scopes_SymbolType_EnumVariant: {
-            __yield_0 = format_string("%x", sym->u.var);
+            __yield_0 = std_format("%x", sym->u.var);
           } break;
           case compiler_ast_scopes_SymbolType_Constant: {
-            __yield_0 = format_string("%x", sym->u.var);
+            __yield_0 = std_format("%x", sym->u.var);
           } break;
           case compiler_ast_scopes_SymbolType_Namespace: {
-            __yield_0 = format_string("%x", sym->u.ns);
+            __yield_0 = std_format("%x", sym->u.ns);
           } break;
         }
 ;__yield_0; });
@@ -6751,13 +6753,13 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_const_express
               return NULL;
               }
               if (!compiler_types_Type_is_numeric(typ)) {
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
                 return NULL;
               }
               __yield_1 = typ;
             } break;
             default: {
-              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("Unsupported operator in constant expression: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
+              compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Unsupported operator in constant expression: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
               return NULL;
             } break;
           }
@@ -6805,7 +6807,7 @@ void compiler_passes_typechecker_TypeChecker_handle_import_path_base(compiler_pa
     }
     compiler_ast_scopes_Symbol *new_base = compiler_passes_generic_pass_GenericPass_lookup_in_symbol(this->o, base, name, part->u.single.alias_span, false);
     if (!((bool)new_base)) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, format_string("Invalid import, namespace %s does not exist", name)));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, std_format("Invalid import, namespace %s does not exist", name)));
       return;
     }
     base=new_base;
@@ -6863,7 +6865,7 @@ void compiler_passes_typechecker_TypeChecker_handle_import_statement(compiler_pa
     }
 ;__yield_0; });
   if (!((bool)base)) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, format_string("Couldn't import %s", name)));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, std_format("Couldn't import %s", name)));
     return;
   }
   compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, node, base);
@@ -6949,14 +6951,14 @@ void compiler_passes_typechecker_TypeChecker_resolve_struct(compiler_passes_type
 void compiler_passes_typechecker_TypeChecker_check_operator_overload_function(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *func, compiler_ast_operators_Operator op) {
   u32 num_params_needed = compiler_ast_operators_Operator_num_overload_params(op);
   if (num_params_needed != func->params->size) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func->sym->span, format_string("Operator overload for %s must have %u parameters", compiler_ast_operators_Operator_dbg(op), num_params_needed)));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func->sym->span, std_format("Operator overload for %s must have %u parameters", compiler_ast_operators_Operator_dbg(op), num_params_needed)));
     return;
   }
   if (compiler_ast_operators_Operator_needs_lhs_pointer_for_overload(op)) {
     compiler_ast_nodes_Variable *lhs = std_vector_Vector__4_at(func->params, 0);
     compiler_types_Type *lhs_type = compiler_types_Type_unaliased(lhs->type);
     if (lhs_type->base != compiler_types_BaseType_Pointer) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs->sym->span, format_string("First parameter of %s operator must be a pointer-type", compiler_ast_operators_Operator_dbg(op))));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs->sym->span, std_format("First parameter of %s operator must be a pointer-type", compiler_ast_operators_Operator_dbg(op))));
       return;
     }
   }
@@ -6986,7 +6988,7 @@ void compiler_passes_typechecker_TypeChecker_check_operator_overload_function(co
   std_map_Item__5 *it = std_map_Map__5_get_item(this->o->program->operator_overloads, overload);
   if (((bool)it)) {
     if (it->value != func) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(func->sym->span, format_string("Operator overload for %s already exists (%s)", compiler_ast_operators_Operator_dbg(op), func->sym->display), it->value->sym->span, format_string("Previous definition here (%s)", it->value->sym->display)));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(func->sym->span, std_format("Operator overload for %s already exists (%s)", compiler_ast_operators_Operator_dbg(op), func->sym->display), it->value->sym->span, std_format("Previous definition here (%s)", it->value->sym->display)));
     }
     return;
   }
@@ -7099,7 +7101,7 @@ void compiler_passes_typechecker_TypeChecker_pre_check_globals(compiler_passes_t
   compiler_ast_nodes_Variable *var = node->u.var_decl.var;
   if (!((bool)var->type)) {
     char *c = (is_const ? "Constant" : "Global variable");
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, format_string("%s must have a type", c)));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("%s must have a type", c)));
     return;
   }
   compiler_types_Type *type = compiler_passes_typechecker_TypeChecker_resolve_type(this, var->type, false, true, true);
@@ -7274,32 +7276,33 @@ compiler_passes_register_types_Finder compiler_passes_register_types_Finder_to(c
   if (!((bool)this.sym)) {
   return this;
   }
-  this.sym=compiler_passes_generic_pass_GenericPass_lookup_in_symbol(this.o, this.sym, name, std_span_Span_default(), false);
-  if (((bool)this.sym)) {
-    switch (this.sym->type) {
+  compiler_ast_scopes_Symbol *res = compiler_passes_generic_pass_GenericPass_lookup_in_symbol(this.o, this.sym, name, std_span_Span_default(), false);
+  if (((bool)res)) {
+    switch (res->type) {
       case compiler_ast_scopes_SymbolType_TypeDef: {
-        this.type=this.sym->u.type_def;
+        this.type=res->u.type_def;
       } break;
       case compiler_ast_scopes_SymbolType_Structure: {
-        this.type=this.sym->u.struc->type;
+        this.type=res->u.struc->type;
       } break;
       case compiler_ast_scopes_SymbolType_Enum: {
-        this.type=this.sym->u.enum_->type;
+        this.type=res->u.enum_->type;
       } break;
       default: {
         this.type=NULL;
       } break;
     }
+  } else {
+    compiler_errors_Error_panic(compiler_passes_generic_pass_GenericPass_error(this.o, compiler_errors_Error_new_note(this.sym->span, std_format("Could not find %s::%s", this.sym->display, name), "The compiler expects this internally (in RegisterTypes)")));
   }
+  this.sym=res;
   return this;
 }
 
 void compiler_passes_register_types_RegisterTypes_register_cached_types(compiler_passes_register_types_RegisterTypes *this) {
   compiler_passes_register_types_Finder finder = (compiler_passes_register_types_Finder){.o=this->o, .sym=this->o->program->global->sym, .type=NULL};
-  compiler_types_Type *sv_type = compiler_passes_register_types_Finder_to(compiler_passes_register_types_Finder_to(compiler_passes_register_types_Finder_to(finder, "std"), "sv"), "SV").type;
-  this->o->program->cached_types.sv_type=sv_type;
-  compiler_types_Type *buffer_type = compiler_passes_register_types_Finder_to(compiler_passes_register_types_Finder_to(compiler_passes_register_types_Finder_to(finder, "std"), "buffer"), "Buffer").type;
-  this->o->program->cached_types.buffer_type=buffer_type;
+  compiler_passes_register_types_Finder res = compiler_passes_register_types_Finder_to(compiler_passes_register_types_Finder_to(finder, "std"), "format");
+  this->o->program->cached_symbols.fmt_string_fn=res.sym;
 }
 
 void compiler_passes_register_types_RegisterTypes_run(compiler_ast_program_Program *program) {
@@ -7484,6 +7487,7 @@ void compiler_passes_mark_dead_code_MarkDeadCode_mark(compiler_passes_mark_dead_
       compiler_passes_mark_dead_code_MarkDeadCode_mark(this, node->u.assertion.msg);
     } break;
     case compiler_ast_nodes_ASTType_FormatStringLiteral: {
+      compiler_passes_mark_dead_code_MarkDeadCode_mark_sym(this, this->o->program->cached_symbols.fmt_string_fn);
       for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(node->u.fmt_str.exprs); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
         compiler_ast_nodes_AST *expr = std_vector_Iterator__13_cur(&__iter);
         {
@@ -7525,7 +7529,7 @@ void compiler_passes_mark_dead_code_MarkDeadCode_mark(compiler_passes_mark_dead_
       }
     } break;
     default: {
-      compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(node->span, format_string("Unhandled expression type in MarkDeadCode: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
+      compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(node->span, std_format("Unhandled expression type in MarkDeadCode: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
     } break;
   }
 }
@@ -7697,7 +7701,7 @@ void compiler_passes_generic_pass_GenericPass_insert_into_scope_checked_and_expo
   }
   compiler_ast_scopes_Symbol *prev = compiler_ast_scopes_Scope_lookup_local(compiler_passes_generic_pass_GenericPass_scope(this), name);
   if (((bool)prev)) {
-    compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(item->span, format_string("Name %s already exists in scope", name), prev->span, format_string("Previous use of %s", name)));
+    compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(item->span, std_format("Name %s already exists in scope", name), prev->span, std_format("Previous use of %s", name)));
     return;
   }
   compiler_ast_scopes_Scope_insert(compiler_passes_generic_pass_GenericPass_scope(this), name, item);
@@ -7707,7 +7711,7 @@ void compiler_passes_generic_pass_GenericPass_insert_into_scope_checked_and_expo
   std_map_Map__4 *exported = compiler_passes_generic_pass_GenericPass_ns(this)->exported_symbols;
   std_map_Item__4 *it = std_map_Map__4_get_item(exported, name);
   if (((bool)it)) {
-    compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(item->span, format_string("Name %s already exported from namespace", name), it->value->span, format_string("Previous export of %s", name)));
+    compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(item->span, std_format("Name %s already exported from namespace", name), it->value->span, std_format("Previous export of %s", name)));
     return;
   }
   std_map_Map__4_insert(compiler_passes_generic_pass_GenericPass_ns(this)->exported_symbols, name, item);
@@ -7724,18 +7728,18 @@ compiler_ast_scopes_Symbol *compiler_passes_generic_pass_GenericPass_lookup_in_s
         compiler_ast_program_Namespace *ns = sym->u.ns;
         compiler_ast_scopes_Symbol *res = compiler_ast_program_Namespace_find_importable_symbol(ns, name);
         if (error && !((bool)res)) {
-          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, format_string("Could not find symbol %s in namespace %s", name, sym->display), ns->span, format_string("Namespace was defined here")));
+          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, std_format("Could not find symbol %s in namespace %s", name, sym->display), ns->span, std_format("Namespace was defined here")));
         }
         __yield_0 = res;
       } break;
       case compiler_ast_scopes_SymbolType_Structure: {
         compiler_ast_nodes_Structure *struc = sym->u.struc;
         if (compiler_ast_scopes_Symbol_is_templated(sym)) {
-          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, format_string("Need to specify template specialization for %s", sym->display), sym->span, format_string("Template was defined here")));
+          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, std_format("Need to specify template specialization for %s", sym->display), sym->span, std_format("Template was defined here")));
         }
         compiler_ast_nodes_Function *method = std_map_Map__7_get(struc->type->methods, name, NULL);
         if (error && !((bool)method)) {
-          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(span, format_string("Could not find method %s in structure %s", name, sym->display)));
+          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(span, std_format("Could not find method %s in structure %s", name, sym->display)));
         }
         if (!((bool)method)) {
         return NULL;
@@ -7746,7 +7750,7 @@ compiler_ast_scopes_Symbol *compiler_passes_generic_pass_GenericPass_lookup_in_s
         compiler_types_Type *type_def = sym->u.type_def;
         compiler_ast_nodes_Function *method = std_map_Map__7_get(type_def->methods, name, NULL);
         if (error && !((bool)method)) {
-          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(span, format_string("Could not find method %s in type %s", name, sym->display)));
+          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(span, std_format("Could not find method %s in type %s", name, sym->display)));
         }
         if (!((bool)method)) {
         return NULL;
@@ -7764,12 +7768,12 @@ compiler_ast_scopes_Symbol *compiler_passes_generic_pass_GenericPass_lookup_in_s
         return method->sym;
         }
         if (error) {
-          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, format_string("Could not find value/method %s in enum %s", name, sym->display), sym->span, format_string("Enum was defined here")));
+          compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, std_format("Could not find value/method %s in enum %s", name, sym->display), sym->span, std_format("Enum was defined here")));
         }
         return NULL;
       } break;
       default: {
-        compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, format_string("Can't lookup a name inside a %s", compiler_ast_scopes_SymbolType_dbg(sym->type)), sym->span, format_string("%s was defined here", compiler_ast_scopes_SymbolType_dbg(sym->type))));
+        compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new_hint(span, std_format("Can't lookup a name inside a %s", compiler_ast_scopes_SymbolType_dbg(sym->type)), sym->span, std_format("%s was defined here", compiler_ast_scopes_SymbolType_dbg(sym->type))));
         return NULL;
       } break;
     }
@@ -7855,7 +7859,7 @@ void compiler_passes_generic_pass_GenericPass_import_all_from_symbol(compiler_pa
       }
     } break;
     default: {
-      compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(sym->span, format_string("Can't imdo wildcard import from a %s", compiler_ast_scopes_SymbolType_dbg(sym->type))));
+      compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(sym->span, std_format("Can't imdo wildcard import from a %s", compiler_ast_scopes_SymbolType_dbg(sym->type))));
     } break;
   }
 }
@@ -7882,7 +7886,7 @@ compiler_errors_Error *compiler_parser_Parser_error(compiler_parser_Parser *this
 }
 
 void compiler_parser_Parser_unhandled_type(compiler_parser_Parser *this, char *func) {
-  compiler_parser_Parser_error_msg(this, format_string("Unexpected token in %s: %s", func, compiler_tokens_TokenType_str(compiler_parser_Parser_token(this)->type)));
+  compiler_parser_Parser_error_msg(this, std_format("Unexpected token in %s: %s", func, compiler_tokens_TokenType_str(compiler_parser_Parser_token(this)->type)));
 }
 
 compiler_tokens_Token *compiler_parser_Parser_token(compiler_parser_Parser *this) {
@@ -7931,7 +7935,7 @@ void compiler_parser_Parser_consume_newline_or(compiler_parser_Parser *this, com
     this->curr+=1;
     }
   } else if (!compiler_parser_Parser_token(this)->seen_newline) {
-    compiler_parser_Parser_error_msg(this, format_string("Expected %s or newline", compiler_tokens_TokenType_str(type)));
+    compiler_parser_Parser_error_msg(this, std_format("Expected %s or newline", compiler_tokens_TokenType_str(type)));
     longjmp(this->program->err_jmp_ctx, 1);
   }
 }
@@ -7939,7 +7943,7 @@ void compiler_parser_Parser_consume_newline_or(compiler_parser_Parser *this, com
 compiler_tokens_Token *compiler_parser_Parser_consume(compiler_parser_Parser *this, compiler_tokens_TokenType type) {
   compiler_tokens_Token *tok = compiler_parser_Parser_token(this);
   if (!compiler_parser_Parser_consume_if(this, type)) {
-    compiler_parser_Parser_error_msg(this, format_string("Expected TokenType::%s", compiler_tokens_TokenType_str(type)));
+    compiler_parser_Parser_error_msg(this, std_format("Expected TokenType::%s", compiler_tokens_TokenType_str(type)));
     longjmp(this->program->err_jmp_ctx, 1);
   }
   return tok;
@@ -8018,7 +8022,7 @@ std_span_Span compiler_parser_Parser_consume_compound_operator(compiler_parser_P
       compiler_parser_Parser_consume(this, compiler_tokens_TokenType_GreaterThanEquals);
     } break;
     default: {
-      compiler_parser_Parser_error(this, compiler_errors_Error_new(span, format_string("Unknown operator %s in Parser::consume_compound_operator", compiler_ast_operators_Operator_dbg(op))));
+      compiler_parser_Parser_error(this, compiler_errors_Error_new(span, std_format("Unknown operator %s in Parser::consume_compound_operator", compiler_ast_operators_Operator_dbg(op))));
     } break;
   }
   compiler_tokens_Token *prev_token = std_vector_Vector__9_at(this->tokens, (this->curr - 1));
@@ -9286,11 +9290,12 @@ compiler_ast_nodes_Function *compiler_parser_Parser_parse_function(compiler_pars
           std_vector_Vector__14_push(func->operator_overloads, op);
         } break;
         default: {
-          compiler_parser_Parser_error(this, compiler_errors_Error_new(attr->span, format_string("Invalid attribute for function: %s", compiler_attributes_AttributeType_dbg(attr->type))));
+          compiler_parser_Parser_error(this, compiler_errors_Error_new(attr->span, std_format("Invalid attribute for function: %s", compiler_attributes_AttributeType_dbg(attr->type))));
         } break;
       }
     }
   }
+  compiler_parser_Parser_clear_attributes(this);
   if (func->sym->is_extern) {
     func->span=std_span_Span_join(start->span, end_span);
     return func;
@@ -9337,7 +9342,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1587:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1588:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if (attr->args->size > 0) {
     sym->extern_name=std_vector_Vector__1_at(attr->args, 0);
@@ -9715,7 +9720,7 @@ void compiler_parser_Parser_parse_namespace_until(compiler_parser_Parser *this, 
         compiler_parser_Parser_parse_compiler_option(this);
       } break;
       default: {
-        compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, format_string("Unexpected token in Parser: %s", compiler_tokens_TokenType_dbg(compiler_parser_Parser_token(this)->type))));
+        compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, std_format("Unexpected token in Parser: %s", compiler_tokens_TokenType_dbg(compiler_parser_Parser_token(this)->type))));
         this->curr+=1;
       } break;
     }
@@ -9752,9 +9757,9 @@ void compiler_parser_Parser_parse_compiler_option(compiler_parser_Parser *this) 
           __yield_0 = this->ns->parent->path;
         }
 ;__yield_0; });
-      char *full_path = format_string("%s/%s", cur_dir, path->text);
+      char *full_path = std_format("%s/%s", cur_dir, path->text);
       if (!std_fs_file_exists(full_path)) {
-        compiler_parser_Parser_error(this, compiler_errors_Error_new(path->span, format_string("File '%s' does not exist", full_path)));
+        compiler_parser_Parser_error(this, compiler_errors_Error_new(path->span, std_format("File '%s' does not exist", full_path)));
         return;
       }
       std_buffer_Buffer contents = std_fs_read_file(full_path);
@@ -9766,7 +9771,7 @@ void compiler_parser_Parser_parse_compiler_option(compiler_parser_Parser *this) 
 }
 
 void compiler_parser_Parser_try_load_mod_for_namespace(compiler_parser_Parser *this, compiler_ast_program_Namespace *ns) {
-  char *mod_path = format_string("%s/mod.oc", ns->path);
+  char *mod_path = std_format("%s/mod.oc", ns->path);
   if (std_fs_file_exists(mod_path) && !ns->is_top_level) {
     ns->is_top_level=true;
     compiler_parser_Parser parser = compiler_parser_Parser_make(this->program, ns);
@@ -9786,13 +9791,13 @@ compiler_ast_program_Namespace *compiler_parser_Parser_load_single_import_part(c
   return base;
   }
   compiler_ast_program_Namespace *next = (((bool)sym) ? sym->u.ns : NULL);
-  char *part_path = format_string("%s/%s", base->path, name);
+  char *part_path = std_format("%s/%s", base->path, name);
   if (!((bool)next)) {
     bool dir_exists = compiler_utils_directory_exists(part_path);
-    char *path = format_string("%s/%s.oc", base->path, name);
+    char *path = std_format("%s/%s.oc", base->path, name);
     bool file_exists = std_fs_file_exists(path);
     if (!dir_exists && !file_exists) {
-      compiler_parser_Parser_error(this, compiler_errors_Error_new(span, format_string("Could not find import path %s(.oc)", part_path)));
+      compiler_parser_Parser_error(this, compiler_errors_Error_new(span, std_format("Could not find import path %s(.oc)", part_path)));
       return NULL;
     }
     next=compiler_ast_program_Namespace_new(base, part_path);
@@ -9815,7 +9820,7 @@ bool compiler_parser_Parser_load_import_path_from_base(compiler_parser_Parser *t
     compiler_ast_nodes_ImportPart *part = std_vector_Vector__5_at(parts, i);
     switch (part->type) {
       case compiler_ast_nodes_ImportPartType_Wildcard: {
-        compiler_parser_Parser_error(this, compiler_errors_Error_new(part->span, format_string("Wildcard import is not allowed from non-module")));
+        compiler_parser_Parser_error(this, compiler_errors_Error_new(part->span, std_format("Wildcard import is not allowed from non-module")));
         return false;
       } break;
       case compiler_ast_nodes_ImportPartType_Multiple: {
@@ -9844,7 +9849,7 @@ char *compiler_parser_Parser_find_external_library_path(compiler_parser_Parser *
   for (std_vector_Iterator__1 __iter = std_vector_Vector__1_iter(this->program->library_paths); std_vector_Iterator__1_has_value(&__iter); std_vector_Iterator__1_next(&__iter)) {
     char *lib_path = std_vector_Iterator__1_cur(&__iter);
     {
-      char *path = ((strlen(lib_path) > 0) ? format_string("%s/%s", lib_path, name) : strdup(name));
+      char *path = ((strlen(lib_path) > 0) ? std_format("%s/%s", lib_path, name) : strdup(name));
       if (compiler_utils_directory_exists(path)) {
         return path;
       }
@@ -9874,14 +9879,14 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2142:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2143:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2143:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2144:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
           compiler_ast_program_Namespace *lib = compiler_parser_Parser_find_external_library(this, lib_name);
           if (!((bool)lib)) {
-            compiler_parser_Parser_error(this, compiler_errors_Error_new(import_stmt->span, format_string("Could not find library '%s'", lib_name)));
+            compiler_parser_Parser_error(this, compiler_errors_Error_new(import_stmt->span, std_format("Could not find library '%s'", lib_name)));
             return false;
           }
           std_map_Map__3_insert(this->program->global->namespaces, lib_name, lib);
@@ -9955,7 +9960,7 @@ void compiler_parser_Parser_include_prelude_only(compiler_parser_Parser *this) {
   if (!((bool)std_path)) {
     compiler_parser_Parser_couldnt_find_stdlib(this);
   }
-  char *prelude_path = format_string("%s/prelude.h", std_path);
+  char *prelude_path = std_format("%s/prelude.h", std_path);
   if (!std_fs_file_exists(prelude_path)) {
     compiler_parser_Parser_couldnt_find_stdlib(this);
   }
@@ -9971,7 +9976,7 @@ void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_P
   char *std_lib_ns_path = std_fs_realpath(std_lib_ns->path);
   char *cur = std_fs_realpath(filename);
   if (!((bool)cur)) {
-    compiler_parser_Parser_error(this, compiler_errors_Error_new(std_span_Span_default(), format_string("Could not find file: %s", filename)));
+    compiler_parser_Parser_error(this, compiler_errors_Error_new(std_span_Span_default(), std_format("Could not find file: %s", filename)));
     longjmp(this->program->err_jmp_ctx, 1);
   }
   std_vector_Vector__1 *namespace_paths = std_vector_Vector__1_new(16);
@@ -9985,7 +9990,7 @@ void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_P
     if (single_file) {
     break;
     }
-    char *potential_main_path = format_string("%s/main.oc", base);
+    char *potential_main_path = std_format("%s/main.oc", base);
     bool main_exists = std_fs_file_exists(potential_main_path);
     str_free(&potential_main_path);
     if (str_eq(base, std_lib_ns_path) || main_exists) {
@@ -10050,7 +10055,7 @@ void compiler_parser_Parser_parse_toplevel(compiler_ast_program_Program *program
   compiler_parser_Parser_load_file(&parser, filename, file_contents);
   compiler_ast_program_Namespace *file_ns = parser.ns;
   if (include_workspace_main && ((bool)file_ns->internal_project_root)) {
-    char *potential_main = format_string("%s/main.oc", file_ns->internal_project_root->path);
+    char *potential_main = std_format("%s/main.oc", file_ns->internal_project_root->path);
     if (std_fs_file_exists(potential_main)) {
       compiler_ast_program_Namespace *main_ns = std_map_Map__3_get(file_ns->internal_project_root->namespaces, "main", NULL);
       if (main_ns==file_ns) {
@@ -10449,7 +10454,7 @@ std_vector_Vector__9 *compiler_lexer_Lexer_lex(compiler_lexer_Lexer *this) {
           char *text = str_substring(this->source, start, len);
           compiler_lexer_Lexer_push(this, compiler_tokens_Token_from_ident(text, (std_span_Span){.start=start_loc, .end=this->loc}));
         } else {
-          std_vector_Vector__11_push(this->errors, compiler_errors_Error_new((std_span_Span){.start=this->loc, .end=this->loc}, format_string("Unrecognized char in lexer: '%c'", c)));
+          std_vector_Vector__11_push(this->errors, compiler_errors_Error_new((std_span_Span){.start=this->loc, .end=this->loc}, std_format("Unrecognized char in lexer: '%c'", c)));
           compiler_lexer_Lexer_inc(this);
         }
       } break;
@@ -10624,7 +10629,7 @@ compiler_types_Type *compiler_ast_program_Program_get_base_type(compiler_ast_pro
   if (((bool)sym) && sym->type==compiler_ast_scopes_SymbolType_TypeDef) {
     return sym->u.type_def;
   } else {
-    compiler_ast_program_Program_error(this, compiler_errors_Error_new(span, format_string("Internal compiler error, couldn't find base type %s", compiler_types_BaseType_dbg(base))));
+    compiler_ast_program_Program_error(this, compiler_errors_Error_new(span, std_format("Internal compiler error, couldn't find base type %s", compiler_types_BaseType_dbg(base))));
     return NULL;
   }
 }
@@ -10634,7 +10639,7 @@ compiler_types_Type *compiler_ast_program_Program_get_type_by_name(compiler_ast_
   if (((bool)sym) && sym->type==compiler_ast_scopes_SymbolType_TypeDef) {
     return sym->u.type_def;
   } else {
-    compiler_ast_program_Program_error(this, compiler_errors_Error_new(span, format_string("Internal compiler error, couldn't find type %s", name)));
+    compiler_ast_program_Program_error(this, compiler_errors_Error_new(span, std_format("Internal compiler error, couldn't find type %s", name)));
     return NULL;
   }
 }
@@ -10811,11 +10816,11 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compi
             char *__match_var_2 = tok->text;
             if (str_eq(__match_var_2, "in")) {
               __yield_1 = compiler_ast_operators_Operator_In;
-            } else  std_panic(format_string("Unhandled identifier in Operator::from_token: %s", tok->text));
+            } else  std_panic(std_format("Unhandled identifier in Operator::from_token: %s", tok->text));
           }
 ;__yield_1; });
       } break;
-      default: std_panic(format_string("Unhandled token type in Operator::from_token: %s", compiler_tokens_TokenType_str(tok->type))); break;
+      default: std_panic(std_format("Unhandled token type in Operator::from_token: %s", compiler_tokens_TokenType_str(tok->type))); break;
     }
 ;__yield_0; });
 }
@@ -11116,11 +11121,11 @@ compiler_ast_scopes_Symbol *compiler_ast_scopes_Symbol_new(compiler_ast_scopes_S
 }
 
 char *compiler_ast_scopes_Symbol_join_display(char *a, char *b) {
-  return (strlen(a)==0 ? b : format_string("%s::%s", a, b));
+  return (strlen(a)==0 ? b : std_format("%s::%s", a, b));
 }
 
 char *compiler_ast_scopes_Symbol_join_full_name(char *a, char *b) {
-  return (strlen(a)==0 ? b : format_string("%s_%s", a, b));
+  return (strlen(a)==0 ? b : std_format("%s_%s", a, b));
 }
 
 bool compiler_ast_scopes_Symbol_is_templated(compiler_ast_scopes_Symbol *this) {
@@ -11537,13 +11542,13 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
               __yield_1 = "str";
             } break;
             default: {
-              __yield_1 = format_string("&%s", compiler_lsp_utils_gen_type_string(type->u.ptr, full));
+              __yield_1 = std_format("&%s", compiler_lsp_utils_gen_type_string(type->u.ptr, full));
             } break;
           }
 ;__yield_1; });
       } break;
       case compiler_types_BaseType_Array: {
-        __yield_0 = format_string("&%s", compiler_lsp_utils_gen_type_string(type->u.arr.elem_type, full));
+        __yield_0 = std_format("&%s", compiler_lsp_utils_gen_type_string(type->u.arr.elem_type, full));
       } break;
       case compiler_types_BaseType_Structure:
       case compiler_types_BaseType_Enum:
@@ -11647,7 +11652,7 @@ char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr) {
         compiler_ast_nodes_NumLiteral *literal = &expr->u.num_literal;
         __yield_0 = ({ char *__yield_1;
           if (((bool)literal->suffix)) {
-            __yield_1 = format_string("%s%s", literal->text, compiler_types_Type_str(literal->suffix));
+            __yield_1 = std_format("%s%s", literal->text, compiler_types_Type_str(literal->suffix));
           } else {
             __yield_1 = literal->text;
           }
@@ -11668,7 +11673,7 @@ char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr) {
         if (!((bool)lhs_str)) {
         return NULL;
         }
-        __yield_0 = format_string("%s::%s", lhs_str, expr->u.lookup.rhs_name);
+        __yield_0 = std_format("%s::%s", lhs_str, expr->u.lookup.rhs_name);
       } break;
       default: {
         __yield_0 = NULL;
@@ -11703,13 +11708,13 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
       } break;
       case compiler_ast_scopes_SymbolType_Enum:
       case compiler_ast_scopes_SymbolType_EnumVariant: {
-        __yield_0 = format_string("enum %s", sym->display);
+        __yield_0 = std_format("enum %s", sym->display);
       } break;
       case compiler_ast_scopes_SymbolType_Structure: {
-        __yield_0 = format_string("struct %s", sym->display);
+        __yield_0 = std_format("struct %s", sym->display);
       } break;
       case compiler_ast_scopes_SymbolType_Namespace: {
-        __yield_0 = format_string("namespace %s", sym->display);
+        __yield_0 = std_format("namespace %s", sym->display);
       } break;
     }
 ;__yield_0; });
@@ -12994,6 +12999,7 @@ void compiler_errors_display_message_span(compiler_errors_MessageType type, std_
   u32 around_offset = 1;
   u32 min_line = u32_max((span.start.line - around_offset), 1);
   u32 max_line = (span.end.line + around_offset);
+  max_line=u32_min(max_line, (min_line + 10));
   u32 line_no = 1;
   for (std_sv_SVLineIterator __iter = std_sv_SV_lines(std_buffer_Buffer_sv(contents)); std_sv_SVLineIterator_has_value(&__iter); std_sv_SVLineIterator_next(&__iter)) {
     std_sv_SV line = std_sv_SVLineIterator_cur(&__iter);
@@ -13329,7 +13335,7 @@ bool compiler_types_Type_eq(compiler_types_Type *this, compiler_types_Type *othe
       if (((u32)this->base) < ((u32)compiler_types_BaseType_NUM_BASE_TYPES)) {
         return true;
       }
-      ae_assert(false, "/Users/mustafa/ocen-lang/ocen/compiler/types.oc:215:20: Assertion failed: `false`", format_string("Unhandled case in Type::eq(), base = %s", compiler_types_BaseType_dbg(this->base))); exit(1);
+      ae_assert(false, "/Users/mustafa/ocen-lang/ocen/compiler/types.oc:215:20: Assertion failed: `false`", std_format("Unhandled case in Type::eq(), base = %s", compiler_types_BaseType_dbg(this->base))); exit(1);
     } break;
   }
 }
@@ -13358,7 +13364,7 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
   return ({ char *__yield_0;
     switch (this->base) {
       case compiler_types_BaseType_Pointer: {
-        __yield_0 = format_string("&%s", compiler_types_Type_str(this->u.ptr));
+        __yield_0 = std_format("&%s", compiler_types_Type_str(this->u.ptr));
       } break;
       case compiler_types_BaseType_Function: {
         std_buffer_Buffer buf = std_buffer_Buffer_make(16);
@@ -13379,9 +13385,9 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
         std_buffer_Buffer_write_str(&buf, compiler_types_Type_str(this->u.arr.elem_type));
         std_buffer_Buffer_write_str(&buf, "[");
         if (this->u.arr.size_known) {
-          std_buffer_Buffer_write_str(&buf, format_string("%u", this->u.arr.size));
+          std_buffer_Buffer_write_str(&buf, std_format("%u", this->u.arr.size));
         } else {
-          std_buffer_Buffer_write_str(&buf, format_string("?%p", this));
+          std_buffer_Buffer_write_str(&buf, std_format("?%p", this));
         }
         std_buffer_Buffer_write_str(&buf, "]");
         return std_buffer_Buffer_str(buf);
@@ -13431,7 +13437,7 @@ void usage(i32 code, bool full) {
 
 void save_and_compile_code(compiler_ast_program_Program *program, char *code) {
   if (!((bool)c_path)) {
-    c_path=format_string("%s.c", exec_path);
+    c_path=std_format("%s.c", exec_path);
   }
   std_fs_write_file_str(c_path, code);
   if (!compile_c) {
@@ -13442,7 +13448,7 @@ void save_and_compile_code(compiler_ast_program_Program *program, char *code) {
   if (!((bool)c_compiler)) {
   c_compiler="gcc";
   }
-  std_buffer_Buffer_write_str_f(&cmd, format_string("%s -o %s %s", c_compiler, exec_path, c_path));
+  std_buffer_Buffer_write_str_f(&cmd, std_format("%s -o %s %s", c_compiler, exec_path, c_path));
   for (std_vector_Iterator__1 __iter = std_vector_Vector__1_iter(program->c_flags); std_vector_Iterator__1_has_value(&__iter); std_vector_Iterator__1_next(&__iter)) {
     char *flag = std_vector_Iterator__1_cur(&__iter);
     {
@@ -13605,6 +13611,19 @@ bool str_eq(char *this, char *other) {
   return false;
   }
   return strcmp(this, other)==0;
+}
+
+char *std_format(char *fmt, ...) {
+  va_list args = {0};
+  va_start(args, fmt);
+  u32 size = vsnprintf(NULL, 0, fmt, args);
+  va_end(args);
+  va_start(args, fmt);
+  char *s = std_mem_alloc__21(((u32)(size + 1)));
+  vsnprintf(s, (size + 1), fmt, args);
+  s[size]='\0';
+  va_end(args);
+  return s;
 }
 
 char *str_substring(char *this, u32 start, u32 len) {
@@ -14211,7 +14230,7 @@ u8 *std_mem_realloc__0(u8 *ptr, u32 old_count, u32 new_count) {
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   u8 *new_ptr = std_mem_alloc__24(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14224,7 +14243,7 @@ compiler_types_Type **std_mem_realloc__1(compiler_types_Type **ptr, u32 old_coun
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_types_Type **new_ptr = std_mem_alloc__60(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14237,7 +14256,7 @@ char **std_mem_realloc__2(char **ptr, u32 old_count, u32 new_count) {
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   char **new_ptr = std_mem_alloc__62(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14250,7 +14269,7 @@ compiler_ast_nodes_Structure **std_mem_realloc__3(compiler_ast_nodes_Structure *
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_Structure **new_ptr = std_mem_alloc__64(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14263,7 +14282,7 @@ compiler_ast_scopes_TemplateInstance **std_mem_realloc__4(compiler_ast_scopes_Te
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_scopes_TemplateInstance **new_ptr = std_mem_alloc__66(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14276,7 +14295,7 @@ compiler_ast_nodes_Variable **std_mem_realloc__5(compiler_ast_nodes_Variable **p
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_Variable **new_ptr = std_mem_alloc__68(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14289,7 +14308,7 @@ compiler_ast_nodes_ImportPart **std_mem_realloc__6(compiler_ast_nodes_ImportPart
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_ImportPart **new_ptr = std_mem_alloc__70(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14302,7 +14321,7 @@ compiler_ast_nodes_Function **std_mem_realloc__7(compiler_ast_nodes_Function **p
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_Function **new_ptr = std_mem_alloc__72(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14315,7 +14334,7 @@ compiler_ast_scopes_Scope **std_mem_realloc__8(compiler_ast_scopes_Scope **ptr, 
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_scopes_Scope **new_ptr = std_mem_alloc__74(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14328,7 +14347,7 @@ compiler_ast_program_Namespace **std_mem_realloc__9(compiler_ast_program_Namespa
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_program_Namespace **new_ptr = std_mem_alloc__76(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14341,7 +14360,7 @@ compiler_tokens_Token **std_mem_realloc__10(compiler_tokens_Token **ptr, u32 old
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_tokens_Token **new_ptr = std_mem_alloc__78(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14354,7 +14373,7 @@ compiler_attributes_Attribute **std_mem_realloc__11(compiler_attributes_Attribut
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_attributes_Attribute **new_ptr = std_mem_alloc__80(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14367,7 +14386,7 @@ compiler_errors_Error **std_mem_realloc__12(compiler_errors_Error **ptr, u32 old
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_errors_Error **new_ptr = std_mem_alloc__82(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14380,7 +14399,7 @@ compiler_ast_nodes_Enum **std_mem_realloc__13(compiler_ast_nodes_Enum **ptr, u32
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_Enum **new_ptr = std_mem_alloc__84(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14393,7 +14412,7 @@ compiler_ast_nodes_AST **std_mem_realloc__14(compiler_ast_nodes_AST **ptr, u32 o
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_AST **new_ptr = std_mem_alloc__86(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14406,7 +14425,7 @@ compiler_ast_operators_Operator *std_mem_realloc__15(compiler_ast_operators_Oper
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_operators_Operator *new_ptr = std_mem_alloc__88(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14419,7 +14438,7 @@ compiler_ast_nodes_Argument **std_mem_realloc__16(compiler_ast_nodes_Argument **
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_Argument **new_ptr = std_mem_alloc__90(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14432,7 +14451,7 @@ std_vector_Vector__5 **std_mem_realloc__17(std_vector_Vector__5 **ptr, u32 old_c
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   std_vector_Vector__5 **new_ptr = std_mem_alloc__92(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14445,7 +14464,7 @@ compiler_ast_nodes_IfBranch *std_mem_realloc__18(compiler_ast_nodes_IfBranch *pt
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_IfBranch *new_ptr = std_mem_alloc__94(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14458,7 +14477,7 @@ compiler_ast_nodes_MatchCase **std_mem_realloc__19(compiler_ast_nodes_MatchCase 
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_nodes_MatchCase **new_ptr = std_mem_alloc__96(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14471,7 +14490,7 @@ compiler_ast_scopes_Symbol **std_mem_realloc__20(compiler_ast_scopes_Symbol **pt
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_scopes_Symbol **new_ptr = std_mem_alloc__98(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14484,7 +14503,7 @@ compiler_ast_scopes_Reference *std_mem_realloc__21(compiler_ast_scopes_Reference
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   compiler_ast_scopes_Reference *new_ptr = std_mem_alloc__100(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14497,7 +14516,7 @@ std_span_Span *std_mem_realloc__22(std_span_Span *ptr, u32 old_count, u32 new_co
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   std_span_Span *new_ptr = std_mem_alloc__102(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14510,7 +14529,7 @@ std_value_Value **std_mem_realloc__23(std_value_Value **ptr, u32 old_count, u32 
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   std_value_Value **new_ptr = std_mem_alloc__104(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14523,7 +14542,7 @@ std_compact_map_Item__0 *std_mem_realloc__24(std_compact_map_Item__0 *ptr, u32 o
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   std_compact_map_Item__0 *new_ptr = std_mem_alloc__106(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14536,7 +14555,7 @@ u32 *std_mem_realloc__25(u32 *ptr, u32 old_count, u32 new_count) {
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
-  ae_assert(new_size >= old_size, "std/mem.oc:60:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
+  ae_assert(new_size >= old_size, "std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator");
   u32 *new_ptr = std_mem_alloc__108(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
@@ -14825,7 +14844,7 @@ bool std_span_Location_eq(std_span_Location this, std_span_Location other) {
 }
 
 char *std_span_Location_str(std_span_Location *this) {
-  return format_string("%s:%u:%u", this->filename, this->line, this->col);
+  return std_format("%s:%u:%u", this->filename, this->line, this->col);
 }
 
 bool std_span_Location_is_valid(std_span_Location *this) {
@@ -15016,11 +15035,11 @@ bool std_fs_file_exists(char *path) {
 void std_fs_write_file_bytes(char *path, void *data, u32 size) {
   FILE *file = fopen(path, "wb");
   if (!((bool)file)) {
-  std_panic(format_string("[-] Failed to open file: %s", path));
+  std_panic(std_format("[-] Failed to open file: %s", path));
   }
   i32 written = fwrite(data, 1, size, file);
   if (((u32)written) != size) {
-    std_panic(format_string("[-] Failed to write to file: %s", path));
+    std_panic(std_format("[-] Failed to write to file: %s", path));
   }
   fclose(file);
 }
@@ -15036,7 +15055,7 @@ void std_fs_write_file(char *path, std_buffer_Buffer data) {
 std_buffer_Buffer std_fs_read_file(char *path) {
   FILE *file = fopen(path, "r");
   if (!((bool)file)) {
-  std_panic(format_string("[-] Failed to open file: %s", path));
+  std_panic(std_format("[-] Failed to open file: %s", path));
   }
   fseek(file, ((i64)0), SEEK_END);
   u32 size = ((u32)ftell(file));
@@ -15044,7 +15063,7 @@ std_buffer_Buffer std_fs_read_file(char *path) {
   std_buffer_Buffer data = std_buffer_Buffer_make((size + 1));
   i32 read = fread(data.data, 1, size, file);
   if (((u32)read) != size) {
-    std_panic(format_string("[-] Failed to read from file: %s", path));
+    std_panic(std_format("[-] Failed to read from file: %s", path));
   }
   fclose(file);
   data.size=((u32)size);
@@ -17529,10 +17548,10 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
       std_buffer_Buffer_write_str(sb, (val->u.as_bool ? "true" : "false"));
     } break;
     case std_value_ValueType_Integer: {
-      std_buffer_Buffer_write_str_f(sb, format_string("%" PRId64 "", val->u.as_int));
+      std_buffer_Buffer_write_str_f(sb, std_format("%" PRId64 "", val->u.as_int));
     } break;
     case std_value_ValueType_Float: {
-      std_buffer_Buffer_write_str_f(sb, format_string("%f", val->u.as_float));
+      std_buffer_Buffer_write_str_f(sb, std_format("%f", val->u.as_float));
     } break;
     case std_value_ValueType_String: {
       std_buffer_Buffer_write_str(sb, "\"");
@@ -17565,7 +17584,7 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
             if (char_is_print(c)) {
               std_buffer_Buffer_write_char(sb, c);
             } else {
-              std_buffer_Buffer_write_str_f(sb, format_string("\\x%02x", buf.data[i]));
+              std_buffer_Buffer_write_str_f(sb, std_format("\\x%02x", buf.data[i]));
             }
           } break;
         }
