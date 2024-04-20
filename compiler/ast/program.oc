@@ -141,7 +141,7 @@ struct Program {
     errors: &Vector<&Error>
     error_level: u32
 
-    cached_types: CachedTypes
+    cached_symbols: CachedSymbols
     err_jmp_ctx: ErrorContext
 
     // Configs
@@ -260,9 +260,8 @@ def Program::get_type_by_name(&this, name: str, span: Span): &Type {
     }
 }
 
-struct CachedTypes {
-    sv_type: &Type
-    buffer_type: &Type
+struct CachedSymbols {
+    fmt_string_fn: &Symbol
 }
 
 def Program::iter_namespaces(&this): NSIterator {

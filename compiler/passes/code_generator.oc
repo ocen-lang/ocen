@@ -228,7 +228,8 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
 }
 
 def CodeGenerator::gen_format_string(&this, node: &AST) {
-    .out += "format_string("
+    .out += .o.program.cached_symbols.fmt_string_fn.full_name
+    .out += "("
     .gen_format_string_variadic(node, newline_after: false)
     .out += ")"
 }

@@ -7,6 +7,7 @@ import @ast::scopes::{ Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @types::{ Type, BaseType, FunctionType }
 import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
+import @errors::Error
 
 struct RegisterTypes {
     o: &GenericPass
@@ -153,27 +154,30 @@ struct Finder {
 
 def Finder::to(this, name: str): Finder {
     if not .sym? return this
-    .sym = .o.lookup_in_symbol(.sym, name, Span::default(), error: false)
+    let res = .o.lookup_in_symbol(.sym, name, Span::default(), error: false)
 
-    if .sym? {
-        match .sym.type {
-            TypeDef => .type = .sym.u.type_def
-            Structure => .type = .sym.u.struc.type
-            Enum => .type = .sym.u.enum_.type
+    if res? {
+        match res.type {
+            TypeDef => .type = res.u.type_def
+            Structure => .type = res.u.struc.type
+            Enum => .type = res.u.enum_.type
             else => .type = null
         }
+    } else {
+        .o.error(Error::new_note(
+            .sym.span, `Could not find {.sym.display}::{name}`,
+            "The compiler expects this internally (in RegisterTypes)"
+        )).panic()
     }
+    .sym = res
     return this
 }
 
 def RegisterTypes::register_cached_types(&this) {
     let finder = Finder(.o, .o.program.global.sym, null)
 
-    let sv_type = finder.to("std").to("sv").to("SV").type
-    .o.program.cached_types.sv_type = sv_type
-
-    let buffer_type = finder.to("std").to("buffer").to("Buffer").type
-    .o.program.cached_types.buffer_type = buffer_type
+    let res = finder.to("std").to("format")
+    .o.program.cached_symbols.fmt_string_fn = res.sym
 }
 
 def RegisterTypes::run(program: &Program) {

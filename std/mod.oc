@@ -1,5 +1,6 @@
 import .libc
 import .mem
+import .variadic
 
 @compiler c_embed "./prelude.h"
 
@@ -29,6 +30,26 @@ def str::eq(this, other: str): bool {
     if a == b return true
     if not (a? and b?) return false
     return libc::strcmp(this, other) == 0
+}
+
+// NOTE: The compiler relies on the name and signature of this function to generate
+//       format-strings. If you change this function, you'll need to update the compiler.
+//
+//! Create a formatted string.
+def format(fmt: str, ...): str {
+    import ::variadic::{ VarArgs, vsnprintf }
+
+    let args: VarArgs
+    args.start(fmt)
+    let size = vsnprintf(null, 0, fmt, args);
+    args.end()
+
+    args.start(fmt)
+    let s = mem::alloc<char>((size + 1) as u32)
+    vsnprintf(s, size+1, fmt, args);
+    s[size] = '\0';
+    args.end()
+    return s;
 }
 
 def str::substring(this, start: u32, len: u32): str {
