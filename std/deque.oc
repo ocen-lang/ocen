@@ -1,6 +1,7 @@
 //! Double-ended queue implementation.
 
-import std::libc::{ calloc, realloc, free, memcpy }
+import std::libc::{ memcpy }
+import std::mem
 
 struct Deque<T> {
     data: &T
@@ -11,9 +12,9 @@ struct Deque<T> {
 }
 
 def Deque::new(capacity: u32 = 16): &Deque<T> {
-    let deq = std::new<Deque<T>>()
+    let deq = mem::alloc<Deque<T>>()
     deq.capacity = capacity
-    deq.data = calloc(capacity, sizeof(T)) as &T
+    deq.data = mem::alloc<T>(capacity)
     deq.head = 0
     deq.tail = 0
     deq.size = 0
@@ -21,14 +22,14 @@ def Deque::new(capacity: u32 = 16): &Deque<T> {
 }
 
 def Deque::resize(&this, new_capacity: u32) {
-    let new_data = calloc(new_capacity, sizeof(T)) as &T
+    let new_data = mem::alloc<T>(new_capacity)
     if .head < .tail {
         memcpy(new_data, .data + .head, (.tail - .head) * sizeof(T))
     } else {
         memcpy(new_data, .data + .head, (.capacity - .head) * sizeof(T))
         memcpy(new_data + (.capacity - .head), .data, .tail * sizeof(T))
     }
-    free(.data)
+    mem::free(.data)
     .data = new_data
     .capacity = new_capacity
     .head = 0
@@ -88,8 +89,8 @@ def Deque::at(&this, index: u32): T {
 }
 
 def Deque::free(&this) {
-    free(.data)
-    free(this)
+    mem::free(.data)
+    mem::free(this)
 }
 
 def Deque::is_empty(&this): bool => .size == 0

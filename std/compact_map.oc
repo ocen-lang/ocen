@@ -4,7 +4,6 @@
 
 import std::vector::{ Vector, Iterator as VectorIterator }
 import std::traits::{ hash, eq }
-import std::libc::{ calloc, free, realloc }
 
 const INDEX_FREE: i32 = -1
 const INDEX_DELETED: i32 = -2
@@ -23,11 +22,11 @@ struct Map<K, V> {
 
 def Map::new(capacity: u32 = 16): &Map<K, V> {
     let items = Vector<Item<K, V>>::new(capacity)
-    let indices = calloc(capacity, sizeof(i32)) as &i32
+    let indices = mem::alloc<i32>(capacity)
     for let i = 0; i < capacity; i++ {
         indices[i] = INDEX_FREE
     }
-    let map = std::new<Map<K, V>>()
+    let map = mem::alloc<Map<K, V>>()
     map.items = items
     map.indices = indices
     map.capacity = capacity
@@ -35,9 +34,9 @@ def Map::new(capacity: u32 = 16): &Map<K, V> {
 }
 
 def Map::free(&this) {
-    free(.indices)
+    mem::free(.indices)
     .items.free()
-    free(this)
+    mem::free(this)
 }
 
 def Map::get_index(&this, key: K, hash: u32): u32 {
@@ -97,8 +96,8 @@ def Map::remove(&this, key: K) {
 }
 
 def Map::resize(&this, new_capacity: u32) {
-    free(.indices)
-    .indices = calloc(new_capacity, sizeof(i32)) as &i32
+    mem::free(.indices)
+    .indices = mem::alloc<i32>(new_capacity)
     .capacity = new_capacity
     for let i = 0; i < new_capacity; i++ {
         .indices[i] = INDEX_FREE

@@ -3,15 +3,16 @@
 //* This pass marks all functions / structs / enums that are not used as dead, so 
 //* that they can be removed and not compiled into the final binary.
 
-import @passes::generic_pass::GenericPass
 import std::vector::Vector
+import std::mem
 import std::map::Map
 import std::set::{ Set }
+
+import @passes::generic_pass::GenericPass
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable, Function, AST }
 import @ast::scopes::{ TemplateInstance, Symbol }
 import @types::{ Type }
-import std::libc::{ calloc, free }
 import @errors::{ Error }
 
 struct MarkDeadCode {
@@ -20,7 +21,7 @@ struct MarkDeadCode {
 }
 
 def MarkDeadCode::new(program: &Program): &MarkDeadCode {
-    let pass = std::new<MarkDeadCode>()
+    let pass = mem::alloc<MarkDeadCode>()
     *pass = MarkDeadCode(
         o: GenericPass::new(program),
         done: Set<u64>::new(),
@@ -30,8 +31,8 @@ def MarkDeadCode::new(program: &Program): &MarkDeadCode {
 
 def MarkDeadCode::free(&this) {
     .done.free()
-    free(.o)
-    free(this)
+    mem::free(.o)
+    mem::free(this)
 }
 
 def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
@@ -234,10 +235,16 @@ def MarkDeadCode::run(program: &Program) {
         for node : ns.constants.iter() {
             let var = node.u.var_decl.var
             pass.mark_type(var.type)
+            if node.u.var_decl.init? {
+                pass.mark(node.u.var_decl.init)
+            }
         }
         for node : ns.variables.iter() {
             let var = node.u.var_decl.var
             pass.mark_type(var.type)
+            if node.u.var_decl.init? {
+                pass.mark(node.u.var_decl.init)
+            }
         }
     }
 

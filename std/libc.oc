@@ -1,9 +1,6 @@
 //! Bindings to libc functions
 
 // stdlib
-[extern] def malloc(size: u32): untyped_ptr
-[extern] def realloc(old: untyped_ptr, size: u32): untyped_ptr
-[extern] def calloc(size: u32, elem_size: u32): untyped_ptr
 [extern] def free(ptr: untyped_ptr)
 [extern] def getenv(name: str): str
 [extern] def system(cmd: str): i32

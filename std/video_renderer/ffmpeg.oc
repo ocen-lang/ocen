@@ -70,7 +70,7 @@ def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verb
         println(`FFMPEG: Could not close pipefd[READ_END]`);
     }
 
-    let ffmpeg = std::new<FFMPEGContext>();    
+    let ffmpeg = mem::alloc<FFMPEGContext>();    
     ffmpeg.pid = child;
     ffmpeg.pipe = pipefd[WRITE_END];
     ffmpeg.width = width;
@@ -81,7 +81,7 @@ def FFMPEGContext::create(width: u32, height: u32, fps: u32, out_name: str, verb
 def FFMPEGContext::finish(&this): bool {
     let pipe = .pipe;
     let pid = .pid;
-    std::free(this)
+    mem::free(this)
 
     if (close(pipe) < 0) {
         println(`FFMPEG: Could not close pipe`);
@@ -115,7 +115,7 @@ def FFMPEGContext::finish(&this): bool {
 }
 
 def FFMPEGContext::send_frame(&this, img: &Image): bool {
-    let data = std::new<u32>(.width * img.height);
+    let data = mem::alloc<u32>(.width * img.height);
     let x_padding = .width - img.width;
     let y_padding = .height - img.height;
     for let y = 0; y < img.height; ++y  {
@@ -137,9 +137,9 @@ def FFMPEGContext::send_frame(&this, img: &Image): bool {
     }
     if write(.pipe, data, .width * img.height * 4) < 0 {
         println(`FFMPEG: Could not write to pipe`)
-        std::free(data)
+        mem::free(data)
         return false
     }
-    std::free(data)
+    mem::free(data)
     return true
 }

@@ -1,5 +1,6 @@
 //* Generate C code from the AST
 
+import std::mem
 import std::buffer::Buffer
 import std::vector::Vector
 import std::span::Span
@@ -27,7 +28,7 @@ def CodeGenerator::gen_indent(&this) {
 
 def str::replace(&this, other: str) {
     let s: str = *this
-    std::free(s)
+    mem::free(s)
     *this = other
 }
 
@@ -988,7 +989,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             } else {
                 acc.replace(`(*{acc})({args_str.str()})`)
             }
-            std::free(args_str.data)
+            mem::free(args_str.data)
             acc = .helper_gen_type(
                 top,
                 cur.u.func.return_type,
@@ -1025,7 +1026,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
             }
 
             acc.replace(`{acc}[{.out.str()}]`)
-            std::free(.out.data)
+            mem::free(.out.data)
 
             .out = prev_buffer
             acc = .helper_gen_type(top, cur.u.arr.elem_type, acc, is_func_def: false)
@@ -1249,10 +1250,10 @@ def CodeGenerator::generate(&this): str {
 
     .gen_structs_and_typedefs()
 
-    .gen_global_variables(.o.program.global)
-
     .out += "/* function declarations */\n"
     .gen_function_decls(.o.program.global)
+
+    .gen_global_variables(.o.program.global)
 
     .out += "/* function implementations */\n"
     .gen_functions(.o.program.global)

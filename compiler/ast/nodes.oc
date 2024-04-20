@@ -1,9 +1,9 @@
 //* Contains the core AST types
 
 import std::vector::Vector
+import std::mem
 import std::map::Map
 import std::span::Span
-import std::libc::calloc
 import @tokens::{ TokenType, Token }
 import @ast::scopes::{ Scope, Symbol }
 import @ast::program::Namespace
@@ -60,7 +60,7 @@ struct Variable {
 }
 
 def Variable::new(type: &Type): &Variable {
-    let var = std::new<Variable>()
+    let var = mem::alloc<Variable>()
     var.type = type
     var.parsed_type = type
     return var
@@ -84,7 +84,7 @@ struct Structure {
 }
 
 def Structure::new(): &Structure {
-    let struc = std::new<Structure>()
+    let struc = mem::alloc<Structure>()
     struc.fields = Vector<&Variable>::new()
     return struc
 }
@@ -107,7 +107,7 @@ struct Enum {
 }
 
 def Enum::new(): &Enum {
-    let enum_ = std::new<Enum>()
+    let enum_ = mem::alloc<Enum>()
     enum_.fields = Vector<&Variable>::new()
     return enum_
 }
@@ -149,7 +149,7 @@ struct Function {
 }
 
 def Function::new(): &Function {
-    let func = std::new<Function>()
+    let func = mem::alloc<Function>()
     func.params = Vector<&Variable>::new()
     return func
 }
@@ -182,7 +182,7 @@ struct Argument {
 }
 
 def Argument::new(expr: &AST, label_token: &Token = null): &Argument {
-    let arg = std::new<Argument>()
+    let arg = mem::alloc<Argument>()
     arg.expr = expr
     if label_token? then arg.label = label_token.text
     if label_token? then arg.label_span = label_token.span
@@ -227,7 +227,7 @@ struct ImportPart {
 }
 
 def ImportPart::new(type: ImportPartType, span: Span): &ImportPart {
-    let part = std::new<ImportPart>()
+    let part = mem::alloc<ImportPart>()
     part.type = type
     part.span = span
     return part
@@ -331,7 +331,7 @@ struct MatchCase {
 }
 
 def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
-    let _case = std::new<MatchCase>()
+    let _case = mem::alloc<MatchCase>()
     _case.cond = cond
     _case.body = body
     return _case
@@ -398,7 +398,7 @@ struct AST {
 }
 
 def AST::new(type: ASTType, span: Span): &AST {
-    let ast = std::new<AST>()
+    let ast = mem::alloc<AST>()
     ast.type = type
     ast.span = span
     return ast

@@ -3,7 +3,7 @@
 import std::vector::Vector
 import std::span::Span
 import std::map::Map
-import std::libc::{ calloc, exit }
+import std::mem
 import std::setjmp::{ ErrorContext }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
@@ -52,7 +52,7 @@ struct Namespace {
 }
 
 def Namespace::new(parent: &Namespace, path: str): &Namespace {
-    let ns = std::new<Namespace>()
+    let ns = mem::alloc<Namespace>()
     ns.parent = parent
     let parent_scope = if parent? then parent.scope else null
     let parent_root = if parent? then parent.internal_project_root else null
@@ -151,7 +151,7 @@ struct Program {
 }
 
 def Program::new(): &Program {
-    let prog = std::new<Program>()
+    let prog = mem::alloc<Program>()
     prog.global = Namespace::new(null, "")
     prog.ordered_structs = Vector<&Structure>::new()
     prog.global.sym = Symbol::new(
@@ -177,7 +177,7 @@ def Program::new(): &Program {
 def Program::exit_with_errors_if_any(&this) {
     if not .errors.is_empty() {
         display_error_messages(.errors, .error_level)
-        exit(1)
+        std::exit(1)
     }
 }
 

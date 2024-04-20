@@ -3,8 +3,8 @@
 import std::buffer::{ Buffer }
 import std::vector::{ Vector }
 import std::map::{ Map }
+import std::mem
 import std::span::{ Span }
-import std::libc::{ calloc }
 
 import @ast::nodes::{ AST, ASTType, Structure, Enum, Variable, Function }
 import @ast::scopes::{ Symbol, TemplateInstance }
@@ -110,13 +110,13 @@ struct Type {
 }
 
 def Type::shallow_copy(old: &Type): &Type {
-    let new = std::new<Type>()
+    let new = mem::alloc<Type>()
     *new = *old
     return new
 }
 
 def Type::new_resolved(base: BaseType, span: Span): &Type {
-    let type = std::new<Type>()
+    let type = mem::alloc<Type>()
     type.base = base
     type.span = span
     type.name = base.str()

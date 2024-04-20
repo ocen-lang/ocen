@@ -1,6 +1,6 @@
 //! Image struct / IO utilities (PPM)
 
-import std::libc::{ calloc, free }
+import std::mem
 import std::buffer::Buffer
 import std::fs
 
@@ -20,14 +20,14 @@ struct Image {
 }
 
 def Image::new(width: u32, height: u32): &Image {
-    let img = std::new<Image>()
-    *img = Image(width, height, calloc(width * height, sizeof(Color)))
+    let img = mem::alloc<Image>()
+    *img = Image(width, height, mem::alloc<Color>(width * height))
     return img
 }
 
 def Image::free(&this) {
-    free(.data)
-    free(this)
+    mem::free(.data)
+    mem::free(this)
 }
 
 def Image::get(&this, x: u32, y: u32): Color => .data[y * .width + x]

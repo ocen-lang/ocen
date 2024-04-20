@@ -16,7 +16,7 @@ struct SDLContext {
 }
 
 def SDLContext::create(width: u32, height: u32, fps: u32): &SDLContext {
-    let ctx = std::new<SDLContext>()
+    let ctx = mem::alloc<SDLContext>()
     sdl::init(sdl::INIT_EVERYTHING)
     sdl::create_window_renderer(width as i32, height as i32, 0, &ctx.window, &ctx.renderer)
     assert ctx.window?, "Failed to create window"

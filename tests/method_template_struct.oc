@@ -1,6 +1,6 @@
 /// out: "3 2"
 
-import std::libc::{ calloc, realloc }
+import std::mem
 
 struct List<T> {
     data: &T
@@ -9,17 +9,18 @@ struct List<T> {
 }
 
 def List::new(capacity: u32 = 16): &List<T> {
-    let list = std::new<List<T>>()
+    let list = mem::alloc<List<T>>()
     list.capacity = capacity
-    list.data = calloc(capacity, sizeof(T)) as &T
+    list.data = mem::alloc<T>(capacity)
     list.size = 0
     return list
 }
 
 def List::push(&this, value: T) {
     if .size == .capacity {
-        .capacity *= 2
-        .data = realloc(.data, .capacity * sizeof(T)) as &T
+        let new_capacity = .capacity * 2
+        .data = mem::realloc<T>(.data, .capacity, new_capacity)
+        .capacity = new_capacity
     }
     .data[.size] = value
     .size += 1
