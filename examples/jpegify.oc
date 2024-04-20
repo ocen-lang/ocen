@@ -1,4 +1,5 @@
 import std::fft::{ fft2, ifft2 }
+import std::mem
 import std::math::{ TAU }
 import std::image::{ Image, Color }
 import std::complex::Complex
@@ -33,13 +34,13 @@ def save_image_channel(img: &Image, data: &Complex, channel: i32) {
 
 def process_channel(img: &Image, channel: i32, discard_pct: f32) {
     let num_pixels = img.width * img.height
-    let data_a = std::new<Complex>(num_pixels)
-    let data_b = std::new<Complex>(num_pixels)
+    let data_a = mem::alloc<Complex>(num_pixels)
+    let data_b = mem::alloc<Complex>(num_pixels)
 
     get_image_channel(img, data_a, channel)
     fft2(data_a, img.height, img.width, data_b)
 
-    let tmp = std::new<Complex>(num_pixels)
+    let tmp = mem::alloc<Complex>(num_pixels)
     memcpy(tmp, data_b, num_pixels * sizeof(Complex))
 
     sort<Complex>(tmp, num_pixels)

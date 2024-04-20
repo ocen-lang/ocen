@@ -2,7 +2,7 @@ import std::sdl::{this, ttf::{this, Font}}
 import std::vec::{ Vec3f as Vec }
 import std::vector::Vector
 import std::math::{ rand01 }
-import std::libc::{ calloc, free }
+import std::mem
 
 // Make raytracer go brrr
 @compiler c_flag "-O3"
@@ -46,7 +46,7 @@ struct Sphere {
 }
 
 def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &Sphere {
-    let s = std::new<Sphere>()
+    let s = mem::alloc<Sphere>()
     *s = Sphere(mat, pos, color, radius, fuzz)
     return s
 }
@@ -301,7 +301,7 @@ def main() {
 
         let text = `Samples: {samples}`
         draw_text(font, text, 10, 10)
-        free(text)
+        mem::free(text)
 
         renderer.present()
     }

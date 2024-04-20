@@ -1,6 +1,7 @@
 //! Types and functions for working with attributes
 
 import std::span::{ Span }
+import std::mem
 import std::vector::{ Vector }
 import std::compact_map::{ Map }
 
@@ -39,7 +40,7 @@ struct Attribute {
 }
 
 def Attribute::new(type: AttributeType, span: Span): &Attribute {
-    let attr = std::new<Attribute>()
+    let attr = mem::alloc<Attribute>()
     attr.type = type
     attr.args = Vector<str>::new(capacity: 2)
     attr.span = span
@@ -48,7 +49,7 @@ def Attribute::new(type: AttributeType, span: Span): &Attribute {
 
 def Attribute::free(&this) {
     .args.free()
-    std::free(this)
+    mem::free(this)
 }
 
 def Attribute::validate(&this, parser_for_errors: &Parser): bool {

@@ -3,6 +3,7 @@
 //* This pass actually goes through the AST and checks the types of all the nodes.
 //* Any remaining unresolved types should be resolved after this
 
+import std::mem
 import std::buffer::{ Buffer }
 import std::map::{ Map }
 import std::span::{ Span }
@@ -2025,7 +2026,7 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
             buffer += "{{"
             buffer <<= linked_part
             buffer += "}}"
-            std::free(part)
+            mem::free(part)
 
             prev = i + 2
             i++

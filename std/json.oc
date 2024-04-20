@@ -9,7 +9,6 @@ import std::buffer::Buffer
 import std::vector::Vector
 import std::value::{ Value, ValueType }
 import std::span::{ Span, Location }
-import std::libc::calloc
 import compiler::lexer::Lexer
 import compiler::tokens::{ Token, TokenType }
 

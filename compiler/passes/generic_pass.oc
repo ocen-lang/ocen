@@ -2,7 +2,7 @@
 
 import std::vector::Vector
 import std::span::Span
-import std::libc::calloc
+import std::mem
 import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
@@ -31,7 +31,7 @@ struct GenericPass {
 }
 
 def GenericPass::new(program: &Program): &GenericPass {
-    let pass = std::new<GenericPass>()
+    let pass = mem::alloc<GenericPass>()
     pass.scope_stack = Vector<&Scope>::new()
     pass.namespace_stack = Vector<&Namespace>::new()
     pass.program = program

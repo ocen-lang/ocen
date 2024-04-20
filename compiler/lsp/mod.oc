@@ -7,7 +7,6 @@ import std::buffer::Buffer
 import std::span::{ Span, Location }
 import std::vector::Vector
 import std::value::Value
-import std::libc::{ calloc, free }
 import std::{ panic, exit }
 import std::fs
 import std::json

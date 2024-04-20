@@ -1,6 +1,6 @@
 //! A dynamic list of objects
 
-import std::libc::{calloc, realloc, free}
+import std::mem
 
 //* A dynamic list of objects
 struct Vector<T> {
@@ -10,17 +10,17 @@ struct Vector<T> {
 }
 
 def Vector::new(capacity: u32 = 16): &Vector<T> {
-    let list = std::new<Vector<T>>()
+    let list = mem::alloc<Vector<T>>()
     list.capacity = capacity
-    list.data = calloc(capacity, sizeof(T)) as &T
+    list.data = mem::alloc<T>(capacity)
     list.size = 0
     return list
 }
 
 //* Resizes the vector to a new capacity
 def Vector::resize(&this, new_capacity: u32) {
+    .data = mem::realloc<T>(.data , .capacity, new_capacity)
     .capacity = new_capacity
-    .data = realloc(.data , .capacity * sizeof(T)) as &T
 }
 
 [operator "+="]
@@ -115,8 +115,8 @@ def Vector::is_empty(&this): bool => .size == 0
 def Vector::iter(&this): Iterator<T> => Iterator<T>::make(this)
 
 def Vector::free(&this) {
-    free(.data)
-    free(this)
+    mem::free(.data)
+    mem::free(this)
 }
 
 //* Iterator for the vector

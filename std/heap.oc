@@ -2,7 +2,7 @@
 
 import std::vector::Vector
 import std::traits::compare
-import std::libc::{ calloc, free }
+import std::mem
 
 enum Mode {
     Min
@@ -15,7 +15,7 @@ struct Heap<T> {
 }
 
 def Heap::new(mode: Mode, capacity: u32 = 32): &Heap<T> {
-    let heap = std::new<Heap<T>>()
+    let heap = mem::alloc<Heap<T>>()
     heap.min_heap = mode == Mode::Min
     heap.vec = Vector<T>::new(capacity)
     return heap
@@ -44,7 +44,7 @@ def Heap::pop(&this): T {
 
 def Heap::free(&this) {
     .vec.free()
-    free(this)
+    mem::free(this)
 }
 
 def Heap::is_empty(&this): bool => .vec.is_empty()

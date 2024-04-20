@@ -1,7 +1,7 @@
 //! A hash-set implementation.
 
 import std::map::{ Map, Item, Iterator as MapIterator }
-import std::libc::{ calloc, free }
+import std::mem
 
 struct Set<T> {
     map: &Map<T, bool>
@@ -9,7 +9,7 @@ struct Set<T> {
 }
 
 def Set::new(): &Set<T> {
-    let set = std::new<Set<T>>()
+    let set = mem::alloc<Set<T>>()
     set.map = Map<T, bool>::new()
     return set
 }
@@ -53,7 +53,7 @@ def Set::is_empty(&this): bool => .map.size == 0
 
 def Set::free(&this) {
     .map.free()
-    free(this)
+    mem::free(this)
 }
 
 struct Iterator<T> {

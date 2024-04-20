@@ -1,6 +1,7 @@
 //* Definitions for Tokens
 
 import std::span::{ Span, Location }
+import std::mem
 
 struct Token {
     type: TokenType
@@ -15,7 +16,7 @@ struct Token {
 }
 
 def Token::new(type: TokenType, span: Span, text: str): &Token {
-    let tok = std::new<Token>()
+    let tok = mem::alloc<Token>()
     *tok = Token(
         type,
         span,

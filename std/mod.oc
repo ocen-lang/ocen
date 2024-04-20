@@ -1,4 +1,5 @@
 import .libc
+import .mem
 
 @compiler c_embed "./prelude.h"
 
@@ -31,7 +32,7 @@ def str::eq(this, other: str): bool {
 }
 
 def str::substring(this, start: u32, len: u32): str {
-    let new_str = libc::calloc((len + 1) as u32, sizeof(char)) as str
+    let new_str = mem::alloc<char>((len + 1) as u32)
     libc::memcpy(new_str, &this[start], len)
     return new_str
 }
@@ -76,12 +77,12 @@ def str::remove_last_n(this, n: u32) {
 }
 
 def str::replace_with(&this, other: str) {
-    libc::free(*this)
+    mem::free(*this)
     *this = other
 }
 
 def str::free(&this) {
-    libc::free(*this)
+    mem::free(*this)
     *this = null
 }
 
@@ -125,9 +126,6 @@ def u32::min(this, other: u32): u32 => if this < other then this else other
 def u32::max(this, other: u32): u32 => if this > other then this else other
 def u8::min(this, other: u8): u8 => if this < other then this else other
 def u8::max(this, other: u8): u8 => if this > other then this else other
-
-def new<T>(count: u32 = 1): &T => libc::calloc(count, sizeof(T)) as &T
-def free(ptr: untyped_ptr) => libc::free(ptr)
 
 enum Endian {
     Little

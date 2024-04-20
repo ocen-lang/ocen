@@ -2,7 +2,7 @@
 
 import std::complex::Complex
 import std::math
-import std::libc::{ calloc, free, memset }
+import std::libc::{ memset }
 
 def fft_impl(data: &Complex, N: u32, out: &Complex, step: u32, factor: f32) {
     if N == 1 {
@@ -42,8 +42,8 @@ def fft2_impl(inp: &Complex, R: u32, C: u32, out: &Complex, inv: bool) {
     let buf_size = if R > C then R else C
     buf_size = next_power_of_2(buf_size)
 
-    let buf_inp = calloc(buf_size, sizeof(Complex)) as &Complex
-    let buf_out = calloc(buf_size, sizeof(Complex)) as &Complex
+    let buf_inp = mem::alloc<Complex>(buf_size)
+    let buf_out = mem::alloc<Complex>(buf_size)
 
     for let r = 0; r < R; r++ {
         for let c = 0; c < C; c++ {
@@ -75,8 +75,8 @@ def fft2_impl(inp: &Complex, R: u32, C: u32, out: &Complex, inv: bool) {
         }
     }
 
-    free(buf_inp)
-    free(buf_out)
+    mem::free(buf_inp)
+    mem::free(buf_out)
 }
 
 // Fast Fourier Transform

@@ -3,13 +3,13 @@
 //* This is needed because in C structs need to be declared before they are used
 //* in other structs. The ordered structs are stored in `program.ordered_structs`
 
+import std::mem
 import @passes::generic_pass::GenericPass
 import std::vector::Vector
 import std::set::{ Set }
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable }
 import @ast::scopes::{ TemplateInstance }
-import std::libc::{ calloc, free }
 
 struct ReorderStructs {
     o: &GenericPass
@@ -18,7 +18,7 @@ struct ReorderStructs {
 }
 
 def ReorderStructs::new(program: &Program): &ReorderStructs {
-    let pass = std::new<ReorderStructs>()
+    let pass = mem::alloc<ReorderStructs>()
     *pass = ReorderStructs(
         o: GenericPass::new(program),
         all_structs: Vector<&Structure>::new(),
@@ -30,8 +30,8 @@ def ReorderStructs::new(program: &Program): &ReorderStructs {
 def ReorderStructs::free(&this) {
     .all_structs.free()
     .done.free()
-    free(.o)
-    free(this)
+    mem::free(.o)
+    mem::free(this)
 }
 
 // Collects all structs we have in the namespace into the vector

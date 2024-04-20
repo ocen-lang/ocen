@@ -1,6 +1,6 @@
 //! A doubly linked list implementation.
 
-import std::libc::{ calloc, free }
+import std::mem
 
 struct Node<T> {
     value: T
@@ -10,7 +10,7 @@ struct Node<T> {
 }
 
 def Node::new(val: T, next: &Node<T> = null, prev: &Node<T> = null): &Node<T> {
-    let node = std::new<Node<T>>()
+    let node = mem::alloc<Node<T>>()
     node.value = val
     node.next = next
     node.prev = prev
@@ -24,7 +24,7 @@ struct LinkedList<T> {
 }
 
 def LinkedList::new(): &LinkedList<T> {
-    let ll = std::new<LinkedList<T>>()
+    let ll = mem::alloc<LinkedList<T>>()
     ll.head = null
     ll.tail = null
     ll.size = 0
@@ -69,7 +69,7 @@ def LinkedList::remove_node(&this, node: &Node<T>) {
         .tail = node.prev
     }
     .size -= 1
-    free(node)
+    mem::free(node)
 }
 
 def LinkedList::pop_front(&this): T {
@@ -95,7 +95,7 @@ def LinkedList::free(&this) {
         .remove_node(cur)
         cur = next
     }
-    free(this)
+    mem::free(this)
 }
 
 def LinkedList::is_empty(&this): bool => .head == null

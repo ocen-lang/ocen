@@ -4,6 +4,7 @@ import std::buffer::{ Buffer }
 import std::map::{ Map }
 import std::span::{ Span, Location }
 import std::vector::{ Vector }
+import std::mem
 import std::fs
 
 import @ast::nodes::{ * }
@@ -137,7 +138,7 @@ def Parser::consume_end_of_statement(&this) {
 
 def Parser::clear_attributes(&this) {
     for attr : .attrs.iter() {
-        std::free(attr)
+        mem::free(attr)
     }
     .attrs.clear()
     .attrs_start_tok = null
@@ -2025,7 +2026,7 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
         let parser = Parser::make(.program, ns)
         parser.load_file(mod_path)
     } else {
-        std::free(mod_path)
+        mem::free(mod_path)
     }
 }
 
@@ -2069,7 +2070,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
         } else {
             .try_load_mod_for_namespace(next)
         }
-        std::free(path)
+        mem::free(path)
     }
 
     return next
@@ -2107,7 +2108,7 @@ def Parser::find_external_library_path(&this, name: str): str {
         if directory_exists(path) {
             return path
         }
-        std::free(path)
+        mem::free(path)
     }
     return null
 }

@@ -17,7 +17,6 @@
 //!     map.remove(1)
 
 import std::vector::Vector
-import std::libc::{ calloc, realloc, free }
 import std::traits::{ hash, eq }
 
 //* Linked list node for the hash map
@@ -29,7 +28,7 @@ struct Item<K, V> {
 
 //* Creates a new node
 def Item::new(key: K, value: V, next: &Item<K, V> = null): &Item<K, V> {
-    let node = std::new<Item<K, V>>()
+    let node = mem::alloc<Item<K, V>>()
     node.key = key
     node.value = value
     node.next = next
@@ -41,7 +40,7 @@ def Item::free_list(&this) {
     let cur = this
     while cur? {
         let next = cur.next
-        free(cur)
+        mem::free(cur)
         cur = next
     }
 }
@@ -60,9 +59,9 @@ struct Map<K, V> {
 
 //* Creates a new hash map
 def Map::new(capacity: u32 = 32): &Map<K, V> {
-    let map = std::new<Map<K, V>>()
+    let map = mem::alloc<Map<K, V>>()
     map.num_buckets = capacity
-    map.buckets = calloc(map.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
+    map.buckets = mem::alloc<&Item<K, V>>(map.num_buckets)
     return map
 }
 
@@ -152,7 +151,7 @@ def Map::remove(&this, key: K) {
             }
             prev.next = node.next
         }
-        free(node)
+        mem::free(node)
         .size -= 1
     }
 }
@@ -164,7 +163,7 @@ def Map::resize(&this) {
     let old_size = .size
     .num_collisions = 0
     .num_buckets *= 2
-    .buckets = calloc(.num_buckets, sizeof(&Item<K, V>)) as &&Item<K, V>
+    .buckets = mem::alloc<&Item<K, V>>(.num_buckets)
     for let i = 0; i < old_num_buckets; i += 1 {
         let node = old_buckets[i]
         while node? {
@@ -180,7 +179,7 @@ def Map::resize(&this) {
     for let i = 0; i < old_num_buckets; i += 1 {
         old_buckets[i].free_list()
     }
-    free(old_buckets)
+    mem::free(old_buckets)
 }
 
 //* Checks if the map is empty
@@ -191,8 +190,8 @@ def Map::free(&this) {
     for let i = 0; i < .num_buckets; i += 1 {
         .buckets[i].free_list()
     }
-    free(.buckets)
-    free(this)
+    mem::free(.buckets)
+    mem::free(this)
 }
 
 //* Clears the map

@@ -22,7 +22,7 @@ struct VideoRenderer {
 }
 
 def VideoRenderer::create(type: VideoRendererType, width: u32, height: u32, fps: u32, out_name: str = "out.mp4", verbose: bool = false): &VideoRenderer {
-    let vr = std::new<VideoRenderer>()
+    let vr = mem::alloc<VideoRenderer>()
     vr.type = type
     match type {
         FFMPEG => vr.u.ffmpeg = FFMPEGContext::create(width, height, fps, out_name, verbose)

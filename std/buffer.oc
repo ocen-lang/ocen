@@ -4,7 +4,8 @@
 //! It can be used as a string builder, or as a string itself. It is also useful
 //! to hold binary data.
 
-import std::libc::{ realloc, calloc, memcpy, memset, free, exit }
+import std::libc::{ memcpy, memset, exit }
+import std::mem
 import std::sv::{ SV }
 import std::{ Endian }
 
@@ -18,7 +19,7 @@ struct Buffer {
 
 def Buffer::make(capacity: u32 = 16): Buffer {
     return Buffer(
-        data: calloc(capacity, 1),
+        data: mem::alloc<u8>(capacity),
         size: 0,
         capacity
     )
@@ -33,7 +34,7 @@ def Buffer::from_str(s: str): Buffer {
 }
 
 def Buffer::from_sv(sv: SV): Buffer {
-    let data = std::new<u8>(sv.len + 1)
+    let data = mem::alloc<u8>(sv.len + 1)
     memcpy(data, sv.data, sv.len)
     data[sv.len] = '\0' as u8
     return Buffer(
@@ -58,7 +59,7 @@ def Buffer::resize_if_necessary(&this, new_size: u32) {
     let new_size_nt = new_size + 1
     if new_size_nt >= .capacity {
         let new_capacity = u32::max(.capacity, new_size_nt)
-        .data = realloc(.data, new_capacity as u32) as &u8
+        .data = mem::realloc<u8>(.data, .capacity, new_capacity)
         // Zero out the new capacity
         memset(.data + .capacity, 0, new_capacity - .capacity)
         .capacity = new_capacity as u32
@@ -111,7 +112,7 @@ def Buffer::write_str(&this, s: str) {
 //* Write the string to the buffer and free it
 def Buffer::write_str_f(&this, s: str) {
     .write_str(s)
-    free(s)
+    mem::free(s)
 }
 
 [operator "+="]
@@ -188,7 +189,7 @@ def Buffer::str(this): str => .data as str
 def Buffer::sv(this): SV => SV(.data as str, .size)
 
 def Buffer::copy(&this): Buffer {
-    let new_data = calloc(.capacity, 1)
+    let new_data = mem::alloc<u8>(.capacity)
     memcpy(new_data, .data, .size)
     return Buffer(
         data: new_data,
@@ -203,7 +204,7 @@ def Buffer::clear(&this) {
 }
 
 def Buffer::free(&this) {
-    free(.data)
+    mem::free(.data)
 }
 
 //! Wrapper for reading binary data from a a series of bytes.

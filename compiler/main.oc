@@ -1,7 +1,7 @@
 //* Entry point for the compiler
 
 import std::fs
-import std::libc::{ exit, calloc, system }
+import std::libc::{ exit, system }
 import std::vector::{ Vector }
 import std::buffer::{ Buffer }
 import std::{ shift_args }

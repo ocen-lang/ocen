@@ -2,7 +2,6 @@
 import std::vector::Vector
 import std::map::Map
 import std::span::Span
-import std::libc::calloc
 import @tokens::{ TokenType, Token }
 import @ast::scopes::{ Scope, Symbol }
 import @ast::program::Namespace

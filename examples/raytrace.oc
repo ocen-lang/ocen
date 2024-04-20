@@ -2,10 +2,10 @@
 @compiler c_flag "-O3"
 
 import std::vec::{ Vec3f as Vec }
+import std::mem
 import std::vector::Vector
 import std::image::{ Image, Color }
 import std::math::{ rand01 }
-import std::libc::malloc
 
 const TOL: f32 = 0.00001;
 
@@ -39,7 +39,7 @@ struct Sphere {
 }
 
 def Sphere::new(x: f32, y: f32, z: f32, radius: f32, r: f32, g: f32, b: f32): &Sphere {
-    let s = malloc(sizeof(Sphere)) as &Sphere
+    let s = mem::alloc<Sphere>()
     *s = Sphere(center: Vec(x, y, z), color: Vec(r, g, b), radius)
     return s
 }

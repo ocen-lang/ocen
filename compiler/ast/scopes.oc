@@ -1,12 +1,13 @@
 //* Contains Symbol/Scope and related types
 
-import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
-import @ast::program::Namespace
-import @types::Type
+import std::mem
 import std::span::{ Span, Location }
 import std::map::Map
 import std::vector::Vector
-import std::libc::calloc
+
+import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
+import @ast::program::Namespace
+import @types::Type
 
 enum SymbolType {
     Function
@@ -26,7 +27,7 @@ struct TemplateInstance {
 }
 
 def TemplateInstance::new(args: &Vector<&Type>, parent: &Symbol, resolved: &Symbol): &TemplateInstance {
-    let instance = std::new<TemplateInstance>()
+    let instance = mem::alloc<TemplateInstance>()
     instance.args = args
     instance.parent = parent
     instance.resolved = resolved
@@ -49,7 +50,7 @@ struct Template {
 }
 
 def Template::new(params: &Vector<&Symbol>): &Template {
-    let templ = std::new<Template>()
+    let templ = mem::alloc<Template>()
     templ.params = params
     templ.instances = Vector<&TemplateInstance>::new()
     return templ
@@ -113,7 +114,7 @@ def Symbol::out_name(&this): str {
 }
 
 def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_name: str, span: Span): &Symbol {
-    let item = std::new<Symbol>()
+    let item = mem::alloc<Symbol>()
     item.name = name
     item.display = display
     item.references = Vector<Reference>::new(capacity: 4)  // Keep the capacity low by default
@@ -209,7 +210,7 @@ struct Scope {
 }
 
 def Scope::new(parent: &Scope = null): &Scope {
-    let scope = std::new<Scope>()
+    let scope = mem::alloc<Scope>()
     scope.items = Map<str, &Symbol>::new()
     scope.defers = Vector<&AST>::new()
     if parent? {

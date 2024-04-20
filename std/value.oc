@@ -5,7 +5,6 @@ import std::compact_map::Map
 import std::json
 import std::buffer::Buffer
 import std::span::Span
-import std::libc::{ calloc, free }
 
 enum ValueType {
     Null
@@ -35,7 +34,7 @@ struct Value {
 }
 
 def Value::new(type: ValueType): &Value {
-    let val = std::new<Value>()
+    let val = mem::alloc<Value>()
     val.type = type
     match type {
         Dictionary => val.u.as_dict = Map<str, &Value>::new()
@@ -78,14 +77,14 @@ def Value::new_float(num: f64): &Value {
 
 def Value::new_list(vec: &Vector<&Value>): &Value {
     let val = Value::new(List)
-    free(val.u.as_list)
+    mem::free(val.u.as_list)
     val.u.as_list = vec
     return val
 }
 
 def Value::new_dict(map: &Map<str, &Value>): &Value {
     let val = Value::new(Dictionary)
-    free(val.u.as_dict)
+    mem::free(val.u.as_dict)
     val.u.as_dict = map
     return val
 }
@@ -258,12 +257,12 @@ def Value::free(&this) {
         }
         Dictionary => {
             for iter : .u.as_dict.iter() {
-                free(iter.key)
+                mem::free(iter.key)
                 iter.value.free()
             }
             .u.as_dict.free()
         }
         else => {}
     }
-    free(this)
+    mem::free(this)
 }

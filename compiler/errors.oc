@@ -2,6 +2,7 @@
 
 import std::vector::Vector
 import std::span::Span
+import std::mem
 import std::fs
 
 enum ErrorType {
@@ -129,7 +130,7 @@ def Error::panic(&this) {
 }
 
 def Error::new(span: Span, msg: str): &Error {
-    let err = std::new<Error>()
+    let err = mem::alloc<Error>()
     err.type = ErrorType::Standard
     err.msg1 = msg
     err.span1 = span
@@ -137,7 +138,7 @@ def Error::new(span: Span, msg: str): &Error {
 }
 
 def Error::new_note(span: Span, msg: str, note: str): &Error {
-    let err = std::new<Error>()
+    let err = mem::alloc<Error>()
     err.type = ErrorType::WithNote
     err.msg1 = msg
     err.span1 = span
@@ -146,7 +147,7 @@ def Error::new_note(span: Span, msg: str, note: str): &Error {
 }
 
 def Error::new_hint(span: Span, msg: str, span2: Span, hint: str): &Error {
-    let err = std::new<Error>()
+    let err = mem::alloc<Error>()
     err.type = ErrorType::WithHint
     err.msg1 = msg
     err.span1 = span
