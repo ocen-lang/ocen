@@ -511,11 +511,14 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
 }
 
 def TypeChecker::check_internal_print(&this, node: &AST): &Type {
-    let args = node.u.call.args
+    let call = &node.u.call
+    let args = call.args
     if args.size < 1 {
+        let span = call.open_paren_span.join(call.close_paren_span)
         .o.error(Error::new(
-            node.span, "Function requires at least one argument"
+            span, "Function requires at least one argument"
         ))
+        return .get_base_type(Void, node.span)
     }
     let first = args.at(0)
     let first_type = .check_expression(first.expr)
@@ -551,10 +554,6 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
 
 def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
     let args = node.u.call.args
-
-    if params.size < args.size and not is_variadic {
-        .error(Error::new(node.span, `Too many arguments, expected {params.size} but got {args.size}`))
-    }
 
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i)
@@ -596,6 +595,16 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
 
         for let i = params.size; i < args.size; i += 1 {
             let arg = args.at(i)
+            let arg_type = .check_expression(arg.expr)
+            if not arg_type? then continue
+        }
+
+    } else if params.size < args.size {
+        // Too many arguments... check them but throw errors
+        let err_msg = f"Unexpected argument, expected only {params.size}"
+        for let i = params.size; i < args.size; i += 1 {
+            let arg = args.at(i)
+            .error(Error::new(arg.expr.span, err_msg))
             let arg_type = .check_expression(arg.expr)
             if not arg_type? then continue
         }

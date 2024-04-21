@@ -108,9 +108,8 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
         let ns = sym.u.ns
         let res = ns.find_importable_symbol(name)
         if error and not res? {
-            .error(Error::new_hint(
+            .error(Error::new(
                 span, `Could not find symbol {name} in namespace {sym.display}`,
-                ns.span, `Namespace was defined here`
             ))
         }
         yield res
