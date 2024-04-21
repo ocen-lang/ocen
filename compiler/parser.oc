@@ -456,14 +456,18 @@ def Parser::parse_match(&this): &AST {
         if .token_is(TokenType::Else) {
             node.u.match_stmt.defolt_span = .token().span
             .consume(TokenType::Else)
-            .consume(TokenType::FatArrow)
+            if not .consume_if(TokenType::FatArrow) {
+                .error(Error::new(.token().span, "Expected => after match case"))
+            }
             node.u.match_stmt.defolt = .parse_statement()
 
         } else {
             let cond = .parse_atom(TokenType::Line)
             let body = null as &AST
             if not .consume_if(TokenType::Line) {
-                .consume(TokenType::FatArrow)
+                if not .consume_if(TokenType::FatArrow) {
+                    .error(Error::new(.token().span, "Expected => after match case"))
+                }
                 body = .parse_statement()
                 if not .token_is(TokenType::CloseCurly) {
                     .consume_newline_or(TokenType::Comma)
@@ -903,10 +907,10 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
 }
 
 def Parser::parse_relational(&this, end_type: TokenType): &AST {
-    let operands = Vector<&AST>::new()
-    let operators = Vector<&Token>::new()
+    let lhs = .parse_bw_or(end_type)
 
-    operands.push(.parse_bw_or(end_type))
+    let operands: &Vector<&AST> = null
+    let operators: &Vector<&Token> = null
     while .token_is(TokenType::LessThan) or
             .token_is(TokenType::GreaterThan) or
             .token_is(TokenType::LessThanEquals) or
@@ -924,13 +928,19 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
         }
         if done then break
 
+        if not operators? {
+            operators = Vector<&Token>::new(capacity: 2)
+            operands = Vector<&AST>::new(capacity: 3)
+            operands.push(lhs)
+        }
+
         let token = .consume(.token().type)
         operators.push(token)
         let term = .parse_bw_or(end_type)
         operands.push(term)
     }
 
-    if operators.size == 0 then return operands.at(0)
+    if not operators? return lhs
 
     let root = null as &AST
     for let i = 0; i < operators.size; i += 1 {
