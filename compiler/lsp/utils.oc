@@ -128,13 +128,13 @@ def try_gen_expr_string(expr: &AST): str => match expr.type {
     BoolLiteral => if expr.u.bool_literal then "true" else "false"
     IntLiteral | FloatLiteral => {
         let literal = &expr.u.num_literal
-        yield if literal.suffix? {
-            yield `{literal.text}{literal.suffix.str()}`
-        } else {
-            yield literal.text
+        yield match literal.suffix? {
+            true => `{literal.text}{literal.suffix.str()}`
+            false => literal.text
         }
     }
-    StringLiteral | CharLiteral => expr.u.string_literal
+    StringLiteral => `"{expr.u.string_literal}"`
+    CharLiteral => `'{expr.u.char_literal}'`
     Null => "null"
     Identifier => expr.u.ident.name
     NSLookup => {
