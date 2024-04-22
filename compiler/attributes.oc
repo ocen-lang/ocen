@@ -16,6 +16,7 @@ enum AttributeType {
     Export          // [export]                                 to re-export an imported object
     Formatting      // [formatting <specifiers> <args>]         to specify formatting for an object
     Operator        // [operator <op>]                          to specify an operator overload
+    Atomic          // [atomic]                                 to mark a type as Atomic
 
     Invalid         // used for error reporting
 }
@@ -30,6 +31,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "export" => Export
     "formatting" => Formatting
     "operator" => Operator
+    "atomic" => Atomic
     else => Invalid
 }
 
@@ -93,7 +95,7 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 .args.push("$")
             }
         }
-        Exits | VariadicFormat | Export => {
+        Exits | VariadicFormat | Export | Atomic => {
             if .args.size > 0 {
                 parser_for_errors.error(Error::new(
                     this.span,

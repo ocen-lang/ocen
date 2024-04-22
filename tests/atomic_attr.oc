@@ -1,0 +1,18 @@
+/// out: "loaded: false"
+
+@compiler c_include "stdatomic.h"
+
+[atomic] let loaded: bool = true
+
+struct Foo {
+    [atomic] bar: i32
+}
+
+def main() {
+    loaded = false
+
+    let foo: Foo
+    foo.bar = 10
+
+    println(f"loaded: {loaded}")
+}
