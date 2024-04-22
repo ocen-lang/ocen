@@ -388,7 +388,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             if not name? return null
 
             let res = .o.lookup_in_symbol(lhs, name, node.span, error)
-            node.resolved_symbol = res
+            .set_resolved_symbol(node, res)
             return res
         }
         ASTType::Identifier => {
@@ -2203,7 +2203,8 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
-    .set_resolved_symbol(node, base)
+    part.resolved_symbol = base
+    base.add_reference(Normal, part.span)
     .handle_import_path_base(node, &path, path.parts, base, alias, start_idx: 1)
 }
 

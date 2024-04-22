@@ -606,11 +606,17 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
 def CodeGenerator::gen_var_declaration(&this, node: &AST) {
     let var = node.u.var_decl.var
 
+    if var.is_atomic {
+        .out += "_Atomic "
+    }
+
     .gen_type_and_name(var.type, var.sym.out_name())
     if node.u.var_decl.init? {
         .out += " = "
         .gen_expression(node.u.var_decl.init)
-    } else {
+    
+    // Can't do {0} for atomic types...
+    } else if not var.is_atomic {
         match var.type.base {
             Array | Structure => .out += " = {0}"
             else => {}
@@ -1198,6 +1204,9 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
 
     for field : struc.fields.iter() {
         .out += "  "
+        if field.is_atomic {
+            .out += "_Atomic "
+        }
         .gen_type_and_name(field.type, field.sym.out_name())
         .out += ";\n"
     }

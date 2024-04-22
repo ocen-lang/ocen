@@ -1,0 +1,14 @@
+/// compile
+
+[extern "int"]
+enum Value {
+    [extern "0"] Zero
+    [extern "1"] One
+    [extern "2"] Two
+    [extern "30"] Thirty
+}
+
+def main() {
+    let x = Value::Zero
+    let y = Value::Thirty
+}

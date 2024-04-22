@@ -52,6 +52,11 @@ struct Variable {
     sym: &Symbol
     type: &Type
 
+    // FIXME: Find a better place for this. Can't be in `Type` since
+    //        We use interned types in the typecheker...
+    //* Is this atomic?
+    is_atomic: bool
+
     //* Only for function default arguments
     default_value: &AST
 

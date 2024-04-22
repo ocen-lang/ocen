@@ -242,7 +242,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
 
 def Parser::parse_identifier(&this): &AST {
     let tok = .consume(TokenType::Identifier)
-    let node = AST::new(ASTType::Identifier, tok.span)
+    let node = AST::new(Identifier, tok.span)
     node.u.ident.name = tok.text
     return node
 }
@@ -255,7 +255,7 @@ def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST 
             TokenType::ColonColon => {
                 .consume(TokenType::ColonColon)
 
-                let lookup = AST::new(ASTType::NSLookup, node.span)
+                let lookup = AST::new(NSLookup, node.span)
                 lookup.u.lookup.lhs = node
                 node = lookup
 
@@ -300,12 +300,12 @@ def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST 
                                 .token().span, "Parsing template specialization: expected `,` or `>`",
                                 "If you're comparing values, put a space before the `<` earlier"
                             ))
-                            return AST::new(ASTType::Error, node.span)
+                            return AST::new(Error, node.span)
                         }
                     }
                 }
                 let end = .consume(TokenType::GreaterThan)
-                let spec = AST::new(ASTType::Specialization, node.span.join(end.span))
+                let spec = AST::new(Specialization, node.span.join(end.span))
                 spec.u.spec = Specialization(
                     base: node,
                     parsed_template_args: args,
@@ -405,7 +405,7 @@ def Parser::parse_format_string(&this): &AST {
     let part = fstr.text.substring(cur_start, fstr_len - cur_start)
     format_parts.push(part)
 
-    let node = AST::new(ASTType::FormatStringLiteral, fstr.span)
+    let node = AST::new(FormatStringLiteral, fstr.span)
     node.u.fmt_str.parts = format_parts
 
     let fstr_start = fstr.span.start
@@ -446,7 +446,7 @@ def Parser::parse_format_string(&this): &AST {
 def Parser::parse_match(&this): &AST {
     let op = .consume(TokenType::Match)
     let expr = .parse_expression(end_type: TokenType::OpenCurly)
-    let node = AST::new(ASTType::Match, op.span.join(expr.span))
+    let node = AST::new(Match, op.span.join(expr.span))
     node.u.match_stmt.expr = expr
     node.u.match_stmt.match_span = op.span
 
@@ -488,7 +488,7 @@ def Parser::parse_match(&this): &AST {
 def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
     if not suffix? return null
 
-    let ident = AST::new(ASTType::Identifier, suffix.span)
+    let ident = AST::new(Identifier, suffix.span)
     ident.u.ident.name = suffix.text
 
     let typ = Type::new_unresolved(suffix.text, suffix.span)
@@ -536,7 +536,7 @@ def Parser::parse_var_initializer(&this): &AST {
             }
         }
         let close = .consume(TokenType::CloseSquare)
-        let node = AST::new(ASTType::ArrayLiteral, start.span.join(close.span))
+        let node = AST::new(ArrayLiteral, start.span.join(close.span))
         node.u.array_literal.elements = elements
         return node
     }
@@ -560,7 +560,7 @@ def Parser::parse_var_declaration(&this): &AST {
     }
     .consume_end_of_statement()
 
-    let node = AST::new(ASTType::VarDeclaration, start.span.join(end_span))
+    let node = AST::new(VarDeclaration, start.span.join(end_span))
 
     let var = Variable::new(type)
     var.sym = Symbol::from_local_variable(name.text, var, name.span)
@@ -577,7 +577,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
         yield .consume(TokenType::Let)
     }
 
-    let node = AST::new(ASTType::VarDeclaration, .token().span)
+    let node = AST::new(VarDeclaration, .token().span)
     let name = if .token_is(TokenType::Identifier) {
         yield .consume(TokenType::Identifier)
     } else {
@@ -601,6 +601,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     for attr : .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(var.sym, attr)
+            Atomic => var.is_atomic = true
             else => .error(Error::new(attr.span, "Unexpected attribute for variable"))
         }
     }
@@ -627,10 +628,10 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         TokenType::FormatStringLiteral => node = .parse_format_string()
         TokenType::Null => {
             let tok = .consume(TokenType::Null)
-            node = AST::new(ASTType::Null, tok.span)
+            node = AST::new(Null, tok.span)
         }
         TokenType::IntLiteral => {
-            node = AST::new(ASTType::IntLiteral, .token().span)
+            node = AST::new(IntLiteral, .token().span)
             let tok = .consume(TokenType::IntLiteral)
             node.u.num_literal = NumLiteral(
                 text: tok.text,
@@ -638,7 +639,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             )
         }
         TokenType::FloatLiteral => {
-            node = AST::new(ASTType::FloatLiteral, .token().span)
+            node = AST::new(FloatLiteral, .token().span)
             let tok = .consume(TokenType::FloatLiteral)
             node.u.num_literal = NumLiteral(
                 text: tok.text,
@@ -646,19 +647,19 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             )
         }
         TokenType::StringLiteral => {
-            node = AST::new(ASTType::StringLiteral, .token().span)
+            node = AST::new(StringLiteral, .token().span)
             let tok = .consume(TokenType::StringLiteral)
             node.u.string_literal = tok.text
         }
         TokenType::CharLiteral => {
-            node = AST::new(ASTType::CharLiteral, .token().span)
+            node = AST::new(CharLiteral, .token().span)
             let tok = .consume(TokenType::CharLiteral)
             node.u.char_literal = tok.text
         }
         TokenType::Identifier => node = .parse_scoped_identifier()
         TokenType::True | TokenType::False => {
             let tok = .consume(.token().type)
-            node = AST::new(ASTType::BoolLiteral, tok.span)
+            node = AST::new(BoolLiteral, tok.span)
             node.u.bool_literal = tok.type == TokenType::True
         }
         TokenType::OpenParen => {
@@ -670,13 +671,13 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             let tok = .consume(TokenType::Dot)
             if not .curr_func? or not .curr_func.is_method or .curr_func.is_static {
                 .error(Error::new(tok.span, "Cannot use dot shorthand outside of a method"))
-                return AST::new(ASTType::Error, tok.span)
+                return AST::new(Error, tok.span)
             }
 
-            let lhs = AST::new(ASTType::Identifier, tok.span)
+            let lhs = AST::new(Identifier, tok.span)
             lhs.u.ident.name = "this"
 
-            node = AST::new(ASTType::Member, tok.span)
+            node = AST::new(Member, tok.span)
             node.u.member.lhs = lhs
             node.u.member.dot_shorthand = true
 
@@ -692,7 +693,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         }
         else => {
             .unhandled_type("parse_expression")
-            node = AST::new(ASTType::Error, .token().span)
+            node = AST::new(Error, .token().span)
             .curr += 1
         }
     }
@@ -710,7 +711,7 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
             TokenType::Dot => {
                 if .token_is(end_type) break
                 .consume(TokenType::Dot)
-                let member = AST::new(ASTType::Member, node.span)
+                let member = AST::new(Member, node.span)
                 member.u.member.lhs = node
                 node = member
 
@@ -736,7 +737,7 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
 
                 // Contructing the binop here manually to properly handle the
                 // spans of `]` being _after_ the index expression.
-                let op = AST::new(ASTType::BinaryOp, node.span.join(close.span))
+                let op = AST::new(BinaryOp, node.span.join(close.span))
                 op.u.binary.op = Index
                 op.u.binary.lhs = node
                 op.u.binary.rhs = index
@@ -786,7 +787,7 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             .consume(TokenType::OpenParen)
             let type = .parse_type()
             let close = .consume(TokenType::CloseParen)
-            let node = AST::new(ASTType::SizeOf, start.span.join(close.span))
+            let node = AST::new(SizeOf, start.span.join(close.span))
             node.u.size_of_type = type
             return node
         }
@@ -818,7 +819,7 @@ def Parser::parse_cast(&this, end_type: TokenType): &AST {
         if .token_is(end_type) break
         let tok = .consume(TokenType::As)
         let type_node = .parse_type()
-        let op = AST::new(ASTType::Cast, lhs.span.join(type_node.span))
+        let op = AST::new(Cast, lhs.span.join(type_node.span))
         op.u.cast.lhs = lhs
         op.u.cast.to = type_node
         lhs = op
@@ -1040,7 +1041,7 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
 def Parser::parse_multi_if(&this, start_tok: &Token): &AST {
     let start_span = start_tok.span
 
-    let node = AST::new(ASTType::If, start_span)
+    let node = AST::new(If, start_span)
     .consume(TokenType::OpenCurly)
     let branches = Vector<IfBranch>::new()
     node.u.if_stmt.branches = branches
@@ -1090,7 +1091,7 @@ def Parser::parse_if(&this): &AST {
             break
         }
     }
-    let node = AST::new(ASTType::If, start_span.join(end_span))
+    let node = AST::new(If, start_span.join(end_span))
     node.u.if_stmt.branches = cases
 
     if .token_is(TokenType::Else) {
@@ -1124,7 +1125,7 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     let name = .consume(Identifier)
     if not (.token_is(TokenType::Colon) or .token_is_identifier("in")) {
         .error(Error::new(.token().span, "Expected `:` of `in` after for-each loop variable"))
-        return AST::new(ASTType::Error, start_span)
+        return AST::new(Error, start_span)
     }
     .consume(.token().type)
 
@@ -1132,7 +1133,7 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     let iter_var_name = "__iter"
 
     let init = {
-        let node = AST::new(ASTType::VarDeclaration, start_span)
+        let node = AST::new(VarDeclaration, start_span)
         let var = Variable::new(null)
         var.sym = Symbol::from_local_variable(iter_var_name, var, start_span)
 
@@ -1143,15 +1144,15 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     }
 
     let cond = {
-        let iter_name = AST::new(ASTType::Identifier, start_span)
+        let iter_name = AST::new(Identifier, start_span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member,  start_span)
+        let member = AST::new(Member,  start_span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "has_value"
         member.u.member.rhs_span = expr.span
 
-        let node = AST::new(ASTType::Call, start_span)
+        let node = AST::new(Call, start_span)
         node.u.call.callee = member
         node.u.call.args = Vector<&Argument>::new()
         node.u.call.open_paren_span = name.span
@@ -1160,15 +1161,15 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     }
 
     let step = {
-        let iter_name = AST::new(ASTType::Identifier, start_span)
+        let iter_name = AST::new(Identifier, start_span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member, start_span)
+        let member = AST::new(Member, start_span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "next"
         member.u.member.rhs_span = expr.span
 
-        let node = AST::new(ASTType::Call, start_span)
+        let node = AST::new(Call, start_span)
         node.u.call.callee = member
         node.u.call.args = Vector<&Argument>::new()
         node.u.call.open_paren_span = name.span
@@ -1181,21 +1182,21 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let var = Variable::new(null)
         var.sym = Symbol::from_local_variable(name.text, var, name.span)
 
-        let iter_name = AST::new(ASTType::Identifier, start_span)
+        let iter_name = AST::new(Identifier, start_span)
         iter_name.u.ident.name = iter_var_name
 
-        let member = AST::new(ASTType::Member, start_span)
+        let member = AST::new(Member, start_span)
         member.u.member.lhs = iter_name
         member.u.member.rhs_name = "cur"
         member.u.member.rhs_span = expr.span
 
-        let call = AST::new(ASTType::Call, start_span)
+        let call = AST::new(Call, start_span)
         call.u.call.callee = member
         call.u.call.args = Vector<&Argument>::new()
         call.u.call.open_paren_span = name.span
         call.u.call.close_paren_span = name.span
 
-        let node = AST::new(ASTType::VarDeclaration, start_span)
+        let node = AST::new(VarDeclaration, start_span)
         node.u.var_decl.var = var
         node.u.var_decl.init = call
 
@@ -1208,10 +1209,10 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     statements.push(loop_var_decl)
     statements.push(inner_body)
 
-    let body = AST::new(ASTType::Block, inner_body.span)
+    let body = AST::new(Block, inner_body.span)
     body.u.block.statements = statements
 
-    let node = AST::new(ASTType::For, start_span.join(body.span))
+    let node = AST::new(For, start_span.join(body.span))
     node.u.loop.init = init
     node.u.loop.cond = cond
     node.u.loop.step = step
@@ -1240,7 +1241,7 @@ def Parser::parse_for(&this): &AST {
     .consume(TokenType::Semicolon)
     let step = .parse_expression(end_type: TokenType::OpenCurly)
     let body = .parse_block()
-    let node = AST::new(ASTType::For, tok.span.join(body.span))
+    let node = AST::new(For, tok.span.join(body.span))
     node.u.loop.init = init
     node.u.loop.cond = cond
     node.u.loop.step = step
@@ -1260,32 +1261,32 @@ def Parser::parse_statement(&this): &AST {
             if not .is_end_of_statement() {
                 expr = .parse_expression(end_type: TokenType::Newline)
             }
-            node = AST::new(ASTType::Return, start_span.join(.token().span))
+            node = AST::new(Return, start_span.join(.token().span))
             node.u.child = expr
             .consume_end_of_statement()
         }
         TokenType::Yield => {
             .consume(TokenType::Yield)
             let expr = .parse_expression(end_type: TokenType::Newline)
-            node = AST::new(ASTType::Yield, start_span.join(.token().span))
+            node = AST::new(Yield, start_span.join(.token().span))
             node.u.child = expr
             .consume_end_of_statement()
         }
         TokenType::Break => {
             .consume(TokenType::Break)
-            node = AST::new(ASTType::Break, start_span.join(.token().span))
+            node = AST::new(Break, start_span.join(.token().span))
             .consume_end_of_statement()
         }
         TokenType::Continue => {
             .consume(TokenType::Continue)
-            node = AST::new(ASTType::Continue, start_span.join(.token().span))
+            node = AST::new(Continue, start_span.join(.token().span))
             .consume_end_of_statement()
         }
         TokenType::While => {
             let tok = .consume(TokenType::While)
             let cond = .parse_expression(end_type: TokenType::OpenCurly)
             let body = .parse_block()
-            node = AST::new(ASTType::While, tok.span.join(body.span))
+            node = AST::new(While, tok.span.join(body.span))
             node.u.loop.cond = cond
             node.u.loop.body = body
         }
@@ -1301,7 +1302,7 @@ def Parser::parse_statement(&this): &AST {
                 end_span = msg.span
             }
 
-            let node = AST::new(ASTType::Assert, start.span.join(end_span))
+            let node = AST::new(Assert, start.span.join(end_span))
             node.u.assertion.expr = expr
             node.u.assertion.msg = msg
             return node
@@ -1309,7 +1310,7 @@ def Parser::parse_statement(&this): &AST {
         TokenType::Defer => {
             .consume(TokenType::Defer)
             let expr = .parse_expression(end_type: TokenType::Newline)
-            node = AST::new(ASTType::Defer, start_span.join(.token().span))
+            node = AST::new(Defer, start_span.join(.token().span))
             node.u.child = expr
             .consume_end_of_statement()
         }
@@ -1333,7 +1334,7 @@ def Parser::parse_statement(&this): &AST {
 def Parser::parse_block(&this): &AST {
     if not .token_is(TokenType::OpenCurly) {
         .error(Error::new(.token().span, "Expected '{'"))
-        return AST::new(ASTType::Error, .token().span)
+        return AST::new(Error, .token().span)
     }
     let start = .consume(TokenType::OpenCurly)
 
@@ -1345,11 +1346,11 @@ def Parser::parse_block(&this): &AST {
 
     if not .token_is(TokenType::CloseCurly) {
         .error(Error::new(.token().span, "Expected '}'"))
-        return AST::new(ASTType::Error, .token().span)
+        return AST::new(Error, .token().span)
     }
     let end = .consume(TokenType::CloseCurly)
 
-    let node = AST::new(ASTType::Block, start.span.join(end.span))
+    let node = AST::new(Block, start.span.join(end.span))
     node.u.block.statements = statements
     return node
 }
@@ -1559,12 +1560,12 @@ def Parser::parse_function(&this): &Function {
 
         let stmt = .parse_expression(end_type: TokenType::Newline)
         if returns {
-            let ret = AST::new(ASTType::Return, stmt.span)
+            let ret = AST::new(Return, stmt.span)
             ret.u.child = stmt
             stmt = ret
         }
 
-        let body = AST::new(ASTType::Block, stmt.span)
+        let body = AST::new(Block, stmt.span)
 
         let statements = Vector<&AST>::new()
         statements.push(stmt)
@@ -1709,7 +1710,7 @@ def Parser::parse_import(&this): &AST {
         return null
     }
 
-    let node = AST::new(ASTType::Import, span)
+    let node = AST::new(Import, span)
     node.u.import_path = Import(
         parts,
         type,
@@ -1731,8 +1732,9 @@ def Parser::parse_import(&this): &AST {
 def Parser::parse_struct_field(&this, struc: &Structure): bool {
     // To allow `x, y, z: i32` syntax, we need to first parse all the identifiers
     // before we parse the type. All the identifiers are stored in here.
-    let fields = Vector<&Variable>::new(capacity: 4)
+    let fields = Vector<&Variable>::new(capacity: 1)
 
+    .parse_attributes_if_any()
     while true {
         if not .token_is(Identifier) {
             .error(Error::new(.token().span, "Expected identifier for field name"))
@@ -1747,6 +1749,23 @@ def Parser::parse_struct_field(&this, struc: &Structure): bool {
         fields.push(var)
 
         if not .consume_if(TokenType::Comma) break
+    }
+
+    if fields.size == 1 {
+        let field = fields[0]
+        for attr in .attrs.iter() {
+            match attr.type {
+                Extern => .get_extern_from_attr(field.sym, attr)
+                Atomic => field.is_atomic = true
+                else => .error(Error::new(attr.span, "Invalid attribute for field"))
+            }
+        }
+
+    } else if fields.size > 1 and .attrs.size > 0 {
+        .error(Error::new_note(
+            fields[0].sym.span, "Can't use attributes on multi-field declaration",
+            "Split this into separate field declarations"
+        ))
     }
 
     if not .consume_if(TokenType::Colon) {
@@ -1827,7 +1846,7 @@ def Parser::parse_enum(&this): &Enum {
     .add_doc_comment(enum_def.sym, start)
 
     .parse_extern_into_symbol(enum_def.sym)
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(enum_def.sym, attr)
             else => .error(Error::new(attr.span, "Invalid attribute for enum"))
@@ -1836,14 +1855,25 @@ def Parser::parse_enum(&this): &Enum {
 
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
+        // Parse any attributes for the enum value
+        .parse_attributes_if_any()
+
         let name = .consume(TokenType::Identifier)
         let var = Variable::new(null)
         var.sym = Symbol::new_with_parent(EnumVariant, .ns, enum_def.sym, name.text, name.span)
         var.sym.u.var = var
         .add_doc_comment(var.sym, name)
 
+        // FIXME: Deprecate this
         if .consume_if(TokenType::Equals) {
             .parse_extern_into_symbol(var.sym)
+        }
+
+        for attr in .attrs.iter() {
+            match attr.type {
+                Extern => .get_extern_from_attr(var.sym, attr)
+                else => .error(Error::new(attr.span, "Invalid attribute for enum value"))
+            }
         }
 
         enum_def.fields.push(var)
@@ -1897,20 +1927,21 @@ def Parser::parse_attribute(&this) {
     .attrs.push(attr)
 }
 
+//! Clear the previous attributes, and parse any new ones
+def Parser::parse_attributes_if_any(&this) {
+    .clear_attributes()
+    while .token_is(OpenSquare) {
+        .parse_attribute()
+    }
+}
+
 def Parser::parse_namespace_until(&this, end_type: TokenType) {
     .add_doc_comment(.ns.sym, .token())
 
     while not .token_is(end_type) {
-        // NOTE: We always clear the attributes after we are done parsing a statement.
-        //       This variable keeps track of whether we're in a statement or not.
-        //       Clearing the statements is at the end of this loop.
-        let still_parsing_attributes = false
 
+        .parse_attributes_if_any()
         match .token().type {
-            OpenSquare => {
-                .parse_attribute()
-                still_parsing_attributes = true
-            }
             Def => {
                 let func = .parse_function()
                 if func? then .ns.functions.push(func)
@@ -1979,10 +2010,6 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 .error(Error::new(.token().span, `Unexpected token in Parser: {.token().type}`))
                 .curr += 1
             }
-        }
-
-        if not still_parsing_attributes {
-            .clear_attributes()
         }
     }
 }
