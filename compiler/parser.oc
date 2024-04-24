@@ -253,15 +253,17 @@ def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST 
     while true {
         match .token().type {
             TokenType::ColonColon => {
-                .consume(TokenType::ColonColon)
+                let colons = .consume(TokenType::ColonColon)
 
                 let lookup = AST::new(NSLookup, node.span)
                 lookup.u.lookup.lhs = node
                 node = lookup
 
-                if not .token_is(Identifier) {
-                    .error(Error::new(.token().span, "Expected identifier after `::`"))
+                if .token_is(Newline) or not .token_is(Identifier) {
+                    let span = Span(colons.span.end, colons.span.end)
+                    .error(Error::new(span, "Expected identifier after `::`"))
                     node.span.end = .token().span.start
+
                 } else {
                     let name = .consume(TokenType::Identifier)
                     node.span = node.span.join(name.span)

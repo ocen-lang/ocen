@@ -1043,6 +1043,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
     return acc
 }
 
+//! Create the type-name string (eg: `int foo[10]`) and return it
 def CodeGenerator::get_type_name_string(&this, type: &Type, name: str, is_func_def: bool): str {
     assert type != null
     let final = .helper_gen_type(type, type, name.copy(), is_func_def)
@@ -1050,12 +1051,13 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: str, is_func_d
     return final
 }
 
-
+//! Codegen the type-name string
 def CodeGenerator::gen_type_and_name(&this, type: &Type, name: str) {
     .out <<= .get_type_name_string(type, name, is_func_def: false)
 }
 
 def CodeGenerator::gen_type(&this, type: &Type) {
+    // A type is just equivalent to the type-name string with no name
     .gen_type_and_name(type, name: "")
 }
 
