@@ -1607,13 +1607,13 @@ def Parser::get_extern_from_attr(&this, sym: &Symbol, attr: &Attribute) {
     }
 }
 
-def Parser::parse_import_path(&this): &Vector<&ImportPart> {
+def Parser::parse_import_path(&this, end_type: TokenType): &Vector<&ImportPart> {
     let parts = Vector<&ImportPart>::new()
 
     while true {
         let done = false
 
-        if not .token_is(Newline) and .token().is_word() {
+        if not .token_is(end_type) and .token().is_word() {
             let word = .token()
             .curr += 1
 
@@ -1642,7 +1642,7 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 
             let sub_paths = Vector<&Vector<&ImportPart>>::new()
             while not .token_is(TokenType::CloseCurly) {
-                let sub_path = .parse_import_path()
+                let sub_path = .parse_import_path(CloseCurly)
                 if not sub_path? return null
 
                 sub_paths.push(sub_path)
@@ -1712,7 +1712,7 @@ def Parser::parse_import(&this): &AST {
         parent_count -= 1
     }
 
-    let parts = .parse_import_path()
+    let parts = .parse_import_path(Newline)
     if not parts? return null
 
     if parts.size == 0 {
