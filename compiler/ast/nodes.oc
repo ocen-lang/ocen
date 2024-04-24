@@ -219,9 +219,15 @@ struct ImportPartSingle {
     alias_span: Span
 }
 
+struct ImportPartMultiple {
+    open_curly_span: Span
+    close_curly_span: Span
+    paths: &Vector<&Vector<&ImportPart>>
+}
+
 union ImportPartUnion {
     single: ImportPartSingle
-    paths: &Vector<&Vector<&ImportPart>>
+    multiple: ImportPartMultiple
 }
 
 struct ImportPart {
@@ -257,6 +263,9 @@ struct Import {
     // case we need to know how namespace levels to go up.
     parent_count: u32
     export: bool
+
+    // Root symbol of the import
+    root_sym: &Symbol
 }
 
 struct NumLiteral {

@@ -22,8 +22,13 @@ struct Finder {
     loc: Location // Location we are looking for
 
     found_sym: &Symbol
+
+    //! What was the node that we found the symbol in?
     found_node: &AST
+    //! What scope was the symbol found in?
     found_scope: &Scope
+    //! If this was an import, what namespace was it in?
+    found_import_ns: &Namespace
 
     // For SignatureHelp
     active_param: u32
@@ -244,7 +249,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
     return false
 }
 
-def Finder::find_in_import_part(&this, part: &ImportPart, node: &AST): bool => match part.type {
+def Finder::find_in_import_part(&this, base: &Symbol, part: &ImportPart, node: &AST): bool => match part.type {
     Single => {
         if part.span.contains_loc(.loc) {
             return .set_usage(part.resolved_symbol, node)
@@ -252,10 +257,26 @@ def Finder::find_in_import_part(&this, part: &ImportPart, node: &AST): bool => m
         return false
     }
     Multiple => {
-        for subpath : part.u.paths.iter() {
+        let multi = &part.u.multiple
+        for subpath : multi.paths.iter() {
+            let prev = base
             for subpart : subpath.iter() {
-                if .find_in_import_part(subpart, node) return true
+                if .find_in_import_part(prev, subpart, node) {
+                    if prev? and prev.type == Namespace {
+                        .found_import_ns = prev.u.ns
+                    }
+                    return true
+                }
+                prev = subpart.resolved_symbol
             }
+        }
+        let multi_span = multi.open_curly_span.join(multi.close_curly_span)
+        if multi_span.contains_loc(.loc) {
+            .set_usage(null, node)
+            if base? and base.type == Namespace {
+                .found_import_ns = base.u.ns
+            }
+            return true
         }
         return false
     }
@@ -280,8 +301,15 @@ def Finder::find_in_statement(&this, node: &AST): bool {
         Return => return node.u.child? and .find_in_expression(node.u.child)
         Import => {
             let path = node.u.import_path
+            let prev = path.root_sym
             for part : path.parts.iter() {
-                if .find_in_import_part(part, node) return true
+                if .find_in_import_part(prev, part, node) {
+                    if prev? and prev.type == Namespace {
+                        .found_import_ns = prev.u.ns
+                    }
+                    return true
+                }
+                prev = part.resolved_symbol
             }
         }
         else => return .find_in_expression(node)

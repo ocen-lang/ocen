@@ -1612,7 +1612,8 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
 
     while true {
         let done = false
-        if .token().is_word() {
+
+        if not .token_is(Newline) and .token().is_word() {
             let word = .token()
             .curr += 1
 
@@ -1650,13 +1651,20 @@ def Parser::parse_import_path(&this): &Vector<&ImportPart> {
             let close = .consume(TokenType::CloseCurly)
 
             let part = ImportPart::new(Multiple, open.span.join(close.span))
-            part.u.paths = sub_paths
+            part.u.multiple.paths = sub_paths
+            part.u.multiple.open_curly_span = open.span
+            part.u.multiple.close_curly_span = close.span
             parts.push(part)
             done = true
 
         } else {
             .error(Error::new(.token().span, "Expected identifier"))
-            return null
+            let prev_tok = .tokens[.curr - 1].span
+            let part = ImportPart::new(Single, Span(prev_tok.end, prev_tok.end))
+            part.u.single.name = null
+            part.u.single.name_span = part.span
+            parts.push(part)
+            done = true
         }
 
         if done break
@@ -1717,7 +1725,8 @@ def Parser::parse_import(&this): &AST {
         parts,
         type,
         parent_count,
-        export: false
+        export: false,
+        root_sym: null
     )
 
     for attr : .attrs.iter() {
@@ -2072,6 +2081,8 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
 
 def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Span): &Namespace {
     .try_load_mod_for_namespace(base)
+
+    if not name? return null
     let sym = base.find_importable_symbol(name)
 
     // Special case for "this", we are not allowed to have a module with that name.
@@ -2126,7 +2137,7 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
                 return false
             }
             Multiple => {
-                let paths = part.u.paths
+                let paths = part.u.multiple.paths
                 let success = true
                 for path : paths.iter() {
                     success = .load_import_path_from_base(path, base) and success
