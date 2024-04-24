@@ -582,7 +582,7 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
             args.push(new_arg)
 
         } else {
-            .error(Error::new(node.span, `Missing required argument {param.sym.name}`))
+            .error(Error::new(node.u.call.close_paren_span, `Missing required argument {param.sym.name}`))
             return
         }
     }
@@ -2111,7 +2111,7 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
                 return
             }
             Multiple => {
-                let paths = part.u.paths
+                let paths = part.u.multiple.paths
                 for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j)
                     .handle_import_path_base(node, imp, path, base, alias, 0)
@@ -2122,6 +2122,8 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
         }
 
         let name = part.u.single.name
+        if not name? return
+
         if name.eq("this") then {
             if i + 1 != parts.size {
                 .error(Error::new(part.span, "`this` can only be used as the last part of an import path"))
@@ -2133,7 +2135,7 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
 
         let new_base = .o.lookup_in_symbol(base, name, part.u.single.alias_span, error: false)
         if not new_base? {
-            .error(Error::new(part.span, `Invalid import, namespace {name} does not exist`))
+            .error(Error::new(part.span, `Invalid import, {base.name}::{name} does not exist`))
             return
         }
 
@@ -2166,16 +2168,21 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
     }
 
     let name = part.u.single.name
+    if not name? return
+
     let alias = part.u.single.alias
     if not alias? then alias = name
 
+    let root_sym: &Symbol = null
     let base = match path.type {
         GlobalNamespace => {
+            root_sym = .o.program.global.sym
             yield .o.program.global.find_importable_symbol(name)
         }
         ProjectNamespace => {
             let project_root = .o.ns().get_project_root(node.span, .o.program)
             if not project_root? return
+            root_sym = project_root.sym
             yield project_root.find_importable_symbol(name)
         }
         ParentNamespace => {
@@ -2188,12 +2195,14 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
                 }
                 cur = cur.parent
             }
+            root_sym = cur.sym
             yield cur.find_importable_symbol(name)
         }
 
         // This is the special case: a `Symbol` can't hold a scope, so we can't just
         // wrap all 3 cases into a symbol and avoid the manual lookup.
         CurrentScope => {
+            root_sym = .o.ns().sym
             yield .o.scope().lookup_recursive(name)
         }
     }
@@ -2203,6 +2212,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
         return
     }
 
+    node.u.import_path.root_sym = root_sym
     part.resolved_symbol = base
     base.add_reference(Normal, part.span)
     .handle_import_path_base(node, &path, path.parts, base, alias, start_idx: 1)
