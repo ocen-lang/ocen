@@ -40,6 +40,20 @@ def gen_func_param_string(i: u32, param: &Variable, is_non_static_method: bool):
     return sb.str()
 }
 
+def gen_template_params(args: &Vector<&Type>): str {
+    let sb = Buffer::make()
+
+    sb += "<"
+    for let i = 0; i < args.size; i += 1 {
+        if i > 0 {
+            sb += ", "
+        }
+        sb += gen_type_string(args.at(i), full: false)
+    }
+    sb += ">"
+    return sb.str()
+}
+
 def gen_type_string(type: &Type, full: bool = true): str => match type.base {
     Char | Bool | Void | I8 | I16 | I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 => type.base.str()
     Pointer => match type.u.ptr.base {
@@ -49,20 +63,15 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
     }
     Array => `&{gen_type_string(type.u.arr.elem_type, full)}`
     Structure | Enum | Alias => {
-        if full return type.sym.display
-        if not type.template_instance? return type.sym.name
+        if not type.template_instance? return match full {
+            true => type.sym.display
+            false => type.sym.name
+        }
 
         let instance = type.template_instance
         let sb = Buffer::make()
-        sb += instance.parent.name
-        sb += "<"
-        for let i = 0; i < instance.args.size; i += 1 {
-            if i > 0 {
-                sb += ", "
-            }
-            sb += gen_type_string(instance.args.at(i), full: false)
-        }
-        sb += ">"
+        sb += if full then instance.parent.display else instance.parent.name
+        sb <<= gen_template_params(instance.args)
         yield sb.str()
     }
     Function => {
@@ -75,7 +84,29 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
                 is_non_static_method = not func_type.orig.is_static
             }
             sb += "def "
-            sb += func_type.orig.sym.display
+
+            let orig = func_type.orig
+            if orig.parent_type? {
+                sb += gen_type_string(orig.parent_type, full: false)
+                sb += "::"
+                sb += orig.sym.name
+
+            } else {
+                sb += func_type.orig.sym.display
+            }
+
+            if orig.sym.template? {
+                sb += "<"
+                let params = orig.sym.template.params
+                for let i = 0; i < params.size; i += 1 {
+                    if i > 0 {
+                        sb += ", "
+                    }
+                    sb += params[i].name
+                }
+                sb += ">"
+            }
+
         } else {
             sb += "fn"
         }
@@ -111,14 +142,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         let unres = type.u.unresolved_spec
         let sb = Buffer::make()
         sb += gen_type_string(unres.base, full)
-        sb += "<"
-        for let i = 0; i < unres.args.size; i += 1 {
-            if i > 0 {
-                sb += ", "
-            }
-            sb += gen_type_string(unres.args.at(i), full: false)
-        }
-        sb += ">"
+        sb <<= gen_template_params(unres.args)
         yield sb.str()
     }
     Error | NUM_BASE_TYPES => "ERROR"
@@ -350,7 +374,7 @@ def gen_namespace_json(ns: &Namespace): &Value {
     return obj
 }
 
-def gen_completion_from_symbol(sym: &Symbol): &Value {
+def gen_completion_item(sym: &Symbol): &Value {
     let val = Value::new(Dictionary)
     val["label"] = sym.name
     val["detail"] = gen_hover_string(sym)
@@ -373,8 +397,14 @@ def gen_completion_from_symbol(sym: &Symbol): &Value {
                 val["documentation"] = sym.comment
             }
         }
-        else => if verbose {
-            println(f"gen_completion_from_symbol: unhandled symbol type: {sym.type}")
+        else => {
+            val["insertText"] = sym.name
+            // TODO: Different `kinds`
+            val["kind"] = "field"
+            val["labelDetails"] = gen_hover_string(sym)
+            if sym.comment? {
+                val["documentation"] = sym.comment
+            }
         }
     }
     return val
@@ -452,33 +482,39 @@ def gen_renames_json(sym: &Symbol, loc: Location): &Value {
     return obj
 }
 
-def gen_completions_json(sym: &Symbol, ns_lookup: bool = false): &Value {
-    let completions = Value::new(List)
+def gen_completions_from_scope(scope: &Scope, completions: &Value) {
+    if not scope? return
+    for item in scope.items.iter_values() {
+        completions += gen_completion_item(item)
+    }
+    gen_completions_from_scope(scope.parent, completions)
+}
 
+def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value) {
     match sym.type {
         Structure => {
-            if not ns_lookup {
+            if node? and node.type != NSLookup {
                 for field : sym.u.struc.fields.iter() {
-                    completions += gen_completion_from_symbol(field.sym)
+                    completions += gen_completion_item(field.sym)
                 }
             }
             for mth : sym.u.struc.type.methods.iter_values() {
-                completions += gen_completion_from_symbol(mth.sym)
+                completions += gen_completion_item(mth.sym)
             }
         }
         TypeDef => {
             for mth : sym.u.type_def.methods.iter_values() {
-                completions += gen_completion_from_symbol(mth.sym)
+                completions += gen_completion_item(mth.sym)
             }
         }
         Enum => {
-            if ns_lookup {
+            if node? and node.type == NSLookup {
                 for field : sym.u.enum_.fields.iter() {
-                    completions += gen_completion_from_symbol(field.sym)
+                    completions += gen_completion_item(field.sym)
                 }
             }
             for mth : sym.u.enum_.type.methods.iter_values() {
-                completions += gen_completion_from_symbol(mth.sym)
+                completions += gen_completion_item(mth.sym)
             }
         }
         Variable => {
@@ -487,38 +523,58 @@ def gen_completions_json(sym: &Symbol, ns_lookup: bool = false): &Value {
                 typ = typ.u.ptr
             }
             if typ? and typ.sym? {
-                return gen_completions_json(typ.sym, ns_lookup: false)
+                gen_completions_from_symbol(typ.sym, node, completions)
             }
         }
         Namespace => {
             for it : sym.u.ns.namespaces.iter_values() {
-                completions += gen_completion_from_symbol(it.sym)
+                completions += gen_completion_item(it.sym)
             }
             for it : sym.u.ns.enums.iter() {
-                completions += gen_completion_from_symbol(it.sym)
+                completions += gen_completion_item(it.sym)
             }
             for it : sym.u.ns.structs.iter() {
-                completions += gen_completion_from_symbol(it.sym)
+                completions += gen_completion_item(it.sym)
             }
             for it : sym.u.ns.variables.iter() {
                 if it.resolved_symbol? {
-                    completions += gen_completion_from_symbol(it.resolved_symbol)
+                    completions += gen_completion_item(it.resolved_symbol)
                 }
             }
             for it : sym.u.ns.constants.iter() {
                 if it.resolved_symbol? {
-                    completions += gen_completion_from_symbol(it.resolved_symbol)
+                    completions += gen_completion_item(it.resolved_symbol)
                 }
             }
             for it : sym.u.ns.functions.iter() {
                 if not it.is_method {
-                    completions += gen_completion_from_symbol(it.sym)
+                    completions += gen_completion_item(it.sym)
                 }
             }
         }
         else => {
-            // println(f"gen_completions_json: unhandled symbol type: {sym.type}")
+            if verbose then println(f"gen_completions_json: unhandled symbol type: {sym.type}")
         }
+    }
+}
+
+def gen_completions_json(node: &AST, scope: &Scope): &Value {
+    if not node? return null
+
+    let completions = Value::new(List)
+
+    let sym = match node.type {
+        Member => node.u.member.lhs.resolved_symbol
+        NSLookup => node.u.lookup.lhs.resolved_symbol
+        else => null
+    }
+
+    match sym? {
+        // If we have a symbol to complete, we can generate completions from it...
+        true => gen_completions_from_symbol(sym, node, completions)
+
+        // ...otherwise, we can generate completions from the current scope.
+        false => gen_completions_from_scope(scope, completions)
     }
 
     let obj = Value::new(Dictionary)

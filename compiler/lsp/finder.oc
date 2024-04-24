@@ -22,32 +22,35 @@ struct Finder {
     loc: Location // Location we are looking for
 
     found_sym: &Symbol
+    found_node: &AST
+    found_scope: &Scope
 
     // For SignatureHelp
     active_param: u32
     call: &AST
 
-    found_in_ns_lookup: bool
+    scopes: &Vector<&Scope>
 }
 
 def Finder::make(cmd: CommandType, loc: Location): Finder {
     let finder: Finder
     finder.cmd = cmd
     finder.loc = loc
+    finder.scopes = Vector<&Scope>::new()
     return finder
 }
 
 def Finder::find_in_identifier(&this, node: &AST): bool {
     let ident = &node.u.ident
     if node.span.contains_loc(.loc) {
-        return .set_usage(node.resolved_symbol)
+        return .set_usage(node.resolved_symbol, node)
     }
     return false
 }
 
-def Finder::find_in_var(&this, var: &Variable): bool {
+def Finder::find_in_var(&this, var: &Variable, node: &AST): bool {
     if var.sym.span.contains_loc(.loc) {
-        return .set_usage(var.sym)
+        return .set_usage(var.sym, node)
     }
     if var.parsed_type? and .find_in_type(var.parsed_type) {
         return true
@@ -55,8 +58,18 @@ def Finder::find_in_var(&this, var: &Variable): bool {
     return false
 }
 
-def Finder::set_usage(&this, sym: &Symbol): bool {
+def Finder::set_usage(&this, sym: &Symbol, node: &AST): bool {
     .found_sym = sym
+    .found_node = node
+
+    assert .scopes.size > 0, "No scopes to set" // Shouldn't happen
+    .found_scope = .scopes.back()
+
+    // If we're looking for completions - it's possible we don't have a resolved symbol
+    // but that's OK - we just care about suggesting names in the current scope.
+    if .cmd == Completions {
+        return true
+    }
     return sym?
 }
 
@@ -64,7 +77,7 @@ def Finder::find_in_literal(&this, node: &AST): bool {
     if node.span.contains_loc(.loc) {
         // FIXME: Properly set the literal type
         if node.etype? {
-            return .set_usage(node.etype.sym)
+            return .set_usage(node.etype.sym, node)
         }
     }
     // TODO: check type
@@ -148,13 +161,13 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         Member => {
             if .find_in_expression(node.u.member.lhs) return true
             if node.u.member.rhs_span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol)
+                return .set_usage(node.resolved_symbol, node)
             }
 
             // This is usually for autocompletion:
             let rhs = node.u.member.rhs_name
             if not rhs? and node.span.contains_loc(.loc) {
-                return .set_usage(node.u.member.lhs.resolved_symbol)
+                return .set_usage(node.u.member.lhs.resolved_symbol, node)
             }
         }
         NSLookup => {
@@ -164,13 +177,12 @@ def Finder::find_in_expression(&this, node: &AST): bool {
             // This is usually for autocompletion:
             let rhs = node.u.member.rhs_name
             if not rhs? and node.span.contains_loc(.loc) {
-                let res = .set_usage(node.u.member.lhs.resolved_symbol)
-                if res then .found_in_ns_lookup = true
+                let res = .set_usage(node.u.member.lhs.resolved_symbol, node)
                 return res
             }
 
             if node.u.member.rhs_span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol)
+                return .set_usage(node.resolved_symbol, node)
             }
         }
         BinaryOp => {
@@ -221,7 +233,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         OverloadedOperator => {
             let op_span = node.u.operator_span
             if op_span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol)
+                return .set_usage(node.resolved_symbol, node)
             }
         }
 
@@ -232,17 +244,17 @@ def Finder::find_in_expression(&this, node: &AST): bool {
     return false
 }
 
-def Finder::find_in_import_part(&this, part: &ImportPart): bool => match part.type {
+def Finder::find_in_import_part(&this, part: &ImportPart, node: &AST): bool => match part.type {
     Single => {
         if part.span.contains_loc(.loc) {
-            return .set_usage(part.resolved_symbol)
+            return .set_usage(part.resolved_symbol, node)
         }
         return false
     }
     Multiple => {
         for subpath : part.u.paths.iter() {
             for subpart : subpath.iter() {
-                if .find_in_import_part(subpart) return true
+                if .find_in_import_part(subpart, node) return true
             }
         }
         return false
@@ -261,7 +273,7 @@ def Finder::find_in_statement(&this, node: &AST): bool {
         }
         VarDeclaration => {
             let decl = &node.u.var_decl
-            if decl.var? and .find_in_var(decl.var) return true
+            if decl.var? and .find_in_var(decl.var, node) return true
             if decl.init? and .find_in_expression(decl.init) return true
         }
         Block => return .find_in_block(node)
@@ -269,7 +281,7 @@ def Finder::find_in_statement(&this, node: &AST): bool {
         Import => {
             let path = node.u.import_path
             for part : path.parts.iter() {
-                if .find_in_import_part(part) return true
+                if .find_in_import_part(part, node) return true
             }
         }
         else => return .find_in_expression(node)
@@ -278,10 +290,12 @@ def Finder::find_in_statement(&this, node: &AST): bool {
 }
 
 def Finder::find_in_block(&this, node: &AST): bool {
+    .scopes.push(node.u.block.scope)
     let stmts = node.u.block.statements
     for let i = 0; i < stmts.size; i += 1 {
         if .find_in_statement(stmts.at(i)) return true
     }
+    .scopes.pop()
     return false
 }
 
@@ -303,7 +317,7 @@ def Finder::find_in_type(&this, type: &Type): bool {
         else => {
             // FIXME: be more robust
             if type.span.contains_loc(.loc) {
-                return .set_usage(type.sym)
+                return .set_usage(type.sym, node: null) // FIXME: What should be the node here?
             }
         }
     }
@@ -317,42 +331,48 @@ def Finder::find_in_function(&this, func: &Function): bool {
     if func.is_template_instance() return false
 
     if func.sym.span.contains_loc(.loc) {
-        return .set_usage(func.sym)
+        return .set_usage(func.sym, node: null)
     }
     if .find_in_expression(func.name_ast) return true
 
+    .scopes.push(func.scope)
     for param : func.params.iter() {
-        if .find_in_var(param) return true
+        if .find_in_var(param, node: null) return true
     }
 
     let ret_type = func.parsed_return_type
     if ret_type? and .find_in_type(ret_type) return true
 
-    return func.body? and .find_in_statement(func.body)
+    let res = func.body? and .find_in_statement(func.body)
+    .scopes.pop()
+
+    return res
 }
 
 def Finder::find_in_program(&this, ns: &Namespace): bool {
+    .scopes.push(ns.scope)
+
     for struc : ns.structs.iter() {
         // If this is a template instance, we skip checking it at all.
         // The original template (which should be checked separately) will
         // have the same span as this instance, and is what we are looking for.
         if struc.type? and struc.type.template_instance? continue
 
-        if struc.sym.span.contains_loc(.loc) return .set_usage(struc.sym)
+        if struc.sym.span.contains_loc(.loc) return .set_usage(struc.sym, node: null)
         for field : struc.fields.iter() {
-            if .find_in_var(field) return true
+            if .find_in_var(field, node: null) return true
         }
     }
 
     for enm : ns.enums.iter() {
-        if enm.sym.span.contains_loc(.loc) return .set_usage(enm.sym)
+        if enm.sym.span.contains_loc(.loc) return .set_usage(enm.sym, node: null)
         for field : enm.fields.iter() {
-            if .find_in_var(field) return true
+            if .find_in_var(field, node: null) return true
         }
     }
 
     for func : ns.functions.iter() {
-        if func.sym.span.contains_loc(.loc) return .set_usage(func.sym)
+        if func.sym.span.contains_loc(.loc) return .set_usage(func.sym, node: null)
         if .find_in_function(func) return true
     }
 
@@ -360,8 +380,10 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         if .find_in_statement(import_) return true
     }
 
+    .scopes.pop()
+
     for child : ns.namespaces.iter_values() {
-        if child.sym.span.contains_loc(.loc) return .set_usage(child.sym)
+        if child.sym.span.contains_loc(.loc) return .set_usage(child.sym, node: null)
         if .find_in_program(child) return true
     }
 
@@ -369,5 +391,6 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
 }
 
 def Finder::find(&this, program: &Program): bool {
+    .scopes.push(program.global.scope)
     return .find_in_program(program.global)
 }

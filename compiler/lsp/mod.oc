@@ -93,7 +93,7 @@ def handle_location_command(program: &Program, type: CommandType, loc: Location)
             if not typ? return
             yield utils::gen_span_json_with_filename(typ.span, loc)
         }
-        Completions => utils::gen_completions_json(finder.found_sym, ns_lookup: finder.found_in_ns_lookup)
+        Completions => utils::gen_completions_json(finder.found_node, finder.found_scope)
         References => utils::gen_references_json(finder.found_sym, loc)
         Renames => utils::gen_renames_json(finder.found_sym, loc)
         SignatureHelp => utils::gen_signature_help(finder.call, finder.active_param)
