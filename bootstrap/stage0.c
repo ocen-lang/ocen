@@ -8,6 +8,7 @@
 #include "unistd.h"
 #include "sys/stat.h"
 #include "sys/types.h"
+#include "time.h"
 #include "setjmp.h"
 #include "dirent.h"
 #include "libgen.h"
@@ -590,6 +591,23 @@ char *compiler_types_BaseType_dbg(compiler_types_BaseType this) {
     case compiler_types_BaseType_Alias: return "Alias";
     case compiler_types_BaseType_UnresolvedTemplate: return "UnresolvedTemplate";
     case compiler_types_BaseType_Error: return "Error";
+    default: return "<unknown>";
+  }
+}
+
+typedef enum std_logging_LogLevel {
+  std_logging_LogLevel_Debug,
+  std_logging_LogLevel_Info,
+  std_logging_LogLevel_Warn,
+  std_logging_LogLevel_Error,
+} std_logging_LogLevel;
+
+char *std_logging_LogLevel_dbg(std_logging_LogLevel this) {
+  switch (this) {
+    case std_logging_LogLevel_Debug: return "Debug";
+    case std_logging_LogLevel_Info: return "Info";
+    case std_logging_LogLevel_Warn: return "Warn";
+    case std_logging_LogLevel_Error: return "Error";
     default: return "<unknown>";
   }
 }
@@ -2400,6 +2418,9 @@ char *std_buffer_Buffer_str(std_buffer_Buffer this);
 std_sv_SV std_buffer_Buffer_sv(std_buffer_Buffer this);
 void std_buffer_Buffer_clear(std_buffer_Buffer *this);
 void std_buffer_Buffer_free(std_buffer_Buffer *this);
+void std_logging_init_logging(std_logging_LogLevel level, char *time_format);
+void std_logging_vlog(std_logging_LogLevel level, char *fmt, va_list vargs);
+void std_logging_log(std_logging_LogLevel level, char *fmt, ...);
 void std_set_Set__0_add(std_set_Set__0 *this, char *key);
 bool std_set_Set__0_contains(std_set_Set__0 *this, char *key);
 void std_set_Set__0_free(std_set_Set__0 *this);
@@ -2830,6 +2851,8 @@ void *std_mem_state_allocator = NULL;
 void *(*std_mem_state_alloc_fn)(void *, u32) = std_mem_impl_my_calloc;
 void *(*std_mem_state_realloc_fn)(void *, void *, u32, u32) = std_mem_impl_my_realloc;
 void (*std_mem_state_free_fn)(void *, void *) = std_mem_impl_my_free;
+std_logging_LogLevel std_logging_log_level = std_logging_LogLevel_Warn;
+char *std_logging_log_time_format = "%H:%M:%S";
 /* function implementations */
 std_value_Value *compiler_docgen_DocGenerator_gen_enum(compiler_docgen_DocGenerator *this, compiler_ast_nodes_Enum *enum_) {
   std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
@@ -13769,12 +13792,10 @@ void save_and_compile_code(compiler_ast_program_Program *program, char *code) {
   if (debug) {
   std_buffer_Buffer_write_str(&cmd, " -ggdb3");
   }
-  if (!silent) {
-    printf("[+] %.*s\n", (cmd).size, (cmd).data);
-  }
+  std_logging_log(std_logging_LogLevel_Info, "%.*s", (cmd).size, (cmd).data);
   i32 exit_code = system(std_buffer_Buffer_str(cmd));
   if (exit_code != 0) {
-    printf("[-] Compilation failed""\n");
+    std_logging_log(std_logging_LogLevel_Error, "Failed to compile C code");
     exit(1);
   }
 }
@@ -13786,10 +13807,9 @@ void run_executable(i32 argc, char **argv) {
     std_buffer_Buffer_write_str(&cmd, " ");
     std_buffer_Buffer_write_str(&cmd, argv[i]);
   }
-  if (!silent) {
-    printf("[+] %.*s\n", (cmd).size, (cmd).data);
-  }
+  std_logging_log(std_logging_LogLevel_Info, "%.*s", (cmd).size, (cmd).data);
   i32 exit_code = system(std_buffer_Buffer_str(cmd));
+  std_logging_log(std_logging_LogLevel_Info, "Exited with code: %d", exit_code);
   exit(exit_code);
 }
 
@@ -13868,6 +13888,13 @@ i32 main(i32 argc, char **argv) {
     std_vector_Vector__1_push(program->library_paths, ocen_root);
   }
   parse_args(&argc, &argv, program);
+  std_logging_LogLevel level = ({ std_logging_LogLevel __yield_0;
+    if (silent) {
+    __yield_0 = std_logging_LogLevel_Error;
+    } else {
+    __yield_0 = std_logging_LogLevel_Info;
+    };__yield_0; });
+  std_logging_init_logging(level, NULL);
   program->error_level=error_level;
   program->gen_debug_info=debug;
   compiler_parser_Parser_parse_toplevel(program, filename, include_stdlib, NULL, true);
@@ -15071,6 +15098,64 @@ void std_buffer_Buffer_free(std_buffer_Buffer *this) {
   std_mem_free(this->data);
 }
 
+void std_logging_init_logging(std_logging_LogLevel level, char *time_format) {
+  std_logging_log_level=level;
+  std_logging_log_time_format=time_format;
+  char *s = getenv("LOG");
+  if (!((bool)s)) {
+  return;
+  }
+  {
+    char *__match_var_8 = s;
+    if (str_eq(__match_var_8, "debug") || str_eq(__match_var_8, "DEBUG")) {
+      std_logging_log_level=std_logging_LogLevel_Debug;
+    } else if (str_eq(__match_var_8, "info") || str_eq(__match_var_8, "INFO")) {
+      std_logging_log_level=std_logging_LogLevel_Info;
+    } else if (str_eq(__match_var_8, "warn") || str_eq(__match_var_8, "WARN")) {
+      std_logging_log_level=std_logging_LogLevel_Warn;
+    } else if (str_eq(__match_var_8, "error") || str_eq(__match_var_8, "ERROR")) {
+      std_logging_log_level=std_logging_LogLevel_Error;
+    } else  {
+    }
+  }
+}
+
+void std_logging_vlog(std_logging_LogLevel level, char *fmt, va_list vargs) {
+  if (((u32)level) < ((u32)std_logging_log_level)) {
+  return;
+  }
+  if (((bool)std_logging_log_time_format)) {
+    char time_buf[64] = {0};
+    time_t timer = time(NULL);
+    struct tm *tm_info = localtime(&timer);
+    strftime(time_buf, 64, std_logging_log_time_format, tm_info);
+    printf("(%s) ", time_buf);
+  }
+  switch (level) {
+    case std_logging_LogLevel_Debug: {
+      printf("[DEBUG] ");
+    } break;
+    case std_logging_LogLevel_Info: {
+      printf("[INFO] ");
+    } break;
+    case std_logging_LogLevel_Warn: {
+      printf("[WARN] ");
+    } break;
+    case std_logging_LogLevel_Error: {
+      printf("[ERROR] ");
+    } break;
+  }
+  vprintf(fmt, vargs);
+  printf("\n");
+}
+
+void std_logging_log(std_logging_LogLevel level, char *fmt, ...) {
+  va_list args = {0};
+  va_start(args, fmt);
+  std_logging_vlog(level, fmt, args);
+  va_end(args);
+}
+
 void std_set_Set__0_add(std_set_Set__0 *this, char *key) {
   std_map_Map__0_insert(this->map, key, true);
   this->size=this->map->size;
@@ -15421,8 +15506,8 @@ void std_fs_DirectoryIterator_next(std_fs_DirectoryIterator *this) {
   this->dp=readdir(this->dir);
   while (((bool)this->dp) && this->skip_self_and_parent) {
     {
-      char *__match_var_8 = this->dp->d_name;
-      if (str_eq(__match_var_8, ".") || str_eq(__match_var_8, "..")) {
+      char *__match_var_9 = this->dp->d_name;
+      if (str_eq(__match_var_9, ".") || str_eq(__match_var_9, "..")) {
         this->dp=readdir(this->dir);
       } else  {
         break;
