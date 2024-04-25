@@ -28,6 +28,7 @@ import .docgen
 import .lsp
 EOF
 
+export OCEN_ROOT=$(pwd)
 ./bootstrap/ocen compiler/doc.oc --docs $1
 EXIT_CODE=$?
 

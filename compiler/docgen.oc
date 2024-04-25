@@ -3,6 +3,7 @@ import std::buffer::{ Buffer }
 import std::json
 import std::span::{ Span }
 import std::value::{ Value }
+import std::sv::{ SV }
 import std::vector::{ Vector }
 
 import @ast::nodes::*
@@ -13,6 +14,9 @@ import @types::{ Type, BaseType }
 
 struct DocGenerator {
     program: &Program
+
+    //! Needed to canonicalize source paths in the generated documentation.
+    ocen_root: SV
 }
 
 def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
@@ -52,8 +56,14 @@ def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
 def DocGenerator::gen_location(&this, obj: &Value, span: Span) {
     let start = span.start
     if start.is_valid() {
-        let src_str = `{start.filename}#L{start.line}`
-        obj["source"] = src_str
+        let filename = start.filename
+        if filename.starts_with(.ocen_root.data) {
+            filename = &filename[.ocen_root.len]
+            if filename[0] == '/' {
+                filename = &filename[1]
+            }
+        }
+        obj["source"] = `{filename}#L{start.line}`
     }
 }
 
@@ -409,7 +419,14 @@ def DocGenerator::gen_builtins(&this, program: &Program): &Value {
 }
 
 def generate_doc_json(program: &Program, json_path: str) {
-    let docs_generator = DocGenerator(program)
+    let ocen_root = std::libc::getenv("OCEN_ROOT")
+    if not ocen_root? {
+        ocen_root = ""
+    }
+    let docs_generator = DocGenerator(
+        program,
+        SV::from_str(ocen_root)
+    )
 
     let docs = docs_generator.gen_ns(program.global)
     let builtins = docs_generator.gen_builtins(program)
