@@ -5,6 +5,7 @@ import std::libc::{ exit, system }
 import std::vector::{ Vector }
 import std::buffer::{ Buffer }
 import std::{ shift_args }
+import std::logging::{ init_logging, log, LogLevel  }
 
 import .ast::program::{ Program }
 import .parser::{ Parser }
@@ -75,12 +76,10 @@ def save_and_compile_code(program: &Program, code: str) {
     }
     if debug then cmd += " -ggdb3"
 
-    if not silent {
-        println(f"[+] {cmd}")
-    }
+    log(Info, f"{cmd}")
     let exit_code = system(cmd.str())
     if exit_code != 0 {
-        println("[-] Compilation failed")
+        log(Error, "Failed to compile C code")
         std::exit(1)
     }
 }
@@ -93,10 +92,9 @@ def run_executable(argc: i32, argv: &str) {
         cmd += argv[i]
     }
 
-    if not silent {
-        println(f"[+] {cmd}")
-    }
+    log(Info, f"{cmd}")
     let exit_code = system(cmd.str())
+    log(Info, f"Exited with code: {exit_code}")
     std::exit(exit_code)
 }
 
@@ -171,6 +169,13 @@ def main(argc: i32, argv: &str) {
     }
 
     parse_args(&argc, &argv, program)
+
+    let level: LogLevel = match silent {
+        true => Error
+        false => Info
+    }
+    // Initialize logging without a timestamp, since we're not a long-running process
+    init_logging(level, time_format: null)
 
     program.error_level = error_level
     program.gen_debug_info = debug

@@ -1,0 +1,59 @@
+import std::variadic::{ VarArgs, vprintf }
+import std::time
+
+enum LogLevel {
+    Debug
+    Info
+    Warn
+    Error
+}
+
+let log_level: LogLevel = Warn
+let log_time_format: str = "%H:%M:%S"
+
+def init_logging(level: LogLevel = Info, time_format: str = "%H:%M:%S") {
+    log_level = level
+    log_time_format = time_format
+
+    // However, if the environment variable is set, it will override the default
+    let s = std::libc::getenv("LOG")
+    if not s? return
+
+    match s {
+        "debug" | "DEBUG" => log_level = Debug
+        "info" | "INFO" => log_level = Info
+        "warn" | "WARN" => log_level = Warn
+        "error" | "ERROR" => log_level = Error
+        else => {}
+    }
+}
+
+def vlog(level: LogLevel, fmt: str, vargs: VarArgs) {
+    if level as u32 < log_level as u32 return
+
+    if log_time_format? {
+        let time_buf: [char; 64]
+        let timer = time::time(null)
+        let tm_info = time::localtime(&timer)
+        time::strftime(time_buf, 64, log_time_format, tm_info)
+        print(`({time_buf}) `)
+    }
+ 
+    match level {
+        Debug => print("[DEBUG] ")
+        Info => print("[INFO] ")
+        Warn => print("[WARN] ")
+        Error => print("[ERROR] ")
+    }
+    vprintf(fmt, vargs)
+    print("\n")
+}
+
+[variadic_format]
+def log(level: LogLevel, fmt: str, ...) {
+    let args: VarArgs
+    args.start(fmt)
+    vlog(level, fmt, args)
+    args.end()
+}
+
