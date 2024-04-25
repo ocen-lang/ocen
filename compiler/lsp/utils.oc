@@ -490,6 +490,76 @@ def gen_completions_from_scope(scope: &Scope, completions: &Value) {
     gen_completions_from_scope(scope.parent, completions)
 }
 
+def gen_completion_items_from_ns(ns: &Namespace, completions: &Value) {
+    let seen = Set<str>::new()
+    defer seen.free()
+
+    for it : ns.namespaces.iter_values() {
+        seen += it.sym.name
+        completions += gen_completion_item(it.sym)
+    }
+    for it : ns.enums.iter() {
+        seen += it.sym.name
+        completions += gen_completion_item(it.sym)
+    }
+    for it : ns.structs.iter() {
+        seen += it.sym.name
+        completions += gen_completion_item(it.sym)
+    }
+    for it : ns.variables.iter() {
+        if it.resolved_symbol? {
+            seen += it.resolved_symbol.name
+            completions += gen_completion_item(it.resolved_symbol)
+        }
+    }
+    for it : ns.constants.iter() {
+        if it.resolved_symbol? {
+            seen += it.resolved_symbol.name
+            completions += gen_completion_item(it.resolved_symbol)
+        }
+    }
+    for it : ns.functions.iter() {
+        if not it.is_method {
+            seen += it.sym.name
+            completions += gen_completion_item(it.sym)
+        }
+    }
+
+    // If this namespace corresponds to a directory, we want to check out the (un-loaded)
+    // files / directories in the directory and add them to the completions.
+    if not (ns.is_a_file and not ns.is_top_level) {
+        let ns_path = ns.path
+        for entry in fs::iterate_directory(ns_path) {
+            if entry.name in seen continue
+
+            let path = `{ns_path}/{entry.name}`
+            defer path.free()
+
+            if fs::file_exists(path) and path.ends_with(".oc") {
+                let name = entry.name.copy()
+                name[name.len() - 3] = '\0'
+                if name == "mod" or name in seen continue
+
+                let item = Value::new(Dictionary)
+                item["label"] = name
+                item["kind"] = "field"
+                item["insertText"] = name
+                item["detail"] = "(file)"
+                completions += item
+            }
+
+            if fs::directory_exists(path) {
+                let item = Value::new(Dictionary)
+                item["label"] = entry.name
+                item["kind"] = "field"
+                item["insertText"] = entry.name
+                item["detail"] = "(directory)"
+                completions += item
+            }
+        }
+    }
+}
+
 def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value) {
     match sym.type {
         Structure => {
@@ -526,61 +596,7 @@ def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value) {
                 gen_completions_from_symbol(typ.sym, node, completions)
             }
         }
-        Namespace => {
-            let ns = sym.u.ns
-            for it : ns.namespaces.iter_values() {
-                completions += gen_completion_item(it.sym)
-            }
-            for it : ns.enums.iter() {
-                completions += gen_completion_item(it.sym)
-            }
-            for it : ns.structs.iter() {
-                completions += gen_completion_item(it.sym)
-            }
-            for it : ns.variables.iter() {
-                if it.resolved_symbol? {
-                    completions += gen_completion_item(it.resolved_symbol)
-                }
-            }
-            for it : ns.constants.iter() {
-                if it.resolved_symbol? {
-                    completions += gen_completion_item(it.resolved_symbol)
-                }
-            }
-            for it : ns.functions.iter() {
-                if not it.is_method {
-                    completions += gen_completion_item(it.sym)
-                }
-            }
-
-
-            if not (ns.is_a_file and not ns.is_top_level) {
-                let ns_path = ns.path
-                for entry in fs::iterate_directory(ns_path) {
-                    let path = `{ns_path}/{entry.name}`
-                    if fs::file_exists(path) and path.ends_with(".oc") {
-                        let name = entry.name.copy()
-                        name[name.len() - 3] = '\0'
-                        let item = Value::new(Dictionary)
-                        item["label"] = name
-                        item["kind"] = "field"
-                        item["insertText"] = name
-                        item["detail"] = "(file)"
-                        completions += item
-                    }
-
-                    if fs::directory_exists(path) {
-                        let item = Value::new(Dictionary)
-                        item["label"] = entry.name
-                        item["kind"] = "field"
-                        item["insertText"] = entry.name
-                        item["detail"] = "(directory)"
-                        completions += item
-                    }
-                    path.free()
-                }
-            }
-        }
+        Namespace => gen_completion_items_from_ns(sym.u.ns, completions)
         else => {
             if verbose then println(f"gen_completions_json: unhandled symbol type: {sym.type}")
         }

@@ -649,6 +649,7 @@ char *std_fs_EntryType_dbg(std_fs_EntryType this) {
 #define std_compact_map_INDEX_FREE (-1)
 #define std_compact_map_INDEX_DELETED (-2)
 /* Struct typedefs */
+typedef struct std_sv_SV std_sv_SV;
 typedef struct compiler_docgen_DocGenerator compiler_docgen_DocGenerator;
 typedef struct std_buffer_Buffer std_buffer_Buffer;
 typedef struct compiler_passes_code_generator_CodeGenerator compiler_passes_code_generator_CodeGenerator;
@@ -714,7 +715,6 @@ typedef struct compiler_types_UnresolvedTemplate compiler_types_UnresolvedTempla
 typedef struct compiler_types_TypeUnion compiler_types_TypeUnion;
 typedef struct compiler_types_Type compiler_types_Type;
 typedef struct std_CharIterator std_CharIterator;
-typedef struct std_sv_SV std_sv_SV;
 typedef struct std_sv_SVLineIterator std_sv_SVLineIterator;
 typedef struct std_compact_map_Item__0 std_compact_map_Item__0;
 typedef struct std_compact_map_Map__0 std_compact_map_Map__0;
@@ -803,8 +803,14 @@ typedef struct std_vector_Iterator__20 std_vector_Iterator__20;
 typedef struct std_vector_Iterator__21 std_vector_Iterator__21;
 
 /* Struct definitions */
+struct std_sv_SV {
+  char *data;
+  u32 len;
+};
+
 struct compiler_docgen_DocGenerator {
   compiler_ast_program_Program *program;
+  std_sv_SV ocen_root;
 };
 
 struct std_buffer_Buffer {
@@ -1317,11 +1323,6 @@ struct std_CharIterator {
   char *data;
   u32 len;
   u32 pos;
-};
-
-struct std_sv_SV {
-  char *data;
-  u32 len;
 };
 
 struct std_sv_SVLineIterator {
@@ -2026,7 +2027,7 @@ void compiler_parser_Parser_add_doc_comment(compiler_parser_Parser *this, compil
 compiler_ast_nodes_Function *compiler_parser_Parser_parse_function(compiler_parser_Parser *this);
 void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym);
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr);
-std_vector_Vector__5 *compiler_parser_Parser_parse_import_path(compiler_parser_Parser *this);
+std_vector_Vector__5 *compiler_parser_Parser_parse_import_path(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_import(compiler_parser_Parser *this);
 bool compiler_parser_Parser_parse_struct_field(compiler_parser_Parser *this, compiler_ast_nodes_Structure *struc);
 compiler_ast_nodes_Structure *compiler_parser_Parser_parse_struct(compiler_parser_Parser *this);
@@ -2142,6 +2143,7 @@ std_value_Value *compiler_lsp_utils_gen_references_json(compiler_ast_scopes_Symb
 std_value_Value *compiler_lsp_utils_gen_signature_help(compiler_ast_nodes_AST *node, u32 active_param);
 std_value_Value *compiler_lsp_utils_gen_renames_json(compiler_ast_scopes_Symbol *sym, std_span_Location loc);
 void compiler_lsp_utils_gen_completions_from_scope(compiler_ast_scopes_Scope *scope, std_value_Value *completions);
+void compiler_lsp_utils_gen_completion_items_from_ns(compiler_ast_program_Namespace *ns, std_value_Value *completions);
 void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *sym, compiler_ast_nodes_AST *node, std_value_Value *completions);
 std_value_Value *compiler_lsp_utils_gen_completions_json(compiler_lsp_finder_Finder *finder);
 compiler_lsp_finder_Finder compiler_lsp_finder_Finder_make(compiler_lsp_CommandType cmd, std_span_Location loc);
@@ -2208,6 +2210,7 @@ bool str_eq(char *this, char *other);
 char *std_format(char *fmt, ...);
 char *str_substring(char *this, u32 start, u32 len);
 bool str_ends_with(char *this, char *suffix);
+bool str_starts_with(char *this, char *prefix);
 void str_strip_trailing_whitespace(char *this);
 void str_replace_with(char **this, char *other);
 void str_free(char **this);
@@ -2224,6 +2227,7 @@ u32 u32_min(u32 this, u32 other);
 u32 u32_max(u32 this, u32 other);
 char *std_shift_args(i32 *argc, char ***argv, char *where);
 bool std_sv_SV_is_empty(std_sv_SV *this);
+std_sv_SV std_sv_SV_from_str(char *s);
 std_sv_SV std_sv_SV_get(std_sv_SV this, u32 n);
 char std_sv_SV_at(std_sv_SV this, u32 n);
 std_sv_SV std_sv_SV_chop_by_delim(std_sv_SV *this, char delim);
@@ -2864,8 +2868,14 @@ std_value_Value *compiler_docgen_DocGenerator_gen_enum(compiler_docgen_DocGenera
 void compiler_docgen_DocGenerator_gen_location(compiler_docgen_DocGenerator *this, std_value_Value *obj, std_span_Span span) {
   std_span_Location start = span.start;
   if (std_span_Location_is_valid(&start)) {
-    char *src_str = std_format("%s#L%u", start.filename, start.line);
-    std_value_Value_insert_str(obj, "source", src_str);
+    char *filename = start.filename;
+    if (str_starts_with(filename, this->ocen_root.data)) {
+      filename=&filename[this->ocen_root.len];
+      if (filename[0]=='/') {
+        filename=&filename[1];
+      }
+    }
+    std_value_Value_insert_str(obj, "source", std_format("%s#L%u", filename, start.line));
   }
 }
 
@@ -2891,7 +2901,7 @@ char *compiler_docgen_DocGenerator_gen_templated_type(compiler_docgen_DocGenerat
 }
 
 char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator *this, compiler_types_Type *type) {
-  ae_assert(((bool)type), "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:78:12: Assertion failed: `type?`", "gen_typename_str called with null type");
+  ae_assert(((bool)type), "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:88:12: Assertion failed: `type?`", "gen_typename_str called with null type");
   switch (type->base) {
     case compiler_types_BaseType_Char:
     case compiler_types_BaseType_Bool:
@@ -2917,7 +2927,7 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
         compiler_ast_nodes_Structure *struc = type->u.struc;
         compiler_ast_scopes_TemplateInstance *instance = type->template_instance;
         compiler_ast_scopes_Symbol *parent = instance->parent;
-        ae_assert(parent->type==compiler_ast_scopes_SymbolType_Structure, "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:93:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");
+        ae_assert(parent->type==compiler_ast_scopes_SymbolType_Structure, "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:103:24: Assertion failed: `parent.type == Structure`", "Template instance parent is not a structure");
         compiler_ast_nodes_Structure *parent_struc = parent->u.struc;
         return compiler_docgen_DocGenerator_gen_templated_type(this, parent_struc->type, instance->args);
       }
@@ -2976,12 +2986,12 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
 }
 
 std_value_Value *compiler_docgen_DocGenerator_gen_typename(compiler_docgen_DocGenerator *this, compiler_types_Type *type) {
-  ae_assert(((bool)type), "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:153:12: Assertion failed: `type?`", "gen_typename called with null type");
+  ae_assert(((bool)type), "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:163:12: Assertion failed: `type?`", "gen_typename called with null type");
   return std_value_Value_new_str(compiler_docgen_DocGenerator_gen_typename_str(this, type));
 }
 
 std_value_Value *compiler_docgen_DocGenerator_gen_methods(compiler_docgen_DocGenerator *this, compiler_types_Type *type) {
-  ae_assert(compiler_types_Type_can_have_methods(type), "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:158:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");
+  ae_assert(compiler_types_Type_can_have_methods(type), "/Users/mustafa/ocen-lang/ocen/compiler/docgen.oc:168:12: Assertion failed: `type.can_have_methods()`", "gen_methods called with type that can't have methods");
   std_value_Value *methods_doc = std_value_Value_new(std_value_ValueType_Dictionary);
   for (std_map_Iterator__7 __iter = std_map_Map__7_iter(type->methods); std_map_Iterator__7_has_value(&__iter); std_map_Iterator__7_next(&__iter)) {
     std_map_Item__7 *it = std_map_Iterator__7_cur(&__iter);
@@ -3242,7 +3252,11 @@ std_value_Value *compiler_docgen_DocGenerator_gen_builtins(compiler_docgen_DocGe
 }
 
 void compiler_docgen_generate_doc_json(compiler_ast_program_Program *program, char *json_path) {
-  compiler_docgen_DocGenerator docs_generator = (compiler_docgen_DocGenerator){.program=program};
+  char *ocen_root = getenv("OCEN_ROOT");
+  if (!((bool)ocen_root)) {
+    ocen_root="";
+  }
+  compiler_docgen_DocGenerator docs_generator = (compiler_docgen_DocGenerator){.program=program, .ocen_root=std_sv_SV_from_str(ocen_root)};
   std_value_Value *docs = compiler_docgen_DocGenerator_gen_ns(&docs_generator, program->global);
   std_value_Value *builtins = compiler_docgen_DocGenerator_gen_builtins(&docs_generator, program);
   std_value_Value_insert(docs, "builtins", builtins);
@@ -9444,11 +9458,11 @@ void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, c
   }
 }
 
-std_vector_Vector__5 *compiler_parser_Parser_parse_import_path(compiler_parser_Parser *this) {
+std_vector_Vector__5 *compiler_parser_Parser_parse_import_path(compiler_parser_Parser *this, compiler_tokens_TokenType end_type) {
   std_vector_Vector__5 *parts = std_vector_Vector__5_new(16);
   while (true) {
     bool done = false;
-    if (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Newline) && compiler_tokens_Token_is_word((*compiler_parser_Parser_token(this)))) {
+    if (!compiler_parser_Parser_token_is(this, end_type) && compiler_tokens_Token_is_word((*compiler_parser_Parser_token(this)))) {
       compiler_tokens_Token *word = compiler_parser_Parser_token(this);
       this->curr+=1;
       compiler_ast_nodes_ImportPart *part = compiler_ast_nodes_ImportPart_new(compiler_ast_nodes_ImportPartType_Single, word->span);
@@ -9470,7 +9484,7 @@ std_vector_Vector__5 *compiler_parser_Parser_parse_import_path(compiler_parser_P
       compiler_tokens_Token *open = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
       std_vector_Vector__16 *sub_paths = std_vector_Vector__16_new(16);
       while (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_CloseCurly)) {
-        std_vector_Vector__5 *sub_path = compiler_parser_Parser_parse_import_path(this);
+        std_vector_Vector__5 *sub_path = compiler_parser_Parser_parse_import_path(this, compiler_tokens_TokenType_CloseCurly);
         if (!((bool)sub_path)) {
         return NULL;
         }
@@ -9547,7 +9561,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_import(compiler_parser_Pars
   if (this->ns->is_top_level) {
     parent_count-=1;
   }
-  std_vector_Vector__5 *parts = compiler_parser_Parser_parse_import_path(this);
+  std_vector_Vector__5 *parts = compiler_parser_Parser_parse_import_path(this, compiler_tokens_TokenType_Newline);
   if (!((bool)parts)) {
   return NULL;
   }
@@ -12223,6 +12237,97 @@ void compiler_lsp_utils_gen_completions_from_scope(compiler_ast_scopes_Scope *sc
   compiler_lsp_utils_gen_completions_from_scope(scope->parent, completions);
 }
 
+void compiler_lsp_utils_gen_completion_items_from_ns(compiler_ast_program_Namespace *ns, std_value_Value *completions) {
+  std_set_Set__0 *seen = std_set_Set__0_new();
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+    compiler_ast_program_Namespace *it = std_map_ValueIterator__3_cur(&__iter);
+    {
+      std_set_Set__0_add(seen, it->sym->name);
+      std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
+    }
+  }
+  for (std_vector_Iterator__12 __iter = std_vector_Vector__12_iter(ns->enums); std_vector_Iterator__12_has_value(&__iter); std_vector_Iterator__12_next(&__iter)) {
+    compiler_ast_nodes_Enum *it = std_vector_Iterator__12_cur(&__iter);
+    {
+      std_set_Set__0_add(seen, it->sym->name);
+      std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
+    }
+  }
+  for (std_vector_Iterator__2 __iter = std_vector_Vector__2_iter(ns->structs); std_vector_Iterator__2_has_value(&__iter); std_vector_Iterator__2_next(&__iter)) {
+    compiler_ast_nodes_Structure *it = std_vector_Iterator__2_cur(&__iter);
+    {
+      std_set_Set__0_add(seen, it->sym->name);
+      std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
+    }
+  }
+  for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->variables); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
+    compiler_ast_nodes_AST *it = std_vector_Iterator__13_cur(&__iter);
+    {
+      if (((bool)it->resolved_symbol)) {
+        std_set_Set__0_add(seen, it->resolved_symbol->name);
+        std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->resolved_symbol));
+      }
+    }
+  }
+  for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->constants); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
+    compiler_ast_nodes_AST *it = std_vector_Iterator__13_cur(&__iter);
+    {
+      if (((bool)it->resolved_symbol)) {
+        std_set_Set__0_add(seen, it->resolved_symbol->name);
+        std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->resolved_symbol));
+      }
+    }
+  }
+  for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
+    compiler_ast_nodes_Function *it = std_vector_Iterator__6_cur(&__iter);
+    {
+      if (!it->is_method) {
+        std_set_Set__0_add(seen, it->sym->name);
+        std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
+      }
+    }
+  }
+  if (!(ns->is_a_file && !ns->is_top_level)) {
+    char *ns_path = ns->path;
+    for (std_fs_DirectoryIterator __iter = std_fs_iterate_directory(ns_path, true); std_fs_DirectoryIterator_has_value(&__iter); std_fs_DirectoryIterator_next(&__iter)) {
+      std_fs_DirectoryEntry entry = std_fs_DirectoryIterator_cur(&__iter);
+      {
+        if (std_set_Set__0_contains(seen, entry.name)) {
+        continue;
+        }
+        char *path = std_format("%s/%s", ns_path, entry.name);
+        if (std_fs_file_exists(path) && str_ends_with(path, ".oc")) {
+          char *name = strdup(entry.name);
+          name[(strlen(name) - 3)]='\0';
+          if (str_eq(name, "mod") || std_set_Set__0_contains(seen, name)) {
+          /* defers */
+          str_free(&path);
+          continue;
+          }
+          std_value_Value *item = std_value_Value_new(std_value_ValueType_Dictionary);
+          std_value_Value_insert_str(item, "label", name);
+          std_value_Value_insert_str(item, "kind", "field");
+          std_value_Value_insert_str(item, "insertText", name);
+          std_value_Value_insert_str(item, "detail", "(file)");
+          std_value_Value_push(completions, item);
+        }
+        if (std_fs_directory_exists(path)) {
+          std_value_Value *item = std_value_Value_new(std_value_ValueType_Dictionary);
+          std_value_Value_insert_str(item, "label", entry.name);
+          std_value_Value_insert_str(item, "kind", "field");
+          std_value_Value_insert_str(item, "insertText", entry.name);
+          std_value_Value_insert_str(item, "detail", "(directory)");
+          std_value_Value_push(completions, item);
+        }
+        /* defers */
+        str_free(&path);
+      }
+    }
+  }
+  /* defers */
+  std_set_Set__0_free(seen);
+}
+
 void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *sym, compiler_ast_nodes_AST *node, std_value_Value *completions) {
   switch (sym->type) {
     case compiler_ast_scopes_SymbolType_Structure: {
@@ -12275,77 +12380,7 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
       }
     } break;
     case compiler_ast_scopes_SymbolType_Namespace: {
-      compiler_ast_program_Namespace *ns = sym->u.ns;
-      for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
-        compiler_ast_program_Namespace *it = std_map_ValueIterator__3_cur(&__iter);
-        {
-          std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
-        }
-      }
-      for (std_vector_Iterator__12 __iter = std_vector_Vector__12_iter(ns->enums); std_vector_Iterator__12_has_value(&__iter); std_vector_Iterator__12_next(&__iter)) {
-        compiler_ast_nodes_Enum *it = std_vector_Iterator__12_cur(&__iter);
-        {
-          std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
-        }
-      }
-      for (std_vector_Iterator__2 __iter = std_vector_Vector__2_iter(ns->structs); std_vector_Iterator__2_has_value(&__iter); std_vector_Iterator__2_next(&__iter)) {
-        compiler_ast_nodes_Structure *it = std_vector_Iterator__2_cur(&__iter);
-        {
-          std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
-        }
-      }
-      for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->variables); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
-        compiler_ast_nodes_AST *it = std_vector_Iterator__13_cur(&__iter);
-        {
-          if (((bool)it->resolved_symbol)) {
-            std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->resolved_symbol));
-          }
-        }
-      }
-      for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(ns->constants); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
-        compiler_ast_nodes_AST *it = std_vector_Iterator__13_cur(&__iter);
-        {
-          if (((bool)it->resolved_symbol)) {
-            std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->resolved_symbol));
-          }
-        }
-      }
-      for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
-        compiler_ast_nodes_Function *it = std_vector_Iterator__6_cur(&__iter);
-        {
-          if (!it->is_method) {
-            std_value_Value_push(completions, compiler_lsp_utils_gen_completion_item(it->sym));
-          }
-        }
-      }
-      if (!(ns->is_a_file && !ns->is_top_level)) {
-        char *ns_path = ns->path;
-        for (std_fs_DirectoryIterator __iter = std_fs_iterate_directory(ns_path, true); std_fs_DirectoryIterator_has_value(&__iter); std_fs_DirectoryIterator_next(&__iter)) {
-          std_fs_DirectoryEntry entry = std_fs_DirectoryIterator_cur(&__iter);
-          {
-            char *path = std_format("%s/%s", ns_path, entry.name);
-            if (std_fs_file_exists(path) && str_ends_with(path, ".oc")) {
-              char *name = strdup(entry.name);
-              name[(strlen(name) - 3)]='\0';
-              std_value_Value *item = std_value_Value_new(std_value_ValueType_Dictionary);
-              std_value_Value_insert_str(item, "label", name);
-              std_value_Value_insert_str(item, "kind", "field");
-              std_value_Value_insert_str(item, "insertText", name);
-              std_value_Value_insert_str(item, "detail", "(file)");
-              std_value_Value_push(completions, item);
-            }
-            if (std_fs_directory_exists(path)) {
-              std_value_Value *item = std_value_Value_new(std_value_ValueType_Dictionary);
-              std_value_Value_insert_str(item, "label", entry.name);
-              std_value_Value_insert_str(item, "kind", "field");
-              std_value_Value_insert_str(item, "insertText", entry.name);
-              std_value_Value_insert_str(item, "detail", "(directory)");
-              std_value_Value_push(completions, item);
-            }
-            str_free(&path);
-          }
-        }
-      }
+      compiler_lsp_utils_gen_completion_items_from_ns(sym->u.ns, completions);
     } break;
     default: {
       if (compiler_lsp_utils_verbose) {
@@ -13914,6 +13949,20 @@ bool str_ends_with(char *this, char *suffix) {
   return true;
 }
 
+bool str_starts_with(char *this, char *prefix) {
+  u32 prefix_len = strlen(prefix);
+  u32 len = strlen(this);
+  if (prefix_len > len) {
+    return false;
+  }
+  for (u32 i = 0; i < prefix_len; i+=1) {
+    if (this[i] != prefix[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void str_strip_trailing_whitespace(char *this) {
   for (u32 i = (strlen(this) - 1); i >= 0; i-=1) {
     if (this[i] != ' ') {
@@ -13990,6 +14039,10 @@ char *std_shift_args(i32 *argc, char ***argv, char *where) {
 
 bool std_sv_SV_is_empty(std_sv_SV *this) {
   return this->len==0;
+}
+
+std_sv_SV std_sv_SV_from_str(char *s) {
+  return (std_sv_SV){.data=s, .len=strlen(s)};
 }
 
 std_sv_SV std_sv_SV_get(std_sv_SV this, u32 n) {
