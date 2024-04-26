@@ -1,4 +1,4 @@
-/// fail: Unexpected end of file
+/// fail: Expected '}' at end of block
 
 def main() {
     println("Hello, World!\n")

@@ -374,7 +374,10 @@ def gen_namespace_json(ns: &Namespace): &Value {
     return obj
 }
 
-def gen_completion_item(sym: &Symbol): &Value {
+def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>) {
+    if sym.display in seen return
+    seen += sym.display
+
     let val = Value::new(Dictionary)
     val["label"] = sym.name
     val["detail"] = gen_hover_string(sym)
@@ -407,7 +410,7 @@ def gen_completion_item(sym: &Symbol): &Value {
             }
         }
     }
-    return val
+    completions += val
 }
 
 def get_unique_reference_spans(sym: &Symbol, for_rename: bool): &Vector<Span> {
@@ -482,46 +485,53 @@ def gen_renames_json(sym: &Symbol, loc: Location): &Value {
     return obj
 }
 
-def gen_completions_from_scope(scope: &Scope, completions: &Value) {
+def gen_completions_from_scope(scope: &Scope, completions: &Value, hint_type: &Type, seen: &Set<str>) {
     if not scope? return
     for item in scope.items.iter_values() {
-        completions += gen_completion_item(item)
+        let item_type = get_symbol_typedef(item)
+        if hint_type? and not item_type.eq(hint_type) continue
+
+        if hint_type? and hint_type.base == Enum {
+            // Suggest names of enum variants
+            let enom = hint_type.u.enum_
+            for field in enom.fields.iter() {
+                insert_completion_item(completions, field.sym, seen)
+            }
+        }
+        insert_completion_item(completions, item, seen)
     }
-    gen_completions_from_scope(scope.parent, completions)
+    gen_completions_from_scope(scope.parent, completions, hint_type, seen)
 }
 
-def gen_completion_items_from_ns(ns: &Namespace, completions: &Value) {
-    let seen = Set<str>::new()
-    defer seen.free()
-
+def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set<str>) {
     for it : ns.namespaces.iter_values() {
         seen += it.sym.name
-        completions += gen_completion_item(it.sym)
+        insert_completion_item(completions, it.sym, seen)
     }
     for it : ns.enums.iter() {
         seen += it.sym.name
-        completions += gen_completion_item(it.sym)
+        insert_completion_item(completions, it.sym, seen)
     }
     for it : ns.structs.iter() {
         seen += it.sym.name
-        completions += gen_completion_item(it.sym)
+        insert_completion_item(completions, it.sym, seen)
     }
     for it : ns.variables.iter() {
         if it.resolved_symbol? {
             seen += it.resolved_symbol.name
-            completions += gen_completion_item(it.resolved_symbol)
+            insert_completion_item(completions, it.resolved_symbol, seen)
         }
     }
     for it : ns.constants.iter() {
         if it.resolved_symbol? {
             seen += it.resolved_symbol.name
-            completions += gen_completion_item(it.resolved_symbol)
+            insert_completion_item(completions, it.resolved_symbol, seen)
         }
     }
     for it : ns.functions.iter() {
         if not it.is_method {
             seen += it.sym.name
-            completions += gen_completion_item(it.sym)
+            insert_completion_item(completions, it.sym, seen)
         }
     }
 
@@ -560,31 +570,31 @@ def gen_completion_items_from_ns(ns: &Namespace, completions: &Value) {
     }
 }
 
-def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value) {
+def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value, seen: &Set<str>) {
     match sym.type {
         Structure => {
             if node? and node.type != NSLookup {
                 for field : sym.u.struc.fields.iter() {
-                    completions += gen_completion_item(field.sym)
+                    insert_completion_item(completions, field.sym, seen)
                 }
             }
             for mth : sym.u.struc.type.methods.iter_values() {
-                completions += gen_completion_item(mth.sym)
+                insert_completion_item(completions, mth.sym, seen)
             }
         }
         TypeDef => {
             for mth : sym.u.type_def.methods.iter_values() {
-                completions += gen_completion_item(mth.sym)
+                insert_completion_item(completions, mth.sym, seen)
             }
         }
         Enum => {
-            if node? and node.type == NSLookup {
+            if (node? and node.type == NSLookup) {
                 for field : sym.u.enum_.fields.iter() {
-                    completions += gen_completion_item(field.sym)
+                    insert_completion_item(completions, field.sym, seen)
                 }
             }
             for mth : sym.u.enum_.type.methods.iter_values() {
-                completions += gen_completion_item(mth.sym)
+                insert_completion_item(completions, mth.sym, seen)
             }
         }
         Variable => {
@@ -593,10 +603,10 @@ def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value) {
                 typ = typ.u.ptr
             }
             if typ? and typ.sym? {
-                gen_completions_from_symbol(typ.sym, node, completions)
+                gen_completions_from_symbol(typ.sym, node, completions, seen)
             }
         }
-        Namespace => gen_completion_items_from_ns(sym.u.ns, completions)
+        Namespace => gen_completion_items_from_ns(completions, sym.u.ns, seen)
         else => {
             if verbose then println(f"gen_completions_json: unhandled symbol type: {sym.type}")
         }
@@ -608,6 +618,7 @@ def gen_completions_json(finder: &Finder): &Value {
     if not node? return null
 
     let completions = Value::new(List)
+    let hint_type = node.etype
 
     let sym = match node.type {
         Member => node.u.member.lhs.resolved_symbol
@@ -616,12 +627,14 @@ def gen_completions_json(finder: &Finder): &Value {
         else => null
     }
 
+    let seen = Set<str>::new()
+    defer seen.free()
     match sym? {
         // If we have a symbol to complete, we can generate completions from it...
-        true => gen_completions_from_symbol(sym, node, completions)
+        true => gen_completions_from_symbol(sym, node, completions, seen)
 
         // ...otherwise, we can generate completions from the current scope.
-        false => gen_completions_from_scope(finder.found_scope, completions)
+        false => gen_completions_from_scope(finder.found_scope, completions, hint_type, seen)
     }
 
     let obj = Value::new(Dictionary)

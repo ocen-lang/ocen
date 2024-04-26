@@ -241,7 +241,11 @@ def Finder::find_in_expression(&this, node: &AST): bool {
                 return .set_usage(node.resolved_symbol, node)
             }
         }
-
+        Error => {
+            if node.span.contains_loc(.loc) {
+                return .set_usage(node.resolved_symbol, node)
+            }
+        }
         else => {
             if verbose println("Unhandled node type in Finder::find_in_expression: %s", node.type)
         }
