@@ -86,6 +86,11 @@ def Parser::token_is(&this, type: TokenType): bool {
     return .token().type == type
 }
 
+def Parser::token_is_eof_or(&this, type: TokenType): bool {
+    if .token_is(TokenType::EOF) return true
+    return .token_is(type)
+}
+
 def Parser::token_is_identifier(&this, name: str): bool => .token().is_identifier(name)
 
 def Parser::peek_token_is(&this, off: u32, type: TokenType): bool {
@@ -192,7 +197,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         .consume(TokenType::OpenParen)
         let params = Vector<&Variable>::new()
         let is_variadic = false
-        while not .token_is(TokenType::CloseParen) {
+        while not .token_is_eof_or(TokenType::CloseParen) {
             if .token_is(TokenType::Ellipsis) {
                 .consume(TokenType::Ellipsis)
                 is_variadic = true
@@ -294,7 +299,7 @@ def Parser::parse_scoped_identifier(&this, consume_template: bool = true): &AST 
                 let start = .consume(TokenType::LessThan)
                 let args = Vector<&Type>::new()
 
-                while not .token_is(TokenType::GreaterThan) {
+                while not .token_is_eof_or(TokenType::GreaterThan) {
                     args.push(.parse_type())
                     if not .token_is(TokenType::GreaterThan) {
                         if not .consume_if(TokenType::Comma) {
@@ -454,7 +459,7 @@ def Parser::parse_match(&this): &AST {
 
     let cases = Vector<&MatchCase>::new()
     .consume(TokenType::OpenCurly)
-    while not .token_is(TokenType::CloseCurly) {
+    while not .token_is_eof_or(TokenType::CloseCurly) {
         if .token_is(TokenType::Else) {
             node.u.match_stmt.defolt_span = .token().span
             .consume(TokenType::Else)
@@ -502,7 +507,7 @@ def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
 def Parser::parse_call(&this, callee: &AST): &AST {
     let start = .consume(TokenType::OpenParen)
     let args = Vector<&Argument>::new()
-    while not .token_is(TokenType::CloseParen) {
+    while not .token_is_eof_or(TokenType::CloseParen) {
         let label_tok: &Token = null
         if .token_is(Identifier) and .peek_token_is(1, Colon) {
             label_tok = .consume(TokenType::Identifier)
@@ -531,7 +536,7 @@ def Parser::parse_var_initializer(&this): &AST {
     if .token_is(TokenType::OpenSquare) {
         let start = .consume(TokenType::OpenSquare)
         let elements = Vector<&AST>::new()
-        while not .token_is(TokenType::CloseSquare) {
+        while not .token_is_eof_or(TokenType::CloseSquare) {
             elements.push(.parse_var_initializer())
             if not .token_is(TokenType::CloseSquare) {
                 .consume(TokenType::Comma)
@@ -695,8 +700,15 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         }
         else => {
             .unhandled_type("parse_expression")
-            node = AST::new(Error, .token().span)
-            .curr += 1
+            let prev_span = .tokens[.curr - 1].span
+            let cur_span = .token().span
+
+            let err_span = Span(prev_span.end, cur_span.start)
+            if not .token_is(end_type) {
+                .curr += 1
+                err_span = cur_span
+            }
+            node = AST::new(Error, err_span)
         }
     }
     return node
@@ -1048,7 +1060,7 @@ def Parser::parse_multi_if(&this, start_tok: &Token): &AST {
     let branches = Vector<IfBranch>::new()
     node.u.if_stmt.branches = branches
 
-    while not .token_is(TokenType::CloseCurly) {
+    while not .token_is_eof_or(TokenType::CloseCurly) {
         if .token_is(TokenType::Else) {
             node.u.if_stmt.els_span = .token().span
             .consume(TokenType::Else)
@@ -1341,13 +1353,13 @@ def Parser::parse_block(&this): &AST {
     let start = .consume(TokenType::OpenCurly)
 
     let statements = Vector<&AST>::new()
-    while not .token_is(TokenType::CloseCurly) {
+    while not .token_is_eof_or(TokenType::CloseCurly) {
         let statement = .parse_statement()
         if statement? statements.push(statement)
     }
 
     if not .token_is(TokenType::CloseCurly) {
-        .error(Error::new(.token().span, "Expected '}'"))
+        .error(Error::new(.token().span, "Expected '}' at end of block"))
         return AST::new(Error, .token().span)
     }
     let end = .consume(TokenType::CloseCurly)
@@ -1360,7 +1372,7 @@ def Parser::parse_block(&this): &AST {
 def Parser::parse_template_params(&this, sym: &Symbol, out_span: &Span = null) {
     let start = .consume(TokenType::LessThan).span
     let params = Vector<&Symbol>::new()
-    while not .token_is(TokenType::GreaterThan) {
+    while not .token_is_eof_or(TokenType::GreaterThan) {
         let type = .consume(TokenType::Identifier)
         let name = type.text
         let sym = Symbol::new(TypeDef, .ns, name, name, name, type.span)
@@ -1434,7 +1446,7 @@ def Parser::parse_function(&this): &Function {
 
     .consume(TokenType::OpenParen)
     let seen_default = false
-    while not .token_is(TokenType::CloseParen) {
+    while not .token_is_eof_or(TokenType::CloseParen) {
 
         // Ellipses are only allowed as the last parameter, so we break early if we see one
         if .token_is(Ellipsis) {
@@ -1641,7 +1653,7 @@ def Parser::parse_import_path(&this, end_type: TokenType): &Vector<&ImportPart> 
             let open = .consume(TokenType::OpenCurly)
 
             let sub_paths = Vector<&Vector<&ImportPart>>::new()
-            while not .token_is(TokenType::CloseCurly) {
+            while not .token_is_eof_or(TokenType::CloseCurly) {
                 let sub_path = .parse_import_path(CloseCurly)
                 if not sub_path? return null
 
@@ -1834,7 +1846,7 @@ def Parser::parse_struct(&this): &Structure {
     // Extern structs don't need to have a body.
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
         .consume(TokenType::OpenCurly)
-        while not .token_is(TokenType::CloseCurly) {
+        while not .token_is_eof_or(TokenType::CloseCurly) {
             if not .parse_struct_field(struc) break
             if not .token_is(TokenType::CloseCurly) {
                 .consume_newline_or(TokenType::Comma)
@@ -1865,7 +1877,7 @@ def Parser::parse_enum(&this): &Enum {
     }
 
     .consume(TokenType::OpenCurly)
-    while not .token_is(TokenType::CloseCurly) {
+    while not .token_is_eof_or(TokenType::CloseCurly) {
         // Parse any attributes for the enum value
         .parse_attributes_if_any()
 
@@ -1919,7 +1931,7 @@ def Parser::parse_attribute(&this) {
     }
     let attr = Attribute::new(attr_type, name.span)
 
-    while not .token_is(TokenType::CloseSquare) {
+    while not .token_is_eof_or(TokenType::CloseSquare) {
         if not .token_is(StringLiteral) {
             .error(Error::new(.token().span, "Only string literals supported in attribute arguments"))
             .curr += 1
@@ -1949,7 +1961,7 @@ def Parser::parse_attributes_if_any(&this) {
 def Parser::parse_namespace_until(&this, end_type: TokenType) {
     .add_doc_comment(.ns.sym, .token())
 
-    while not .token_is(end_type) {
+    while not .token_is_eof_or(end_type) {
 
         .parse_attributes_if_any()
         match .token().type {

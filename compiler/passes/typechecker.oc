@@ -967,7 +967,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
     return .get_type_by_name("str", node.span)
 }
 
-def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
+def TypeChecker::check_member(&this, node: &AST, is_being_called: bool, hint: &Type = null): &Type {
     let lhs = .check_expression(node.u.member.lhs)
     if not lhs? return null
 
@@ -978,7 +978,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
 
         if not lhs.u.ptr? {
             .error(Error::new(lhs.span, "Got unresolved type"))
-            return null
+            return hint
         }
         lhs = lhs.u.ptr
     }
@@ -990,7 +990,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
     }
 
     let rhs_name = node.u.member.rhs_name
-    if not rhs_name? return null
+    if not rhs_name? return hint
 
     if lhs.base == BaseType::Structure {
         let struc = lhs.u.struc
@@ -1007,11 +1007,11 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
         if method? {
             if not is_being_called {
                 .error(Error::new(node.span, "Cannot access method without calling it"))
-                return null
+                return hint
             }
             if method.is_static {
                 .error(Error::new(node.span, "Cannot call static method as instance method"))
-                return null
+                return hint
             }
             node.u.member.is_pointer = is_pointer
             .set_resolved_symbol(node, method.sym)
@@ -1022,7 +1022,7 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool): &Type {
     .error(Error::new(
         node.span, `Type {lhs.str()} has no member named '{rhs_name}'`
     ))
-    return null
+    return hint
 }
 
 
@@ -1202,7 +1202,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             }
         }
 
-        ASTType::Member => return .check_member(node, is_being_called: false)
+        ASTType::Member => return .check_member(node, is_being_called: false, hint)
         ASTType::SizeOf => {
             let typ = .resolve_type(node.u.size_of_type)
             if not typ? return null
@@ -1361,7 +1361,9 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             arr.u.arr.size = node.u.array_literal.elements.size
             return arr
         }
-
+        Error => {
+            return hint
+        }
         else => {
             .error(Error::new(node.span, f"Invalid expression in TypeChecker::check_expression: {node.type}"))
             return null
@@ -2055,7 +2057,7 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
                     node.span, "Cannot use a non-constant value in a constant expression",
                     sym.span, "Value was defined here"
                 ))
-                return null
+                return hint
             }
             yield sym.u.var.type
         }
