@@ -816,17 +816,17 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             return lhs
         }
         LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
-            if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
-                .error(Error::new(node.span,
-                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
-                ))
-                return null
-            }
             if not lhs.eq(rhs) {
                 .error(Error::new_note(
                     node.span, "Operands must be of the same type",
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 ))
+            }
+            if not lhs.is_numeric_or_char() and lhs.base != BaseType::Pointer {
+                .error(Error::new(node.span,
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
@@ -1125,7 +1125,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             PreIncrement | PostIncrement | PreDecrement | PostDecrement => {
                 let lhs = .check_expression(node.u.unary.expr)
                 if not lhs? return null
-                if not lhs.is_integer() {
+                if not lhs.is_integer() and lhs.base != Pointer {
                     .error(Error::new(node.span, `Cannot increment or decrement non-integer type: {lhs.str()}`))
                     return null
                 }

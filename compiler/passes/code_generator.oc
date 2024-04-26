@@ -237,8 +237,10 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
 def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
     let yield_var = .yield_vars.back()
     .gen_indent()
-    .out += yield_var
-    .out += " = "
+    if not expr.returns {
+        .out += yield_var
+        .out += " = "
+    }
     .gen_expression(expr)
     .out += ";\n"
 }
@@ -287,12 +289,15 @@ def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST) {
     } else {
         let is_elif = body.type == ASTType::If
         if not is_elif then .out += "{\n"
+        .indent += 1
         // In this case, we're implicitly yielding the result of the body.
         if node.etype? and body.type != ASTType::Yield {
             .gen_yield_expression(body)
         } else {
             .gen_statement(body)
         }
+        .indent -= 1
+
         .gen_indent()
         if not is_elif then .out += "}"
     }
