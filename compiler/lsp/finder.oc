@@ -164,15 +164,15 @@ def Finder::find_in_expression(&this, node: &AST): bool {
 
         Identifier => return .find_in_identifier(node)
         Member => {
+            let rhs = node.u.member.rhs_name
+            // This is usually for autocompletion:
+            if not rhs? and .cmd == Completions and node.span.contains_loc(.loc) {
+                return .set_usage(node.u.member.lhs.resolved_symbol, node)
+            }
+
             if .find_in_expression(node.u.member.lhs) return true
             if node.u.member.rhs_span.contains_loc(.loc) {
                 return .set_usage(node.resolved_symbol, node)
-            }
-
-            // This is usually for autocompletion:
-            let rhs = node.u.member.rhs_name
-            if not rhs? and node.span.contains_loc(.loc) {
-                return .set_usage(node.u.member.lhs.resolved_symbol, node)
             }
         }
         NSLookup => {
