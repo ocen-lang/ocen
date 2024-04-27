@@ -1,4 +1,4 @@
-import std::image::{ Image, Color }
+import .{ Image, Color }
 import std::buffer::Buffer
 
 def encode(img: &Image, data: &Buffer) {

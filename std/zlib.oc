@@ -33,7 +33,7 @@ def compress(data: Buffer): Buffer {
 
     let dest_len = capacity
     let result = bindings::compress(dest.data, &dest_len, data.data, data.size as u64)
-    if result != bindings::Z_OK then panic("zlib: failed to compress data")
+    if result != bindings::Z_OK then std::panic("zlib: failed to compress data")
     dest.size = dest_len as u32
     return dest
 }
@@ -44,7 +44,7 @@ def decompress_bytes(data: &u8, size: u32, bytes_consumed: &u32): Buffer {
     let stream: bindings::Stream
     stream.avail_in = size
     stream.next_in = data
-    if stream.init() != bindings::Z_OK then panic("Failed to initialize zlib stream")
+    if stream.init() != bindings::Z_OK then std::panic("Failed to initialize zlib stream")
 
     let res = Buffer::make(capacity: size * 2)
     stream.avail_out = res.capacity
@@ -66,7 +66,7 @@ def decompress_bytes(data: &u8, size: u32, bytes_consumed: &u32): Buffer {
                 res.size = stream.total_out
                 done = true
             }
-            else => panic("zlib: failed to decompress data")
+            else => std::panic("zlib: failed to decompress data")
         }
     }
 
@@ -74,7 +74,7 @@ def decompress_bytes(data: &u8, size: u32, bytes_consumed: &u32): Buffer {
         *bytes_consumed = (stream.next_in - data) as u32
     } else {
         if (stream.next_in - data) as u32 != size {
-            panic("zlib: not all bytes were consumed, use `bytes_consumed` to get the number of bytes consumed")
+            std::panic("zlib: not all bytes were consumed, use `bytes_consumed` to get the number of bytes consumed")
         }
     }
     stream.end()

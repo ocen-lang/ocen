@@ -1,0 +1,11 @@
+/// skip
+
+import ..compiler::{ Compiler }
+
+namespace state {
+    let c: Compiler
+}
+
+import ::state::c
+
+struct GC {}

@@ -103,38 +103,19 @@ def GenericPass::insert_into_scope_checked(&this, item: &Symbol, name: str = nul
     .insert_into_scope_checked_and_export(export: false, item, name)
 }
 
-def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, error: bool): &Symbol => match sym.type {
-    Namespace => {
-        let ns = sym.u.ns
-        let res = ns.find_importable_symbol(name)
-        if error and not res? {
-            .error(Error::new(
-                span, `Could not find symbol {name} in namespace {sym.display}`,
-            ))
-        }
-        yield res
-    }
+//! Find a named value in a symbol, or return null if not found.
+def GenericPass::find_in_symbol(&this, sym: &Symbol, name: str, allow_templated: bool = false): &Symbol => match sym.type {
+    Namespace => sym.u.ns.find_importable_symbol(name)
     Structure => {
+        if sym.is_templated() and not allow_templated return null
         let struc = sym.u.struc
-        if sym.is_templated() {
-            .error(Error::new_hint(
-                span, `Need to specify template specialization for {sym.display}`,
-                sym.span, `Template was defined here`
-            ))
-        }
         let method = struc.type.methods.get(name, null)
-        if error and not method? {
-            .error(Error::new(span, `Could not find method {name} in structure {sym.display}`))
-        }
         if not method? return null
         yield method.sym
     }
     TypeDef => {
         let type_def = sym.u.type_def
         let method = type_def.methods.get(name, null)
-        if error and not method? {
-            .error(Error::new(span, `Could not find method {name} in type {sym.display}`))
-        }
         if not method? return null
         yield method.sym
     }
@@ -145,22 +126,31 @@ def GenericPass::lookup_in_symbol(&this, sym: &Symbol, name: str, span: Span, er
 
         let method = enum_.type.methods.get(name, null)
         if method? then return method.sym
+        yield null
+    }
+    else => null
+}
 
-        if error {
-            .error(Error::new_hint(
-                span, `Could not find value/method {name} in enum {sym.display}`,
-                sym.span, `Enum was defined here`
-            ))
-        }
-        return null
-    }
-    else => {
+//! Find a named value in a symbol, or give a helpful error specific to the symbol type if not found.
+def GenericPass::find_in_symbol_or_error(&this, sym: &Symbol, name: str, span: Span, error: bool): &Symbol {
+    if error and sym.is_templated() {
         .error(Error::new_hint(
-            span, `Can't lookup a name inside a {sym.type}`,
-            sym.span, `{sym.type} was defined here`
+            span, `Need to specify template specialization for {sym.display}`,
+            sym.span, `Template was defined here`
         ))
-        return null
     }
+
+    let res = .find_in_symbol(sym, name, allow_templated: true)
+    if res? or not error return res
+
+    match sym.type {
+        Namespace => .error(Error::new(span, `Could not find symbol {name} in namespace {sym.display}`))
+        Structure => .error(Error::new(span, `Could not find method {name} in structure {sym.display}`))
+        TypeDef => .error(Error::new(span, `Could not find method {name} in type {sym.display}`))
+        Enum => .error(Error::new(span, `Could not find value/method {name} in enum {sym.display}`))
+        else => .error(Error::new(span, `Can't lookup a name inside a {sym.type}`))
+    }
+    return null
 }
 
 def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) {

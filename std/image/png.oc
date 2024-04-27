@@ -4,7 +4,7 @@ import std::fs
 import std::zlib
 import std::math
 import std::{ shift_args }
-import std::image::{ Image, Color }
+import .{ Image, Color }
 
 let crc_table: [u32; 256]
 let crc_table_computed: bool = false

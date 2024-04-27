@@ -3,6 +3,7 @@
 import std::complex::Complex
 import std::math
 import std::libc::{ memset }
+import std::mem
 
 def fft_impl(data: &Complex, N: u32, out: &Complex, step: u32, factor: f32) {
     if N == 1 {

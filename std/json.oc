@@ -30,7 +30,7 @@ def Parser::token(&this): &Token => .tokens.at(.curr)
 def Parser::consume(&this, type: TokenType): &Token {
     if .token().type != type {
         println("Expected %s but got %s", type.str(), .token().type.str())
-        exit(1)
+        std::exit(1)
     }
     let tok = .token()
     .curr += 1
@@ -119,7 +119,7 @@ def Parser::parse_value(&this): &Value => match .token().type {
             }
             else => {
                 println("Unexpected token in json::Parser::parse_value: %s", next.type.str())
-                exit(1)
+                std::exit(1)
             }
         }
         next.span = start.span.join(next.span)
@@ -127,7 +127,7 @@ def Parser::parse_value(&this): &Value => match .token().type {
     }
     else => {
         println("Unexpected token in json::Parser::parse_value: %s", .token().type.str())
-        exit(1)
+        std::exit(1)
     }
 }
 
@@ -136,7 +136,7 @@ def Parser::parse(&this): &Value => match .token().type {
     OpenSquare => .parse_array()
     else => {
         println("Expected { or [ at JSON top level")
-        exit(1)
+        std::exit(1)
     }
 }
 

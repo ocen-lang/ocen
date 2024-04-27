@@ -1,6 +1,8 @@
 @compiler c_include "SDL2/SDL_ttf.h"
 @compiler c_flag "-lSDL2_ttf"
 
+import std::sdl::{ Color, Surface }
+
 [extern "TTF_Font"] struct Font
 
 [extern "TTF_OpenFont"]         def Font::load(path: str, size: i32): &Font

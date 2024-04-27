@@ -389,7 +389,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
             let name = node.u.lookup.rhs_name
             if not name? return null
 
-            let res = .o.lookup_in_symbol(lhs, name, node.span, error)
+            let res = .o.find_in_symbol_or_error(lhs, name, node.span, error)
             .set_resolved_symbol(node, res)
             return res
         }
@@ -2105,8 +2105,15 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
     return typ
 }
 
-def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts: &Vector<&ImportPart>, base: &Symbol, alias: str, start_idx: i32) {
-    for let i = start_idx as u32; i < parts.size; i += 1 {
+def TypeChecker::handle_import_path_base(
+    &this,
+    node: &AST, imp: &Import,
+    parts: &Vector<&ImportPart>,
+    base: &Symbol,
+    search_in_ns_scope: bool,  // Only important for the first part of the import path
+    alias: str = null
+) {
+    for let i = 0; i < parts.size; i += 1 {
         let part = parts.at(i)
 
         match part.type {
@@ -2118,7 +2125,7 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
                 let paths = part.u.multiple.paths
                 for let j = 0; j < paths.size; j += 1 {
                     let path = paths.at(j)
-                    .handle_import_path_base(node, imp, path, base, alias, 0)
+                    .handle_import_path_base(node, imp, path, base, search_in_ns_scope, alias)
                 }
                 return
             }
@@ -2137,7 +2144,20 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
             break
         }
 
-        let new_base = .o.lookup_in_symbol(base, name, part.u.single.alias_span, error: false)
+        let err_span = part.u.single.alias_span
+        let new_base = match search_in_ns_scope {
+            true => {
+                if base.type != Namespace {
+                    .error(Error::new(part.span, "Cannot scope-import from a non-namespace"))
+                    return
+                }
+                let res = base.u.ns.scope.lookup_recursive(name)
+                search_in_ns_scope = false
+                yield res
+            }
+            false => .o.find_in_symbol(base, name)
+        }
+
         if not new_base? {
             .error(Error::new(part.span, `Invalid import, {base.name}::{name} does not exist`))
             return
@@ -2161,34 +2181,10 @@ def TypeChecker::handle_import_path_base(&this, node: &AST, imp: &Import, parts:
 def TypeChecker::handle_import_statement(&this, node: &AST) {
     let path = node.u.import_path
 
-    // NOTE: This is a little weird, but the first part of the import can either be a symbol in
-    //       some namespace (global / parent), or it can be in the current scope. To handle these
-    //       cases, we just manually import the first part from these different locations, and then
-    //       loop over the rest of the parts.
-    let part = path.parts.at(0)
-    if part.type != Single {
-        .error(Error::new(part.span, "Invalid import, first part must be a single identifier"))
-        return
-    }
-
-    let name = part.u.single.name
-    if not name? return
-
-    let alias = part.u.single.alias
-    if not alias? then alias = name
-
-    let root_sym: &Symbol = null
-    let base = match path.type {
-        GlobalNamespace => {
-            root_sym = .o.program.global.sym
-            yield .o.program.global.find_importable_symbol(name)
-        }
-        ProjectNamespace => {
-            let project_root = .o.ns().get_project_root(node.span, .o.program)
-            if not project_root? return
-            root_sym = project_root.sym
-            yield project_root.find_importable_symbol(name)
-        }
+    let search_in_ns_scope = false
+    let base_ns = match path.type {
+        GlobalNamespace => .o.program.global,
+        ProjectNamespace => .o.ns().get_project_root(node.span, .o.program)
         ParentNamespace => {
             let cur = .o.ns()
             for let i = 0; i < path.parent_count; i += 1 {
@@ -2199,27 +2195,21 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
                 }
                 cur = cur.parent
             }
-            root_sym = cur.sym
-            yield cur.find_importable_symbol(name)
+            yield cur
         }
-
-        // This is the special case: a `Symbol` can't hold a scope, so we can't just
-        // wrap all 3 cases into a symbol and avoid the manual lookup.
         CurrentScope => {
-            root_sym = .o.ns().sym
-            yield .o.scope().lookup_recursive(name)
+            search_in_ns_scope = true
+            yield .o.ns()
         }
     }
 
-    if not base? {
-        .error(Error::new(part.span, `Couldn't import {name}`))
+    if not base_ns? {
+        .error(Error::new(node.span, "Couldn't resolve the search base for the import"))
         return
     }
 
-    node.u.import_path.root_sym = root_sym
-    part.resolved_symbol = base
-    base.add_reference(Normal, part.span)
-    .handle_import_path_base(node, &path, path.parts, base, alias, start_idx: 1)
+    node.u.import_path.root_sym = base_ns.sym
+    .handle_import_path_base(node, &path, path.parts, base_ns.sym, search_in_ns_scope, alias:null)
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {

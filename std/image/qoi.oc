@@ -1,6 +1,6 @@
 import std::buffer::{ Buffer, BytesReader }
 import std::libc::{ memset }
-import std::image::{ Image }
+import .{ Image, Color }
 
 struct RGBA {
     r: u8,
