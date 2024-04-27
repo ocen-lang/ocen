@@ -2312,24 +2312,24 @@ def Parser::include_prelude_only(&this) {
     .program.c_embeds.insert(prelude_path, content.str())
 }
 
-// This function is a bit of a hot-mess, it needs to basically be completely re-thought,
-// and combined with the logic from some of the other functions above.
-//
-// General Idea: Given an input file we are loading to the compiler, say `foo/bar/baz.oc`
-//               There's two possible options: It's either a standalone script or project.
-// Definitions:
-//   - Standalone: One-file script, no project-relative imports etc allowed. We just load the file.
-//   - Project: A project is a collection of files where we are allowed to do project-relative imports.
-//              In order to work with project-relative imports, we need to know the project root. A project
-//              *must* define it's root by having a `main.oc` file in the root directory. No other file anywhere
-//              in the project should have the name `main.oc`.
-//
-// The `single_flag` file below is supposed to tell us whether we are loading a standalone file or a project.
-// ***HOWEVER***: Currently, we don't really have a way of figuring this out automatically.
-//
-// Solution: We will naively try to traverse up the file system until we find a `main.oc` file. If we do, we
-//           consider it a project, and load the file as such. If we don't, we consider it a standalone file.
-//           In the future, we need to add flags to the compiler to be able to specify this.
+//! This function is a bit of a hot-mess, it needs to basically be completely re-thought,
+//! and combined with the logic from some of the other functions above.
+//!
+//! General Idea: Given an input file we are loading to the compiler, say `foo/bar/baz.oc`
+//!               There's two possible options: It's either a standalone script or project.
+//! Definitions:
+//!   - Standalone: One-file script, no project-relative imports etc allowed. We just load the file.
+//!   - Project: A project is a collection of files where we are allowed to do project-relative imports.
+//!              In order to work with project-relative imports, we need to know the project root. A project
+//!              *must* define it's root by having a `main.oc` file in the root directory. No other file anywhere
+//!              in the project should have the name `main.oc`.
+//!
+//! The `single_flag` file below is supposed to tell us whether we are loading a standalone file or a project.
+//! ***HOWEVER***: Currently, we don't really have a way of figuring this out automatically.
+//!
+//! Solution: We will naively try to traverse up the file system until we find a `main.oc` file. If we do, we
+//!           consider it a project, and load the file as such. If we don't, we consider it a standalone file.
+//!           In the future, we need to add flags to the compiler to be able to specify this.
 def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file: bool) {
 
     // NOTE: We currently special-case the standard library path, since it's also a "project root"

@@ -39,6 +39,14 @@ else
     exit 1
 fi
 
+echo "[+] Testing docgen"
+if ./meta/gen_docs.sh /tmp/docs.json; then
+    echo
+else
+    echo
+    echo "[-] Error: Docgen failed"
+    exit 1
+fi
 
 read -p "Are you sure you want to replace bootstrap/stage0.c? [y/N] " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then

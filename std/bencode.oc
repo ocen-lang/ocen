@@ -133,7 +133,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
             }
             sb += "e"
         }
-        else => panic(`Unsupported Value type {val.type} in Bencode::serialize_into()`)
+        else => std::panic(`Unsupported Value type {val.type} in Bencode::serialize_into()`)
     }
 }
 

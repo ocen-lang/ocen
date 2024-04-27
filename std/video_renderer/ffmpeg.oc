@@ -2,6 +2,7 @@
 
 import std::vector::Vector
 import std::image::{ Image, Color }
+import std::mem
 import std::libc:: {
     pipe, fork, dup2, close, execvp, waitpid, write, exit,
     WEXITSTATUS, WTERMSIG, WIFEXITED, WIFSIGNALED, STDIN_FILENO
