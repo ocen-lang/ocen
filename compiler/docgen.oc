@@ -279,7 +279,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     }
     ns_doc["name"] = ns.sym.name
     ns_doc["kind"] = "namespace"
-    if ns.is_a_file or ns.is_top_level {
+    if ns.is_a_file or ns.is_dir_with_mod {
         .gen_location(ns_doc, ns.span)
     }
 

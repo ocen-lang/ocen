@@ -30,6 +30,10 @@ void ae_assert(int cond, char *dbg_msg, char *msg) {
     }
     printf("--------------------------------------------------------------------------------\n");
     fflush(stdout);
-    __builtin_trap();
+    #ifdef __APPLE__
+      __builtin_debugtrap();
+    #else
+      __builtin_trap();
+    #endif
   }
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from collections import namedtuple
 import shutil
 from subprocess import run, PIPE
 import argparse
@@ -66,8 +67,10 @@ def get_expected(filename) -> Optional[Expected]:
 
     return Expected(Result.SKIP_REPORT, None)
 
-def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tuple[bool, str, Path]:
+def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
+    if debug:
+        print(f"[{num}] {path} exec_name", flush=True)
     process = run(
         [compiler, str(path), '-o', exec_name],
         stdout=PIPE,
@@ -128,6 +131,25 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
 def pool_helper(args):
     return handle_test(*args)
 
+def output_test_results(result, stats, debug):
+    passed, message, path = result
+    if sys.stdout.isatty() and not debug:
+        print(f" \33[2K[\033[92m{stats.passed:3d}\033[0m", end="")
+        print(f"/\033[91m{stats.failed:3d}\033[0m]", end="")
+        print(f" Running tests, finished {stats.passed+stats.failed} / {stats.total}\r", end="", flush=True)
+    if passed:
+        stats.passed += 1
+    else:
+        stats.failed += 1
+        if sys.stdout.isatty() and not debug:
+            print(f"\33[2K\033[91m[-] Failed {path}\033[0m")
+            print(f"  - {message}", flush=True)
+        else:
+            print(f"[-] Failed {path}")
+    if debug and not passed:
+        exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Runs ocen test suite")
     parser.add_argument(
@@ -135,6 +157,12 @@ def main():
         "--compiler",
         required=True,
         help="Path to the compiler executable"
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Run single threaded, and print all test names as we go"
     )
     parser.add_argument(
         "files",
@@ -167,12 +195,16 @@ def main():
             tests_to_run.append((file, expected))
 
     tests_to_run.sort()
-    num_passed = 0
-    num_failed = 0
-    num_total = len(tests_to_run)
+
+    # Dummy empty class to store stats, and pass mutable object to pool_helper
+    class Stats(): pass
+    stats = Stats()
+    stats.passed = 0
+    stats.failed = 0
+    stats.total = len(tests_to_run)
 
     arguments = [
-        (args.compiler, num, test_path, expected)
+        (args.compiler, num, test_path, expected, args.debug)
         for num, (test_path, expected) in enumerate(tests_to_run)
     ]
 
@@ -180,28 +212,22 @@ def main():
     shutil.rmtree("build/tests", ignore_errors=True)
     makedirs("build/tests", exist_ok=True)
 
-    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-        for passed, message, path in pool.imap_unordered(pool_helper, arguments):
-            if sys.stdout.isatty():
-                print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
-                print(f"/\033[91m{num_failed:3d}\033[0m]", end="")
-                print(f" Running tests, finished {num_passed+num_failed} / {num_total}\r", end="", flush=True)
-            if passed:
-                num_passed += 1
-            else:
-                num_failed += 1
-                if sys.stdout.isatty():
-                    print(f"\33[2K\033[91m[-] Failed {path}\033[0m")
-                    print(f"  - {message}", flush=True)
-                else:
-                    print(f"[-] Failed {path}")
+    if args.debug:
+        for inp in arguments:
+            result = pool_helper(inp)
+            output_test_results(result, stats, True)
+
+    else:
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            for result in pool.imap_unordered(pool_helper, arguments):
+                output_test_results(result, stats, False)
 
     if sys.stdout.isatty():
         print("\33[2K")
-        print(f"Tests passed: \033[92m{num_passed}\033[0m")
-        print(f"Tests failed: \033[91m{num_failed}\033[0m")
+        print(f"Tests passed: \033[92m{stats.passed}\033[0m")
+        print(f"Tests failed: \033[91m{stats.failed}\033[0m")
 
-    if num_failed > 0:
+    if stats.failed > 0:
         exit(1)
 
 

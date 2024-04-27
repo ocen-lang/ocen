@@ -341,7 +341,7 @@ def gen_namespace_json(ns: &Namespace): &Value {
     obj["name"] = ns.sym.name
     obj["detail"] = gen_hover_string(ns.sym)
     obj["kind"] = "namespace"
-    obj["range"] = gen_span_json(ns.sym.span)
+    obj["range"] = gen_span_json(ns.span)
     obj["selection_range"] = gen_span_json(ns.span)
 
     let children = Value::new(List)
@@ -367,7 +367,9 @@ def gen_namespace_json(ns: &Namespace): &Value {
     }
 
     for it : ns.namespaces.iter_values() {
-        children += gen_namespace_json(it)
+        if not it.is_a_file and not it.is_dir_with_mod {
+            children += gen_namespace_json(it)
+        }
     }
 
     obj["children"] = children
@@ -537,7 +539,7 @@ def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set
 
     // If this namespace corresponds to a directory, we want to check out the (un-loaded)
     // files / directories in the directory and add them to the completions.
-    if not (ns.is_a_file and not ns.is_top_level) {
+    if not (ns.is_a_file and not ns.is_dir_with_mod) {
         let ns_path = ns.path
         for entry in fs::iterate_directory(ns_path) {
             if entry.name in seen continue

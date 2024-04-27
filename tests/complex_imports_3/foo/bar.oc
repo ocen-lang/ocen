@@ -1,0 +1,7 @@
+/// skip
+
+import @foo::{ Foo }
+
+struct Bar {
+    foo: &Foo
+}
