@@ -48,6 +48,12 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
     )
 }
 
+def Parser::free(&this) {
+    // FIXME: Actually free the attributes, not just the vector
+    //        Also do this in `.clear_attributes()`
+    .attrs.free()
+}
+
 def Parser::peek(&this, off: i32 = 1): &Token {
     let idx = .curr as i32 + off
     assert 0i32 <= idx < (.tokens.size as i32)
@@ -2181,23 +2187,40 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
     return true
 }
 
-def Parser::find_external_library_path(&this, name: str): str {
-    for lib_path : .program.library_paths.iter() {
-        let path = if lib_path.len() > 0 then  f"{lib_path}/{name}" else name.copy()
-        if directory_exists(path) {
-            return path
-        }
-        mem::free(path)
-    }
-    return null
+struct LibraryInfo {
+    parent_dir: str
+    path: str
 }
 
-//* Finds the library with the name provided
-def Parser::find_external_library(&this, name: str): &Namespace {
-    let path = .find_external_library_path(name)
-    if not path? return null
+def Parser::find_external_library(&this, name: str): LibraryInfo {
+    for lib_path : .program.library_paths.iter() {
+        let dir_path = if lib_path.len() > 0 then  f"{lib_path}/{name}" else name.copy()
+        if directory_exists(dir_path) {
+            return LibraryInfo(
+                fs::realpath(lib_path),
+                fs::realpath(dir_path),
+            )
+        }
+        mem::free(dir_path)
 
-    let ns = Namespace::new(parent: .program.global, path: path)
+        let file_path = if lib_path.len() > 0 then  f"{lib_path}/{name}.oc" else f"{name}.oc"
+        if fs::file_exists(file_path) {
+            return LibraryInfo(
+                fs::realpath(lib_path),
+                fs::realpath(file_path),
+            )
+        }
+        mem::free(file_path)
+    }
+    return LibraryInfo(null, null)
+}
+
+//* Finds the library with the name provided, and loads it into the program.
+def Parser::import_external_lib(&this, name: str): &Namespace {
+    let lib = .find_external_library(name)
+    if not lib.path? return null
+
+    let ns = Namespace::new(parent: .program.global, path: lib.path)
     ns.sym = Symbol::new_with_parent(
         Namespace,
         ns: .program.global,
@@ -2208,7 +2231,15 @@ def Parser::find_external_library(&this, name: str): &Namespace {
     ns.sym.u.ns = ns
     ns.always_add_to_scope = true
     ns.internal_project_root = ns
-    .try_load_mod_for_namespace(ns)
+
+    if fs::directory_exists(lib.path) {
+        .try_load_mod_for_namespace(ns)
+
+    } else {
+        let parser = Parser::make(.program, ns)
+        parser.load_file(lib.path)
+        parser.free()
+    }
     return ns
 }
 
@@ -2225,7 +2256,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
             let lib_name = first_part.name
 
             if not .program.global.namespaces.contains(lib_name) {
-                let lib = .find_external_library(lib_name)
+                let lib = .import_external_lib(lib_name)
                 if not lib? {
                     .error(Error::new(import_stmt.span, `Could not find library '{lib_name}'`))
                     return false
@@ -2294,17 +2325,17 @@ def Parser::couldnt_find_stdlib(&this) {
 }
 
 def Parser::find_and_import_stdlib(&this) {
-    let std_ns = .find_external_library("std")
+    let std_ns = .import_external_lib("std")
     .program.global.namespaces.insert("std", std_ns)
 }
 
 def Parser::include_prelude_only(&this) {
     // Want to manually include the prelude
-    let std_path = .find_external_library_path("std")
-    if not std_path? {
+    let stdlib = .find_external_library("std")
+    if not stdlib.path? {
         .couldnt_find_stdlib()
     }
-    let prelude_path = f"{std_path}/prelude.h"
+    let prelude_path = f"{stdlib.path}/prelude.h"
     if not fs::file_exists(prelude_path) {
         .couldnt_find_stdlib()
     }
@@ -2335,7 +2366,7 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     // NOTE: We currently special-case the standard library path, since it's also a "project root"
     // for the standard library. We want to do this for all external libraries in the future, and have
     // some way of indicating it other than `main.oc` file.
-    let std_lib_ns = .find_external_library("std")
+    let std_lib_ns = .import_external_lib("std")
     if not std_lib_ns? then .couldnt_find_stdlib()
     let std_lib_ns_path = fs::realpath(std_lib_ns.path)
 
