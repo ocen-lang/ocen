@@ -2012,6 +2012,10 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 let type = .parse_type()
                 .consume_end_of_statement()
 
+                let sym = Symbol::new(TypeDef, .ns, name.text, name.text, name.text, name.span)
+                sym.u.type_def = type
+                type.sym = sym
+
                 if type? {
                     .ns.typedefs.insert(name.text, type)
                 }

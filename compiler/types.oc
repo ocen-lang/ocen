@@ -163,7 +163,19 @@ def Type::can_have_methods(&this): bool => match .base {
     else => false
 }
 
-def Type::is_resolved(&this): bool => .base != BaseType::Unresolved
+def Type::is_resolved(&this): bool => match .base {
+    Unresolved => false
+    Alias => .u.ptr.is_resolved()
+    Pointer => .u.ptr.is_resolved()
+    Function => {
+        let resolved = .u.func.return_type.is_resolved()
+        for param in .u.func.params.iter() {
+            resolved = resolved and param.type.is_resolved()
+        }
+        yield resolved
+    }
+    else => true
+}
 
 def Type::eq(&this, other: &Type, strict: bool = false): bool {
     if (this == null and other == null) return true
