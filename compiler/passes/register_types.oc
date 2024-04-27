@@ -3,7 +3,7 @@
 
 import std::span::Span
 import @passes::generic_pass::GenericPass
-import @ast::scopes::{ Symbol, SymbolType }
+import @ast::scopes::{ Symbol, SymbolType, Scope }
 import @ast::program::{ Program, Namespace }
 import @types::{ Type, BaseType, FunctionType }
 import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
@@ -154,7 +154,7 @@ struct Finder {
 
 def Finder::to(this, name: str): Finder {
     if not .sym? return this
-    let res = .o.lookup_in_symbol(.sym, name, Span::default(), error: false)
+    let res = .o.find_in_symbol(.sym, name, allow_templated: true)
 
     if res? {
         match res.type {
@@ -180,8 +180,22 @@ def RegisterTypes::register_cached_types(&this) {
     .o.program.cached_symbols.fmt_string_fn = res.sym
 }
 
+def RegisterTypes::create_namespace_scopes(&this, ns: &Namespace, parent: &Namespace) {
+    let parent_scope: &Scope = if {
+        not parent? => null
+        // FIXME: A file in a module with `mod.oc` shouldn't get the parent's scope
+        parent.is_dir_with_mod => parent.scope.parent
+        else => parent.scope
+    }
+    ns.scope = Scope::new(parent_scope)
+    for child : ns.namespaces.iter_values() {
+        .create_namespace_scopes(child, ns)
+    }
+}
+
 def RegisterTypes::run(program: &Program) {
     let pass = RegisterTypes(GenericPass::new(program))
+    pass.create_namespace_scopes(program.global, parent: null)
     pass.register_builtin_types()
     pass.register_namespace(program.global)
     pass.register_cached_types()

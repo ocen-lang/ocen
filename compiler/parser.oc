@@ -33,8 +33,6 @@ struct Parser {
     attrs: &Vector<&Attribute>
     attrs_span: Span
     attrs_start_tok: &Token
-
-    unhandled_imports: &Vector<&AST>
 }
 
 def Parser::make(program: &Program, ns: &Namespace): Parser {
@@ -47,7 +45,6 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         attrs: Vector<&Attribute>::new(),
         attrs_span: Span::default(),
         attrs_start_tok: null,
-        unhandled_imports: Vector<&AST>::new()
     )
 }
 
@@ -1754,7 +1751,7 @@ def Parser::parse_import(&this): &AST {
     // We only want to actually import the file(s) once we're done parsing up until
     // the end of this file, this is to better handle cases where we have circular
     // depencies between files.
-    .unhandled_imports.push(node)
+    .ns.unhandled_imports.push(node)
     return node
 }
 
@@ -2047,8 +2044,8 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
     }
 
     // After we've parsed everything in this file, go ahead and perform the imports
-    while .unhandled_imports.size > 0 {
-        let imp = .unhandled_imports.pop()
+    while .ns.unhandled_imports.size > 0 {
+        let imp = .ns.unhandled_imports.pop()
         .load_import_path(imp)
     }
 }
@@ -2110,6 +2107,8 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
 }
 
 def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Span): &Namespace {
+    .try_load_mod_for_namespace(base)
+
     if not name? return null
     let sym = base.find_importable_symbol(name)
 

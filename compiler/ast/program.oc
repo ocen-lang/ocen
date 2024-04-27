@@ -47,6 +47,9 @@ struct Namespace {
     is_dir_with_mod: bool
 
     internal_project_root: &Namespace
+
+    //! For use during parsing, we only resolve imports after parsing the namespace
+    unhandled_imports: &Vector<&AST>
 }
 
 def Namespace::new(parent: &Namespace, path: str): &Namespace {
@@ -55,7 +58,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     let parent_scope = if parent? then parent.scope else null
     let parent_root = if parent? then parent.internal_project_root else null
 
-    ns.scope = Scope::new(parent_scope)
+    ns.scope = null // Initialized post-parser
     ns.functions = Vector<&Function>::new()
     ns.structs = Vector<&Structure>::new()
     ns.enums = Vector<&Enum>::new()
@@ -65,6 +68,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.namespaces = Map<str, &Namespace>::new()
     ns.imports = Vector<&AST>::new()
     ns.exported_symbols = Map<str, &Symbol>::new()
+    ns.unhandled_imports = Vector<&AST>::new()
     ns.path = path
     ns.is_a_file = false
     ns.internal_project_root = parent_root

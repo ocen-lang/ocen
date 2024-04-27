@@ -18,6 +18,7 @@
 
 import std::vector::Vector
 import std::traits::{ hash, eq }
+import std::mem
 
 //* Linked list node for the hash map
 struct Item<K, V> {
@@ -40,7 +41,7 @@ def Item::free_list(&this) {
     let cur = this
     while cur? {
         let next = cur.next
-        mem::free(cur)
+        std::mem::free(cur)
         cur = next
     }
 }

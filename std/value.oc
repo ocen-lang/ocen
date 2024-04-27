@@ -5,6 +5,7 @@ import std::compact_map::Map
 import std::json
 import std::buffer::Buffer
 import std::span::Span
+import std::mem
 
 enum ValueType {
     Null
@@ -92,7 +93,7 @@ def Value::new_dict(map: &Map<str, &Value>): &Value {
 def Value::ensure(&this, type: ValueType) {
     if .type != type {
         println(`{.span.start}: Value type mismatch, expected {.type} but got {type}`)
-        exit(1)
+        std::exit(1)
     }
 }
 
@@ -103,7 +104,7 @@ def Value::at(&this, idx: u32): &Value {
     .ensure(List)
     if idx >= .u.as_list.size {
         println(`{.span.start}: Index out of bounds: {idx}`)
-        exit(1)
+        std::exit(1)
     }
     return .u.as_list.at(idx)
 }
@@ -113,7 +114,7 @@ def Value::at_key(&this, key: str): &Value {
     .ensure(Dictionary)
     if not .u.as_dict.contains(key) {
         println(`{.span.start}: Key not found: {key}`)
-        exit(1)
+        std::exit(1)
     }
     return .u.as_dict.get(key, null)
 }

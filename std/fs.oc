@@ -81,7 +81,7 @@ def realpath(path: str): str => bindings::realpath(path, null)
 def File::open(path: str, mode: str = "r"): &File {
     let file = bindings::fopen(path, mode)
     if not file? {
-        panic(`failed to open file: '{path}': {libc::get_err()}`)
+        std::panic(`failed to open file: '{path}': {std::libc::get_err()}`)
     }
     return file
 }
@@ -112,14 +112,14 @@ def File::truncate(&this, size: i64) {
     let fd = bindings::fileno(this)
     let res = bindings::ftruncate(fd, size)
     if res != 0 {
-        panic(`Failed to truncate file: {libc::get_err()}`)
+        std::panic(`Failed to truncate file: {std::libc::get_err()}`)
     }
 }
 
 def File::seek(&this, offset: i64, mode: SeekMode) {
     let res = bindings::fseek(this, offset, mode)
     if res != 0 {
-        panic(`Failed to seek in file: {libc::get_err()}`)
+        std::panic(`Failed to seek in file: {std::libc::get_err()}`)
     }
 }
 
@@ -127,7 +127,7 @@ def file_info(path: str): FileMetadata {
     let s: bindings::FileStat
     let res = bindings::stat(path, &s)
     if res != 0 {
-        panic(`failed to get file info: '{path}': {libc::get_err()}`)
+        std::panic(`failed to get file info: '{path}': {std::libc::get_err()}`)
     }
     return FileMetadata(
         size: s.st_size,
@@ -150,10 +150,10 @@ def file_exists(path: str): bool {
 
 def write_file_bytes(path: str, data: untyped_ptr, size: u32) {
     let file = bindings::fopen(path, "wb")
-    if not file? panic(`[-] Failed to open file: {path}`)
+    if not file? std::panic(`[-] Failed to open file: {path}`)
     let written = bindings::fwrite(data, 1, size, file)
     if written as u32 != size {
-        panic(`[-] Failed to write to file: {path}`)
+        std::panic(`[-] Failed to write to file: {path}`)
     }
     bindings::fclose(file)
 }
@@ -168,14 +168,14 @@ def write_file(path: str, data: Buffer) {
 
 def read_file(path: str): Buffer {
     let file = bindings::fopen(path)
-    if not file? panic(`[-] Failed to open file: {path}`)
+    if not file? std::panic(`[-] Failed to open file: {path}`)
     bindings::fseek(file, 0, End)
     let size = bindings::ftell(file) as u32
     bindings::fseek(file, 0, Set)
     let data = Buffer::make(capacity: size + 1)
     let read = bindings::fread(data.data, 1, size, file)
     if read as u32 != size {
-        panic(`[-] Failed to read from file: {path}`)
+        std::panic(`[-] Failed to read from file: {path}`)
     }
     bindings::fclose(file)
     data.size = size as u32
@@ -196,14 +196,14 @@ def create_directory(path: str, exists_ok: bool = false) {
     }
     let res = bindings::mkdir(path)
     if res != 0 {
-        panic(`[-] Failed to create directory: {path}`)
+        std::panic(`[-] Failed to create directory: {path}`)
     }
 }
 
 def iterate_directory(path: str, skip_self_and_parent: bool = true): DirectoryIterator {
     let dir = bindings::opendir(path)
     if dir == null {
-        panic(`[-] Failed to open directory: {path}`)
+        std::panic(`[-] Failed to open directory: {path}`)
     }
 
     let iter: DirectoryIterator

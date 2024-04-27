@@ -253,7 +253,11 @@ def Type::str(&this): str => match .base {
         buf += "fn("
         for let i = 0; i < .u.func.params.size; i += 1 {
             let param = .u.func.params.at(i)
-            buf += param.type.str()
+            if param.type? {
+                buf += param.type.str()
+            } else {
+                buf += "null"
+            }
             if i < .u.func.params.size - 1 {
                 buf += ", "
             }
