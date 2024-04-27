@@ -22,6 +22,8 @@ def Location::default(): Location {
 }
 
 def Location::hash(this): u32 => pair_hash(.filename.hash(), .index.hash())
+
+[operator "=="]
 def Location::eq(this, other: Location): bool => .filename.eq(other.filename) and .index == other.index
 
 def Location::str(&this): str { return `{.filename}:{.line}:{.col}`}
@@ -57,6 +59,8 @@ def Span::default(): Span {
 }
 
 def Span::hash(this): u32 => pair_hash(.start.hash(), .end.index.hash())
+
+[operator "=="]
 def Span::eq(this, other: Span): bool => .start.eq(other.start) and .end.eq(other.end)
 
 def Span::is_valid(this): bool {

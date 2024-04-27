@@ -87,6 +87,19 @@ def Vector::back(&this, i: u32 = 0): T {
     return .data[.size - i - 1]
 }
 
+//* Returns a pointer to the last element of the vector
+def Vector::back_ptr(&this, i: u32 = 0): &T {
+    assert .size > 0, "Empty vector in Vector::back"
+    assert i < .size, "Out of bounds in Vector::back"
+    return &.data[.size - i - 1]
+}
+
+//* Returns a pointer to the last element of the vector
+def Vector::at_ptr(&this, i: u32 = 0): &T {
+    assert i < .size, "Out of bounds in Vector::at"
+    return &.data[i]
+}
+
 [operator "[]"]
 //* Returns the element at the given index
 def Vector::at(&this, i: u32): T {

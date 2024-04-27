@@ -56,9 +56,8 @@ def Buffer::resize_if_necessary(&this, new_size: u32) {
     // NOTE: To make a buffer trivially usable as a C-style string,
     // we always allocate one extra byte for the null terminator, and
     // ensure that any unused bytes are zeroed out.
-    let new_size_nt = new_size + 1
-    if new_size_nt >= .capacity {
-        let new_capacity = u32::max(.capacity, new_size_nt)
+    if new_size + 1 >= .capacity {
+        let new_capacity = u32::max(.capacity * 3 / 2, new_size + 1)
         .data = mem::realloc<u8>(.data, .capacity, new_capacity)
         // Zero out the new capacity
         memset(.data + .capacity, 0, new_capacity - .capacity)

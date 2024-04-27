@@ -84,6 +84,8 @@ def TypeChecker::resolve_type(
     let p_r = resolve_templates
 
     let resolved = old
+    if not old? return null
+
     match old.base {
         Pointer => {
             let ptr = .resolve_type(old.u.ptr, p_a, p_e, p_r)
@@ -130,7 +132,7 @@ def TypeChecker::resolve_type(
 
             if res? {
                 match res.type {
-                    SymbolType::TypeDef => resolved = res.u.type_def
+                    SymbolType::TypeDef => resolved = .resolve_type(res.u.type_def, p_a, p_e, p_r)
                     SymbolType::Structure => {
                         let struc = res.u.struc
                         if res.is_templated() and not allow_incomplete {

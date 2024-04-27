@@ -139,8 +139,20 @@ def Finder::find_in_call_args(&this, node: &AST, args: &Vector<&Argument>): bool
 
     for let i = 0; i < args.size; i += 1 {
         let arg = args.at(i)
-        if arg.label_span.contains_loc(.loc) {
-            if verbose then println("TODO: set usage for Finder::find_in_call_args label span")
+        if arg.label? and arg.label_span.contains_loc(.loc) {
+            // Find the parameter with the same label
+            let callee_type = node.u.call.callee.etype
+            if callee_type? {
+                let found: &Variable = null
+                for param in callee_type.sym.u.func.params.iter() {
+                    if param.sym.name == arg.label {
+                        found = param
+                        break
+                    }
+                }
+                .set_usage(found.sym, node)
+            }
+            
             return true
         }
         if .find_in_expression(arg.expr) return true
