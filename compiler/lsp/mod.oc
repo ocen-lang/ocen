@@ -43,12 +43,9 @@ def typecheck_and_log_errors(program: &Program, path: str) {
     }
 
     for err : program.errors.iter() {
-        if not err.span1.start.filename? continue
-        if err.span1.start.filename.eq(path) {
-            let start = err.span1.start
-            let end = err.span1.end
-            if verbose then println("ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
-        }
+        let start = err.span1.start
+        let end = err.span1.end
+        if verbose then println("ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
     }
 }
 

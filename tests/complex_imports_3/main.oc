@@ -1,0 +1,5 @@
+/// compile
+
+import .foo::bar::{ Bar }
+
+def main() => 0

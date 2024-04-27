@@ -41,12 +41,10 @@ struct Namespace {
     // the standard library, or user-defined namespaces with the `namespace` keyword.
     always_add_to_scope: bool
 
-    // FIXME: This is hacky, but we want to include everything in `std/prelude.oc` in the
-    //        `std` namespace, as opposed to the `std::prelude` namespace. This is done by
-    //        treating `std/prelude.oc` as "top-level", which means all it's contents are put
-    //        in the same namespace as the containing folder. All other files that are imported
-    //        from the same folder will go into a new namespace as per usual.
-    is_top_level: bool
+    //! Does this namespace correspond to a directory with an implicitly loaded `mod.oc` file?
+    //! If this is true, the `path` for this namespace is the directory path, but the actual namespace
+    //! contents are from the `mod.oc` file. This works out easier when we're trying to import
+    is_dir_with_mod: bool
 
     internal_project_root: &Namespace
 }
@@ -71,6 +69,36 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.is_a_file = false
     ns.internal_project_root = parent_root
     return ns
+}
+
+//! Dumps out the contents of the namespace (not recursive) for debug
+def Namespace::dump(&this) {
+    println(f"============= NS: {.sym.display} {.path} ==============")
+    println("   Functions:")
+    for func : .functions.iter() {
+        println(f"     - {func.sym.display}")
+    }
+    println(f"   Structs:")
+    for s in .structs.iter() {
+        println(f"     - {s.sym.display}")
+    }
+    println(f"   Enums:")
+    for e in .enums.iter() {
+        println(f"     - {e.sym.display}")
+    }
+    println(f"   Constants:")
+    for c in .constants.iter() {
+        println(f"     - {c.u.var_decl.var.sym.display}")
+    }
+    println(f"   Variables:")
+    for v in .variables.iter() {
+        println(f"     - {v.u.var_decl.var.sym.display}")
+    }
+    println(f"   Typedefs:")
+    for td in .typedefs.iter() {
+        println(f"     - {td.key}")
+    }
+    println(f"=======================================================")
 }
 
 def Namespace::find_importable_symbol(&this, name: str): &Symbol {

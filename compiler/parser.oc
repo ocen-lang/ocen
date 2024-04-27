@@ -33,6 +33,8 @@ struct Parser {
     attrs: &Vector<&Attribute>
     attrs_span: Span
     attrs_start_tok: &Token
+
+    unhandled_imports: &Vector<&AST>
 }
 
 def Parser::make(program: &Program, ns: &Namespace): Parser {
@@ -45,6 +47,7 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         attrs: Vector<&Attribute>::new(),
         attrs_span: Span::default(),
         attrs_start_tok: null,
+        unhandled_imports: Vector<&AST>::new()
     )
 }
 
@@ -1720,7 +1723,7 @@ def Parser::parse_import(&this): &AST {
     }
 
     // If this is a "top-level" module, this is already at the parent directory level.
-    if .ns.is_top_level {
+    if .ns.is_dir_with_mod {
         parent_count -= 1
     }
 
@@ -1748,7 +1751,10 @@ def Parser::parse_import(&this): &AST {
         }
     }
 
-    if not .load_import_path(node) return null
+    // We only want to actually import the file(s) once we're done parsing up until
+    // the end of this file, this is to better handle cases where we have circular
+    // depencies between files.
+    .unhandled_imports.push(node)
     return node
 }
 
@@ -2039,6 +2045,12 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
             }
         }
     }
+
+    // After we've parsed everything in this file, go ahead and perform the imports
+    while .unhandled_imports.size > 0 {
+        let imp = .unhandled_imports.pop()
+        .load_import_path(imp)
+    }
 }
 
 def Parser::parse_compiler_option(&this) {
@@ -2065,7 +2077,7 @@ def Parser::parse_compiler_option(&this) {
         "c_embed" => {
             let path = .consume(TokenType::StringLiteral)
 
-            let cur_dir = if .ns.is_top_level {
+            let cur_dir = if .ns.is_dir_with_mod {
                 yield .ns.path
             } else {
                 yield .ns.parent.path
@@ -2086,8 +2098,10 @@ def Parser::parse_compiler_option(&this) {
 
 def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
     let mod_path = f"{ns.path}/mod.oc"
-    if fs::file_exists(mod_path) and not ns.is_top_level {
-        ns.is_top_level = true
+    // The `not ns.is_dir_with_mod` check is not strictly necessary, but it's just
+    // an early exit in case we've already loaded in the `mod.oc` file.
+    if fs::file_exists(mod_path) and not ns.is_dir_with_mod {
+        ns.is_dir_with_mod = true
         let parser = Parser::make(.program, ns)
         parser.load_file(mod_path)
     } else {
@@ -2096,8 +2110,6 @@ def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
 }
 
 def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Span): &Namespace {
-    .try_load_mod_for_namespace(base)
-
     if not name? return null
     let sym = base.find_importable_symbol(name)
 
@@ -2135,6 +2147,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
             let parser = Parser::make(.program, next)
             parser.load_file(path.copy())
         } else {
+            // println(f" ++ Trying to load mod for {next.sym.name}")
             .try_load_mod_for_namespace(next)
         }
         mem::free(path)
@@ -2144,7 +2157,7 @@ def Parser::load_single_import_part(&this, base: &Namespace, name: str, span: Sp
 }
 
 def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base: &Namespace): bool {
-    for let i = 0; i < parts.size and (not base.is_a_file or base.is_top_level); i += 1 {
+    for let i = 0; i < parts.size and (not base.is_a_file or base.is_dir_with_mod); i += 1 {
         let part = parts.at(i)
 
         match part.type {
@@ -2393,7 +2406,7 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
 
     // If this is a `mod.oc` file, we don't create a separate namespace for it.
     if file_base.eq("mod") {
-        cur_ns.is_top_level = true
+        cur_ns.is_dir_with_mod = true
         .ns = cur_ns
         return
     }
