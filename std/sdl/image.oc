@@ -3,4 +3,4 @@
 
 import std::sdl::{ Renderer, Texture }
 
-[extern "IMG_LoadTexture"] def Renderer::load_image(&this, path: str): &Texture
+[extern "IMG_LoadTexture"] def std::sdl::Renderer::load_image(&this, path: str): &Texture

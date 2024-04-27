@@ -1,6 +1,7 @@
 //! Library to render/display video from a series of images
 
 import std::sdl
+import std::mem
 
 import .ffmpeg::FFMPEGContext
 import .sdl::SDLContext
