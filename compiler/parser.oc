@@ -842,6 +842,7 @@ def Parser::parse_cast(&this, end_type: TokenType): &AST {
         let op = AST::new(Cast, lhs.span.join(type_node.span))
         op.u.cast.lhs = lhs
         op.u.cast.to = type_node
+        op.u.cast.parsed_to = type_node
         lhs = op
     }
     return lhs

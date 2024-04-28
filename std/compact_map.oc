@@ -19,6 +19,7 @@ struct Map<K, V> {
     items: &Vector<Item<K, V>>
     indices: &i32
     capacity: u32
+    num_tombstones: u32
 }
 
 def Map::new(capacity: u32 = 16): &Map<K, V> {
@@ -31,10 +32,12 @@ def Map::new(capacity: u32 = 16): &Map<K, V> {
     map.items = items
     map.indices = indices
     map.capacity = capacity
+    map.num_tombstones = 0
     return map
 }
 
 def Map::free(&this) {
+    if not this? return
     mem::free(.indices)
     .items.free()
     mem::free(this)
@@ -46,7 +49,9 @@ def Map::get_index(&this, key: K, hash: u32): u32 {
     let i = j
 
     let first_deleted = -1
-    while .indices[i] != INDEX_FREE {
+    let limit = .capacity * 2
+    while .indices[i] != INDEX_FREE and limit > 0 {
+        limit--
         if .indices[i] == INDEX_DELETED {
             if first_deleted < 0 {
                 first_deleted = i as i32
@@ -61,6 +66,11 @@ def Map::get_index(&this, key: K, hash: u32): u32 {
         i = j % .capacity
         perturb = perturb >> 5
     }
+
+    if limit == 0 {
+        assert false, "Map::get_index() failed to find an empty slot"
+    }
+
     if first_deleted < 0 {
         return i
     }
@@ -94,6 +104,12 @@ def Map::remove(&this, key: K) {
     .indices[index] = INDEX_DELETED
     .items.data[item_index] = last_item
     .items.pop()
+    .num_tombstones += 1
+
+    // Resize if the number of tombstones is too high
+    if .num_tombstones + .items.size >= .capacity {
+        .resize(.capacity * 2)
+    }
 }
 
 def Map::resize(&this, new_capacity: u32) {
@@ -111,6 +127,7 @@ def Map::resize(&this, new_capacity: u32) {
             .indices[index] = i as i32
         }
     }
+    .num_tombstones = 0
 }
 
 [operator "[]="]
@@ -125,6 +142,9 @@ def Map::insert(&this, key: K, value: V) {
             .resize(.capacity * 2)
         }
     } else {
+        if .indices[index] == INDEX_DELETED {
+            .num_tombstones -= 1
+        }
         let item_index = .indices[index] as u32
         .items.data[item_index].value = value   // Should be safe
     }

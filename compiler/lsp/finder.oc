@@ -217,7 +217,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         }
         Cast => {
             if .find_in_expression(node.u.cast.lhs) return true
-            return .find_in_type(node.u.cast.to)
+            return .find_in_type(node.u.cast.parsed_to)
         }
         SizeOf => return .find_in_type(node.u.size_of_type)
         If => {
