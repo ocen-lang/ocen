@@ -329,6 +329,7 @@ struct Loop {
 struct Cast {
     lhs: &AST
     to: &Type
+    parsed_to: &Type
 }
 
 struct FormatString {
