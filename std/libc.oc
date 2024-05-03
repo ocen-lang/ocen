@@ -4,6 +4,7 @@
 [extern] def free(ptr: untyped_ptr)
 [extern] def getenv(name: str): str
 [extern] def system(cmd: str): i32
+[extern] def atexit(callback: fn())
 
 [extern] [exits] def exit(code: i32)
 

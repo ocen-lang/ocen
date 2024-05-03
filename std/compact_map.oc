@@ -106,14 +106,11 @@ def Map::remove(&this, key: K) {
     .items.pop()
     .num_tombstones += 1
 
-    // Resize if the number of tombstones is too high
-    if .num_tombstones + .items.size >= .capacity {
-        .resize(.capacity * 2)
-    }
+    .resize_if_necessary()
 }
 
 def Map::resize(&this, new_capacity: u32) {
-    mem::free(.indices)
+    let old_indices = .indices
     .indices = mem::alloc<i32>(new_capacity)
     .capacity = new_capacity
     for let i = 0; i < new_capacity; i++ {
@@ -128,6 +125,13 @@ def Map::resize(&this, new_capacity: u32) {
         }
     }
     .num_tombstones = 0
+    mem::free(old_indices)
+}
+
+def Map::resize_if_necessary(&this) {
+    if .num_tombstones + .items.size as u32 >= .capacity * 3 / 4 {
+        .resize(.capacity * 2)
+    }
 }
 
 [operator "[]="]
@@ -138,9 +142,8 @@ def Map::insert(&this, key: K, value: V) {
     if .indices[index] < 0 {
         .indices[index] = .items.size as i32
         .items.push(Item<K, V>(hash, key, value))
-        if .items.size as u32 >= .capacity {
-            .resize(.capacity * 2)
-        }
+        .resize_if_necessary()
+
     } else {
         if .indices[index] == INDEX_DELETED {
             .num_tombstones -= 1
