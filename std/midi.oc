@@ -1,0 +1,250 @@
+import std::vector::Vector
+import std::buffer::{ Buffer, BytesReader }
+import std::fs
+import std::logging::{ log }
+import std::math
+
+struct Note {
+    start: f64
+    duration: f64
+    key: u8
+    velocity: u8
+}
+
+struct Track {
+    name: str
+    events: &Vector<Note>
+}
+
+struct MidiFile {
+    tracks: &Vector<Track>
+    min_note_time: f64
+    max_note_time: f64
+}
+
+struct Parser {
+    ticks: u64
+    time: f64
+    division: u64
+    tempo: u32  // microseconds per beat
+
+    min_note_time: f64
+    max_note_time: f64
+}
+
+
+
+def Parser::ticks_to_seconds(&this, ticks: u64): f64 {
+    return (ticks as f64 / .division as f64) * (.tempo as f64 / 1000000.0)
+}
+
+struct KeyState {
+    time: f64
+    velocity: u8
+}
+
+def Parser::parse_track(&this, io: &BytesReader): Track {
+    // Reset the time and ticks for each track
+    .ticks = 0
+    .time = 0.0
+    .tempo = 500000
+
+    let header = io.read_bytes_sv(4)
+    assert header == "MTrk", "Invalid track header"
+    let length = io.read_u32()
+    log(Debug, f"(MIDI) Track length: {length}")
+
+    let data = io.read_bytes_sv(length)
+
+    let notes = Vector<Note>::new()
+    let name = f"Unnamed Track"  // Allocate
+
+    let prev_status = 0u8
+    let tio = data.reader()
+
+    let keystate: [KeyState; 128]
+
+    while not tio.is_empty() {
+        let delta_ticks = read_var_length(&tio) as u64
+        .ticks += delta_ticks
+
+        let delta_time = .ticks_to_seconds(delta_ticks as u64)
+        .time += delta_time
+
+        let status = tio.read_u8()
+        if status & 0x80 == 0 {
+            // Running status
+            status = prev_status
+            tio.index--
+        } else {
+            prev_status = status
+        }
+
+
+        match status & 0xF0 {
+            0xc0 => { // Program change
+                let channel = status & 0x0F
+                let program = tio.read_u8()
+                log(Debug, f"(MIDI)      Program change: channel={channel}, program={program}")
+            }
+            0xb0 => { // Control change
+                let channel = status & 0x0F
+                let control = tio.read_u8()
+                let value = tio.read_u8()
+                log(Debug, f"(MIDI)      Control change: channel={channel}, control={control}, value={value}")
+            }
+            0x90 => { // Note on
+                let channel = status & 0x0F
+                let note = tio.read_u8()
+                let velocity = tio.read_u8()
+
+                log(Debug, f"(MIDI)      Note on: channel={channel}, note={note}, velocity={velocity}, time={.time}, ticks={.ticks}")
+
+                // Special case for note-off
+                if velocity == 0 {
+                    let ks = keystate[note]
+                    let duration = .time - ks.time
+                    notes.push(Note(ks.time, duration, note, ks.velocity))
+                    .max_note_time = .max_note_time.max(.time)
+
+                // Normal note on event
+                } else {
+                    keystate[note] = KeyState(.time, velocity)
+                    .min_note_time = .min_note_time.min(.time)
+                }
+
+
+            }
+            0x80 => { // Note off
+                let channel = status & 0x0F
+                let note = tio.read_u8()
+                let velocity = tio.read_u8()
+                log(Debug, f"(MIDI)      Note off: channel={channel}, note={note}, velocity={velocity}")
+
+                let ks = keystate[note]
+                let duration = .time - ks.time
+                notes.push(Note(ks.time, duration, note, ks.velocity))
+                .max_note_time = .max_note_time.max(.time)
+            }
+            0xd0 => { // Channel pressure
+                let channel = status & 0x0F
+                let pressure = tio.read_u8()
+                log(Debug, f"(MIDI)      Channel pressure: channel={channel}, pressure={pressure}")
+            }
+            0xe0 => { // Pitch bend
+                let channel = status & 0x0F
+                let lsb = tio.read_u8()
+                let msb = tio.read_u8()
+                let value = (msb as u16 << 7) | lsb as u16
+                log(Debug, f"(MIDI)      Pitch bend: channel={channel}, value={value}")
+            }
+            else => match status {
+                0xff => { // Meta event
+                    let meta_type = tio.read_u8()
+                    log(Debug, f"(MIDI)      Meta event, type: {meta_type:02x}")
+                    match meta_type {
+                        0x00 => { tio.read_bytes_sv(2) } // Sequence number
+                        0x01 | 0x02 | 0x03 | 0x04 | 0x05 | 0x06 | 0x07 | 0x08 |
+                        0x09 | 0x0a | 0x0b | 0x0c | 0x0d | 0x0e | 0x0f => { // Text event
+                            let length = read_var_length(&tio)
+                            let text = tio.read_bytes_sv(length)
+                            log(Debug, f"(MIDI)      Text: {text}")
+                            if meta_type == 0x03 {
+                                name.free()
+                                name = text.copy_data_to_cstr()
+                            }
+                        }
+                        0x20 => { tio.read_bytes_sv(2) } // Channel prefix
+                        0x21 => { tio.read_bytes_sv(2) } // Port
+                        0x2f => { tio.read_bytes_sv(1) } // End of track
+                        0x7f => { // Sequencer specific
+                            let length = read_var_length(&tio)
+                            let data = tio.read_bytes_sv(length)
+                            log(Debug, f"(MIDI)      Sequencer specific: {data}")
+                        }
+                        0x51 => { // Tempo
+                            assert tio.read_u8() == 0x03
+                            let tempo = tio.read_u16() as u32 << 8 | tio.read_u8() as u32 // 24-bit tempo
+                            log(Debug, f"(MIDI)      Tempo: {tempo}")
+                            .tempo = tempo
+                        }
+                        0x58 => { // Time signature
+                            assert tio.read_u8() == 0x04
+                            let num = tio.read_u8()
+                            let den = tio.read_u8()
+                            let clocks = tio.read_u8()
+                            let notes = tio.read_u8()
+                            log(Debug, f"(MIDI)      Time signature: {num}/{den as u32}, clocks={clocks}, notes={notes}")
+                        }
+                        0x59 => { // Key signature
+                            assert tio.read_u8() == 0x02
+                            let sf = tio.read_i8()
+                            let mi = tio.read_u8()
+                            log(Debug, f"(MIDI)      Key signature: sf={sf}, mi={mi}")
+                        }
+                        else => {
+                            log(Error, f"(MIDI) Unknown meta type: {meta_type:02x}")
+                            std::exit(1)
+                        }
+                    }
+                }
+                else => {
+                    log(Error, f"(MIDI) Unknown Status: {status:02x}")
+                    std::exit(1)
+                }
+            }
+        }
+    }
+
+    return Track(name, events: notes)
+}
+
+def Parser::parse_midi(&this, io: &BytesReader): MidiFile {
+    let header = io.read_bytes_sv(4)
+    assert header == "MThd", "Invalid header"
+    let length = io.read_u32()
+    let format = io.read_u16()
+    let num_tracks = io.read_u16()
+    log(Debug, f"(MIDI) Number of tracks: {num_tracks}, length: {length}, format: {format}")
+    let division = io.read_u16()
+    assert division & 0x8000 == 0, "SMPTE time division not supported"
+
+    .division = division as u64
+
+    log(Debug, f"(MIDI) Division: PPQ")
+    log(Debug, f"(MIDI) Division: (14-0): {division}")
+
+    let tracks = Vector<Track>::new()
+
+    while not io.is_empty() {
+        let track = .parse_track(io)
+        if track.events.size == 0 {
+            track.name.free()
+            track.events.free()
+        } else {
+            tracks.push(track)
+        }
+    }
+    return MidiFile(tracks, .min_note_time, .max_note_time)
+}
+
+def read_var_length(io: &BytesReader): u32 {
+    let res = 0
+    while true {
+        let byte = io.read_u8()
+        res = (res << 7) | (byte & 0x7F) as u32
+        if byte & 0x80 == 0 {
+            break
+        }
+    }
+    return res
+}
+
+def parse_file(filename: str): MidiFile {
+    let data = fs::read_file(filename)
+    let io = data.reader()
+    let parser: Parser
+    let midi = parser.parse_midi(&io)
+    data.free()
+    return midi
+}

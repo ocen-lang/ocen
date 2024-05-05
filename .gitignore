@@ -22,6 +22,8 @@ test.txt
 /*.json
 /*.txt
 /*.py
+/*.wav
+/*.mid
 
 out.c
 out
