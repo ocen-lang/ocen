@@ -5,6 +5,7 @@
 //!
 //! Inspired by https://github.com/tsoding/sv
 
+import std::mem
 import std::buffer::{ Buffer, BytesReader }
 import std::libc::{ memcmp, strtoul, strtoll }
 
@@ -276,6 +277,15 @@ def SV::iter_pred(this, pred: fn(SV): u32): SVPredicateIterator => SVPredicateIt
 
 //* Return a BytesReader for the string view to read binary data
 def SV::reader(this): BytesReader => BytesReader::make(.data as &u8, .len)
+
+//* Copy the data of the string view to a C string, and null-terminate it
+//* The caller is responsible for freeing the memory
+def SV::copy_data_to_cstr(this): str {
+    let buf = mem::alloc<char>(.len + 1)
+    std::libc::memcpy(buf, .data, .len)
+    buf[.len] = '\0'
+    return buf
+}
 
 //* Iterator over the lines of a string view
 struct SVLineIterator {

@@ -49,9 +49,7 @@ def Map::get_index(&this, key: K, hash: u32): u32 {
     let i = j
 
     let first_deleted = -1
-    let limit = .capacity * 2
-    while .indices[i] != INDEX_FREE and limit > 0 {
-        limit--
+    while .indices[i] != INDEX_FREE {
         if .indices[i] == INDEX_DELETED {
             if first_deleted < 0 {
                 first_deleted = i as i32
@@ -65,10 +63,6 @@ def Map::get_index(&this, key: K, hash: u32): u32 {
         j = 5 * j + perturb + 1
         i = j % .capacity
         perturb = perturb >> 5
-    }
-
-    if limit == 0 {
-        assert false, "Map::get_index() failed to find an empty slot"
     }
 
     if first_deleted < 0 {

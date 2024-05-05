@@ -34,11 +34,20 @@ def f64::inf(): f64 => INFINITY
 [extern "rand"] def randint(): i32
 [extern "drand48"] def rand01(): f32
 
+[extern "powf"] def f32::pow(this, exp: f32): f32
+
 def f32::min(this, b: f32): f32 => if this < b then this else b
 def f32::max(this, b: f32): f32 => if this > b then this else b
 
+def f64::min(this, b: f64): f64 => if this < b then this else b
+def f64::max(this, b: f64): f64 => if this > b then this else b
+
+
 def f32::clamp(this, min: f32, max: f32): f32 => f32::max(f32::min(this, max), min)
 def f32::clamp01(this): f32 => this.clamp(0.0, 1.0)
+
+def f64::clamp(this, min: f64, max: f64): f64 => f64::max(f64::min(this, max), min)
+def f64::clamp01(this): f64 => this.clamp(0.0, 1.0)
 
 def f32::is_close(this, other: f32, thresh: f32 = 0.0001): bool => (this - other).abs() < thresh
 def f64::is_close(this, other: f64, thresh: f64 = 0.0001): bool => (this - other).abs() < thresh

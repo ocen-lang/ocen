@@ -1,0 +1,25 @@
+/// compile
+
+namespace tmp {
+    typedef Bar = fn(u32, u32): u32
+
+    struct Foo {
+        bar: Bar
+    }
+
+    def Foo::init(&this, bar: Bar) {
+        .bar = bar
+    }
+}
+
+import ::tmp::Bar
+
+struct Qux {
+    foo: tmp::Foo
+}
+
+def Qux::initlol(&this, bar: Bar) {
+    .foo = tmp::Foo(bar)
+}
+
+def main() => 0

@@ -676,9 +676,10 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             node.u.bool_literal = tok.type == TokenType::True
         }
         TokenType::OpenParen => {
-            .consume(TokenType::OpenParen)
+            let start = .consume(TokenType::OpenParen)
             node = .parse_expression(end_type: TokenType::CloseParen)
-            .consume(TokenType::CloseParen)
+            let end = .consume(TokenType::CloseParen)
+            node.span = start.span.join(end.span)
         }
         TokenType::Dot => {
             let tok = .consume(TokenType::Dot)
