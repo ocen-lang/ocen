@@ -221,12 +221,7 @@ def lsp_main(argc: i32, argv: &str) {
 
     // Load the program
     let program = Program::new()
-
-    let ocen_root = std::libc::getenv("OCEN_ROOT")
-    if not ocen_root? or ocen_root.len() == 0 {
-        ocen_root = "."
-    }
-    program.library_paths.push(ocen_root)
+    program.setup_library_paths()
 
     let contents = fs::read_file(file_path).str()
     Parser::parse_toplevel(program, show_path, true, contents, include_workspace_main: true)

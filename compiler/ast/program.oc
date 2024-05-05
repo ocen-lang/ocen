@@ -5,6 +5,7 @@ import std::span::Span
 import std::map::Map
 import std::mem
 import std::setjmp::{ ErrorContext }
+import std::sv::{ SV }
 import @ast::scopes::{ Symbol, Scope }
 import @ast::nodes::{ AST, Function, Structure, Enum }
 import @ast::operators::{ OperatorOverload }
@@ -204,6 +205,22 @@ def Program::new(): &Program {
     prog.library_paths = Vector<str>::new()
     prog.operator_overloads = Map<OperatorOverload, &Function>::new()
     return prog
+}
+
+def Program::setup_library_paths(&this) {
+    .library_paths.push("")
+    let ocen_root = std::libc::getenv("OCEN_ROOT")
+    if ocen_root? and ocen_root.len() > 0 {
+        .library_paths.push(ocen_root)
+    }
+
+    let ocen_lib = std::libc::getenv("OCEN_LIB")
+    if ocen_lib? {
+        let oc_sv = SV::from_str(ocen_lib)
+        for part in oc_sv.split_str(":") {
+            .library_paths.push(part.copy_data_to_cstr())
+        }
+    }
 }
 
 def Program::exit_with_errors_if_any(&this) {
