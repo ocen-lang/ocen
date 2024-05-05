@@ -13,13 +13,25 @@ struct Note {
 
 struct Track {
     name: str
-    events: &Vector<Note>
+    notes: &Vector<Note>
+}
+
+def Track::free(&this) {
+    .name.free()
+    .notes.free()
 }
 
 struct MidiFile {
     tracks: &Vector<Track>
     min_note_time: f64
     max_note_time: f64
+}
+
+def MidiFile::free(&this) {
+    for track in .tracks.iter() {
+        track.free()
+    }
+    .tracks.free()
 }
 
 struct Parser {
@@ -168,6 +180,15 @@ def Parser::parse_track(&this, io: &BytesReader): Track {
                             log(Debug, f"(MIDI)      Tempo: {tempo}")
                             .tempo = tempo
                         }
+                        0x54 => { // SMPTE offset
+                            assert tio.read_u8() == 0x05
+                            let hr = tio.read_u8()
+                            let mn = tio.read_u8()
+                            let se = tio.read_u8()
+                            let fr = tio.read_u8()
+                            let ff = tio.read_u8()
+                            log(Debug, f"(MIDI)      SMPTE offset: {hr}:{mn}:{se}:{fr}:{ff}")
+                        }
                         0x58 => { // Time signature
                             assert tio.read_u8() == 0x04
                             let num = tio.read_u8()
@@ -196,7 +217,7 @@ def Parser::parse_track(&this, io: &BytesReader): Track {
         }
     }
 
-    return Track(name, events: notes)
+    return Track(name, notes)
 }
 
 def Parser::parse_midi(&this, io: &BytesReader): MidiFile {
@@ -218,9 +239,9 @@ def Parser::parse_midi(&this, io: &BytesReader): MidiFile {
 
     while not io.is_empty() {
         let track = .parse_track(io)
-        if track.events.size == 0 {
+        if track.notes.size == 0 {
             track.name.free()
-            track.events.free()
+            track.notes.free()
         } else {
             tracks.push(track)
         }

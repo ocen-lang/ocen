@@ -22,6 +22,7 @@
 #include <string.h>
 #include <signal.h>
 #include <inttypes.h>
+#include <execinfo.h>
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -36,6 +37,15 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
+void dump_backtrace() {
+  void *array[40];
+  size_t size = backtrace(array, 40);
+  char **strings = backtrace_symbols(array, size);
+  for (size_t i = 1; i < size; i++) {
+    printf("%s\n", strings[i]);
+  }
+  free(strings);
+}
 
 void ae_assert(int cond, char *dbg_msg, char *msg) {
   if (!cond) {
@@ -46,6 +56,7 @@ void ae_assert(int cond, char *dbg_msg, char *msg) {
     }
     printf("--------------------------------------------------------------------------------\n");
     fflush(stdout);
+    dump_backtrace();
     #ifdef __APPLE__
       __builtin_debugtrap();
     #else
@@ -2016,7 +2027,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_internal_prin
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__7 *params, bool is_variadic);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *_lhs, compiler_types_Type *_rhs);
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_operators_Operator op, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
@@ -3331,7 +3342,7 @@ void compiler_parser_Parser_free(compiler_parser_Parser *this) {
 
 compiler_tokens_Token *compiler_parser_Parser_peek(compiler_parser_Parser *this, i32 off) {
   i32 idx = (((i32)this->curr) + off);
-  ae_assert((0 <= idx) && (idx < ((i32)this->tokens->size)), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:59:12: Assertion failed: `0i32 <= idx < (.tokens.size as i32`", NULL);
+  ae_assert((0 <= idx) && (idx < ((i32)this->tokens->size)), "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:59:12: Assertion failed: `0i32 <= idx < (.tokens.size as i32)`", NULL);
   return std_vector_Vector__2_at(this->tokens, ((u32)idx));
 }
 
@@ -3958,9 +3969,10 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_atom(compiler_parser_Parser
       node->u.bool_literal=tok->type==compiler_tokens_TokenType_True;
     } break;
     case compiler_tokens_TokenType_OpenParen: {
-      compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenParen);
+      compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenParen);
       node=compiler_parser_Parser_parse_expression(this, compiler_tokens_TokenType_CloseParen);
-      compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseParen);
+      compiler_tokens_Token *end = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseParen);
+      node->span=std_span_Span_join(start->span, end->span);
     } break;
     case compiler_tokens_TokenType_Dot: {
       compiler_tokens_Token *tok = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Dot);
@@ -4830,7 +4842,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1620:12: Assertion failed: `attr.type == Extern`", NULL);
+  ae_assert(attr->type==compiler_attributes_AttributeType_Extern, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1621:12: Assertion failed: `attr.type == Extern`", NULL);
   sym->is_extern=true;
   if (attr->args->size > 0) {
     sym->extern_name=std_vector_Vector__4_at(attr->args, 0);
@@ -5429,8 +5441,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__1 *parts = path->parts;
-        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2253:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
-        ae_assert(std_vector_Vector__1_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2254:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
+        ae_assert(parts->size > 0, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2254:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path");
+        ae_assert(std_vector_Vector__1_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single, "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2255:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import");
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__1_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
@@ -7176,7 +7188,7 @@ void compiler_passes_typechecker_TypeChecker_set_resolved_symbol(compiler_passes
         __yield_0 = node->u.lookup.rhs_span;
       } break;
       case compiler_ast_nodes_ASTType_Member: {
-        if (node->u.member.dot_shorthand) {
+        if (str_eq(sym->name, "this") && node->u.member.dot_shorthand) {
           ref_type=compiler_ast_scopes_ReferenceType_DotShorthand;
         }
         __yield_0 = node->u.member.rhs_span;
@@ -7789,16 +7801,16 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler
   return func.return_type;
 }
 
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *_lhs, compiler_types_Type *_rhs) {
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
   compiler_ast_operators_Operator op = node->u.binary.op;
   if (op==compiler_ast_operators_Operator_Plus || op==compiler_ast_operators_Operator_Minus) {
-    if (_lhs->base==compiler_types_BaseType_Pointer && compiler_types_Type_is_integer(_rhs)) {
-      return _lhs;
+    if (lhs->base==compiler_types_BaseType_Pointer && compiler_types_Type_is_integer(rhs)) {
+      return lhs;
     }
-    if (compiler_types_Type_is_integer(_lhs) && _rhs->base==compiler_types_BaseType_Pointer) {
-      return _rhs;
+    if (compiler_types_Type_is_integer(lhs) && rhs->base==compiler_types_BaseType_Pointer) {
+      return rhs;
     }
-    if (compiler_types_Type_eq(_lhs, _rhs, false) && _lhs->base==compiler_types_BaseType_Pointer) {
+    if (compiler_types_Type_eq(lhs, rhs, false) && lhs->base==compiler_types_BaseType_Pointer) {
       if (op==compiler_ast_operators_Operator_Minus) {
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_I64, node->span);
       }
@@ -11765,16 +11777,17 @@ void compiler_lsp_lsp_usage(i32 code, bool full) {
   }
   printf("--------------------------------------------------------""\n");
   printf("LSP Options:""\n");
-  printf("    --show-path path   Display this file path instead of actual one""\n");
-  printf("    -h <line> <col>    Type hints for the given location""\n");
-  printf("    -d <line> <col>    Find definition for the given location""\n");
-  printf("    -t <line> <col>    Find type for the given location""\n");
-  printf("    -c <line> <col>    Completions for the given location""\n");
-  printf("    -r <line> <col>    References for the given location""\n");
-  printf("    -s <line> <col>    Signature Help for the given location""\n");
-  printf("    -v                 Verbose output""\n");
-  printf("    --doc-symbols      List all symbols in the file""\n");
-  printf("    --validate         List all errors in the file""\n");
+  printf("    --show-path path          Display this file path instead of actual one""\n");
+  printf("    -h <line> <col>           Type hints for the given location""\n");
+  printf("    -d <line> <col>           Find definition for the given location""\n");
+  printf("    -t <line> <col>           Find type for the given location""\n");
+  printf("    -c <line> <col>           Completions for the given location""\n");
+  printf("    -r <line> <col>           References for the given location""\n");
+  printf("    -s <line> <col>           Signature Help for the given location""\n");
+  printf("    --renames <line> <col>    Find all references for the given location""\n");
+  printf("    -v                        Verbose output""\n");
+  printf("    --doc-symbols             List all symbols in the file""\n");
+  printf("    --validate                List all errors in the file""\n");
   exit(code);
 }
 
@@ -11848,7 +11861,18 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
   compiler_ast_program_Program *program = compiler_ast_program_Program_new();
   compiler_ast_program_Program_setup_library_paths(program);
   char *contents = std_buffer_Buffer_str(std_fs_read_file(file_path));
-  compiler_parser_Parser_parse_toplevel(program, show_path, true, contents, true);
+  bool include_workspace_main = ({ bool __yield_0;
+    switch (cmd_type) {
+      case compiler_lsp_CommandType_References:
+      case compiler_lsp_CommandType_Renames: {
+        __yield_0 = true;
+      } break;
+      default: {
+        __yield_0 = false;
+      } break;
+    }
+;__yield_0; });
+  compiler_parser_Parser_parse_toplevel(program, show_path, true, contents, include_workspace_main);
   switch (cmd_type) {
     case compiler_lsp_CommandType_DocumentSymbols: {
       compiler_lsp_handle_document_symbols(program, show_path);
