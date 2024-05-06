@@ -1,4 +1,72 @@
-# Installation
+## Table of Contents
+- [Table of Contents](#table-of-contents)
+- [Installation](#installation)
+  - [Building from source](#building-from-source)
+  - [Environment Setup](#environment-setup)
+  - [VSCode Extension](#vscode-extension)
+- [Annotated Hello World](#annotated-hello-world)
+- [Builtins](#builtins)
+  - [Type Modifiers](#type-modifiers)
+- [Strings](#strings)
+  - [String Literals](#string-literals)
+  - [Format Strings](#format-strings)
+- [Variables, and literals](#variables-and-literals)
+- [Global variables and constants](#global-variables-and-constants)
+- [Arithmetic, Comparisions, other operators](#arithmetic-comparisions-other-operators)
+  - [Pointer Arithmetic](#pointer-arithmetic)
+- [Arrays, Pointers, and Indexing](#arrays-pointers-and-indexing)
+- [Control flow](#control-flow)
+  - [If statements](#if-statements)
+- [While Loops](#while-loops)
+- [For loops](#for-loops)
+  - [For-each loops](#for-each-loops)
+- [Match statement](#match-statement)
+- [Expression Statements](#expression-statements)
+- [Casting](#casting)
+- [Functions](#functions)
+  - [Parameter labels](#parameter-labels)
+  - [Default arguments](#default-arguments)
+  - [Arrow functions](#arrow-functions)
+  - [Variadic functions](#variadic-functions)
+- [Structs / Unions](#structs--unions)
+  - [Constructors](#constructors)
+- [Enums](#enums)
+- [Methods](#methods)
+  - [Static Methods](#static-methods)
+  - [Instance Methods](#instance-methods)
+  - [Dot Shorthand](#dot-shorthand)
+- [Templates](#templates)
+  - [Template functions](#template-functions)
+  - [Template Structs](#template-structs)
+- [Explicit Namespaces](#explicit-namespaces)
+- [Modules, Importing, and Libraries](#modules-importing-and-libraries)
+  - [Project vs Single File](#project-vs-single-file)
+  - [The Import Statement](#the-import-statement)
+    - [Multiple imports](#multiple-imports)
+  - [Aliasing](#aliasing)
+  - [What can be Imported?](#what-can-be-imported)
+  - [Directories as Modules](#directories-as-modules)
+  - [Types of Imports](#types-of-imports)
+    - [Library Imports](#library-imports)
+    - [Project-Relative Imports](#project-relative-imports)
+    - [File-Relative Imports](#file-relative-imports)
+    - [Current Scope Imports](#current-scope-imports)
+  - [The Standard Library](#the-standard-library)
+- [Attributes](#attributes)
+  - [`extern` attribute, Interfacing with C functions](#extern-attribute-interfacing-with-c-functions)
+    - [Complex Structure Bindings](#complex-structure-bindings)
+    - [Method Bindings](#method-bindings)
+    - [Enum Bindings](#enum-bindings)
+    - [Miscellaneous Binding Tips](#miscellaneous-binding-tips)
+  - [`exits` attribute, Non-returning functions](#exits-attribute-non-returning-functions)
+  - [`export` attribute, Re-exporting symbols](#export-attribute-re-exporting-symbols)
+  - [`operator` attribute, Operator Overloading](#operator-attribute-operator-overloading)
+  - [`atomic` attribute, Atomic Variables](#atomic-attribute-atomic-variables)
+  - [`variadic_format` attribute, Format Strings as arguments](#variadic_format-attribute-format-strings-as-arguments)
+  - [`formatting` attribute, Basic Formatting of custom structs](#formatting-attribute-basic-formatting-of-custom-structs)
+
+
+## Installation
 
 > [!NOTE]
 > Ocen is tested on Linux and macOS. Windows (and MSVC) are not supported
@@ -11,7 +79,7 @@ available on your `PATH` to compile the resulting C code. Alternatively,
 you can use the `CC` environment variable to specify a different
 compiler.
 
-## Building from source
+### Building from source
 
 ``` bash
 $ git clone https://github.com/ocen-lang/ocen ~/ocen
@@ -20,7 +88,7 @@ $ ./meta/bootstrap.sh
 $ ./bootstrap/ocen --help
 ```
 
-## Environment Setup
+### Environment Setup
 
 In order to use Ocen to compile and run other programs, you\'ll need to
 set up your environment so the compiler can find the standard library
@@ -39,7 +107,7 @@ system:
 $ ocen --help
 ```
 
-## VSCode Extension
+### VSCode Extension
 
 Ocen has a VSCode extension that provides syntax highlighting and some
 basic LSP features. For the extension to work, you need to have the Ocen
@@ -61,8 +129,6 @@ Some tips for using the extension:
     the changes.
 -   The extension provides some convenient snippets for common
     constructs in Ocen.
-
-# Language
 
 ## Annotated Hello World
 
@@ -113,7 +179,8 @@ let s = "Hello, I'm a constant string"
 ### Format Strings
 
 Additionally, There are format strings available, using `\`` or Python-style `f""` (no difference,
-just preference). Unless they are directly being passed to a variadic function, they will
+just preference). Unless they are directly being
+[passed to a variadic function](#variadic_format-attribute-format-strings-as-arguments), they will
 dynamically allocate memory, which needs to be freed by the user. They are null-terminated.
 
 ```js
@@ -882,6 +949,13 @@ not_bar()
 baz()
 ```
 
+### What can be Imported?
+
+By default, only definitions created in the current file can be imported from it. Anything
+that the file has imported for itself stays hidden from everyone outside the file.
+
+However, [it is possible to re-export symbols](#export-attribute-re-exporting-symbols).
+
 ### Directories as Modules
 
 Whenever a directory is looked at as a part of an import statement, the Ocen compiler
@@ -1260,6 +1334,12 @@ println("f has the value Foo(%u)", (f).x)
 
 Here's a more complex example:
 
+> [!NOTE]
+> In complex cases, we evaulate the expression passed to the format string multiple times. To avoid potential
+> bugs due to unwanted side-effects, the compiler prohibits you from using arbitrary expressions that result
+> in the `StringView` (or other custom) type. The recommendation is to save the value to a variable, and pass
+> just the variable to the format string as an expression.
+
 ```rust
 // 1. Note how the first argument is an arbitrary string, with multiple specifiers
 // 2. We can use `$` multiple times, and can comma-separate multiple arguments
@@ -1275,9 +1355,3 @@ println(`s = {s}`)
 // Automatically gets expanded to:
 println("s = SV(size=%u, data='%.*s')", (s).size, (s).size, (s).data)
 ```
-
-> [!NOTE]
-> In complex cases, we evaulate the expression passed to the format string multiple times. To avoid potential
-> bugs due to unwanted side-effects, the compiler prohibits you from using arbitrary expressions that result
-> in the `StringView` (or other custom) type. The recommendation is to save the value to a variable, and pass
-> just the variable to the format string as an expression.
