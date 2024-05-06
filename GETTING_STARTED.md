@@ -72,8 +72,8 @@ Some tips for using the extension:
 // Entry point is `main`. Arguments for main are optional, and
 // Return type is implicitly `i32`
 def main(argc: i32, argv: &str) {
-    // `print` and `println` are builtin functions, that work like C
-    println("Hello world from %s", "ocen")
+   // `print` and `println` are builtin functions, that work like C
+   println("Hello world from %s", "ocen")
 }
 
 ```
@@ -119,7 +119,7 @@ dynamically allocate memory, which needs to be freed by the user. They are null-
 ```js
 // NOTE: no `$` is needed before the curly brackets.
 let a = `X is {X} and 3+4 = {3 + 4}`
-let b = `I allocate memory. {{`        // Use double curly to escape it
+let b = `I allocate memory. \{`        // Escape curly
 let c = f"0.1 + 0.2 = {0.1+0.2:.1f}"   // Explicit format specifier
 
 // `print` and `println` functions are variadic - no allocation happens here,
@@ -207,9 +207,9 @@ a or b
 not a
 
 // Comparison
-a > b   a >= b
-a < b   a <= b
-a == b  a != b
+a >  b      a >= b
+a <  b      a <= b
+a == b     a != b
 a < b <= c < d       // Allowed
 
 // Increment / Decrement
@@ -268,7 +268,15 @@ Ocen has 2 types of `if` statements: the regular kind, and what is internally re
 `multi-if`. They are semantically equivalent, and can be used based on syntactical preference.
 No parenthesis are needed around the conditions.
 
+An if-statement accepts an optional `then` keyword after the condition, which can be useful
+when writing single line if statements.
+
 ```rust
+if some_cond { println("true") }    // One liner - with curlies, technically allowed
+if some_cond println("true")        // Also allowed, but sometimes ambiguous
+if some_cond then println("true")   // Preferred way of writing one liners
+
+
 // Regular if statement
 if foo {
    do_foo()
@@ -313,15 +321,120 @@ for let i = 0; i < 10; i++ {
 
 ### For-each loops
 
-On supported iterator types, you can use the following syntax. More details on this are in
-[[TODO: Iterator methods]]
+On supported iterator types, there is some special syntax you can use to perform
+for-each loops:
 
 ```rust
-for x in list.iter() {
+for x in y {
    do_something(x)
+   ...
 }
 ```
 
+The above syntax gets expanded to the following regular for loop:
+
+```rust
+for let iter = y; iter.has_value(); iter.next() {
+   let x = iter.get()
+   {
+      do_something()
+      ...  // Rest of the body
+   }
+}
+```
+
+and thus expects the following methods to exist on the type of `y`:
+
+- `has_value(): bool` : Does the iterator currently have a value? If not, done.
+- `get(): T` : Get the current value. Can be any type.
+- `next()` : Increment the iterator to the next value.
+
+Most of the builtin container-types have iterators defined on them to be able
+to loop over the values.
+
+## Match statement
+
+In Ocen, you can match on integer-like, `bool`, `str`, `char`, `enum`s, and any other type that
+supports `==` to compare elements. For all types except enums / bool, an `else` case is required
+in the match statement.
+
+Only one case is ever executed; there is no implicit fall-through like in C. For the integer-like
+types / enums, a match statement gets converted to an efficient C-style switch statement. For other
+types (str / custom types), this falls back to an `if .. else if ..` chain.
+
+```rust
+let x: u8 = ...
+
+match x {
+   // One liners don't need a block
+   1 => ...
+   // Use block for multi-line statements
+   2 => {
+      let y = 10
+      foo(y)
+   }
+   // Match on multiple values for this block
+   3 | 4 | 0x05 | 6 => {
+      ...
+   }
+   7 | 8 | 9 => y = 10
+   // catch all
+   else => something()
+}
+```
+
+## Expression Statements
+
+In Ocen, `if`, `match` statements and blocks can be treated as expressions that return a value.
+They can be used in any context where an expression is expected.
+
+- For `if` and `match` statements, all of the bodies need to be valid expressions to be used
+   as an expression statement. The types of all these expressions should be the same.
+- For a block to be used as an expression, it needs to use the `yield` keyword to "return" a
+   value from it (result of the expression). A block can only have a single yield in it.
+
+Some examples:
+
+```rust
+// Regular if:
+let a = if foo then 5 else 10
+
+// Multi-if
+let b = if {
+   foo => 5
+   bar => 10
+   else => 20
+}
+
+// Block
+let c = {
+   let x = 1
+   let y = 2
+   yield x + y
+}
+
+// Match
+let z = match x {
+   1 => 10
+   2 | 3 | 4 => 20
+   // Uses a nested block-expression
+   5 => {
+      yield 7
+   }
+   // Nested match expression, which uses a nested block expression
+   6 => match y {
+      4 => 20
+      else => {
+         let q = foo()
+         yield q
+      }
+   }
+
+   // If the compiler can say this branch exits, it won't complain
+   // about types since we will never actually assign to `z`
+   else => std::exit(1)
+}
+```
 
 ## Casting
 
@@ -681,6 +794,164 @@ def main() {
 }
 ```
 
+## Modules, Importing, and Libraries
+
+You can spread your code across several files for organization, and then import
+the things you need from other files. Each file has it's own namespace, and there are no
+name collisions across different files.
+
+Outside of the code in your project, Ocen has the concept of _libraries_, which are files /
+groups of files that are located in a different place in your system, and can be loaded in.
+
+Symbols can be imported using the `import` statement from different files / libraries. Import
+statements are generally to be used at the global level (or at the namespace level), but
+can be used within a function to limit the scope of the imports.
+
+> [!NOTE]
+> Ocen looks at global imports to figure out which files it needs to find and load in, not
+> those defined in the function context. If you wish to use a function-local import, then you
+> need to make sure that you have a global import for the relevant symbol(s) somewhere in
+> your project at the global level to ensure it gets properly found and compiled in.
+
+### Project vs Single File
+
+The Ocen compiler internally operates in 2 modes: _Project_ mode vs _Single File_ mode.
+Depending on which mode you are in, there are different ways of imporing available to you.
+
+When you compile a file, Ocen will look at the directory the file is in, and all of it's
+parent directories. If any of these directories contains a file called `main.oc`, the compiler
+will assume it is in _Project_ mode, and consider the directory where it found `main.oc` to be
+the root of the project. Otherwise, it will be in _Single File_ mode.
+
+This means that **every project must contain a `main.oc` file at the top-level directory**.
+
+> [!WARNING]
+> Since the heuristic from the compiler is so simple, it is recommended to not have random
+> files with the name `main.oc` lying around in your filesystem. If you are writing one-off
+> files, name them something else.
+
+### The Import Statement
+
+Each import statements is divided into _parts_ separated by `::`. When traversing the file
+system, each of these paths corresponds to a directory of the same name, or `.oc` file with
+the same name before the extension.
+
+Every single file / directory that makes up the path of an import gets it's own namespace,
+where several definitions can live.
+
+```rust
+import std::foo::bar::baz
+// This is going to import either:
+//  - /path/to/std/foo/bar/baz.oc      (file)
+//  - /path/to/std/foo/bar/baz         (package containing more files)
+//  - /path/to/std/foo/bar.oc  baz     (a symbol `baz` defined in `bar.oc`)
+```
+
+#### Multiple imports
+
+You can import multiple symbols from some part in the import statement, recursively.
+For instance, all the following groups of imports are equivalent
+
+```rust
+// All Manual
+import std::foo::bar::uno
+import std::foo::bar::dos
+import std::foo::qux::one
+import std::foo::qux::two
+import std::foo        // Also import whole `foo` namespace
+
+// Multi-import from the last part
+import std::foo::bar::{ uno, dos }
+import std::foo::qux::{ one, two }
+import std::foo   // still do this manually
+
+// Recursive multi-import. Can use `this` to import the namespace itself.
+import std::foo::{ this, bar::{ uno, dos }, qux::{ one, two } }
+```
+
+### Aliasing
+
+When importing some definitions, it's possible we want to rename them in the current
+scope (to perhaps not collide with any definitions). This can be done using the `as`
+keyword inside imports.
+
+```rust
+import std::foo::{ bar as not_bar, baz }
+
+not_bar()
+baz()
+```
+
+### Directories as Modules
+
+Whenever a directory is looked at as a part of an import statement, the Ocen compiler
+will automatically look at that directory to see if a `mod.oc` file exists in this
+directory. If it does, then all the definitions in `mod.oc` are loaded into the namespace
+that corresponds with the directory itself automatically.
+
+This is useful when writing libraries - it allows you to have multiple files inside the
+library but still define useful features for a user from what they see as the top-level
+of the library, without having to import an extra file. For instance, in the standard
+library, functions such as `exit()`, `panic()`, and other useful builtin methods are
+loaded in through `std/mod.oc`.
+
+
+
+### Types of Imports
+
+Depending on which mode you are in, you have a few different methods to import items
+available to you.
+
+#### Library Imports
+
+```rust
+import foo::bar::baz
+```
+
+These are always available. This will search for a library called `foo` in the library paths
+(specified by `-l` flag in the compiler or through `OCEN_LIB` environment variable), and then search
+for `bar` within that library, and `baz` within that and so on.
+
+#### Project-Relative Imports
+
+```rust
+import @foo::bar::baz
+```
+
+Available in Project mode only. This searches for `foo` in the project root directory, and
+then bar and baz and so on.
+
+#### File-Relative Imports
+
+```rust
+import .foo::bar::baz      // foo is in same directory/namespace
+import ..foo::bar::baz     // foo is in parent directory/above namespace
+imorpt ...foo::bar::baz    // foo is in ../../
+```
+
+Available in Project mode only - You are not expected to be accessing other files around you in
+Single File mode. This searches for `foo` relative to whichever parent namespace is specified
+by the amount of `.` put in. it then searches for bar/baz within these as usual.
+
+#### Current Scope Imports
+
+```rust
+import ::foo::bar::baz
+```
+
+These are always available. This will search for a symbol called `foo` **in the local scope**, and
+then attempt to import symbols from this. `foo` here can be a namespace that was explicitly defined
+in the current file, or it might be something that was imported from somewhere else.
+
+### The Standard Library
+
+Ocen comes with a rich standard library that is made available to you in the project-wide
+global scope under `std::`. It includes data structures such as dynamic lists, hash-maps,
+hash-sets, deques, parsers for file formats such as json, png, midi, and a whole host
+of other functionality. [Look here](https://ocen-lang.github.io/autodoc/#ocen/namespaces/std)
+for a list of all available APIs.
+
+
 
 ## Attributes
 
@@ -833,8 +1104,6 @@ def bar(): u32 {
 
 ### `export` attribute, Re-exporting symbols
 
-[[TODO: Module system / importing]]
-
 The `export` attribute is only available for global import statement. It takes in no
 arguments. It tells the compiler to re-export the imported symbol(s) from the current
 namespace.
@@ -953,12 +1222,13 @@ an allocated formating string on the heap, it converts it to the variadic argume
 
 ```rust
 [variadic_format]
-def foo(fmt: str, ...)
+def foo(fmt: str, ...): u32 => 0
 
+let oc = "ocen"
 // This call:
-foo(`Hello {1+2:.1f} from {"ocen"}`)
+foo(`Hello {1+2:.1f} from {oc}`)
 // Automatically gets expanded to:
-foo("Hello %.12f from %s", 1+2, "ocen")  // No allocation!
+foo("Hello %.12f from %s", 1+2, oc)  // No allocation!
 ```
 
 
