@@ -35,6 +35,7 @@ def f64::inf(): f64 => INFINITY
 [extern "drand48"] def rand01(): f32
 
 [extern "powf"] def f32::pow(this, exp: f32): f32
+[extern "pow"] def f64::pow(this, exp: f64): f64
 
 def f32::min(this, b: f32): f32 => if this < b then this else b
 def f32::max(this, b: f32): f32 => if this > b then this else b

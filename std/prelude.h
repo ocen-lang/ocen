@@ -6,7 +6,10 @@
 #include <string.h>
 #include <signal.h>
 #include <inttypes.h>
+
+#ifndef OC_NO_BACKTRACE
 #include <execinfo.h>
+#endif
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -22,6 +25,7 @@ typedef float f32;
 typedef double f64;
 
 void dump_backtrace() {
+#ifndef OC_NO_BACKTRACE
   void *array[40];
   size_t size = backtrace(array, 40);
   char **strings = backtrace_symbols(array, size);
@@ -29,6 +33,7 @@ void dump_backtrace() {
     printf("%s\n", strings[i]);
   }
   free(strings);
+#endif
 }
 
 void ae_assert(int cond, char *dbg_msg, char *msg) {
