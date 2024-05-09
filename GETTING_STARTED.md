@@ -53,17 +53,23 @@
     - [Current Scope Imports](#current-scope-imports)
   - [The Standard Library](#the-standard-library)
 - [Attributes](#attributes)
-  - [`extern` attribute, Interfacing with C functions](#extern-attribute-interfacing-with-c-functions)
-    - [Complex Structure Bindings](#complex-structure-bindings)
-    - [Method Bindings](#method-bindings)
-    - [Enum Bindings](#enum-bindings)
-    - [Miscellaneous Binding Tips](#miscellaneous-binding-tips)
+  - [`extern` attribute](#extern-attribute)
   - [`exits` attribute, Non-returning functions](#exits-attribute-non-returning-functions)
   - [`export` attribute, Re-exporting symbols](#export-attribute-re-exporting-symbols)
   - [`operator` attribute, Operator Overloading](#operator-attribute-operator-overloading)
   - [`atomic` attribute, Atomic Variables](#atomic-attribute-atomic-variables)
   - [`variadic_format` attribute, Format Strings as arguments](#variadic_format-attribute-format-strings-as-arguments)
   - [`formatting` attribute, Basic Formatting of custom structs](#formatting-attribute-basic-formatting-of-custom-structs)
+- [Interfacing with C code](#interfacing-with-c-code)
+  - [Compiler Directives](#compiler-directives)
+    - [Including C headers](#including-c-headers)
+    - [Embedding C files](#embedding-c-files)
+    - [Specifying Compiler Flags](#specifying-compiler-flags)
+  - [Binding C Functions](#binding-c-functions)
+    - [Complex Structure Bindings](#complex-structure-bindings)
+    - [Method Bindings](#method-bindings)
+    - [Enum Bindings](#enum-bindings)
+    - [Miscellaneous Binding Tips](#miscellaneous-binding-tips)
 
 
 ## Installation
@@ -1050,112 +1056,14 @@ struct Bar { ... }
 def foo(): u32 => 0
 ```
 
-### `extern` attribute, Interfacing with C functions
+### `extern` attribute
 
 This attribute can be used with structs, enums, functions, variables and constants.
 If used with no arguments, it assumes the name of the symbol matches the C one.
 If used with methods, you should always provide the extern name.
 
-Declarations tagged with the `extern` attribute cannot have definitions. This includes
-functions and constants. These declarations do not result in any code generated, and are
-simply a way of telling the compiler certain symbols exist, and how to type-check them.
+For more information on binding external functions, look at [Binding C Functions](#binding-c-functions).
 
-```rust
-[extern] let errno: i32          // No definition, C variable is called `errno` too
-[extern "errno"] let ERR: i32    // Use `ERR` in Ocen, but `errno` in generated C
-[extern "FILE"] struct File {}   // Don't need to specify any fields
-
-[extern] def strcpy(a: str, b: str)  // Can lie about return type if we don't care
-[extern] def malloc(sz: u16)         // Can lie about input types if C can cast implicitly
-```
-
-#### Complex Structure Bindings
-
-If we wish to use C structs as more than just an opaque type, we need to tell ocen what the
-fields are and what the types of those fields are. We only need to specify the ones we actually
-care about - ocen does not check if these fields actually exist, but just takes your word for it.
-
-> [!NOTE]
-> Remember, this will not generate any code. It's simply for the type-checker.
-
-```rust
-[extern "Vector2D"]
-struct Vec {
-   x: f32   // `Vector2D` struct in C must have a field `x`
-   // Only need to specify the fields you want to use
-}
-
-let v: Vec = ...
-v.x   // Can use it in ocen now...
-```
-
-#### Method Bindings
-
-Methods in Ocen are just normal functions that implicitly pass in the object as the first argument.
-We can use this to bind external C functions as methods to external C types, creating a nicer
-interface at the ocen level.
-
-```rust
-[extern "FILE"] struct File {}
-// Bind extern as static function, with a default argument
-[extern "fopen"] def File::open(fname: str, mode: str = "r"): &File
-// Bind extern as instance function
-[extern "fclose"] def File::close(&this)    // `&this` because `fclose(FILE*)`
-
-// But we don't need to bind it as a method
-[extern] def fread(a: untyped_ptr, x: u64, n: u64, f: &File)
-
-
-let f = File::open("foo.txt")  // Uses default mode
-fread(dummy, 1, 2, f)
-f.close()
-```
-
-#### Enum Bindings
-
-For enums, you need to bind each of the enum variants to an external symbol. Here's an example:
-
-```rust
-[extern "SDL_EventType"]
-enum EventType {
-   Quit = extern("SDL_QUIT")
-   KeyDown = extern("SDL_KEYDOWN")
-   KeyUp = extern("SDL_KEYUP")
-   ...
-}
-```
-
-#### Miscellaneous Binding Tips
-
-As you might have noticed, we can bind whatever we want to `Ocen`, as long as we know
-it's sound at the C level. It won't care as long as you don't. The names you provide
-in the `extern` attribute are arbitrary strings - and this can be (ab)used in certain
-scenarios to improve the usability when interfacing with C code.
-
-One example is binding commonly used (non-enum) values to a function as an enum, to be able
-to use the type inference in Ocen / make the code more readable. For instance:
-
-```rust
-// Raylib Bindings
-
-[extern "int"]  // Not an enum, but we don't care
-enum Key {
-   A = extern("KEY_A")
-   B = extern("(KEY_B * 1)")   // Can technically use any valid C expression here...
-   ...
-}
-// Mark the input here as `Key`, since we know it's an int
-[extern] def IsKeyPressed(key: Key): bool
-[extern] def GetKeyPressed(): Key
-
-def main() {
-   IsKeyPressed(Key::A)
-   IsKeyPressed(B)         // Inferred, without a global variable `B`
-
-   // Can also print out for free...
-   println(f"Key Pressed: {GetKeyPressed()}")
-}
-```
 
 ### `exits` attribute, Non-returning functions
 
@@ -1354,4 +1262,168 @@ let s: StringView
 println(`s = {s}`)
 // Automatically gets expanded to:
 println("s = SV(size=%u, data='%.*s')", (s).size, (s).size, (s).data)
+```
+
+
+## Interfacing with C code
+
+Ocen allows you to easily interact with C code. You can bind C libraries to Ocen with
+minimal work, and can also output just the generated C code to build within your own
+environment (such as through `emcc` to compile to WASM).
+
+### Compiler Directives
+
+Compiler directives in Ocen are a way to configure how the generated C code should be built
+by the compiler. They are generally of the form:
+
+```java
+@compiler directive_name "some argument"
+```
+
+#### Including C headers
+
+Since Ocen generates C code, when using libraries we want to include the relevant headers
+in the generated code for proper compilation. You can tell the Ocen compiler what headers to
+include in the final code using a compiler directive like:
+
+```java
+@compiler c_include "SDL2/SDL.h"
+```
+
+#### Embedding C files
+
+Sometimes, you may want to implement some functionality in your code in pure C, and have
+Ocen embed all this code directly into the final `.c` file. This can help simplify tracking
+different versions of `.c` files separately from the compiled ocen.
+
+This directly simply copies all the text in the linked files into the generated C.
+
+> [!NOTE]
+> The compiler expects the path provided in this directive to be relative to the parent directory
+> of the file where the directive is found.
+
+```java
+@compiler c_embed "native_utils.c"
+```
+
+#### Specifying Compiler Flags
+
+Ocen allows each file to specify what C flags it expects to have (for eg: to link with a library).
+This makes it so that anyone importing a package doesn't have to worry about having to configure
+a build system - as long as they have the packages/libs available in their path. (If not, you should
+output C code and compile yourself with build system of choice.)
+
+```java
+@compiler c_flag "-lSDL -lm"  // Include SDL math libs
+```
+
+In addition to the compiler directive specified in the code, the compiler also provides an optional
+`--cflags` argument which can be used to add extra flags. For instance:
+
+```shell
+ocen src/main.oc --cflags "-I/foo/bar/ -DOPT=1" -o foo
+```
+
+
+### Binding C Functions
+
+Declarations tagged with the `extern` attribute cannot have definitions. This includes
+functions and constants. These declarations do not result in any code generated, and are
+simply a way of telling the compiler certain symbols exist, and how to type-check them.
+
+```rust
+[extern] let errno: i32          // No definition, C variable is called `errno` too
+[extern "errno"] let ERR: i32    // Use `ERR` in Ocen, but `errno` in generated C
+[extern "FILE"] struct File {}   // Don't need to specify any fields
+
+[extern] def strcpy(a: str, b: str)  // Can lie about return type if we don't care
+[extern] def malloc(sz: u16)         // Can lie about input types if C can cast implicitly
+```
+
+#### Complex Structure Bindings
+
+If we wish to use C structs as more than just an opaque type, we need to tell ocen what the
+fields are and what the types of those fields are. We only need to specify the ones we actually
+care about - ocen does not check if these fields actually exist, but just takes your word for it.
+
+> [!NOTE]
+> Remember, this will not generate any code. It's simply for the type-checker.
+
+```rust
+[extern "Vector2D"]
+struct Vec {
+   x: f32   // `Vector2D` struct in C must have a field `x`
+   // Only need to specify the fields you want to use
+}
+
+let v: Vec = ...
+v.x   // Can use it in ocen now...
+```
+
+#### Method Bindings
+
+Methods in Ocen are just normal functions that implicitly pass in the object as the first argument.
+We can use this to bind external C functions as methods to external C types, creating a nicer
+interface at the ocen level.
+
+```rust
+[extern "FILE"] struct File {}
+// Bind extern as static function, with a default argument
+[extern "fopen"] def File::open(fname: str, mode: str = "r"): &File
+// Bind extern as instance function
+[extern "fclose"] def File::close(&this)    // `&this` because `fclose(FILE*)`
+
+// But we don't need to bind it as a method
+[extern] def fread(a: untyped_ptr, x: u64, n: u64, f: &File)
+
+
+let f = File::open("foo.txt")  // Uses default mode
+fread(dummy, 1, 2, f)
+f.close()
+```
+
+#### Enum Bindings
+
+For enums, you need to bind each of the enum variants to an external symbol. Here's an example:
+
+```rust
+[extern "SDL_EventType"]
+enum EventType {
+   Quit = extern("SDL_QUIT")
+   KeyDown = extern("SDL_KEYDOWN")
+   KeyUp = extern("SDL_KEYUP")
+   ...
+}
+```
+
+#### Miscellaneous Binding Tips
+
+As you might have noticed, we can bind whatever we want to `Ocen`, as long as we know
+it's sound at the C level. It won't care as long as you don't. The names you provide
+in the `extern` attribute are arbitrary strings - and this can be (ab)used in certain
+scenarios to improve the usability when interfacing with C code.
+
+One example is binding commonly used (non-enum) values to a function as an enum, to be able
+to use the type inference in Ocen / make the code more readable. For instance:
+
+```rust
+// Raylib Bindings
+
+[extern "int"]  // Not an enum, but we don't care
+enum Key {
+   A = extern("KEY_A")
+   B = extern("(KEY_B * 1)")   // Can technically use any valid C expression here...
+   ...
+}
+// Mark the input here as `Key`, since we know it's an int
+[extern] def IsKeyPressed(key: Key): bool
+[extern] def GetKeyPressed(): Key
+
+def main() {
+   IsKeyPressed(Key::A)
+   IsKeyPressed(B)         // Inferred, without a global variable `B`
+
+   // Can also print out for free...
+   println(f"Key Pressed: {GetKeyPressed()}")
+}
 ```
