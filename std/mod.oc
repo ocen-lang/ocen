@@ -6,10 +6,14 @@ import .variadic
 
 [extern] [exits] def exit(code: i32 = 0)
 
+[extern "oc_trap"] def builtin_trap()
+
 [exits]
 def panic(msg: str = "<panic>") {
     println("%s", msg)
-    exit(1)
+    dump_backtrace()
+    builtin_trap()
+    std::exit(1)
 }
 
 [extern "atoi"] def str::to_i32(this): i32
