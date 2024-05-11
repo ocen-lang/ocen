@@ -811,7 +811,9 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .gen_indent()
 
             if node.u.child? {
-                .out += "return "
+                if not node.u.child.returns {
+                    .out += "return "
+                }
                 .gen_expression(node.u.child, is_top_level: true)
                 .out += ";\n"
             } else {
@@ -907,9 +909,9 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         ASTType::Assert => {
             let expr = node.u.assertion.expr
             .gen_indent()
-            .out += "ae_assert("
+            .out += "if(!("
             .gen_expression(expr, is_top_level: true)
-            .out += ", "
+            .out += ")) { ae_assert_fail("
             {
                 .out += "\""
                 .out <<= expr.span.start.str()
@@ -937,7 +939,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             if expr.type == BoolLiteral and expr.u.bool_literal == false {
                 .out += " exit(1);"
             }
-            .out += "\n"
+            .out += " }\n"
         }
         else => {
             .gen_indent()
