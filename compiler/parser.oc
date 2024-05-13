@@ -33,6 +33,9 @@ struct Parser {
     attrs: &Vector<&Attribute>
     attrs_span: Span
     attrs_start_tok: &Token
+
+    //! The span of the last expression that caused an error
+    prev_expr_error_span: Span
 }
 
 def Parser::make(program: &Program, ns: &Namespace): Parser {
@@ -45,6 +48,7 @@ def Parser::make(program: &Program, ns: &Namespace): Parser {
         attrs: Vector<&Attribute>::new(),
         attrs_span: Span::default(),
         attrs_start_tok: null,
+        prev_expr_error_span: Span::default(),
     )
 }
 
@@ -123,6 +127,13 @@ def Parser::consume_newline_or(&this, type: TokenType) {
     } else if not .token().seen_newline {
         .error_msg(`Expected {type.str()} or newline`)
         .program.err_jmp_ctx.jump_back(1)
+    }
+}
+
+def Parser::consume_tokens_until_newline(&this) {
+    while not .token().seen_newline {
+        if .token_is(TokenType::EOF) break
+        .curr += 1
     }
 }
 
@@ -489,6 +500,7 @@ def Parser::parse_match(&this): &AST {
             let _case = MatchCase::new(cond, body)
             cases.push(_case)
         }
+
         .consume_if(TokenType::Comma)
     }
     node.span = op.span.join(.token().span)
@@ -706,7 +718,6 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             }
         }
         else => {
-            .unhandled_type("parse_expression")
             let prev_span = .tokens[.curr - 1].span
             let cur_span = .token().span
 
@@ -714,6 +725,18 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             if not .token_is(end_type) {
                 .curr += 1
                 err_span = cur_span
+                .unhandled_type("parse_expression")
+
+            // We want to try to be error-tolerant, and not consume the token
+            // If we can avoid it (this may be an incomplete expression). However,
+            // if we see the same error multiple times, then we bail.
+            } else if .prev_expr_error_span == err_span {
+                .curr += 1
+
+            } else {
+                .prev_expr_error_span = err_span
+                .unhandled_type("parse_expression")
+
             }
             node = AST::new(Error, err_span)
         }
@@ -1343,6 +1366,16 @@ def Parser::parse_statement(&this): &AST {
         TokenType::For => node = .parse_for()
         TokenType::Let => {
             node = .parse_var_declaration()
+        }
+        TokenType::TypeDef => {
+            .error(Error::new(.token().span, "TypeDefs are only allowed in the global scope"))
+            .curr += 1
+            .consume_tokens_until_newline()
+        }
+        TokenType::Const => {
+            .error(Error::new(.token().span, "Constants are only allowed in the global scope"))
+            .curr += 1
+            .consume_tokens_until_newline()
         }
         else => {
             node = .parse_expression(end_type: TokenType::Newline)
