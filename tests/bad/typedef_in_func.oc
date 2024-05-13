@@ -1,0 +1,8 @@
+/// fail: TypeDefs are only allowed in the global scope
+
+// Previously, this was getting stuck in an infinite loop
+// in the parser.
+
+def main() {
+    typedef my_u32 = u32
+}
