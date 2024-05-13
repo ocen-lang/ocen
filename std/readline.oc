@@ -1,0 +1,7 @@
+@compiler c_include "readline/readline.h"
+@compiler c_include "readline/history.h"
+
+@compiler c_flag "-lreadline"
+
+[extern "readline"] def get(prompt: str): str
+[extern "add_history"] def add_history(line: str)
