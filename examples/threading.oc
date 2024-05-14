@@ -1,0 +1,38 @@
+import std::thread::{Thread}
+import std::sync::{Mutex}
+
+let count:i32 = 0
+
+
+
+let m:Mutex
+
+def start_routine(a:untyped_ptr): untyped_ptr{
+  for let i = 0; i < 100000;i+=1{
+    m.lock()
+    count+=1
+    m.unlock()
+  }
+  return null
+}
+
+def second_routine(a:untyped_ptr):untyped_ptr{
+  for let i =0;i < 100000;i+=1{
+    m.lock()
+    count += 1
+    m.unlock()
+  }
+  return null
+}
+
+def main(){
+  m = Mutex::init()    // here by default is NORMAL but can provide RECURSIVE and ERRCHECK
+  defer m.destroy()
+  let a = Thread::make(start_routine)
+  let b = Thread::make(second_routine)
+
+  a.join()
+  b.join()
+  
+  println("%d\n",count)
+}
