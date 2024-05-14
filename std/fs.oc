@@ -168,7 +168,7 @@ def write_file(path: str, data: Buffer) {
 
 def read_file(path: str): Buffer {
     let file = bindings::fopen(path)
-    if not file? std::panic(`[-] Failed to open file: {path}`)
+    if not file? std::panic(`[-] Failed to open file: {path}: {std::libc::get_err()}`)
     bindings::fseek(file, 0, End)
     let size = bindings::ftell(file) as u32
     bindings::fseek(file, 0, Set)

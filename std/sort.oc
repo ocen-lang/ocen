@@ -69,23 +69,6 @@ def nth_element_by<T>(data: &T, size: u32, n: u32, cmp: fn(T,T): i8): T {
 
 def partition<T>(data: &T, size: u32) => partition_by<T>(data, size, T::compare)
 
-// template<class ForwardIt, class UnaryPred>
-// ForwardIt partition(ForwardIt first, ForwardIt last, UnaryPred p)
-// {
-//     first = std::find_if_not(first, last, p);
-//     if (first == last)
-//         return first;
- 
-//     for (auto i = std::next(first); i != last; ++i)
-//         if (p(*i))
-//         {
-//             std::iter_swap(i, first);
-//             ++first;
-//         }
- 
-//     return first;
-// }
-
 def partition_by<T>(data: &T, size: u32, cmp: fn(T): bool): u32 {
     let first = size
     for let i = 0; i < size; i += 1 {
@@ -94,7 +77,6 @@ def partition_by<T>(data: &T, size: u32, cmp: fn(T): bool): u32 {
             break
         }
     }
-    
 
     for let i = first; i < size; i += 1 {
         if cmp(data[i]) {
