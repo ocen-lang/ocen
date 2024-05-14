@@ -118,16 +118,4 @@ def Mutex::destroy(&this){
   Muteximpl::pthread_mutex_destroy(&this.tx);
 }
 
-let m:Mutex
-
-def start_routine(a:untyped_ptr): untyped_ptr{
-  m.lock()
-  m.lock()
-  for let i =0;i < 3;i+=1{
-    print("Hello world bro meow meow\n");
-  }
-  m.unlock()
-  m.unlock()
-  return null;
-}
 
