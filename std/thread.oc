@@ -3,95 +3,102 @@
 @compiler c_include "unistd.h"
 @compiler c_include "pthread.h"
 @compiler c_flag "-pthread"
-import std::libc::{errno,strerror,exit,EXIT_FAILURE}
 
-namespace impl {
-  struct pthread_t extern
-  struct pthread_attr_t extern
-    
-  def pthread_create(thread: &pthread_t, attr: &pthread_attr_t, start_routine: fn(untyped_ptr): untyped_ptr, arg: untyped_ptr): i32 extern
-  def pthread_join(thread: pthread_t, retval: &untyped_ptr): i32 extern
-  def pthread_attr_init(attr:&pthread_attr_t):i32 extern
-  def pthread_attr_destroy(attr:&pthread_attr_t): i32 extern
-  def pthread_attr_setstacksize(attr:&pthread_attr_t,stack_size:u64): i32 extern
-  def pthread_attr_getstacksize(attr:&pthread_attr_t,getss:&i32):i32 extern
-  def pthread_detach(attr:pthread_t):i32 extern
-  def pthread_attr_setdetachstate(attr:&pthread_attr_t,detachstate:DetachState):i32 extern
-  def pthread_attr_getdetachstate(attr:&pthread_attr_t,detachstate:&DetachState):i32 extern
-  def pthread_attr_setschedpolicy(attr:&pthread_attr_t,policy:SchedPolicy):i32 extern
-  def pthread_attr_getschedpolicy(attr:&pthread_attr_t,policy:&SchedPolicy):i32 extern
-  def pthread_exit(retval:untyped_ptr) extern
-}
-
-namespace Muteximpl{ 
-  struct pthread_mutex_t extern
-  struct pthread_mutexattr_t extern
- 
-  def pthread_mutex_init(mutex:&pthread_mutex_t,attr:&pthread_mutexattr_t):i32 extern
-  def pthread_mutexattr_init(attr: &pthread_mutexattr_t): i32 extern
-  def pthread_mutexattr_settype(attr:&pthread_mutexattr_t,tty:MutexMode):i32 extern
-  def pthread_mutex_destroy(mutex:&pthread_mutex_t):i32 extern
-  def pthread_mutex_lock(mutex:&pthread_mutex_t):i32 extern
-  def pthread_mutex_trylock(mutex:&pthread_mutex_t):i32 extern
-  def pthread_mutex_tryunlock(mutex:&pthread_mutex_t):i32 extern
-  def pthread_mutex_unlock(mutex:&pthread_mutex_t):i32 extern
-  def pthread_mutexattr_destroy(mutex:&pthread_mutexattr_t):i32 extern
-}
-
-// Soon i'll be implementing the conditional variable in this sync package 
-namespace Condimpl{
-  
-}
 
 [extern "int"]
 enum MutexMode{
-  Normal    = extern("PTHREAD_MUTEX_NORMAL") 
-  Recursive = extern("PTHREAD_MUTEX_RECURSIVE")
-  Errcheck  = extern("PTHREAD_MUTEX_ERRORCHECK") 
+    Normal    = extern("PTHREAD_MUTEX_NORMAL")
+    Recursive = extern("PTHREAD_MUTEX_RECURSIVE")
+    Errcheck  = extern("PTHREAD_MUTEX_ERRORCHECK")
 }
 
 [extern "int"]
 enum SchedPolicy{
-  Normal     = extern("SCHED_OTHER")
-  Fifo       = extern("SCHED_FIFO")
-  RoundRobin = extern("SCHED_RR")
+    Normal     = extern("SCHED_OTHER")
+    Fifo       = extern("SCHED_FIFO")
+    RoundRobin = extern("SCHED_RR")
 }
 
 [extern "int"]
 enum DetachState{
-  Joinable   = extern("PTHREAD_CREATE_JOINABLE")
-  Detached   = extern("PTHREAD_CREATE_DETACHED")
+    Joinable   = extern("PTHREAD_CREATE_JOINABLE")
+    Detached   = extern("PTHREAD_CREATE_DETACHED")
 }
 
-def check_and_fail(a:i32,msg: str = "Failed"){
-  if a != 0 {
-    println(`ERROR: {msg}`)
-    exit(EXIT_FAILURE);
-  }
+typedef CallBackType = fn(untyped_ptr): untyped_ptr
+
+
+namespace impl {
+
+    // Threads
+    [extern "pthread_t"]      struct Thread {}
+    [extern "pthread_attr_t"] struct ThreadAttr
+
+    [extern "pthread_create"] def Thread::create(&this, attr: &ThreadAttr, start_routine: CallBackType, arg: untyped_ptr): i32
+    [extern "pthread_join"]   def Thread::join(this, retval: &untyped_ptr): i32
+    [extern "pthread_detach"] def Thread::detach(this): i32
+
+    [extern "pthread_attr_init"]           def ThreadAttr::init(&this): i32
+    [extern "pthread_attr_destroy"]        def ThreadAttr::destroy(&this): i32
+    [extern "pthread_attr_setstacksize"]   def ThreadAttr::setstacksize(&this, tack_size:u64): i32
+    [extern "pthread_attr_getstacksize"]   def ThreadAttr::getstacksize(&this, getss:&i32): i32
+    [extern "pthread_attr_setdetachstate"] def ThreadAttr::setdetachstate(&this, detachstate: DetachState): i32
+    [extern "pthread_attr_getdetachstate"] def ThreadAttr::getdetachstate(&this, detachstate: &DetachState): i32
+    [extern "pthread_attr_setschedpolicy"] def ThreadAttr::setschedpolicy(&this, policy: SchedPolicy): i32
+    [extern "pthread_attr_getschedpolicy"] def ThreadAttr::getschedpolicy(&this, policy: &SchedPolicy): i32
+
+
+    // Mutex
+    [extern "pthread_mutex_t"]      struct Mutex {}
+    [extern "pthread_mutexattr_t"]  struct MutexAttr {}
+
+    [extern "pthread_mutex_init"]      def Mutex::init(&this, attr: &MutexAttr): i32
+    [extern "pthread_mutex_destroy"]   def Mutex::destroy(&this): i32
+    [extern "pthread_mutex_lock"]      def Mutex::lock(&this): i32
+    [extern "pthread_mutex_trylock"]   def Mutex::trylock(&this): i32
+    [extern "pthread_mutex_tryunlock"] def Mutex::tryunlock(&this): i32
+    [extern "pthread_mutex_unlock"]    def Mutex::unlock(&this): i32
+
+    [extern "pthread_mutexattr_init"]    def MutexAttr::init(&this): i32
+    [extern "pthread_mutexattr_settype"] def MutexAttr::settype(&this, tty: MutexMode): i32
+    [extern "pthread_mutexattr_destroy"] def MutexAttr::destroy(&this): i32
+
+
+    // Soon i'll be implementing the conditional variable in this sync package
+
 }
 
-def check_and_fail_with_errno(a:i32,msg:str = "Failed"){
-  if a != 0 {
-    println(`Error {msg}: {strerror(a)}`);
-    exit(EXIT_FAILURE);
-  }
+def check(a: i32, msg: str = null) {
+    import std::libc
+    if a != 0 {
+        if msg? {
+            println(`Error: {msg}: {libc::strerror(a)}`);
+        } else {
+            println(`Error: {libc::strerror(a)}`);
+        }
+        std::exit(libc::EXIT_FAILURE)
+    }
 }
+
+// This is meant to be independent of the Thread object
+[extern "pthread_exit"]  def exit(retval: untyped_ptr)
+[extern "sleep"]         def sleep(seconds: u32)
 
 
 struct Thread {
-  tid:    impl::pthread_t 
-  tattr:  impl::pthread_attr_t 
-  cb:     fn(untyped_ptr): untyped_ptr
-  args:   untyped_ptr
-  policy: SchedPolicy
-  dstate: DetachState
+    tid:    impl::Thread
+    tattr:  impl::ThreadAttr
+    cb:     CallBackType
+    args:   untyped_ptr
+    policy: SchedPolicy
+    dstate: DetachState
 }
 
 // Soon i will make this mutex like rust mutex which also contains the data in which needs to be locked
-struct Mutex{
-  tx:   Muteximpl::pthread_mutex_t
-  attr: Muteximpl::pthread_mutexattr_t
-  mode: MutexMode
+struct Mutex {
+    tx:   impl::Mutex
+    attr: impl::MutexAttr
+    mode: MutexMode
 }
 
 def Thread::make(callback: fn(untyped_ptr): untyped_ptr, arg: untyped_ptr = null): Thread {
@@ -104,120 +111,79 @@ def Thread::make(callback: fn(untyped_ptr): untyped_ptr, arg: untyped_ptr = null
 }
 
 
-// soon it will be deprecated if if language feature improves and we have varaiadic and template variadic 
+// soon it will be deprecated if if language feature improves and we have varaiadic and template variadic
 def Thread::set_attr(&this,stack_size:u64,dstate:DetachState,policy:SchedPolicy){
+    if .dstate == Joinable and .policy == Normal{
+        check(.tattr.init())
+    }
+    .dstate = dstate
+    .policy = policy
 
-  if .dstate == Joinable and .policy == Normal{
-    check_and_fail_with_errno(impl::pthread_attr_init(&.tattr))
-  }
-  .dstate = dstate
-  .policy = policy
-  
-  check_and_fail_with_errno(impl::pthread_attr_setstacksize(&.tattr,stack_size))
-  check_and_fail_with_errno(impl::pthread_attr_setschedpolicy(&.tattr,.policy))
-  check_and_fail_with_errno(impl::pthread_attr_setdetachstate(&.tattr,.dstate)) 
+    check(.tattr.setstacksize(stack_size))
+    check(.tattr.setschedpolicy(.policy))
+    check(.tattr.setdetachstate(.dstate))
 }
 
-def Thread::set_stack(&this,stack_size:u64){
-  if .dstate == Joinable and .policy == Normal{
-    check_and_fail_with_errno(impl::pthread_attr_init(&.tattr))
-  }
-  
-  check_and_fail_with_errno(impl::pthread_attr_setstacksize(&.tattr,stack_size))
+def Thread::set_stack(&this, stack_size: u64) {
+    if .dstate == Joinable and .policy == Normal{
+        check(.tattr.init())
+    }
+
+    check(.tattr.setstacksize(stack_size))
 }
 
-def Thread::set_detach_state(&this,dstate:DetachState = Detached){
-  if .dstate == Joinable and .policy == Normal{
-    check_and_fail_with_errno(impl::pthread_attr_init(&.tattr))
-  }
-  .dstate = dstate
-  
-  check_and_fail_with_errno(impl::pthread_attr_setdetachstate(&.tattr,.dstate)) 
+def Thread::set_detach_state(&this, dstate: DetachState = Detached) {
+    if .dstate == Joinable and .policy == Normal{
+        check(.tattr.init())
+    }
+    .dstate = dstate
+
+    check(.tattr.setdetachstate(.dstate))
 }
 
-def Thread::set_sched_policy(&this,policy:SchedPolicy){
-   if .dstate == Joinable and .policy == Normal{
-    check_and_fail_with_errno(impl::pthread_attr_init(&.tattr))
-  }
-  .policy = policy
+def Thread::set_sched_policy(&this, policy: SchedPolicy) {
+    if .dstate == Joinable and .policy == Normal {
+        check(.tattr.init())
+    }
+    .policy = policy
 
-  check_and_fail_with_errno(impl::pthread_attr_setschedpolicy(&.tattr,.policy))
+    check(.tattr.setschedpolicy(.policy))
 }
 
-def Thread::start(&this){
-  check_and_fail_with_errno(impl::pthread_create(&.tid, &.tattr, .cb, .args))
-  //check_and_fail_with_errno(impl::pthread_detach(.tid)) 
+
+def Thread::start_and_join(&this) {
+    .start()
+    .join()
 }
 
-def Thread::start_and_join(&this){
-  .start()
-  .join()
-}
+def Thread::start(&this) => check(.tid.create(&.tattr, .cb, .args))
+def Thread::join(&this, b: &untyped_ptr = null) => check(.tid.join( b))
+def Thread::destroy_attr(&this) => check(.tattr.destroy())
 
-def Thread::join(&this,b:&untyped_ptr=null) {
-  check_and_fail_with_errno(impl::pthread_join(.tid, b))
-}
-
-def Thread::exit(&this,retval:untyped_ptr){
-  impl::pthread_exit(retval)
-}
-
-def Thread::destroy_attr(&this){
-  check_and_fail_with_errno(impl::pthread_attr_destroy(&.tattr))
-}
-
-def Mutex::make(attrmode:MutexMode = Normal): Mutex{
+def Mutex::make(attrmode:MutexMode = Normal): Mutex {
   let mutex: Mutex
-  let val:i32 
   mutex.mode = attrmode
 
-  if attrmode != Normal{
-    check_and_fail(Muteximpl::pthread_mutexattr_init(&mutex.attr),"Cannot initialize attribute")
-    check_and_fail_with_errno(Muteximpl::pthread_mutexattr_settype(&mutex.attr,mutex.mode)) 
-    val = Muteximpl::pthread_mutex_init(&mutex.tx,&mutex.attr);
-  }else{
-    val = Muteximpl::pthread_mutex_init(&mutex.tx,null)
-  }
-  
   // handling the error from here only and giving the errno output as str
-  if val != 0{
-    println(`{strerror(errno)}`);
-    exit(EXIT_FAILURE);
-  }
+  check(match attrmode {
+        Normal => mutex.tx.init(null)
+        else => {
+            check(mutex.attr.init(), "Cannot initialize attribute")
+            check(mutex.attr.settype(mutex.mode))
+            yield mutex.tx.init(&mutex.attr)
+        }
+  })
+
   return mutex
 }
 
 def Mutex::get_attr_type(&this): MutexMode => .mode
 
-def Mutex::lock(&this){
-  let val = Muteximpl::pthread_mutex_lock(&.tx)
-  
-  // handling error from here only and giving errno output as str
-  if val != 0{
-    println(`{strerror(errno)}`)
-    exit(EXIT_FAILURE)
-  }
-}
+def Mutex::lock(&this) => check(.tx.lock())
+def Mutex::unlock(&this) => check(.tx.unlock())
 
-def Mutex::try_lock(&this): i32{
-  return Muteximpl::pthread_mutex_trylock(&.tx)
-}
+def Mutex::try_lock(&this): i32 => .tx.trylock()
+def Mutex::try_unlock(&this): i32 => .tx.tryunlock()
 
-def Mutex::try_unlock(&this):i32 {
-  return Muteximpl::pthread_mutex_unlock(&.tx)
-}
+def Mutex::destroy(&this) => check(.tx.destroy())
 
-def Mutex::unlock(&this){
-  let val = Muteximpl::pthread_mutex_unlock(&.tx)
-  
-  if val != 0{
-    println(`{strerror(errno)}`)
-    exit(EXIT_FAILURE)
-  }
-}
-
-def Mutex::destroy(&this){
-  check_and_fail_with_errno(Muteximpl::pthread_mutex_destroy(&.tx))
-}
-
-[extern] def sleep(seconds: u32)
