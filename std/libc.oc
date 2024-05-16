@@ -55,6 +55,8 @@
 
 // macros
 [extern] const STDIN_FILENO: i32
+[extern] const EXIT_FAILURE:i32 
+[extern] const EXIT_SUCCESS:i32
 [extern] def WEXITSTATUS(a: i32): i32
 [extern] def WTERMSIG(a: i32): i32
 [extern] def WIFEXITED(a: i32): bool
