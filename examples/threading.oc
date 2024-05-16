@@ -1,61 +1,60 @@
-import std::thread::{Thread,Mutex,sleep}
+import std::thread::{ this, Thread, Mutex }
 
-let count:i32 = 0
+let count: i32 = 0
+let mutex: Mutex
 
-
-
-let m:Mutex
-
-def start_routine(a:untyped_ptr): untyped_ptr{
-  for let i = 0; i < 100000;i+=1{
-    m.lock()
-    count+=1
-    m.unlock()
-  }
-  return null
+def start_routine(a: untyped_ptr): untyped_ptr {
+    for let i = 0; i < 100000; i++ {
+        mutex.lock()
+        count+=1
+        mutex.unlock()
+    }
+    return null
 }
 
-def second_routine(a:untyped_ptr):untyped_ptr{
-  for let i =0;i < 100000;i+=1{
-    m.lock()
-    count += 1
-    m.unlock()
-  }
-  return null
+def second_routine(a: untyped_ptr): untyped_ptr {
+    for let i = 0; i < 100000; i++ {
+        mutex.lock()
+        count += 1
+        mutex.unlock()
+    }
+    return null
 }
 
-def test1(a:untyped_ptr):untyped_ptr{
-  for let i = 0;i < 3;i+=1{
-    println("Hello from thread 1")
-  }
-  
-  return null
+def test1(a: untyped_ptr): untyped_ptr {
+    for let i = 0; i < 3; i++ {
+      println("Hello from thread 1")
+    }
+    return null
 }
 
-def test2(a:untyped_ptr):untyped_ptr{
-  for let i = 0;i < 5;i++{
-    println("Hello from thread 2")
-  }
-  return null
+def test2(a: untyped_ptr): untyped_ptr {
+    for let i = 0; i < 5; i++ {
+        println("Hello from thread 2")
+    }
+    return null
 }
 
-def main(){
-  let a = Thread::make(test1)
-  let b = Thread::make(test2)
-  
-  a.set_detach_state()
-  b.set_detach_state()
-  defer a.destroy_attr()
-  defer b.destroy_attr()
-  a.start()
-  b.start()
-  sleep(1)
+def main() {
+    let a = Thread::make(test1)
+    let b = Thread::make(test2)
+
+    a.set_detach_state()
+    b.set_detach_state()
+
+    defer a.destroy_attr()
+    defer b.destroy_attr()
+
+    a.start()
+    b.start()
+
+    thread::sleep(1)
 }
 
-def main1(){
-  m = Mutex::make()    // here by default is NORMAL but can provide RECURSIVE and ERRCHECK
-  let a = Thread::make(start_routine)
-  let b = Thread::make(second_routine)
-  
-  println("%d\n",count)
+def old_main() {
+    mutex = Mutex::make()    // here by default is NORMAL but can provide RECURSIVE and ERRCHECK
+    let a = Thread::make(start_routine)
+    let b = Thread::make(second_routine)
+
+    println("%d\n",count)
 }
