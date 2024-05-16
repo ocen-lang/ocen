@@ -1,5 +1,4 @@
-import std::thread::{Thread}
-import std::sync::{Mutex}
+import std::thread::{Thread,Mutex,sleep}
 
 let count:i32 = 0
 
@@ -25,14 +24,38 @@ def second_routine(a:untyped_ptr):untyped_ptr{
   return null
 }
 
+def test1(a:untyped_ptr):untyped_ptr{
+  for let i = 0;i < 3;i+=1{
+    println("Hello from thread 1")
+  }
+  
+  return null
+}
+
+def test2(a:untyped_ptr):untyped_ptr{
+  for let i = 0;i < 5;i++{
+    println("Hello from thread 2")
+  }
+  return null
+}
+
 def main(){
-  m = Mutex::init()    // here by default is NORMAL but can provide RECURSIVE and ERRCHECK
-  defer m.destroy()
+  let a = Thread::make(test1)
+  let b = Thread::make(test2)
+  
+  a.set_detach_state()
+  b.set_detach_state()
+  defer a.destroy_attr()
+  defer b.destroy_attr()
+  a.start()
+  b.start()
+  sleep(1)
+}
+
+def main1(){
+  m = Mutex::make()    // here by default is NORMAL but can provide RECURSIVE and ERRCHECK
   let a = Thread::make(start_routine)
   let b = Thread::make(second_routine)
-
-  a.join()
-  b.join()
   
   println("%d\n",count)
 }
