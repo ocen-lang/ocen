@@ -227,3 +227,7 @@ struct Cursor
 [extern "SDL_FreeCursor"]         def Cursor::destroy(&this)
 [extern "SDL_CreateSystemCursor"] def create_system_cursor(cursor: CursorType): &Cursor
 [extern "SDL_SetCursor"]          def set_cursor(cursor: &Cursor)
+
+[extern "SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT"] const HINT_EMSCRIPTEN_KEYBOARD_ELEMENT: str
+
+[extern "SDL_SetHint"] def set_hint(hint: str, value: str): bool
