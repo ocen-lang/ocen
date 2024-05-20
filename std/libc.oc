@@ -21,6 +21,9 @@
 [extern] def memcmp(s: untyped_ptr, other: untyped_ptr, n: u32): i32
 [extern] def memset(dest: untyped_ptr, c: u8, size: u32)
 
+[variadic_format]
+[extern] def sprintf(buf: str, fmt: str, ...): i32
+
 // ctype
 @compiler c_include "ctype.h"
 [extern] def isdigit(c: char): bool

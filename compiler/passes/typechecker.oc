@@ -824,6 +824,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 ))
             }
+            lhs = lhs.unaliased()
             if not lhs.is_numeric_or_char() and lhs.base != BaseType::Pointer {
                 .error(Error::new(node.span,
                     f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
@@ -1049,6 +1050,7 @@ def TypeChecker::check_index(&this, node: &AST, hint: &Type, is_being_assigned: 
         if res? return res
     }
 
+    rhs = rhs.unaliased()
     if not rhs.is_integer() {
         .error(Error::new(node.span, `Index must be an integer, got {rhs.str()}`))
         return null

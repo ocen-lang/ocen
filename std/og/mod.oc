@@ -27,22 +27,46 @@ def Rect::contains(this, pos: Vec2i): bool {
 
 def get_ticks(): u32 => sdl::get_ticks() as u32
 
-def init(width: u32, height: u32, title: str) {
+def init(width: u32, height: u32, title: str, fullscreen: bool = false) {
     sdl::init(sdl::INIT_EVERYTHING)
-    sdl::create_window_renderer(width as i32, height as i32, 0, &state::window, &state::renderer)
-    // Set window to fullscreen
-    state::window.set_fullscreen(sdl::WINDOW_FULLSCREEN_DESKTOP)
+    sdl::create_window_renderer(width as i32, height as i32, sdl::WINDOW_RESIZABLE, &state::window, &state::renderer)
+    if fullscreen {
+        state::window.set_fullscreen(sdl::WINDOW_FULLSCREEN_DESKTOP)
+    }
 
+    state::title = title
     state::window.set_title(title)
     state::prev_time = get_ticks()
+    state::update_window_size()
+}
+
+def toggle_fullscreen() {
+    let flags = state::window.get_flags()
+    if (flags & sdl::WINDOW_FULLSCREEN_DESKTOP) != 0 {
+        state::window.set_fullscreen(0)
+    } else {
+        state::window.set_fullscreen(sdl::WINDOW_FULLSCREEN_DESKTOP)
+    }
 }
 
 def is_running(): bool {
     state::renderer.present()
-    // sdl::delay(1000i32 / 60)
+    state::frame_num += 1
+
     let cur_time = get_ticks() as u32
     state::frame_time = (cur_time - state::prev_time) as f32 / 1000.0
     state::prev_time = cur_time
+    state::update_window_size()
+
+    state::add_frametime(state::frame_time)
+
+    if state::frame_num % 30 == 0 {
+        let avg = state::get_avg_frametime()
+        std::libc::sprintf(
+            state::window_title_fps_buf,
+            `{state::title} | FPS: {1.0 / avg:.0f}`)
+        state::window.set_title(state::window_title_fps_buf)
+    }
 
     utils::handle_sdl_events()
     return state::running
@@ -61,6 +85,24 @@ def draw_rect(x: i32, y: i32, w: i32, h: i32, col: Color) {
 
 def draw_rect_v(pos: Vec2i, size: Vec2i, col: Color) {
     draw_rect(pos.x, pos.y, size.x, size.y, col)
+}
+
+def draw_line(x1: i32, y1: i32, x2: i32, y2: i32, col: Color) {
+    state::renderer.set_draw_color(col.r, col.g, col.b, col.a)
+    state::renderer.draw_line(x1, y1, x2, y2)
+}
+
+def draw_line_v(p1: Vec2i, p2: Vec2i, col: Color) {
+    draw_line(p1.x, p1.y, p2.x, p2.y, col)
+}
+
+def draw_pixel(x: i32, y: i32, col: Color) {
+    state::renderer.set_draw_color(col.r, col.g, col.b, col.a)
+    state::renderer.draw_point(x, y)
+}
+
+def draw_pixel_v(pos: Vec2i, col: Color) {
+    draw_pixel(pos.x, pos.y, col)
 }
 
 def get_frame_time(): f32 => state::frame_time
@@ -83,10 +125,16 @@ def is_mouse_down(b: sdl::MouseButton): bool
 def is_mouse_up(b: sdl::MouseButton): bool
     => state::mouse.get_button(b) == false
 
+def get_window_size(): Vec2i => state::window_size
+
 def is_scroll(w: state::MouseWheel): bool => state::mouse.get_wheel(w)
 
 def get_mouse_pos(): Vec2i => state::mouse.pos
-def get_mouse_delta(): Vec2i => state::mouse.pos.sub(state::prev_mouse.pos)
+def get_mouse_delta(): Vec2i => state::mouse.vec // from SDL_MOUSEMOTION event
+
+def capture_mouse(capture: bool) => sdl::capture_mouse(capture)
+def grab_input(grab: bool) => sdl::set_relative_mouse_mode(grab)
+def show_cursor(show: bool) => sdl::show_cursor(show)
 
 def set_cursor(c: sdl::CursorType) {
     if c == state::cursor_type return
@@ -94,4 +142,108 @@ def set_cursor(c: sdl::CursorType) {
     state::cursor = sdl::create_system_cursor(c)
     state::cursor_type = c
     sdl::set_cursor(state::cursor)
+}
+
+struct Texture {
+    tx: &sdl::Texture,
+    w: i32,
+    h: i32,
+    pixels: &u8
+    pitch: i32
+}
+
+def Texture::draw_pixel(this, x: i32, y: i32, col: Color) {
+    if 0i32 <= x < .w and 0i32 <= y < .h {
+        let offset = (y * .pitch + x * 4) as u32
+        .pixels[offset + 0] = col.r as u8
+        .pixels[offset + 1] = col.g as u8
+        .pixels[offset + 2] = col.b as u8
+        .pixels[offset + 3] = col.a as u8
+    }
+}
+
+def Texture::draw_rect(this, x: i32, y: i32, w: i32, h: i32, col: Color) {
+    x = x.max(0)
+    y = y.max(0)
+    w = w.min(.w - x)
+    h = h.min(.h - y)
+    for let i = 0i32; i < h; i += 1 {
+        let py = y + i
+        let view = .pixels + (py * .pitch + x * 4) as u32
+        for let j = 0i32; j < w; j += 1 {
+            *(view + 0) = col.r as u8
+            *(view + 1) = col.g as u8
+            *(view + 2) = col.b as u8
+            *(view + 3) = col.a as u8
+            view = view + 4
+        }
+    }
+}
+
+def Texture::draw_rect_v(this, pos: Vec2i, size: Vec2i, col: Color) {
+    .draw_rect(pos.x, pos.y, size.x, size.y, col)
+}
+
+def Texture::draw_pixel_v(this, pos: Vec2i, col: Color) {
+    .draw_pixel(pos.x, pos.y, col)
+}
+
+
+def get_buffer(): &Texture {
+    let matches = true
+    if not state::buffer.tx? {
+        matches = false
+    } else if (
+        state::buffer.w != state::window_size.x or 
+        state::buffer.h != state::window_size.y
+     ) {
+        state::buffer.tx.destroy()
+        matches = false
+    }
+
+    if not matches {
+        let buf: Texture
+        buf.tx = state::renderer.create_texture(
+            sdl::PIXELFORMAT_ABGR8888,
+            sdl::TEXTUREACCESS_STREAMING,
+            state::window_size.x,
+            state::window_size.y
+        )
+        buf.w = state::window_size.x
+        buf.h = state::window_size.y
+        state::buffer = buf
+    }
+
+    state::buffer.tx.lock(
+        null, (&state::buffer.pixels) as &untyped_ptr, &state::buffer.pitch)
+
+    return &state::buffer
+}
+
+def draw_buffer() {
+    state::buffer.tx.unlock()
+    state::renderer.copy(state::buffer.tx, null, null)
+}
+
+
+namespace internal {
+    @compiler c_embed "interface.c"
+
+    let user_main_fn: fn(): bool = null
+    def og_main_fn(): bool {
+        if not std::og::is_running() {
+            return false
+        }
+        if user_main_fn != null {
+            return user_main_fn()
+        }
+        return true
+    }
+
+    [extern] def c_set_main_loop(callback: fn(): bool)
+}
+
+def set_main_loop(callback: fn(): bool) {
+    internal::user_main_fn = callback
+    internal::c_set_main_loop(internal::og_main_fn)
 }
