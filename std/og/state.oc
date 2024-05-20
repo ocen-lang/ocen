@@ -1,12 +1,15 @@
 import std::sdl
 import std::vec::{ Vec2i }
 
+import .{ Texture }
+
 let window: &sdl::Window = null
 let renderer: &sdl::Renderer = null
 let prev_time: u32 = 0
 let frame_time: f32 = 0.0
 let running: bool = true
 let window_size: Vec2i
+let title: str = "Window"
 
 let cursor_type: sdl::CursorType = Arrow
 let cursor: &sdl::Cursor = null
@@ -39,3 +42,29 @@ def MouseState::get_wheel(&this, w: MouseWheel): bool => .wheel_dirs[w as u32]
 
 let prev_mouse: MouseState
 let mouse: MouseState
+
+def update_window_size() {
+    window.get_size(&window_size.x, &window_size.y)
+}
+
+
+// Frame time stuff
+
+const FRAMETIMES_COUNT: u32 = 200
+let frametimes: [f32; FRAMETIMES_COUNT]
+let frametime_index: u32
+
+let frametime_total: f32 = 0.0
+
+def add_frametime(frametime: f32) {
+    frametime_total += frametime - frametimes[frametime_index]
+    frametimes[frametime_index] = frametime
+    frametime_index = (frametime_index + 1) % FRAMETIMES_COUNT
+}
+
+def get_avg_frametime(): f32 => frametime_total / FRAMETIMES_COUNT as f32
+
+let window_title_fps_buf: [char; 256]
+let frame_num: u64 = 0
+
+let buffer: Texture = Texture(null, 0, 0, null, 0)

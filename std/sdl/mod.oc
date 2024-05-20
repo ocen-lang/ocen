@@ -66,6 +66,9 @@ enum Key extern("SDL_Scancode") {
     Right = extern("SDL_SCANCODE_RIGHT")
     Space = extern("SDL_SCANCODE_SPACE")
     Escape = extern("SDL_SCANCODE_ESCAPE")
+
+    Comma = extern("SDL_SCANCODE_COMMA")
+    Dot = extern("SDL_SCANCODE_PERIOD")
 }
 
 enum MouseButton extern("u8") {
@@ -200,6 +203,8 @@ enum WindowMode extern("int") {
 [extern "SDL_PollEvent"]        def poll_event(event: &Event): bool
 
 [extern "SDL_NUM_SYSTEM_CURSORS"] const CURSOR_TYPE_COUNT: i32
+[extern "SDL_CaptureMouse"] def capture_mouse(enabled: bool)
+[extern "SDL_SetRelativeMouseMode"] def set_relative_mouse_mode(enabled: bool)
 
 enum CursorType extern("SDL_SystemCursor") {
     Arrow = extern("SDL_SYSTEM_CURSOR_ARROW")
