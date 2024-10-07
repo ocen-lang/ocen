@@ -1,0 +1,91 @@
+//! Wrapper over {{Buffer}} and {{SV}} that let you read/write one bit at a time.
+
+import std::buffer::{ Buffer }
+import std::sv::{ SV }
+
+struct BitWriter {
+    buffer: &Buffer
+    byte: u8
+    bit: u8
+}
+
+def BitWriter::make(buffer: &Buffer): BitWriter {
+    return BitWriter(
+        buffer: buffer,
+        byte: 0,
+        bit: 0
+    )
+}
+
+def BitWriter::write_bit(&this, bit: u8) {
+    if bit != 0 {
+        .byte = .byte | (1u8 << .bit)
+    } else {
+        .byte = .byte & ~(1u8 << .bit)
+    }
+    if ++.bit == 8 {
+        .buffer.write_u8(.byte)
+        .byte = 0
+        .bit = 0
+    }
+}
+
+def BitWriter::write_u8(&this, byte: u8) {
+    for let i = 0u8; i < 8; i++ {
+        .write_bit((byte >> i) & 1)
+    }
+}
+
+def BitWriter::finish(&this) {
+    if .bit != 0 {
+        .buffer.write_u8(.byte)
+    }
+}
+
+
+struct BitReader {
+    data: &u8
+    num_bits: u32  // Maximum number of bits to read
+    idx: u32
+}
+
+def BitReader::from_data(data: &u8, num_bits: u32): BitReader {
+    return BitReader(
+        data: data,
+        num_bits: num_bits,
+        idx: 0
+    )
+}
+
+def BitReader::from_sv(sv: SV, num_bits: u32 = 0): BitReader {
+    if num_bits == 0 {
+        num_bits = sv.len * 8
+    }
+    return BitReader::from_data(sv.data as &u8, num_bits)
+}
+
+def BitReader::read_bit(&this): u8 {
+    if .idx >= .num_bits {
+        return 0
+    }
+    let byte = .data[.idx / 8]
+    let bit_offset = (.idx % 8) as u8
+    let bit = (byte >> bit_offset) & 1
+    .idx += 1
+    return bit
+}
+
+def BitReader::read_u8(&this): u8 {
+    let byte: u8 = 0
+    for let i = 0u8; i < 8; i++ {
+        byte = byte | (.read_bit() << i)
+    }
+    return byte
+}
+
+def BitReader::has_bits(&this): bool => .idx < .num_bits
+
+// Iterator methods
+def BitReader::has_value(&this): bool => .idx < .num_bits
+def BitReader::cur(&this): u8 => .data[.idx / 8] >> (.idx % 8) as u8 & 1
+def BitReader::next(&this) => .idx += 1

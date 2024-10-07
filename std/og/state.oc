@@ -35,6 +35,7 @@ struct MouseState {
     pos: Vec2i
     buttons: [bool; 16]   // Hopefully enough for all mouse buttons
     wheel_dirs: [bool; 8] // Hopefully enough for all mouse wheel buttons
+    scroll: Vec2i
 }
 
 def MouseState::get_button(&this, b: sdl::MouseButton): bool => .buttons[b as u32]

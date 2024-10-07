@@ -75,7 +75,19 @@ def hex_dump(data: &u8, size: u32) {
     println("")
 }
 
+def bit_dump(data: &u8, size: u32) {
+    print("(%d bytes): ", size)
+    for let i = 0; i < size; i += 1 {
+        if (i > 0) print("_")
+        for let j = 0u8; j < 8; j += 1 {
+            print("%d", (data[i] >> (7u8 - j)) & 1)
+        }
+    }
+    println("")
+}
+
 def Buffer::hex_dump(this) => hex_dump(.data, .size)
+def Buffer::bit_dump(this) => bit_dump(.data, .size)
 
 [operator "[]"]
 def Buffer::get_byte_at(this, index: u32): u8 {
