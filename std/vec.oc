@@ -80,7 +80,9 @@ struct Vec3<T> {
     x, y, z: T
 }
 
+//! Floating point vector, 3d
 typedef Vec3f = Vec3<f32>
+
 typedef Vec3i = Vec3<i32>
 typedef Vec3u = Vec3<u32>
 typedef Vec3f64 = Vec3<f64>

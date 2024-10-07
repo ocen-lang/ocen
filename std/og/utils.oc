@@ -1,11 +1,13 @@
 // Functions that are not part of the public API
 import .state
 import std::sdl
+import std::vec::{ Vec2i }
 
 def handle_sdl_events() {
     import .state::{ prev_keys, keys, prev_mouse, mouse, MouseWheel }
     prev_mouse = mouse
     prev_keys = keys
+    mouse.scroll = Vec2i(0, 0)
 
     let event: sdl::Event
     while sdl::poll_event(&event) {
@@ -41,6 +43,7 @@ def handle_sdl_events() {
                 mouse.wheel_dirs[MouseWheel::Left as i32] = event.wheel.x < 0
                 mouse.wheel_dirs[MouseWheel::Down as i32] = event.wheel.y > 0
                 mouse.wheel_dirs[MouseWheel::Up as i32] = event.wheel.y < 0
+                mouse.scroll = Vec2i(event.wheel.x, event.wheel.y)
             }
             else => {}
         }

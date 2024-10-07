@@ -183,6 +183,29 @@ def read_file(path: str): Buffer {
     return data
 }
 
+//! Incrementally read the whole file (ie; without fseek/ftell). This is useful
+//! for reading special files like /dev/stdin and /proc/cpuinfo.
+def read_file_inc(path: str): Buffer {
+    let file = bindings::fopen(path)
+    if not file? {
+        std::panic(`[-] Failed to open file: {path}: {std::libc::get_err()}`)
+    }
+
+    let buf = Buffer::make(capacity: 1025)
+    while true {
+        let read = bindings::fread(buf.data + buf.size, 1, 1024, file)
+        if read == 0 {
+            break
+        }
+        buf.size += read as u32
+        buf.resize_if_necessary(new_size: buf.size + 1025)
+    }
+    buf.data[buf.size] = 0
+    bindings::fclose(file)
+    return buf
+}
+
+
 def directory_exists(path: str): bool {
     let dir = bindings::opendir(path)
     if dir == null return false

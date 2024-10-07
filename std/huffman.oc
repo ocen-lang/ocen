@@ -1,0 +1,284 @@
+import std::buffer::{ Buffer }
+import std::heap::{ Heap }
+import std::mem
+import std::bitio::{ BitReader, BitWriter }
+import std::sv::{ SV }
+
+//
+// Compressed Buffer Format:
+//   - 4 bytes: big-endian u32, number of 1-byte characters encoded
+//   - Huffman tree encoding (below)
+//   - Bitstream of encoded characters, tightly packed
+//
+//
+// Huffman Tree Encoding:
+//   - Single bit representing the type of the node: 0 for internal, 1 for leaf
+//   - After the bit:
+//      - 8 bits: the character if the node is a leaf
+//      - (recursively) two more nodes if the node is an internal node
+//
+// For eg: (a ((b c) d)) is encoded as the bitstream: (with whitespace for clarity)
+//   1
+//     0 01100001
+//     1
+//       1
+//         0 01100010
+//         0 01100011
+
+//
+// Bit order: (using std::bitio)
+//    - Within a byte, read bit `i` with (byte >> i) & 1
+//    - Within a byte, write bit `i` with byte |= (1 << i)
+//    - For Nth bit in stream, read byte `N/8` and bit `N%8`
+//
+
+
+def decompress(inp: &Buffer): Buffer {
+    let total_chars = {
+        let reader = inp.reader()
+        yield reader.read_u32()
+    }
+    let remaining = inp.sv().skip(4)
+    let bio = BitReader::from_sv(remaining)
+
+    let tree = HuffmanTree::from_serialized_bits(&bio)
+
+    let res = Buffer::make()
+    let dcmp = Decompressor(
+        bio: bio,
+        res: res,
+        total_chars: total_chars,
+        tree: tree
+    )
+    let out = dcmp.decompress()
+    tree.free()
+    return out
+}
+
+def compress(inp: &Buffer): Buffer {
+    let tree = HuffmanTree::from_text(inp.sv())
+    let codes = HuffmanCodes::make(tree)
+
+    let res = Buffer::make(capacity: inp.size)
+    // Number of characters encoded
+    res.write_u32(inp.size)
+
+    let bio = BitWriter::make(&res)
+
+    // Encode huffman tree
+    tree.serialize_bits(&bio, tree.root)
+
+    // Encode the characters
+    for c in inp.sv().chars() {
+        let code = codes.codes[c as u8]
+        for bit in code.iter_bits() {
+            bio.write_bit(bit)
+        }
+    }
+    bio.finish()
+
+    tree.free()
+    return res
+}
+
+// Internal details
+
+enum NodeType {
+    Tree
+    Char
+}
+
+struct Node {
+    freq: u32
+    type: NodeType
+
+    // Only valid if type == Char
+    chr: char
+
+    // Only valid if type == Tree
+    left: u16
+    right: u16
+}
+
+def Node::compare(&this, other: &Node): i8 => .freq.compare(other.freq)
+
+struct HuffmanTree {
+    nodes: [Node; 512] // At most 256 leaves and 255 internal nodes
+    num_nodes: u16
+    root: u16
+}
+
+def HuffmanTree::serialize_bits(&this, bio: &BitWriter, cur: u16) {
+    let node = &.nodes[cur]
+    if node.type == Char {
+        bio.write_bit(1)
+        bio.write_u8(node.chr as u8)
+
+    } else {
+        bio.write_bit(0)
+        .serialize_bits(bio, node.left)
+        .serialize_bits(bio, node.right)
+    }
+}
+
+def HuffmanTree::deserialize_bits(&this, bio: &BitReader): u16 {
+    let cur = .num_nodes++
+    let node = &.nodes[cur]
+
+    let bit = bio.read_bit()
+    if bit == 1 {
+        node.type = Char
+        node.chr = bio.read_u8() as char
+    } else {
+        node.type = Tree
+        node.left = .deserialize_bits(bio)
+        node.right = .deserialize_bits(bio)
+    }
+
+    return cur
+}
+
+
+def HuffmanTree::from_serialized_bits(bio: &BitReader): &HuffmanTree {
+    let tree = mem::alloc<HuffmanTree>()
+    let root = tree.deserialize_bits(bio)
+    return tree
+}
+
+def HuffmanTree::from_text(inp: SV): &HuffmanTree {
+    let tree = mem::alloc<HuffmanTree>()
+
+    let counts: [u32; 256]
+    for c in inp.chars() {
+        counts[c as u8] += 1
+    }
+
+    let heap = Heap<&Node>::new(Min, capacity: 256)
+    for let i = 0; i < 256; i++ {
+        let node = &tree.nodes[tree.num_nodes++]
+        if counts[i] > 0 {
+            node.type = Char
+            node.chr = i as char
+            node.freq = counts[i]
+            heap.push(node)
+        }
+    }
+
+    while heap.size() > 1 {
+        let left = heap.pop()
+        let right = heap.pop()
+        let node = &tree.nodes[tree.num_nodes++]
+        node.type = Tree
+        node.left = (left - tree.nodes) as u16
+        node.right = (right - tree.nodes) as u16
+        node.freq = left.freq + right.freq
+        heap.push(node)
+    }
+
+    let res = heap.pop()
+    heap.free()
+
+    tree.root = (res - tree.nodes) as u16
+    return tree
+}
+
+def HuffmanTree::free(&this) {
+    mem::free(this)
+}
+
+
+// FIXME: Would be nice to have this be something in the standard libary,
+//        but there's no way to template over the size of the array yet, and
+//        we want to avoid a separate allocation.
+struct CharCode {
+    bits: u32        // Number of bits
+    code: [u8; 32]   // Up to 256 bits for the code
+}
+
+def CharCode::set(&this, idx: u32, bit: u8) {
+    .bits = idx + 1
+    let byte_off = (idx / 8) as u8
+    let bit_off = (idx % 8) as u8
+    if bit == 0 {
+        .code[byte_off] = .code[byte_off] & ~(1u8 << bit_off)
+    } else {
+        .code[byte_off] = .code[byte_off] | (1u8 << bit_off)
+    }
+}
+
+def CharCode::get(&this, idx: u32): u8 {
+    let byte_off = (idx / 8) as u8
+    let bit_off = (idx % 8) as u8
+    return ((.code[byte_off] >> bit_off) & 1) as u8
+}
+
+def CharCode::iter_bits(&this): BitReader => BitReader(.code, num_bits: .bits, idx: 0)
+
+
+struct HuffmanCodes {
+    codes: [CharCode; 256]
+}
+
+def HuffmanCodes::setup_from_node(&this, tree: &HuffmanTree, cur: u16, code: CharCode, idx: u32) {
+    let node = &tree.nodes[cur]
+    if node.type == Char {
+        .codes[node.chr as u8] = code
+
+    } else {
+        let lcode = code
+        lcode.set(idx, 0)
+        .setup_from_node(tree, node.left, lcode, idx + 1)
+
+        let rcode = code
+        rcode.set(idx, 1)
+        .setup_from_node(tree, node.right, rcode, idx + 1)
+    }
+}
+
+def HuffmanCodes::make(tree: &HuffmanTree): HuffmanCodes {
+    let ctree: HuffmanCodes
+    let code: CharCode
+    ctree.setup_from_node(tree, tree.root, code, 0)
+    return ctree
+}
+
+def HuffmanCodes::print(&this) {
+    for let i = 0; i < 256; i++ {
+        let code = .codes[i]
+        if code.bits > 0 {
+            print(f"{i:c} -> ")
+            for bit in code.iter_bits() {
+                print(f"{bit}")
+            }
+            println("")
+        }
+    }
+}
+
+struct Decompressor {
+    bio: BitReader
+    res: Buffer
+    total_chars: u32
+    tree: &HuffmanTree
+}
+
+def Decompressor::run(&this, cur: u16) {
+    let node = &.tree.nodes[cur]
+    if node.type == Char {
+        .res.write_char(node.chr)
+
+    } else {
+        if .bio.read_bit() == 0 {
+            .run(node.left)
+        } else {
+            .run(node.right)
+        }
+    }
+}
+
+def Decompressor::decompress(&this): Buffer {
+    while .res.size < .total_chars {
+        .run(.tree.root)
+    }
+    return .res
+}

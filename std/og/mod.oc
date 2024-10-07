@@ -131,6 +131,7 @@ def is_scroll(w: state::MouseWheel): bool => state::mouse.get_wheel(w)
 
 def get_mouse_pos(): Vec2i => state::mouse.pos
 def get_mouse_delta(): Vec2i => state::mouse.vec // from SDL_MOUSEMOTION event
+def get_mouse_scroll(): Vec2i => state::mouse.scroll // from SDL_MOUSEWHEEL event
 
 def capture_mouse(capture: bool) => sdl::capture_mouse(capture)
 def grab_input(grab: bool) => sdl::set_relative_mouse_mode(grab)

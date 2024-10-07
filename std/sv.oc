@@ -151,6 +151,12 @@ def SV::chop_u16(&this): u16 => .chop_unsigned("SV::chop_u16") as u16
 //* Chop off a u8 from the beginning of the string and return it. Fails if there is no number
 def SV::chop_u8(&this): u8 => .chop_unsigned("SV::chop_u8") as u8
 
+//* Return a new string view that skips the first n characters
+def SV::skip(this, n: u32): SV {
+    assert n <= .len, "Cannot skip more than the length of the string"
+    return SV(.data + n, .len - n)
+}
+
 def SV::chop_f32(&this): f32 {
     let endptr = ""
     let res = std::libc::strtod(.data, &endptr)
