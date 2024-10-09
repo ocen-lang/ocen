@@ -1,3 +1,5 @@
+//! Compression / Decompression using Huffman encoding
+
 import std::buffer::{ Buffer }
 import std::heap::{ Heap }
 import std::mem
@@ -24,7 +26,7 @@ import std::sv::{ SV }
 //       1
 //         0 01100010
 //         0 01100011
-
+//       0 01100100
 //
 // Bit order: (using std::bitio)
 //    - Within a byte, read bit `i` with (byte >> i) & 1
@@ -32,7 +34,7 @@ import std::sv::{ SV }
 //    - For Nth bit in stream, read byte `N/8` and bit `N%8`
 //
 
-
+//! Decompress a huffman-compressed buffer
 def decompress(inp: &Buffer): Buffer {
     let total_chars = {
         let reader = inp.reader()
@@ -55,6 +57,7 @@ def decompress(inp: &Buffer): Buffer {
     return out
 }
 
+//! Compress a buffer using huffman encoding
 def compress(inp: &Buffer): Buffer {
     let tree = HuffmanTree::from_text(inp.sv())
     let codes = HuffmanCodes::make(tree)
@@ -81,7 +84,7 @@ def compress(inp: &Buffer): Buffer {
     return res
 }
 
-// Internal details
+///////// Internal details
 
 enum NodeType {
     Tree
