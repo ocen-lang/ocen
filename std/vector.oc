@@ -19,6 +19,7 @@ def Vector::new(capacity: u32 = 16): &Vector<T> {
 
 //* Resizes the vector to a new capacity
 def Vector::resize(&this, new_capacity: u32) {
+    if .capacity >= new_capacity then return
     .data = mem::realloc<T>(.data , .capacity, new_capacity)
     .capacity = new_capacity
 }
