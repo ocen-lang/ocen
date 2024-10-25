@@ -109,23 +109,48 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
 def CodeGenerator::gen_format_string_part(&this, part: str) {
     let len = part.len()
     for let i = 0; i < len; i += 1 {
-        if part[i] == '\\' {
-            // This should be safe
-            i += 1
-            match part[i] {
-                // We want to unescape these
-                '`' | '{' | '}' => {}
-                // Anything else should remain escaped
-                else => .out += '\\'
+        match part[i] {
+            '\\' => {
+                // This should be safe
+                i += 1
+                match part[i] {
+                    // We want to unescape these
+                    '`' | '{' | '}' => {}
+                    // Anything else should remain escaped
+                    else => .out += '\\'
+                }
+                .out += part[i]
             }
-        } else if part[i] == '"' {
-            // If we have double quotes in a string we should escape it
-            .out += '\\'
-        } else if part[i] == '%' {
-            // Percent signs are special in printf, we need to do "%%"
-            .out += '%'
+            '"' => {
+                // If we have double quotes in a string we should escape it
+                .out += '\\'
+                .out += part[i]
+            }
+            '%' => {
+                // Percent signs are special in printf, we need to do "%%"
+                .out += '%'
+                .out += part[i]
+            }
+            '\n' => {
+                // We want to keep newlines in strings
+                .out += "\\n"
+            }
+            else => .out += part[i]
         }
-        .out += part[i]
+    }
+}
+
+//* Generate all the escape sequences for string literals
+def CodeGenerator::gen_string_literal(&this, literal: str) {
+    let len = literal.len()
+    for let i = 0; i < len; i += 1 {
+        match literal[i] {
+            '\n' => {
+                // We want to keep newlines in strings
+                .out += "\\n"
+            }
+            else => .out += literal[i]
+        }
     }
 }
 
@@ -383,7 +408,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
         StringLiteral => {
             let str_lit = node.u.string_literal
             .out += "\""
-            .out += str_lit
+            .gen_string_literal(str_lit)
             .out += "\""
         }
         CharLiteral => {
