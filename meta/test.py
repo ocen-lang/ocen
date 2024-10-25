@@ -12,6 +12,8 @@ from sys import argv
 from typing import Union, Optional, Tuple
 import multiprocessing
 import sys
+import shlex
+import json
 import textwrap
 
 class Result(Enum):
@@ -22,7 +24,12 @@ class Result(Enum):
     SKIP_SILENTLY = 5
     SKIP_REPORT = 6
     RUNTIME_FAIL = 7
+    LSP = 8
 
+@dataclass(frozen=True)
+class LSPTest:
+    flags: str
+    value: str
 
 @dataclass(frozen=True)
 class Expected:
@@ -32,6 +39,9 @@ class Expected:
 
 def get_expected(filename) -> Optional[Expected]:
     with open(filename, encoding="utf8", errors='ignore') as file:
+        is_lsp = False
+        lsp_flags = ""
+
         for line in file:
             if not line.startswith("///"):
                 break
@@ -61,22 +71,77 @@ def get_expected(filename) -> Optional[Expected]:
                 return Expected(Result.COMPILE_FAIL, value)
             if name == "runfail":
                 return Expected(Result.RUNTIME_FAIL, value)
+            if name == "lsp":
+                is_lsp = True
+                lsp_flags = value
+                break
 
             print(f'[-] Invalid parameter in {filename}: {line}')
             break
 
+        if is_lsp:
+            try:
+                value = next(file)
+                if not value.startswith("/// "):
+                    print(f'[-] Expected JSON in {filename} after LSP directive')
+                    return Expected(Result.SKIP_REPORT, None)
+                data = json.loads(value[4:])
+                return Expected(Result.LSP, LSPTest(lsp_flags, data))
+            except StopIteration:
+                print(f'[-] Expected JSON in {filename} after LSP directive')
+                return Expected(Result.SKIP_REPORT, None)
+            except json.JSONDecodeError:
+                print(f'[-] Failed to parse JSON in {filename} after LSP directive')
+                return Expected(Result.SKIP_REPORT, None)
+
+
     return Expected(Result.SKIP_REPORT, None)
+
+def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
+    cmd = f'ocen lsp {expected.value.flags} {path}'
+    process = run(shlex.split(cmd), stdout=PIPE, stderr=PIPE)
+    if process.returncode != 0:
+        return False, f"LSP Command failed with code: {process.returncode}, stdout: {process.stdout}", path
+
+    output = process.stdout.decode('utf-8').strip()
+    try:
+        output = json.loads(output)
+    except json.JSONDecodeError:
+        return False, f"Failed to parse JSON output: {output}", path
+
+    def normalize_paths(data):
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key == "file":
+                    data[key] = Path(value).basename()
+                else:
+                    normalize_paths(value)
+        elif isinstance(data, list):
+            for value in data:
+                normalize_paths(value)
+
+    wanted = expected.value.value
+    normalize_paths(output)
+    normalize_paths(wanted)
+
+    if output == wanted:
+        return True, "(Success)", path
+
+    return False, f"Expected LSP output does not match\n  expected: {wanted}\n       got: {output}", path
 
 def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
     if debug:
         print(f"[{num}] {path} exec_name", flush=True)
+
+    if expected.type == Result.LSP:
+        return handle_lsp_test(compiler, num, path, expected, debug)
+
     process = run(
         [compiler, str(path), '-o', exec_name],
         stdout=PIPE,
         stderr=PIPE
     )
-
     if expected.type == Result.COMPILE_FAIL:
         if process.returncode == 0:
             return False, "Expected compilation failure, but succeeded", path
