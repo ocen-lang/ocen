@@ -15,7 +15,28 @@
 
 `ocen` transpiles to C, and the _only_ dependency for this compiler is a C compiler on your system (`gcc` by default, but can be specified with `CC` environment variable). For now `ocen` is only tested/supported on linux and macOS, but contributions to help get this running on Windows are welcome if anyone is interested.
 
-## Usage
+## Installing
+
+### Automated Installation
+
+For the _"I don't care, just give me the command"_ people. **This will add some environment variables to your shell config**
+
+```shell
+# Default (installs in ~/ocen):
+$ curl -sSL https://raw.githubusercontent.com/ocen-lang/ocen/master/meta/install.sh | bash
+
+# Custom install path:
+$ curl -sSL https://raw.githubusercontent.com/ocen-lang/ocen/master/meta/install.sh | BASE=~/local/ bash
+```
+
+### Manual Installation
+
+Clone the repository:
+
+```shell
+$ git clone https://github.com/ocen-lang/ocen.git
+$ cd ocen
+```
 
 Use the following command to build the initial compiler:
 
