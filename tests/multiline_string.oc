@@ -1,0 +1,9 @@
+/// out: "Hello!\n        This is a\n        multiline string"
+
+def main() {
+    let s = "Hello!
+        This is a
+        multiline string"
+
+    println(`{s}`)
+}
