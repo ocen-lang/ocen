@@ -1,0 +1,8 @@
+/// lsp: -h 8 6
+/// {"hover":"def main(argc: i32, argv: &str): i32\nThis is a doc\n```\ndef foo(): str => \"hello\"\n```\n"}
+
+//! This is a doc
+//! ```
+//! def foo(): str => "hello"
+//! ```
+def main(argc: i32, argv: &str): i32 {}
