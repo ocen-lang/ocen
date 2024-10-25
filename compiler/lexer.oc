@@ -130,6 +130,29 @@ def Lexer::lex_string_literal(&this, has_seen_f: bool) {
     }
 }
 
+def Lexer::lex_raw_string_literal(&this) {
+    let start_loc = .loc
+    let end_char = .cur()
+    let start = .i + 1
+    let buffer = Buffer::make()
+    .inc()
+    while .i < .source_len and .cur() != end_char {
+        if .cur() == '\\' {
+            buffer += '\\'
+        }
+        buffer += .cur()
+        .inc()
+    }
+
+    .inc()
+
+    if .i >= .source_len {
+        .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
+    }
+
+    .push(Token::new(StringLiteral, Span(start_loc, .loc), buffer.str()))
+}
+
 def Lexer::lex_int_literal_different_base(&this): &Token {
     let start_loc = .loc
     let start = .i
@@ -305,6 +328,10 @@ def Lexer::lex(&this): &Vector<&Token> {
                     c == 'f' and .peek(1) == '"' => {
                         .inc()
                         .lex_string_literal(has_seen_f: true)
+                    }
+                    c == 'r' and .peek(1) == '"' => {
+                        .inc()
+                        .lex_raw_string_literal()
                     }
                     c.is_digit() => .lex_numeric_literal()
                     c.is_alpha() or c == '_' => {

@@ -1,0 +1,6 @@
+/// out: "\\t\\n\\r\\x1b\\x7f"
+
+def main() {
+    let s = r"\t\n\r\x1b\x7f"
+    println(`{s}`)
+}
