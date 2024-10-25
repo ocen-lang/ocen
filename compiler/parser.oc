@@ -84,7 +84,7 @@ def Parser::token(&this): &Token {
         .curr = .tokens.size - 1
         // If we run out of tokens without an error, report one.
         .error_msg("Unexpected end of file")
-        .program.err_jmp_ctx.jump_back(1)
+        .program.get_error_context().jump_back(1)
     }
     return .tokens.unchecked_at(.curr as u32)
 }
@@ -126,7 +126,7 @@ def Parser::consume_newline_or(&this, type: TokenType) {
 
     } else if not .token().seen_newline {
         .error_msg(`Expected {type.str()} or newline`)
-        .program.err_jmp_ctx.jump_back(1)
+        .program.get_error_context().jump_back(1)
     }
 }
 
@@ -141,7 +141,8 @@ def Parser::consume(&this, type: TokenType): &Token {
     let tok = .token()
     if not .consume_if(type) {
         .error_msg(`Expected TokenType::{type.str()}`)
-        .program.err_jmp_ctx.jump_back(1)
+        println(f"Error context size: {.program.err_jmp_stack.size}")
+        .program.get_error_context().jump_back(1)
     }
     return tok
 }
@@ -510,6 +511,24 @@ def Parser::parse_match(&this): &AST {
     return node
 }
 
+//! Resets the parser state to the start of a top-level block
+def Parser::sync_toplevel(&this) {
+    while not (
+        .token_is(TokenType::CloseCurly) or     // End of block
+        .token_is(TokenType::OpenSquare) or     // Start of attribute
+        .token_is(TokenType::Import) or         // Start of import
+        .token_is(TokenType::Def) or            // Start of function
+        .token_is(TokenType::Let) or            // Start of variable
+        .token_is(TokenType::Const) or          // Start of constant
+        .token_is(TokenType::Struct) or         // Start of struct
+        .token_is(TokenType::Enum) or           // Start of enum
+        .token_is(TokenType::AtSign) or         // Start of compiler directive
+        .token_is(TokenType::EOF)               // EOF
+    ) {
+        .curr += 1
+    }
+}
+
 def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
     if not suffix? return null
 
@@ -716,6 +735,10 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
                 node.u.member.rhs_name = ident.text
                 node.u.member.rhs_span = ident.span
             }
+        }
+        TokenType::EOF => {
+            .error(Error::new(.token().span, "Unexpected end of file"))
+            return AST::new(Error, .token().span)
         }
         else => {
             let prev_span = .tokens[.curr - 1].span
@@ -2005,6 +2028,14 @@ def Parser::parse_attributes_if_any(&this) {
 def Parser::parse_namespace_until(&this, end_type: TokenType) {
     .add_doc_comment(.ns.sym, .token())
 
+    let ctx = .program.add_error_context()
+    if ctx.set_jump_point() > 0 {
+        println("Error in namespace parse context")
+        // Presumably, we've seen some error while parsing this file. Try to sync
+        // to the next top-level declaration.
+        .sync_toplevel()
+    }
+
     while not .token_is_eof_or(end_type) {
 
         .parse_attributes_if_any()
@@ -2083,6 +2114,8 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
             }
         }
     }
+
+    .program.pop_error_context()
 
     // After we've parsed everything in this file, go ahead and perform the imports
     while .ns.unhandled_imports.size > 0 {
@@ -2309,7 +2342,7 @@ def Parser::load_import_path(&this, import_stmt: &AST): bool {
                 if not cur.parent? {
                     let first_part = path.parts.at(0)
                     .error(Error::new(first_part.span, "Cannot import from parent of root namespace"))
-                    .program.err_jmp_ctx.jump_back(1)
+                    .program.get_error_context().jump_back(1)
                 }
                 cur = cur.parent
             }
@@ -2356,7 +2389,7 @@ def Parser::couldnt_find_stdlib(&this) {
     println("    Could not find standard library. Set OCEN_ROOT environment variable.")
     println("      Alternatively, compile from the root of `ocen` repository.")
     println("--------------------------------------------------------------------------------")
-    .program.err_jmp_ctx.jump_back(1)
+    .program.get_error_context().jump_back(1)
 }
 
 def Parser::find_and_import_stdlib(&this) {
@@ -2408,7 +2441,7 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     let cur = fs::realpath(filename)
     if not cur? {
         .error(Error::new(Span::default(), f"Could not find file: {filename}"))
-        .program.err_jmp_ctx.jump_back(1)
+        .program.get_error_context().jump_back(1)
     }
     let namespace_paths = Vector<str>::new()
     let found_root = false
@@ -2503,7 +2536,12 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
 }
 
 def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool, file_contents: str = null, include_workspace_main: bool = true) {
-    if program.err_jmp_ctx.set_jump_point() > 0 return
+    // Fallback for any unhandled errors...
+    let ctx = program.add_error_context()
+    if ctx.set_jump_point() > 0 {
+        println("Error in parse_toplevel context")
+        return
+    }
 
     let parser = Parser::make(program, program.global)
     if include_stdlib {

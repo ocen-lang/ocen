@@ -176,7 +176,6 @@ def main(argc: i32, argv: &str) {
     program.gen_debug_info = debug
     Parser::parse_toplevel(program, filename, include_stdlib, null, include_workspace_main: true)
 
-    program.exit_with_errors_if_any()
     run_typecheck_passes(program)
 
     program.exit_with_errors_if_any()
