@@ -2119,6 +2119,7 @@ void compiler_lexer_Lexer_inc(compiler_lexer_Lexer *this);
 char compiler_lexer_Lexer_peek(compiler_lexer_Lexer *this, u32 offset);
 void compiler_lexer_Lexer_lex_char_literal(compiler_lexer_Lexer *this);
 void compiler_lexer_Lexer_lex_string_literal(compiler_lexer_Lexer *this, bool has_seen_f);
+void compiler_lexer_Lexer_lex_raw_string_literal(compiler_lexer_Lexer *this);
 compiler_tokens_Token *compiler_lexer_Lexer_lex_int_literal_different_base(compiler_lexer_Lexer *this);
 compiler_tokens_Token *compiler_lexer_Lexer_lex_numeric_literal_helper(compiler_lexer_Lexer *this);
 void compiler_lexer_Lexer_lex_numeric_literal(compiler_lexer_Lexer *this);
@@ -10567,6 +10568,26 @@ void compiler_lexer_Lexer_lex_string_literal(compiler_lexer_Lexer *this, bool ha
     compiler_lexer_Lexer_push(this, compiler_tokens_Token_new(compiler_tokens_TokenType_StringLiteral, (std_span_Span){.start=start_loc, .end=this->loc}, text));
   }}
 
+void compiler_lexer_Lexer_lex_raw_string_literal(compiler_lexer_Lexer *this) {
+  std_span_Location start_loc = this->loc;
+  char end_char = compiler_lexer_Lexer_cur(this);
+  u32 start = (this->i + 1);
+  std_buffer_Buffer buffer = std_buffer_Buffer_make(16);
+  compiler_lexer_Lexer_inc(this);
+  while ((this->i < this->source_len) && (compiler_lexer_Lexer_cur(this) != end_char)) {
+    if (compiler_lexer_Lexer_cur(this)=='\\') {
+      std_buffer_Buffer_write_char(&buffer, '\\');
+    }
+    std_buffer_Buffer_write_char(&buffer, compiler_lexer_Lexer_cur(this));
+    compiler_lexer_Lexer_inc(this);
+  }
+  compiler_lexer_Lexer_inc(this);
+  if (this->i >= this->source_len) {
+    std_vector_Vector__11_push(this->errors, compiler_errors_Error_new((std_span_Span){.start=this->loc, .end=this->loc}, "Unterminated string literal"));
+  }
+  compiler_lexer_Lexer_push(this, compiler_tokens_Token_new(compiler_tokens_TokenType_StringLiteral, (std_span_Span){.start=start_loc, .end=this->loc}, std_buffer_Buffer_str(buffer)));
+}
+
 compiler_tokens_Token *compiler_lexer_Lexer_lex_int_literal_different_base(compiler_lexer_Lexer *this) {
   std_span_Location start_loc = this->loc;
   u32 start = this->i;
@@ -10585,7 +10606,7 @@ compiler_tokens_Token *compiler_lexer_Lexer_lex_int_literal_different_base(compi
       }
     } break;
     default: {
-      if(!(false)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/lexer.oc:150:24: Assertion failed: `false`", "Invalid base for int literal"); exit(1); }
+      if(!(false)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/lexer.oc:173:24: Assertion failed: `false`", "Invalid base for int literal"); exit(1); }
     } break;
   }
   u32 len = (this->i - start);
@@ -10843,6 +10864,9 @@ std_vector_Vector__9 *compiler_lexer_Lexer_lex(compiler_lexer_Lexer *this) {
         if (c=='f' && compiler_lexer_Lexer_peek(this, 1)=='"') {
           compiler_lexer_Lexer_inc(this);
           compiler_lexer_Lexer_lex_string_literal(this, true);
+        } else if (c=='r' && compiler_lexer_Lexer_peek(this, 1)=='"') {
+          compiler_lexer_Lexer_inc(this);
+          compiler_lexer_Lexer_lex_raw_string_literal(this);
         } else if (char_is_digit(c)) {
           compiler_lexer_Lexer_lex_numeric_literal(this);
         } else if (char_is_alpha(c) || c=='_') {
