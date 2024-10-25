@@ -1,0 +1,14 @@
+/// fail: Function does not always return
+
+// The point of this test is to check if we can successfully
+// "look past" the missing function body and still typecheck /
+// do analysis on the rest of the program.
+//
+// This should give 2 different errors, and does not check for
+// the "missing identifier" error, as that is already covered
+// in another test.
+
+def
+
+def foo(): i32 {}
+def main() {}

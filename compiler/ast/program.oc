@@ -175,7 +175,7 @@ struct Program {
     error_level: u32
 
     cached_symbols: CachedSymbols
-    err_jmp_ctx: ErrorContext
+    err_jmp_stack: &Vector<ErrorContext>
 
     // Configs
     check_doc_links: bool
@@ -204,7 +204,22 @@ def Program::new(): &Program {
     prog.sources = Map<str, str>::new()
     prog.library_paths = Vector<str>::new()
     prog.operator_overloads = Map<OperatorOverload, &Function>::new()
+    prog.err_jmp_stack = Vector<ErrorContext>::new()
     return prog
+}
+
+def Program::add_error_context(&this): &ErrorContext {
+    .err_jmp_stack.resize(.err_jmp_stack.size + 1)
+    .err_jmp_stack.size += 1
+    return .err_jmp_stack.back_ptr()
+}
+
+def Program::get_error_context(&this): &ErrorContext {
+    return .err_jmp_stack.back_ptr()
+}
+
+def Program::pop_error_context(&this) {
+    .err_jmp_stack.size -= 1
 }
 
 def Program::setup_library_paths(&this) {
