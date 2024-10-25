@@ -98,7 +98,7 @@ def get_expected(filename) -> Optional[Expected]:
     return Expected(Result.SKIP_REPORT, None)
 
 def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
-    cmd = f'ocen lsp {expected.value.flags} {path}'
+    cmd = f'{compiler} lsp {expected.value.flags} {path}'
     process = run(shlex.split(cmd), stdout=PIPE, stderr=PIPE)
     if process.returncode != 0:
         return False, f"LSP Command failed with code: {process.returncode}, stdout: {process.stdout}", path
