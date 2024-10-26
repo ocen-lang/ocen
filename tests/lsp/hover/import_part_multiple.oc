@@ -1,0 +1,4 @@
+/// lsp: -h 4 21
+/// {"hover": "struct std::fs::File"}
+
+import std::fs::{File, EntryType}

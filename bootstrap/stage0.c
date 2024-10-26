@@ -1291,6 +1291,7 @@ struct compiler_ast_nodes_AST {
   std_span_Span span;
   compiler_ast_nodes_ASTUnion u;
   compiler_types_Type *etype;
+  compiler_types_Type *hint;
   compiler_ast_scopes_Symbol *resolved_symbol;
   bool returns;
 };
@@ -5113,6 +5114,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression(co
     typ=compiler_types_Type_decay_array(typ);
   }
   node->etype=typ;
+  node->hint=(((bool)typ) ? typ : hint);
   return typ;
 }
 
@@ -6511,8 +6513,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
         continue;
       }
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2415:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
-      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2419:16: Assertion failed: `sym.type == TypeDef`", NULL); }
+      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2416:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
+      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2420:16: Assertion failed: `sym.type == TypeDef`", NULL); }
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) {
         continue;
@@ -11837,7 +11839,7 @@ void compiler_lsp_typecheck_and_log_errors(compiler_ast_program_Program *program
       std_span_Location start = err->span1.start;
       std_span_Location end = err->span1.end;
       if (compiler_lsp_utils_verbose) {
-        printf("ERROR: %s:%d:%d - %d:%d :: %s""\n", start.filename, start.line, start.col, end.line, end.col, err->msg1);
+        printf("[-] ERROR: %s:%d:%d - %d:%d :: %s""\n", start.filename, start.line, start.col, end.line, end.col, err->msg1);
       }
     }
   }
@@ -11863,12 +11865,12 @@ void compiler_lsp_handle_validate(compiler_ast_program_Program *program, char *p
 void compiler_lsp_handle_location_command(compiler_ast_program_Program *program, compiler_lsp_CommandType type, std_span_Location loc) {
   compiler_lsp_typecheck_and_log_errors(program, loc.filename);
   if (compiler_lsp_utils_verbose) {
-    printf("Looking for location: %s:%u:%u\n", (loc).filename, (loc).line, (loc).col);
+    printf("[+] Looking for location: %s:%u:%u\n", (loc).filename, (loc).line, (loc).col);
   }
   compiler_lsp_finder_Finder finder = compiler_lsp_finder_Finder_make(type, loc);
   if (!compiler_lsp_finder_Finder_find(&finder, program)) {
     if (compiler_lsp_utils_verbose) {
-      printf("No result found""\n");
+      printf("[-] No result found""\n");
     }
     return;
   }
@@ -12867,7 +12869,7 @@ std_value_Value *compiler_lsp_utils_gen_completions_json(compiler_lsp_finder_Fin
     return NULL;
   }
   std_value_Value *completions = std_value_Value_new(std_value_ValueType_List);
-  compiler_types_Type *hint_type = node->etype;
+  compiler_types_Type *hint_type = node->hint;
   compiler_ast_scopes_Symbol *sym = ({ compiler_ast_scopes_Symbol *__yield_0;
     switch (node->type) {
       case compiler_ast_nodes_ASTType_Member: {

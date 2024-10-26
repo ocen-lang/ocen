@@ -1,0 +1,9 @@
+/// lsp: -c 8 18
+/// {"completions": [{"label": "make", "detail": "def Foo::make(): i32", "insertText": "make", "kind": "function", "labelDetails": "def Foo::make(): i32"}]}
+
+struct Foo {}
+def Foo::make(): i32 => 5
+
+def main() {
+    let x = Foo::
+}

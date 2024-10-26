@@ -1,4 +1,33 @@
 //! Compression / Decompression using Huffman encoding
+//!
+//! Compressed Buffer Format:
+//!   - 4 bytes: big-endian u32, number of 1-byte characters encoded
+//!   - Huffman tree encoding (below)
+//!   - Bitstream of encoded characters, tightly packed
+//!
+//!
+//! Huffman Tree Encoding:
+//!   - Single bit representing the type of the node: 0 for internal, 1 for leaf
+//!   - After the bit:
+//!      - 8 bits: the character if the node is a leaf
+//!      - (recursively) two more nodes if the node is an internal node
+//!
+//! For eg: (a ((b c) d)) is encoded as the bitstream: (with whitespace for clarity)
+//!   ```
+//!   1
+//!     0 01100001
+//!     1
+//!       1
+//!         0 01100010
+//!         0 01100011
+//!       0 01100100
+//!   ```
+//!
+//! Bit order: (using std::bitio)
+//!    - Within a byte, read bit `i` with (byte >> i) & 1
+//!    - Within a byte, write bit `i` with byte |= (1 << i)
+//!    - For Nth bit in stream, read byte `N/8` and bit `N%8`
+//!
 
 import std::buffer::{ Buffer }
 import std::heap::{ Heap }
@@ -6,33 +35,6 @@ import std::mem
 import std::bitio::{ BitReader, BitWriter }
 import std::sv::{ SV }
 
-//
-// Compressed Buffer Format:
-//   - 4 bytes: big-endian u32, number of 1-byte characters encoded
-//   - Huffman tree encoding (below)
-//   - Bitstream of encoded characters, tightly packed
-//
-//
-// Huffman Tree Encoding:
-//   - Single bit representing the type of the node: 0 for internal, 1 for leaf
-//   - After the bit:
-//      - 8 bits: the character if the node is a leaf
-//      - (recursively) two more nodes if the node is an internal node
-//
-// For eg: (a ((b c) d)) is encoded as the bitstream: (with whitespace for clarity)
-//   1
-//     0 01100001
-//     1
-//       1
-//         0 01100010
-//         0 01100011
-//       0 01100100
-//
-// Bit order: (using std::bitio)
-//    - Within a byte, read bit `i` with (byte >> i) & 1
-//    - Within a byte, write bit `i` with byte |= (1 << i)
-//    - For Nth bit in stream, read byte `N/8` and bit `N%8`
-//
 
 //! Decompress a huffman-compressed buffer
 def decompress(inp: &Buffer): Buffer {

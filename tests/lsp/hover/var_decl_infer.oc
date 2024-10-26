@@ -1,0 +1,7 @@
+/// lsp: -h 6 11
+/// {"hover": "bar: str"}
+
+def main() {
+    let foo = "hello"
+    let bar = "world"
+}

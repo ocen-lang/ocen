@@ -1,4 +1,4 @@
-
+/// fail: Unexpected end of file
 
 def main() {
     let x = `hello: {}`
