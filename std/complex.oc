@@ -5,7 +5,7 @@ import std::math
 
 [extern "float complex"]
 [formatting "%g+%gi" "crealf($), cimagf($)"]
-struct Complex
+struct Complex {}
 
 [extern "CMPLXF"] def Complex::new(real: f32, imag: f32): Complex
 [extern "crealf"] def Complex::real(this): f32

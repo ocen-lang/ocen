@@ -622,7 +622,7 @@ def gen_completions_json(finder: &Finder): &Value {
     if not node? return null
 
     let completions = Value::new(List)
-    let hint_type = node.etype
+    let hint_type = node.hint
 
     let sym = match node.type {
         Member => node.u.member.lhs.resolved_symbol

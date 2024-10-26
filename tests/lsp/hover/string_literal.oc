@@ -1,0 +1,7 @@
+/// lsp: -h 5 16
+/// {"hover": "str"}
+
+def main() {
+    let x = "hello"
+    let y = "world"
+}

@@ -1,0 +1,4 @@
+/// lsp: -h 4 14
+/// {"hover": "namespace std::fs\nFile and directory manipulation/traversal functions.\n"}
+
+import std::fs

@@ -1,0 +1,12 @@
+/// lsp: -c 11 19
+/// {"completions": [{"label": "Identifier", "detail": "enum Kind::Identifier", "insertText": "Identifier", "kind": "field", "labelDetails": "enum Kind::Identifier"}, {"label": "String", "detail": "enum Kind::String", "insertText": "String", "kind": "field", "labelDetails": "enum Kind::String"}, {"label": "dbg", "detail": "def Kind::dbg(this): str", "insertText": "dbg", "kind": "function", "labelDetails": "def Kind::dbg(this): str"}]}
+
+
+enum Kind {
+    Identifier
+    String
+}
+
+def main() {
+    let x = Kind::
+}

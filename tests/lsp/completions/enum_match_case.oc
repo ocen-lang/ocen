@@ -1,0 +1,15 @@
+/// lsp: -c 13 10
+/// {"completions": [{"label": "FooBar", "detail": "enum Kind::FooBar", "insertText": "FooBar", "kind": "field", "labelDetails": "enum Kind::FooBar"}, {"label": "String", "detail": "enum Kind::String", "insertText": "String", "kind": "field", "labelDetails": "enum Kind::String"}, {"label": "x", "detail": "x: Kind", "insertText": "x", "kind": "field", "labelDetails": "x: Kind"}, {"label": "Kind", "detail": "enum Kind", "insertText": "Kind", "kind": "field", "labelDetails": "enum Kind"}]}
+
+
+enum Kind {
+    FooBar
+    String
+}
+
+def main() {
+    let x: Kind
+    match x {
+        f
+    }
+}

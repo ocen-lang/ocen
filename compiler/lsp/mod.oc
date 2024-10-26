@@ -45,7 +45,7 @@ def typecheck_and_log_errors(program: &Program, path: str) {
     for err : program.errors.iter() {
         let start = err.span1.start
         let end = err.span1.end
-        if verbose then println("ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
+        if verbose then println("[-] ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
     }
 }
 
@@ -64,11 +64,11 @@ def handle_validate(program: &Program, path: str) {
 def handle_location_command(program: &Program, type: CommandType, loc: Location) {
     typecheck_and_log_errors(program, loc.filename)
 
-    if verbose then println(`Looking for location: {loc}`)
+    if verbose then println(`[+] Looking for location: {loc}`)
     let finder = Finder::make(cmd: type, loc)
 
     if not finder.find(program) {
-        if verbose then println("No result found")
+        if verbose then println("[-] No result found")
         return
     }
 

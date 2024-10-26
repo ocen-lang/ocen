@@ -1037,6 +1037,7 @@ def TypeChecker::check_expression(&this, node: &AST, hint: &Type = null): &Type 
     let typ = .check_expression_helper(node, hint)
     if typ? and node.type != ArrayLiteral then typ = typ.decay_array()
     node.etype = typ
+    node.hint = if typ? then typ else hint
     return typ
 }
 

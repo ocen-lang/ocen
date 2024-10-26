@@ -408,6 +408,7 @@ struct AST {
 
     // Resolved by type checker
     etype: &Type
+    hint: &Type  // For LSP
     resolved_symbol: &Symbol
     returns: bool
 }

@@ -1,0 +1,4 @@
+/// lsp: -c 4 20
+/// {"completions": [{"label": "Vec2", "detail": "struct std::vec::Vec2", "insertText": "Vec2", "kind": "field", "labelDetails": "struct std::vec::Vec2", "documentation": "Template for a 2D vector\n"}, {"label": "Vec3", "detail": "struct std::vec::Vec3", "insertText": "Vec3", "kind": "field", "labelDetails": "struct std::vec::Vec3", "documentation": "Template for a 3D vector\n"}]}
+
+import std::vec::{ }

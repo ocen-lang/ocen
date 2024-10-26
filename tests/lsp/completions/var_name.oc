@@ -1,0 +1,9 @@
+/// lsp: -c 8 17
+/// {"completions": [{"label": "foobar", "detail": "foobar: u32", "insertText": "foobar", "kind": "field", "labelDetails": "foobar: u32"}, {"label": "x", "detail": "x: u32", "insertText": "x", "kind": "field", "labelDetails": "x: u32"}, {"label": "z", "detail": "z: u32", "insertText": "z", "kind": "field", "labelDetails": "z: u32"}, {"label": "u32", "detail": "u32", "insertText": "u32", "kind": "field", "labelDetails": "u32"}]}
+
+
+def main() {
+    let foobar: u32 = 1234
+    let x = 10
+    let z = x + 
+}

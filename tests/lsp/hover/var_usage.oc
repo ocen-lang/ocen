@@ -1,0 +1,8 @@
+/// lsp: -h 5 16
+/// {"hover": "u32"}
+
+def main() {
+    let foo = 1234
+    let bar = 5678
+    let baz = foo + bar
+}
