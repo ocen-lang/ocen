@@ -4509,7 +4509,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_scop
       }
       compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, node, res);
       if (error && !((bool)res)) {
-        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Couldn't find this identifier"));
+        compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Couldn't find this identifier: %s", name)));
       }
       return res;
     } break;
