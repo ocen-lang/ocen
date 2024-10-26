@@ -413,7 +413,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
 
             .set_resolved_symbol(node, res)
             if error and not res? {
-                .error(Error::new(node.span, "Couldn't find this identifier"))
+                .error(Error::new(node.span, f"Couldn't find this identifier: {name}"))
             }
             return res
         }
