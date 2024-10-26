@@ -1,0 +1,12 @@
+/// lsp: -s 11 17
+/// {"signatures": [{"label": "struct Foo(a: u32, b: u32, c: u32)", "parameters": [{"label": "a: u32"}, {"label": "b: u32"}, {"label": "c: u32"}]}], "activeSignature": 0, "activeParameter": 0}
+
+struct Foo {
+    a: u32
+    b: u32
+    c: u32
+}
+
+def main() {
+    let f = Foo()
+}

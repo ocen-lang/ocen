@@ -95,10 +95,23 @@ def Finder::find_signature_help(&this, node: &AST, args: &Vector<&Argument>, par
     if not node.span.contains_loc(.loc) return false
 
     let func = node.u.call.callee.resolved_symbol
-    if not func? or func.type != Function return false
-    let func_sym = func.u.func.sym
+    if not func? return false
 
-    let params = func.u.func.params
+    let func_sym = match func.type {
+        Function => func.u.func.sym
+        Structure => func.u.struc.sym
+        else => {
+            return false
+        }
+    }
+    let params = match func.type {
+        Function => func.u.func.params
+        Structure => func.u.struc.fields
+        else => {
+            return false
+        }
+    }
+
     if param_idx > params.size return false
 
     if {
@@ -153,7 +166,6 @@ def Finder::find_in_call_args(&this, node: &AST, args: &Vector<&Argument>): bool
                 }
                 .set_usage(found.sym, node)
             }
-            
             return true
         }
         if .find_in_expression(arg.expr) return true

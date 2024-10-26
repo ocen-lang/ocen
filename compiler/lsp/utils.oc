@@ -17,7 +17,7 @@ import @lsp::finder::{ Finder }
 
 let verbose: bool = false
 
-def gen_func_param_string(i: u32, param: &Variable, is_non_static_method: bool): str {
+def gen_func_param_string(i: u32, param: &Variable, is_non_static_method: bool = false): str {
     let sb = Buffer::make()
     if i == 0 and is_non_static_method {
         if param.type.base == Pointer {
@@ -445,15 +445,46 @@ def gen_references_json(sym: &Symbol, loc: Location): &Value {
 def gen_signature_help(node: &AST, active_param: u32): &Value {
     let obj = Value::new(Dictionary)
     let callee_sym = node.u.call.callee.resolved_symbol
-    if not callee_sym? or callee_sym.type != Function return obj
 
-    let func = callee_sym.u.func
-    obj["label"] = gen_type_string(func.type)
+    let is_non_static_method = false
+    let params = match callee_sym.type {
+        Function => {
+            let func = callee_sym.u.func
+            obj["label"] = gen_type_string(func.type)
+            is_non_static_method = func.is_method and not func.is_static
+            yield func.params
+        }
+        Structure => {
+            let struc = callee_sym.u.struc
+            let struc_func_label = Buffer::make()
 
-    let params = func.params
+            // For signature help specifically, we want to show the fields as
+            // if they were function parameters.
+            struc_func_label += "struct "
+            struc_func_label += gen_type_string(struc.type)
+            struc_func_label += "("
+
+            let params = struc.fields
+            for let i = 0; i < params.size; i += 1 {
+                let param = params[i]
+                if i != 0 {
+                    struc_func_label += ", "
+                }
+                struc_func_label += gen_func_param_string(i, param)
+            }
+            struc_func_label += ")"
+
+            obj["label"] = struc_func_label.str()
+            yield struc.fields
+        }
+        else => {
+            if verbose then println(f"gen_signature_help: unhandled symbol type: {callee_sym.type}")
+            return obj
+        }
+    }
+
     let params_obj = Value::new(List)
 
-    let is_non_static_method = func.is_method and not func.is_static
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i)
         let param_obj = Value::new(Dictionary)

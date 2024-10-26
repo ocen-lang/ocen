@@ -12648,14 +12648,43 @@ std_value_Value *compiler_lsp_utils_gen_references_json(compiler_ast_scopes_Symb
 std_value_Value *compiler_lsp_utils_gen_signature_help(compiler_ast_nodes_AST *node, u32 active_param) {
   std_value_Value *obj = std_value_Value_new(std_value_ValueType_Dictionary);
   compiler_ast_scopes_Symbol *callee_sym = node->u.call.callee->resolved_symbol;
-  if (!((bool)callee_sym) || (callee_sym->type != compiler_ast_scopes_SymbolType_Function)) {
-    return obj;
-  }
-  compiler_ast_nodes_Function *func = callee_sym->u.func;
-  std_value_Value_insert_str(obj, "label", compiler_lsp_utils_gen_type_string(func->type, true));
-  std_vector_Vector__4 *params = func->params;
+  bool is_non_static_method = false;
+  std_vector_Vector__4 *params = ({ std_vector_Vector__4 *__yield_0;
+    switch (callee_sym->type) {
+      case compiler_ast_scopes_SymbolType_Function: {
+        compiler_ast_nodes_Function *func = callee_sym->u.func;
+        std_value_Value_insert_str(obj, "label", compiler_lsp_utils_gen_type_string(func->type, true));
+        is_non_static_method=(func->is_method && !func->is_static);
+        __yield_0 = func->params;
+      } break;
+      case compiler_ast_scopes_SymbolType_Structure: {
+        compiler_ast_nodes_Structure *struc = callee_sym->u.struc;
+        std_buffer_Buffer struc_func_label = std_buffer_Buffer_make(16);
+        std_buffer_Buffer_write_str(&struc_func_label, "struct ");
+        std_buffer_Buffer_write_str(&struc_func_label, compiler_lsp_utils_gen_type_string(struc->type, true));
+        std_buffer_Buffer_write_str(&struc_func_label, "(");
+        std_vector_Vector__4 *params = struc->fields;
+        for (u32 i = 0; i < params->size; i+=1) {
+          compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
+          if (i != 0) {
+            std_buffer_Buffer_write_str(&struc_func_label, ", ");
+          }
+          std_buffer_Buffer_write_str(&struc_func_label, compiler_lsp_utils_gen_func_param_string(i, param, false));
+        }
+        std_buffer_Buffer_write_str(&struc_func_label, ")");
+        std_value_Value_insert_str(obj, "label", std_buffer_Buffer_str(struc_func_label));
+        __yield_0 = struc->fields;
+      } break;
+      default: {
+        if (compiler_lsp_utils_verbose) {
+          printf("gen_signature_help: unhandled symbol type: %s\n", compiler_ast_scopes_SymbolType_dbg(callee_sym->type));
+        }
+        return obj;
+      } break;
+    }
+
+  __yield_0; });
   std_value_Value *params_obj = std_value_Value_new(std_value_ValueType_List);
-  bool is_non_static_method = (func->is_method && !func->is_static);
   for (u32 i = 0; i < params->size; i+=1) {
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
     std_value_Value *param_obj = std_value_Value_new(std_value_ValueType_Dictionary);
@@ -12953,11 +12982,37 @@ bool compiler_lsp_finder_Finder_find_signature_help(compiler_lsp_finder_Finder *
     return false;
   }
   compiler_ast_scopes_Symbol *func = node->u.call.callee->resolved_symbol;
-  if (!((bool)func) || (func->type != compiler_ast_scopes_SymbolType_Function)) {
+  if (!((bool)func)) {
     return false;
   }
-  compiler_ast_scopes_Symbol *func_sym = func->u.func->sym;
-  std_vector_Vector__4 *params = func->u.func->params;
+  compiler_ast_scopes_Symbol *func_sym = ({ compiler_ast_scopes_Symbol *__yield_0;
+    switch (func->type) {
+      case compiler_ast_scopes_SymbolType_Function: {
+        __yield_0 = func->u.func->sym;
+      } break;
+      case compiler_ast_scopes_SymbolType_Structure: {
+        __yield_0 = func->u.struc->sym;
+      } break;
+      default: {
+        return false;
+      } break;
+    }
+
+  __yield_0; });
+  std_vector_Vector__4 *params = ({ std_vector_Vector__4 *__yield_0;
+    switch (func->type) {
+      case compiler_ast_scopes_SymbolType_Function: {
+        __yield_0 = func->u.func->params;
+      } break;
+      case compiler_ast_scopes_SymbolType_Structure: {
+        __yield_0 = func->u.struc->fields;
+      } break;
+      default: {
+        return false;
+      } break;
+    }
+
+  __yield_0; });
   if (param_idx > params->size) {
     return false;
   }
