@@ -476,6 +476,12 @@ def Parser::parse_match(&this): &AST {
     node.u.match_stmt.match_span = op.span
 
     let cases = Vector<&MatchCase>::new()
+    node.u.match_stmt.cases = cases
+
+    if not .token_is(TokenType::OpenCurly) {
+        .error(Error::new(.token().span, "Expected '{' after match expression"))
+        return node
+    }
     .consume(TokenType::OpenCurly)
     while not .token_is_eof_or(TokenType::CloseCurly) {
         if .token_is(TokenType::Else) {
@@ -1113,6 +1119,7 @@ def Parser::parse_multi_if(&this, start_tok: &Token): &AST {
     .consume(TokenType::OpenCurly)
     let branches = Vector<IfBranch>::new()
     node.u.if_stmt.branches = branches
+    node.u.if_stmt.if_span = start_span
 
     while not .token_is_eof_or(TokenType::CloseCurly) {
         if .token_is(TokenType::Else) {
@@ -1161,6 +1168,7 @@ def Parser::parse_if(&this): &AST {
     }
     let node = AST::new(If, start_span.join(end_span))
     node.u.if_stmt.branches = cases
+    node.u.if_stmt.if_span = start_span
 
     if .token_is(TokenType::Else) {
         let els_tok = .consume(TokenType::Else)

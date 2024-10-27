@@ -1,7 +1,8 @@
 //* Register all types in the program
 
 
-import std::span::Span
+import std::span::{ Span }
+import std::compact_map::{ Map }
 import @passes::generic_pass::GenericPass
 import @ast::scopes::{ Symbol, SymbolType, Scope }
 import @ast::program::{ Program, Namespace }
@@ -32,10 +33,21 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     enum_.type = typ
     typ.sym = enum_.sym
 
-    // FIXME: Make sure enum values are unique
+    let values = Map<str, Span>::new()
     for field : enum_.fields.iter() {
+        let name = field.sym.name
+        let res = values.get_item(name)
+        if res? {
+            .o.error(Error::new_hint(
+                field.sym.span, `Duplicate enum value: {field.sym.name}`,
+                res.value, "Previous definition here"
+            ))
+        } else {
+            values[name] = field.sym.span
+        }
         field.type = typ
     }
+    values.free()
 }
 
 def RegisterTypes::register_globals(&this, node: &AST) {

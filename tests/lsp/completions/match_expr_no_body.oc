@@ -1,0 +1,11 @@
+/// lsp: -c 10 13
+/// {"completions": [{"label": "foo", "detail": "foo: u32", "insertText": "foo", "kind": "field", "labelDetails": "foo: u32"}]}
+
+struct Bar {
+    foo: u32
+}
+
+def main() {
+    let b: Bar
+    match b.
+}

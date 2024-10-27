@@ -317,6 +317,9 @@ struct IfStatement {
     //! Span of the `else` token if we have an else branch
     //! (for error messages)
     els_span: Span
+
+    //! Span of the `if` token
+    if_span: Span
 }
 
 struct Loop {

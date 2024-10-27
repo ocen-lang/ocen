@@ -1622,7 +1622,10 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type = null) 
         .check_expression_statement(node, else_stmt, is_expr, hint)
 
     } else if is_expr {
-        .error(Error::new(node.span, "If expressions must have an else branch"))
+        .error(Error::new(
+            node.u.if_stmt.if_span,
+            "If expressions must have an else branch"
+        ))
 
     } else {
         node.returns = false
