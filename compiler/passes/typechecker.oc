@@ -1548,7 +1548,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     let expr = match_stmt.expr
     let expr_type = .check_expression(expr)
     if not expr_type? {
-        .error(Error::new(node.span, "Match statement must have a valid expression"))
+        .error(Error::new(match_stmt.match_span, "Match statement must have a valid expression"))
         return
     }
 
