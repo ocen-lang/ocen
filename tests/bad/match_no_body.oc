@@ -1,0 +1,8 @@
+/// fail: `else` case is missing
+
+// Test to see if we can actually move past the parsing
+// error and continue to the type-checking phase.
+
+def main() {
+    match 5
+}

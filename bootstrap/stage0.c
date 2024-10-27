@@ -759,7 +759,9 @@ typedef struct std_CharIterator std_CharIterator;
 typedef struct std_sv_SVLineIterator std_sv_SVLineIterator;
 typedef struct std_sv_SVSplitIterator std_sv_SVSplitIterator;
 typedef struct std_compact_map_Item__0 std_compact_map_Item__0;
+typedef struct std_compact_map_Item__1 std_compact_map_Item__1;
 typedef struct std_compact_map_Map__0 std_compact_map_Map__0;
+typedef struct std_compact_map_Map__1 std_compact_map_Map__1;
 typedef struct std_vector_Iterator__24 std_vector_Iterator__24;
 typedef struct std_compact_map_Iterator__0 std_compact_map_Iterator__0;
 typedef struct std_set_Set__0 std_set_Set__0;
@@ -825,6 +827,7 @@ typedef struct std_vector_Vector__22 std_vector_Vector__22;
 typedef struct std_vector_Vector__23 std_vector_Vector__23;
 typedef struct std_vector_Vector__24 std_vector_Vector__24;
 typedef struct std_vector_Vector__25 std_vector_Vector__25;
+typedef struct std_vector_Vector__26 std_vector_Vector__26;
 typedef struct std_vector_Iterator__0 std_vector_Iterator__0;
 typedef struct std_vector_Iterator__3 std_vector_Iterator__3;
 typedef struct std_vector_Iterator__4 std_vector_Iterator__4;
@@ -1213,6 +1216,7 @@ struct compiler_ast_nodes_IfStatement {
   std_vector_Vector__20 *branches;
   compiler_ast_nodes_AST *els;
   std_span_Span els_span;
+  std_span_Span if_span;
 };
 
 struct compiler_ast_nodes_Loop {
@@ -1392,8 +1396,21 @@ struct std_compact_map_Item__0 {
   std_value_Value *value;
 };
 
+struct std_compact_map_Item__1 {
+  u32 hash;
+  char *key;
+  std_span_Span value;
+};
+
 struct std_compact_map_Map__0 {
   std_vector_Vector__24 *items;
+  i32 *indices;
+  u32 capacity;
+  u32 num_tombstones;
+};
+
+struct std_compact_map_Map__1 {
+  std_vector_Vector__25 *items;
   i32 *indices;
   u32 capacity;
   u32 num_tombstones;
@@ -1782,6 +1799,12 @@ struct std_vector_Vector__24 {
 };
 
 struct std_vector_Vector__25 {
+  std_compact_map_Item__1 *data;
+  u32 size;
+  u32 capacity;
+};
+
+struct std_vector_Vector__26 {
   u32 *data;
   u32 size;
   u32 capacity;
@@ -2343,93 +2366,96 @@ compiler_errors_Error *std_mem_alloc__20(u32 count);
 char *std_mem_alloc__21(u32 count);
 i32 *std_mem_alloc__22(u32 count);
 std_compact_map_Map__0 *std_mem_alloc__23(u32 count);
-u8 *std_mem_alloc__24(u32 count);
-std_set_Set__0 *std_mem_alloc__25(u32 count);
-std_set_Set__1 *std_mem_alloc__26(u32 count);
-std_set_Set__2 *std_mem_alloc__27(u32 count);
-std_value_Value *std_mem_alloc__28(u32 count);
-std_map_Item__0 *std_mem_alloc__29(u32 count);
-std_map_Item__0 **std_mem_alloc__30(u32 count);
-std_map_Map__0 *std_mem_alloc__31(u32 count);
-std_map_Item__1 *std_mem_alloc__32(u32 count);
-std_map_Item__1 **std_mem_alloc__33(u32 count);
-std_map_Map__1 *std_mem_alloc__34(u32 count);
-std_map_Item__2 *std_mem_alloc__35(u32 count);
-std_map_Item__2 **std_mem_alloc__36(u32 count);
-std_map_Map__2 *std_mem_alloc__37(u32 count);
-std_map_Item__3 *std_mem_alloc__38(u32 count);
-std_map_Item__3 **std_mem_alloc__39(u32 count);
-std_map_Map__3 *std_mem_alloc__40(u32 count);
-std_map_Item__4 *std_mem_alloc__41(u32 count);
-std_map_Item__4 **std_mem_alloc__42(u32 count);
-std_map_Map__4 *std_mem_alloc__43(u32 count);
-std_map_Item__5 *std_mem_alloc__44(u32 count);
-std_map_Item__5 **std_mem_alloc__45(u32 count);
-std_map_Map__5 *std_mem_alloc__46(u32 count);
-std_map_Item__6 *std_mem_alloc__47(u32 count);
-std_map_Item__6 **std_mem_alloc__48(u32 count);
-std_map_Map__6 *std_mem_alloc__49(u32 count);
-std_map_Item__7 *std_mem_alloc__50(u32 count);
-std_map_Item__7 **std_mem_alloc__51(u32 count);
-std_map_Map__7 *std_mem_alloc__52(u32 count);
-std_map_Item__8 *std_mem_alloc__53(u32 count);
-std_map_Item__8 **std_mem_alloc__54(u32 count);
-std_map_Map__8 *std_mem_alloc__55(u32 count);
-std_map_Item__9 *std_mem_alloc__56(u32 count);
-std_map_Item__9 **std_mem_alloc__57(u32 count);
-std_map_Map__9 *std_mem_alloc__58(u32 count);
-std_vector_Vector__0 *std_mem_alloc__59(u32 count);
-compiler_types_Type **std_mem_alloc__60(u32 count);
-std_vector_Vector__1 *std_mem_alloc__61(u32 count);
-compiler_ast_scopes_Scope **std_mem_alloc__62(u32 count);
-std_vector_Vector__2 *std_mem_alloc__63(u32 count);
-compiler_ast_program_Namespace **std_mem_alloc__64(u32 count);
-std_vector_Vector__3 *std_mem_alloc__65(u32 count);
-compiler_ast_scopes_TemplateInstance **std_mem_alloc__66(u32 count);
-std_vector_Vector__4 *std_mem_alloc__67(u32 count);
-compiler_ast_nodes_Variable **std_mem_alloc__68(u32 count);
-std_vector_Vector__5 *std_mem_alloc__69(u32 count);
-compiler_ast_nodes_ImportPart **std_mem_alloc__70(u32 count);
-std_vector_Vector__6 *std_mem_alloc__71(u32 count);
-compiler_ast_nodes_Function **std_mem_alloc__72(u32 count);
-std_vector_Vector__7 *std_mem_alloc__73(u32 count);
-char **std_mem_alloc__74(u32 count);
-std_vector_Vector__8 *std_mem_alloc__75(u32 count);
-compiler_ast_nodes_Structure **std_mem_alloc__76(u32 count);
-std_vector_Vector__9 *std_mem_alloc__77(u32 count);
-compiler_tokens_Token **std_mem_alloc__78(u32 count);
-std_vector_Vector__10 *std_mem_alloc__79(u32 count);
-compiler_attributes_Attribute **std_mem_alloc__80(u32 count);
-std_vector_Vector__11 *std_mem_alloc__81(u32 count);
-compiler_errors_Error **std_mem_alloc__82(u32 count);
-std_vector_Vector__12 *std_mem_alloc__83(u32 count);
-compiler_ast_nodes_Enum **std_mem_alloc__84(u32 count);
-std_vector_Vector__13 *std_mem_alloc__85(u32 count);
-compiler_ast_nodes_AST **std_mem_alloc__86(u32 count);
-std_vector_Vector__14 *std_mem_alloc__87(u32 count);
-jmp_buf *std_mem_alloc__88(u32 count);
-std_vector_Vector__15 *std_mem_alloc__89(u32 count);
-compiler_ast_scopes_Symbol **std_mem_alloc__90(u32 count);
-std_vector_Vector__16 *std_mem_alloc__91(u32 count);
-compiler_ast_scopes_Reference *std_mem_alloc__92(u32 count);
-std_vector_Vector__17 *std_mem_alloc__93(u32 count);
-compiler_ast_operators_Operator *std_mem_alloc__94(u32 count);
-std_vector_Vector__18 *std_mem_alloc__95(u32 count);
-compiler_ast_nodes_Argument **std_mem_alloc__96(u32 count);
-std_vector_Vector__19 *std_mem_alloc__97(u32 count);
-std_vector_Vector__5 **std_mem_alloc__98(u32 count);
-std_vector_Vector__20 *std_mem_alloc__99(u32 count);
-compiler_ast_nodes_IfBranch *std_mem_alloc__100(u32 count);
-std_vector_Vector__21 *std_mem_alloc__101(u32 count);
-compiler_ast_nodes_MatchCase **std_mem_alloc__102(u32 count);
-std_vector_Vector__22 *std_mem_alloc__103(u32 count);
-std_span_Span *std_mem_alloc__104(u32 count);
-std_vector_Vector__23 *std_mem_alloc__105(u32 count);
-std_value_Value **std_mem_alloc__106(u32 count);
-std_vector_Vector__24 *std_mem_alloc__107(u32 count);
-std_compact_map_Item__0 *std_mem_alloc__108(u32 count);
-std_vector_Vector__25 *std_mem_alloc__109(u32 count);
-u32 *std_mem_alloc__110(u32 count);
+std_compact_map_Map__1 *std_mem_alloc__24(u32 count);
+u8 *std_mem_alloc__25(u32 count);
+std_set_Set__0 *std_mem_alloc__26(u32 count);
+std_set_Set__1 *std_mem_alloc__27(u32 count);
+std_set_Set__2 *std_mem_alloc__28(u32 count);
+std_value_Value *std_mem_alloc__29(u32 count);
+std_map_Item__0 *std_mem_alloc__30(u32 count);
+std_map_Item__0 **std_mem_alloc__31(u32 count);
+std_map_Map__0 *std_mem_alloc__32(u32 count);
+std_map_Item__1 *std_mem_alloc__33(u32 count);
+std_map_Item__1 **std_mem_alloc__34(u32 count);
+std_map_Map__1 *std_mem_alloc__35(u32 count);
+std_map_Item__2 *std_mem_alloc__36(u32 count);
+std_map_Item__2 **std_mem_alloc__37(u32 count);
+std_map_Map__2 *std_mem_alloc__38(u32 count);
+std_map_Item__3 *std_mem_alloc__39(u32 count);
+std_map_Item__3 **std_mem_alloc__40(u32 count);
+std_map_Map__3 *std_mem_alloc__41(u32 count);
+std_map_Item__4 *std_mem_alloc__42(u32 count);
+std_map_Item__4 **std_mem_alloc__43(u32 count);
+std_map_Map__4 *std_mem_alloc__44(u32 count);
+std_map_Item__5 *std_mem_alloc__45(u32 count);
+std_map_Item__5 **std_mem_alloc__46(u32 count);
+std_map_Map__5 *std_mem_alloc__47(u32 count);
+std_map_Item__6 *std_mem_alloc__48(u32 count);
+std_map_Item__6 **std_mem_alloc__49(u32 count);
+std_map_Map__6 *std_mem_alloc__50(u32 count);
+std_map_Item__7 *std_mem_alloc__51(u32 count);
+std_map_Item__7 **std_mem_alloc__52(u32 count);
+std_map_Map__7 *std_mem_alloc__53(u32 count);
+std_map_Item__8 *std_mem_alloc__54(u32 count);
+std_map_Item__8 **std_mem_alloc__55(u32 count);
+std_map_Map__8 *std_mem_alloc__56(u32 count);
+std_map_Item__9 *std_mem_alloc__57(u32 count);
+std_map_Item__9 **std_mem_alloc__58(u32 count);
+std_map_Map__9 *std_mem_alloc__59(u32 count);
+std_vector_Vector__0 *std_mem_alloc__60(u32 count);
+compiler_types_Type **std_mem_alloc__61(u32 count);
+std_vector_Vector__1 *std_mem_alloc__62(u32 count);
+compiler_ast_scopes_Scope **std_mem_alloc__63(u32 count);
+std_vector_Vector__2 *std_mem_alloc__64(u32 count);
+compiler_ast_program_Namespace **std_mem_alloc__65(u32 count);
+std_vector_Vector__3 *std_mem_alloc__66(u32 count);
+compiler_ast_scopes_TemplateInstance **std_mem_alloc__67(u32 count);
+std_vector_Vector__4 *std_mem_alloc__68(u32 count);
+compiler_ast_nodes_Variable **std_mem_alloc__69(u32 count);
+std_vector_Vector__5 *std_mem_alloc__70(u32 count);
+compiler_ast_nodes_ImportPart **std_mem_alloc__71(u32 count);
+std_vector_Vector__6 *std_mem_alloc__72(u32 count);
+compiler_ast_nodes_Function **std_mem_alloc__73(u32 count);
+std_vector_Vector__7 *std_mem_alloc__74(u32 count);
+char **std_mem_alloc__75(u32 count);
+std_vector_Vector__8 *std_mem_alloc__76(u32 count);
+compiler_ast_nodes_Structure **std_mem_alloc__77(u32 count);
+std_vector_Vector__9 *std_mem_alloc__78(u32 count);
+compiler_tokens_Token **std_mem_alloc__79(u32 count);
+std_vector_Vector__10 *std_mem_alloc__80(u32 count);
+compiler_attributes_Attribute **std_mem_alloc__81(u32 count);
+std_vector_Vector__11 *std_mem_alloc__82(u32 count);
+compiler_errors_Error **std_mem_alloc__83(u32 count);
+std_vector_Vector__12 *std_mem_alloc__84(u32 count);
+compiler_ast_nodes_Enum **std_mem_alloc__85(u32 count);
+std_vector_Vector__13 *std_mem_alloc__86(u32 count);
+compiler_ast_nodes_AST **std_mem_alloc__87(u32 count);
+std_vector_Vector__14 *std_mem_alloc__88(u32 count);
+jmp_buf *std_mem_alloc__89(u32 count);
+std_vector_Vector__15 *std_mem_alloc__90(u32 count);
+compiler_ast_scopes_Symbol **std_mem_alloc__91(u32 count);
+std_vector_Vector__16 *std_mem_alloc__92(u32 count);
+compiler_ast_scopes_Reference *std_mem_alloc__93(u32 count);
+std_vector_Vector__17 *std_mem_alloc__94(u32 count);
+compiler_ast_operators_Operator *std_mem_alloc__95(u32 count);
+std_vector_Vector__18 *std_mem_alloc__96(u32 count);
+compiler_ast_nodes_Argument **std_mem_alloc__97(u32 count);
+std_vector_Vector__19 *std_mem_alloc__98(u32 count);
+std_vector_Vector__5 **std_mem_alloc__99(u32 count);
+std_vector_Vector__20 *std_mem_alloc__100(u32 count);
+compiler_ast_nodes_IfBranch *std_mem_alloc__101(u32 count);
+std_vector_Vector__21 *std_mem_alloc__102(u32 count);
+compiler_ast_nodes_MatchCase **std_mem_alloc__103(u32 count);
+std_vector_Vector__22 *std_mem_alloc__104(u32 count);
+std_span_Span *std_mem_alloc__105(u32 count);
+std_vector_Vector__23 *std_mem_alloc__106(u32 count);
+std_value_Value **std_mem_alloc__107(u32 count);
+std_vector_Vector__24 *std_mem_alloc__108(u32 count);
+std_compact_map_Item__0 *std_mem_alloc__109(u32 count);
+std_vector_Vector__25 *std_mem_alloc__110(u32 count);
+std_compact_map_Item__1 *std_mem_alloc__111(u32 count);
+std_vector_Vector__26 *std_mem_alloc__112(u32 count);
+u32 *std_mem_alloc__113(u32 count);
 void std_mem_free(void *ptr);
 u8 *std_mem_realloc__0(u8 *ptr, u32 old_count, u32 new_count);
 compiler_types_Type **std_mem_realloc__1(compiler_types_Type **ptr, u32 old_count, u32 new_count);
@@ -2457,7 +2483,8 @@ compiler_ast_nodes_MatchCase **std_mem_realloc__22(compiler_ast_nodes_MatchCase 
 std_span_Span *std_mem_realloc__23(std_span_Span *ptr, u32 old_count, u32 new_count);
 std_value_Value **std_mem_realloc__24(std_value_Value **ptr, u32 old_count, u32 new_count);
 std_compact_map_Item__0 *std_mem_realloc__25(std_compact_map_Item__0 *ptr, u32 old_count, u32 new_count);
-u32 *std_mem_realloc__26(u32 *ptr, u32 old_count, u32 new_count);
+std_compact_map_Item__1 *std_mem_realloc__26(std_compact_map_Item__1 *ptr, u32 old_count, u32 new_count);
+u32 *std_mem_realloc__27(u32 *ptr, u32 old_count, u32 new_count);
 void *std_mem_impl_my_calloc(void *state, u32 size);
 void *std_mem_impl_my_realloc(void *state, void *ptr, u32 old_size, u32 size);
 void std_mem_impl_my_free(void *state, void *ptr);
@@ -2475,6 +2502,13 @@ void std_compact_map_Map__0_resize(std_compact_map_Map__0 *this, u32 new_capacit
 std_compact_map_Item__0 *std_compact_map_Map__0_get_item(std_compact_map_Map__0 *this, char *key);
 std_compact_map_Map__0 *std_compact_map_Map__0_new(u32 capacity);
 void std_compact_map_Map__0_resize_if_necessary(std_compact_map_Map__0 *this);
+void std_compact_map_Map__1_free(std_compact_map_Map__1 *this);
+void std_compact_map_Map__1_insert(std_compact_map_Map__1 *this, char *key, std_span_Span value);
+u32 std_compact_map_Map__1_get_index(std_compact_map_Map__1 *this, char *key, u32 hash);
+void std_compact_map_Map__1_resize(std_compact_map_Map__1 *this, u32 new_capacity);
+std_compact_map_Item__1 *std_compact_map_Map__1_get_item(std_compact_map_Map__1 *this, char *key);
+std_compact_map_Map__1 *std_compact_map_Map__1_new(u32 capacity);
+void std_compact_map_Map__1_resize_if_necessary(std_compact_map_Map__1 *this);
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity);
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s);
 void std_buffer_Buffer_resize_if_necessary(std_buffer_Buffer *this, u32 new_size);
@@ -2901,11 +2935,16 @@ std_compact_map_Item__0 std_vector_Vector__24_at(std_vector_Vector__24 *this, u3
 void std_vector_Vector__24_resize(std_vector_Vector__24 *this, u32 new_capacity);
 std_vector_Vector__24 *std_vector_Vector__24_new(u32 capacity);
 void std_vector_Vector__24_push(std_vector_Vector__24 *this, std_compact_map_Item__0 value);
-u32 std_vector_Vector__25_at(std_vector_Vector__25 *this, u32 i);
+std_compact_map_Item__1 std_vector_Vector__25_at(std_vector_Vector__25 *this, u32 i);
 void std_vector_Vector__25_free(std_vector_Vector__25 *this);
 void std_vector_Vector__25_resize(std_vector_Vector__25 *this, u32 new_capacity);
 std_vector_Vector__25 *std_vector_Vector__25_new(u32 capacity);
-void std_vector_Vector__25_push(std_vector_Vector__25 *this, u32 value);
+void std_vector_Vector__25_push(std_vector_Vector__25 *this, std_compact_map_Item__1 value);
+u32 std_vector_Vector__26_at(std_vector_Vector__26 *this, u32 i);
+void std_vector_Vector__26_free(std_vector_Vector__26 *this);
+void std_vector_Vector__26_resize(std_vector_Vector__26 *this, u32 new_capacity);
+std_vector_Vector__26 *std_vector_Vector__26_new(u32 capacity);
+void std_vector_Vector__26_push(std_vector_Vector__26 *this, u32 value);
 void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb);
 std_buffer_Buffer std_json_serialize(std_value_Value *val);
 void std_json_write_to_file(std_value_Value *val, char *filename);
@@ -3390,12 +3429,21 @@ void compiler_passes_register_types_RegisterTypes_register_enum(compiler_passes_
   typ->u.enum_=enum_;
   enum_->type=typ;
   typ->sym=enum_->sym;
+  std_compact_map_Map__1 *values = std_compact_map_Map__1_new(16);
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enum_->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
     {
+      char *name = field->sym->name;
+      std_compact_map_Item__1 *res = std_compact_map_Map__1_get_item(values, name);
+      if (((bool)res)) {
+        compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(field->sym->span, std_format("Duplicate enum value: %s", field->sym->name), res->value, "Previous definition here"));
+      } else {
+        std_compact_map_Map__1_insert(values, name, field->sym->span);
+      }
       field->type=typ;
     }
   }
+  std_compact_map_Map__1_free(values);
 }
 
 void compiler_passes_register_types_RegisterTypes_register_globals(compiler_passes_register_types_RegisterTypes *this, compiler_ast_nodes_AST *node) {
@@ -5727,7 +5775,7 @@ void compiler_passes_typechecker_TypeChecker_check_if(compiler_passes_typechecke
     compiler_ast_nodes_AST *else_stmt = node->u.if_stmt.els;
     compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, else_stmt, is_expr, hint);
   } else if (is_expr) {
-    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "If expressions must have an else branch"));
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.if_stmt.if_span, "If expressions must have an else branch"));
   } else {
     node->returns=false;
   }
@@ -6513,8 +6561,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
         continue;
       }
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2416:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
-      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2420:16: Assertion failed: `sym.type == TypeDef`", NULL); }
+      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2419:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
+      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2423:16: Assertion failed: `sym.type == TypeDef`", NULL); }
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
       if (!((bool)res)) {
         continue;
@@ -8461,7 +8509,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_format_string(compiler_pars
   compiler_tokens_Token *fstr = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_FormatStringLiteral);
   u32 fstr_len = strlen(fstr->text);
   std_vector_Vector__7 *expr_parts = std_vector_Vector__7_new(16);
-  std_vector_Vector__25 *expr_start = std_vector_Vector__25_new(16);
+  std_vector_Vector__26 *expr_start = std_vector_Vector__26_new(16);
   std_vector_Vector__7 *format_parts = std_vector_Vector__7_new(16);
   std_vector_Vector__7 *specifiers = std_vector_Vector__7_new(16);
   u32 specifier_loc = 0;
@@ -8488,7 +8536,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_format_string(compiler_pars
             u32 len = (specifier_loc - cur_start);
             char *part = str_substring(fstr->text, cur_start, len);
             std_vector_Vector__7_push(expr_parts, part);
-            std_vector_Vector__25_push(expr_start, cur_start);
+            std_vector_Vector__26_push(expr_start, cur_start);
             specifier_loc+=1;
             while ((specifier_loc < i) && fstr->text[specifier_loc]==' ') {
               specifier_loc+=1;
@@ -8505,7 +8553,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_format_string(compiler_pars
           } else {
             char *part = str_substring(fstr->text, cur_start, (i - cur_start));
             std_vector_Vector__7_push(expr_parts, part);
-            std_vector_Vector__25_push(expr_start, cur_start);
+            std_vector_Vector__26_push(expr_start, cur_start);
             std_vector_Vector__7_push(specifiers, NULL);
           }
           cur_start=(i + 1);
@@ -8538,7 +8586,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_format_string(compiler_pars
   std_vector_Vector__13 *expr_nodes = std_vector_Vector__13_new(16);
   for (u32 i = 0; i < expr_parts->size; i+=1) {
     char *part = std_vector_Vector__7_at(expr_parts, i);
-    u32 start = std_vector_Vector__25_at(expr_start, i);
+    u32 start = std_vector_Vector__26_at(expr_start, i);
     compiler_lexer_Lexer lexer = compiler_lexer_Lexer_make(part, fstr_start.filename);
     lexer.loc=fstr_start;
     lexer.loc.col+=(start + 1);
@@ -8563,7 +8611,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_format_string(compiler_pars
   node->u.fmt_str.exprs=expr_nodes;
   node->u.fmt_str.specs=specifiers;
   std_vector_Vector__7_free(expr_parts);
-  std_vector_Vector__25_free(expr_start);
+  std_vector_Vector__26_free(expr_start);
   return node;
 }
 
@@ -8574,6 +8622,11 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_match(compiler_parser_Parse
   node->u.match_stmt.expr=expr;
   node->u.match_stmt.match_span=op->span;
   std_vector_Vector__21 *cases = std_vector_Vector__21_new(16);
+  node->u.match_stmt.cases=cases;
+  if (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_OpenCurly)) {
+    compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Expected '{' after match expression"));
+    return node;
+  }
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
   while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseCurly)) {
     if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Else)) {
@@ -9207,6 +9260,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_multi_if(compiler_parser_Pa
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
   std_vector_Vector__20 *branches = std_vector_Vector__20_new(16);
   node->u.if_stmt.branches=branches;
+  node->u.if_stmt.if_span=start_span;
   while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseCurly)) {
     if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Else)) {
       node->u.if_stmt.els_span=compiler_parser_Parser_token(this)->span;
@@ -9251,6 +9305,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_if(compiler_parser_Parser *
   }
   compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_If, std_span_Span_join(start_span, end_span));
   node->u.if_stmt.branches=cases;
+  node->u.if_stmt.if_span=start_span;
   if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Else)) {
     compiler_tokens_Token *els_tok = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Else);
     node->u.if_stmt.els=compiler_parser_Parser_parse_statement(this);
@@ -9698,7 +9753,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  if(!(attr->type==compiler_attributes_AttributeType_Extern)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1677:12: Assertion failed: `attr.type == Extern`", NULL); }
+  if(!(attr->type==compiler_attributes_AttributeType_Extern)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:1685:12: Assertion failed: `attr.type == Extern`", NULL); }
   sym->is_extern=true;
   if (attr->args->size > 0) {
     sym->extern_name=std_vector_Vector__7_at(attr->args, 0);
@@ -10306,8 +10361,8 @@ bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compi
     switch (path->type) {
       case compiler_ast_nodes_ImportType_GlobalNamespace: {
         std_vector_Vector__5 *parts = path->parts;
-        if(!(parts->size > 0)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2320:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path"); }
-        if(!(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2321:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import"); }
+        if(!(parts->size > 0)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2328:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path"); }
+        if(!(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2329:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import"); }
         compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
         char *lib_name = first_part.name;
         if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
@@ -14732,351 +14787,363 @@ std_compact_map_Map__0 *std_mem_alloc__23(u32 count) {
   return ((std_compact_map_Map__0 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_compact_map_Map__0)))));
 }
 
-u8 *std_mem_alloc__24(u32 count) {
+std_compact_map_Map__1 *std_mem_alloc__24(u32 count) {
+  return ((std_compact_map_Map__1 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_compact_map_Map__1)))));
+}
+
+u8 *std_mem_alloc__25(u32 count) {
   return ((u8 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(u8)))));
 }
 
-std_set_Set__0 *std_mem_alloc__25(u32 count) {
+std_set_Set__0 *std_mem_alloc__26(u32 count) {
   return ((std_set_Set__0 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_set_Set__0)))));
 }
 
-std_set_Set__1 *std_mem_alloc__26(u32 count) {
+std_set_Set__1 *std_mem_alloc__27(u32 count) {
   return ((std_set_Set__1 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_set_Set__1)))));
 }
 
-std_set_Set__2 *std_mem_alloc__27(u32 count) {
+std_set_Set__2 *std_mem_alloc__28(u32 count) {
   return ((std_set_Set__2 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_set_Set__2)))));
 }
 
-std_value_Value *std_mem_alloc__28(u32 count) {
+std_value_Value *std_mem_alloc__29(u32 count) {
   return ((std_value_Value *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_value_Value)))));
 }
 
-std_map_Item__0 *std_mem_alloc__29(u32 count) {
+std_map_Item__0 *std_mem_alloc__30(u32 count) {
   return ((std_map_Item__0 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__0)))));
 }
 
-std_map_Item__0 **std_mem_alloc__30(u32 count) {
+std_map_Item__0 **std_mem_alloc__31(u32 count) {
   return ((std_map_Item__0 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__0 *)))));
 }
 
-std_map_Map__0 *std_mem_alloc__31(u32 count) {
+std_map_Map__0 *std_mem_alloc__32(u32 count) {
   return ((std_map_Map__0 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__0)))));
 }
 
-std_map_Item__1 *std_mem_alloc__32(u32 count) {
+std_map_Item__1 *std_mem_alloc__33(u32 count) {
   return ((std_map_Item__1 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__1)))));
 }
 
-std_map_Item__1 **std_mem_alloc__33(u32 count) {
+std_map_Item__1 **std_mem_alloc__34(u32 count) {
   return ((std_map_Item__1 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__1 *)))));
 }
 
-std_map_Map__1 *std_mem_alloc__34(u32 count) {
+std_map_Map__1 *std_mem_alloc__35(u32 count) {
   return ((std_map_Map__1 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__1)))));
 }
 
-std_map_Item__2 *std_mem_alloc__35(u32 count) {
+std_map_Item__2 *std_mem_alloc__36(u32 count) {
   return ((std_map_Item__2 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__2)))));
 }
 
-std_map_Item__2 **std_mem_alloc__36(u32 count) {
+std_map_Item__2 **std_mem_alloc__37(u32 count) {
   return ((std_map_Item__2 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__2 *)))));
 }
 
-std_map_Map__2 *std_mem_alloc__37(u32 count) {
+std_map_Map__2 *std_mem_alloc__38(u32 count) {
   return ((std_map_Map__2 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__2)))));
 }
 
-std_map_Item__3 *std_mem_alloc__38(u32 count) {
+std_map_Item__3 *std_mem_alloc__39(u32 count) {
   return ((std_map_Item__3 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__3)))));
 }
 
-std_map_Item__3 **std_mem_alloc__39(u32 count) {
+std_map_Item__3 **std_mem_alloc__40(u32 count) {
   return ((std_map_Item__3 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__3 *)))));
 }
 
-std_map_Map__3 *std_mem_alloc__40(u32 count) {
+std_map_Map__3 *std_mem_alloc__41(u32 count) {
   return ((std_map_Map__3 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__3)))));
 }
 
-std_map_Item__4 *std_mem_alloc__41(u32 count) {
+std_map_Item__4 *std_mem_alloc__42(u32 count) {
   return ((std_map_Item__4 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__4)))));
 }
 
-std_map_Item__4 **std_mem_alloc__42(u32 count) {
+std_map_Item__4 **std_mem_alloc__43(u32 count) {
   return ((std_map_Item__4 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__4 *)))));
 }
 
-std_map_Map__4 *std_mem_alloc__43(u32 count) {
+std_map_Map__4 *std_mem_alloc__44(u32 count) {
   return ((std_map_Map__4 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__4)))));
 }
 
-std_map_Item__5 *std_mem_alloc__44(u32 count) {
+std_map_Item__5 *std_mem_alloc__45(u32 count) {
   return ((std_map_Item__5 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__5)))));
 }
 
-std_map_Item__5 **std_mem_alloc__45(u32 count) {
+std_map_Item__5 **std_mem_alloc__46(u32 count) {
   return ((std_map_Item__5 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__5 *)))));
 }
 
-std_map_Map__5 *std_mem_alloc__46(u32 count) {
+std_map_Map__5 *std_mem_alloc__47(u32 count) {
   return ((std_map_Map__5 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__5)))));
 }
 
-std_map_Item__6 *std_mem_alloc__47(u32 count) {
+std_map_Item__6 *std_mem_alloc__48(u32 count) {
   return ((std_map_Item__6 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__6)))));
 }
 
-std_map_Item__6 **std_mem_alloc__48(u32 count) {
+std_map_Item__6 **std_mem_alloc__49(u32 count) {
   return ((std_map_Item__6 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__6 *)))));
 }
 
-std_map_Map__6 *std_mem_alloc__49(u32 count) {
+std_map_Map__6 *std_mem_alloc__50(u32 count) {
   return ((std_map_Map__6 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__6)))));
 }
 
-std_map_Item__7 *std_mem_alloc__50(u32 count) {
+std_map_Item__7 *std_mem_alloc__51(u32 count) {
   return ((std_map_Item__7 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__7)))));
 }
 
-std_map_Item__7 **std_mem_alloc__51(u32 count) {
+std_map_Item__7 **std_mem_alloc__52(u32 count) {
   return ((std_map_Item__7 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__7 *)))));
 }
 
-std_map_Map__7 *std_mem_alloc__52(u32 count) {
+std_map_Map__7 *std_mem_alloc__53(u32 count) {
   return ((std_map_Map__7 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__7)))));
 }
 
-std_map_Item__8 *std_mem_alloc__53(u32 count) {
+std_map_Item__8 *std_mem_alloc__54(u32 count) {
   return ((std_map_Item__8 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__8)))));
 }
 
-std_map_Item__8 **std_mem_alloc__54(u32 count) {
+std_map_Item__8 **std_mem_alloc__55(u32 count) {
   return ((std_map_Item__8 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__8 *)))));
 }
 
-std_map_Map__8 *std_mem_alloc__55(u32 count) {
+std_map_Map__8 *std_mem_alloc__56(u32 count) {
   return ((std_map_Map__8 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__8)))));
 }
 
-std_map_Item__9 *std_mem_alloc__56(u32 count) {
+std_map_Item__9 *std_mem_alloc__57(u32 count) {
   return ((std_map_Item__9 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__9)))));
 }
 
-std_map_Item__9 **std_mem_alloc__57(u32 count) {
+std_map_Item__9 **std_mem_alloc__58(u32 count) {
   return ((std_map_Item__9 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Item__9 *)))));
 }
 
-std_map_Map__9 *std_mem_alloc__58(u32 count) {
+std_map_Map__9 *std_mem_alloc__59(u32 count) {
   return ((std_map_Map__9 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_map_Map__9)))));
 }
 
-std_vector_Vector__0 *std_mem_alloc__59(u32 count) {
+std_vector_Vector__0 *std_mem_alloc__60(u32 count) {
   return ((std_vector_Vector__0 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__0)))));
 }
 
-compiler_types_Type **std_mem_alloc__60(u32 count) {
+compiler_types_Type **std_mem_alloc__61(u32 count) {
   return ((compiler_types_Type **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_types_Type *)))));
 }
 
-std_vector_Vector__1 *std_mem_alloc__61(u32 count) {
+std_vector_Vector__1 *std_mem_alloc__62(u32 count) {
   return ((std_vector_Vector__1 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__1)))));
 }
 
-compiler_ast_scopes_Scope **std_mem_alloc__62(u32 count) {
+compiler_ast_scopes_Scope **std_mem_alloc__63(u32 count) {
   return ((compiler_ast_scopes_Scope **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_scopes_Scope *)))));
 }
 
-std_vector_Vector__2 *std_mem_alloc__63(u32 count) {
+std_vector_Vector__2 *std_mem_alloc__64(u32 count) {
   return ((std_vector_Vector__2 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__2)))));
 }
 
-compiler_ast_program_Namespace **std_mem_alloc__64(u32 count) {
+compiler_ast_program_Namespace **std_mem_alloc__65(u32 count) {
   return ((compiler_ast_program_Namespace **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_program_Namespace *)))));
 }
 
-std_vector_Vector__3 *std_mem_alloc__65(u32 count) {
+std_vector_Vector__3 *std_mem_alloc__66(u32 count) {
   return ((std_vector_Vector__3 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__3)))));
 }
 
-compiler_ast_scopes_TemplateInstance **std_mem_alloc__66(u32 count) {
+compiler_ast_scopes_TemplateInstance **std_mem_alloc__67(u32 count) {
   return ((compiler_ast_scopes_TemplateInstance **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_scopes_TemplateInstance *)))));
 }
 
-std_vector_Vector__4 *std_mem_alloc__67(u32 count) {
+std_vector_Vector__4 *std_mem_alloc__68(u32 count) {
   return ((std_vector_Vector__4 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__4)))));
 }
 
-compiler_ast_nodes_Variable **std_mem_alloc__68(u32 count) {
+compiler_ast_nodes_Variable **std_mem_alloc__69(u32 count) {
   return ((compiler_ast_nodes_Variable **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Variable *)))));
 }
 
-std_vector_Vector__5 *std_mem_alloc__69(u32 count) {
+std_vector_Vector__5 *std_mem_alloc__70(u32 count) {
   return ((std_vector_Vector__5 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__5)))));
 }
 
-compiler_ast_nodes_ImportPart **std_mem_alloc__70(u32 count) {
+compiler_ast_nodes_ImportPart **std_mem_alloc__71(u32 count) {
   return ((compiler_ast_nodes_ImportPart **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_ImportPart *)))));
 }
 
-std_vector_Vector__6 *std_mem_alloc__71(u32 count) {
+std_vector_Vector__6 *std_mem_alloc__72(u32 count) {
   return ((std_vector_Vector__6 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__6)))));
 }
 
-compiler_ast_nodes_Function **std_mem_alloc__72(u32 count) {
+compiler_ast_nodes_Function **std_mem_alloc__73(u32 count) {
   return ((compiler_ast_nodes_Function **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Function *)))));
 }
 
-std_vector_Vector__7 *std_mem_alloc__73(u32 count) {
+std_vector_Vector__7 *std_mem_alloc__74(u32 count) {
   return ((std_vector_Vector__7 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__7)))));
 }
 
-char **std_mem_alloc__74(u32 count) {
+char **std_mem_alloc__75(u32 count) {
   return ((char **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(char *)))));
 }
 
-std_vector_Vector__8 *std_mem_alloc__75(u32 count) {
+std_vector_Vector__8 *std_mem_alloc__76(u32 count) {
   return ((std_vector_Vector__8 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__8)))));
 }
 
-compiler_ast_nodes_Structure **std_mem_alloc__76(u32 count) {
+compiler_ast_nodes_Structure **std_mem_alloc__77(u32 count) {
   return ((compiler_ast_nodes_Structure **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Structure *)))));
 }
 
-std_vector_Vector__9 *std_mem_alloc__77(u32 count) {
+std_vector_Vector__9 *std_mem_alloc__78(u32 count) {
   return ((std_vector_Vector__9 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__9)))));
 }
 
-compiler_tokens_Token **std_mem_alloc__78(u32 count) {
+compiler_tokens_Token **std_mem_alloc__79(u32 count) {
   return ((compiler_tokens_Token **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_tokens_Token *)))));
 }
 
-std_vector_Vector__10 *std_mem_alloc__79(u32 count) {
+std_vector_Vector__10 *std_mem_alloc__80(u32 count) {
   return ((std_vector_Vector__10 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__10)))));
 }
 
-compiler_attributes_Attribute **std_mem_alloc__80(u32 count) {
+compiler_attributes_Attribute **std_mem_alloc__81(u32 count) {
   return ((compiler_attributes_Attribute **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_attributes_Attribute *)))));
 }
 
-std_vector_Vector__11 *std_mem_alloc__81(u32 count) {
+std_vector_Vector__11 *std_mem_alloc__82(u32 count) {
   return ((std_vector_Vector__11 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__11)))));
 }
 
-compiler_errors_Error **std_mem_alloc__82(u32 count) {
+compiler_errors_Error **std_mem_alloc__83(u32 count) {
   return ((compiler_errors_Error **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_errors_Error *)))));
 }
 
-std_vector_Vector__12 *std_mem_alloc__83(u32 count) {
+std_vector_Vector__12 *std_mem_alloc__84(u32 count) {
   return ((std_vector_Vector__12 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__12)))));
 }
 
-compiler_ast_nodes_Enum **std_mem_alloc__84(u32 count) {
+compiler_ast_nodes_Enum **std_mem_alloc__85(u32 count) {
   return ((compiler_ast_nodes_Enum **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Enum *)))));
 }
 
-std_vector_Vector__13 *std_mem_alloc__85(u32 count) {
+std_vector_Vector__13 *std_mem_alloc__86(u32 count) {
   return ((std_vector_Vector__13 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__13)))));
 }
 
-compiler_ast_nodes_AST **std_mem_alloc__86(u32 count) {
+compiler_ast_nodes_AST **std_mem_alloc__87(u32 count) {
   return ((compiler_ast_nodes_AST **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_AST *)))));
 }
 
-std_vector_Vector__14 *std_mem_alloc__87(u32 count) {
+std_vector_Vector__14 *std_mem_alloc__88(u32 count) {
   return ((std_vector_Vector__14 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__14)))));
 }
 
-jmp_buf *std_mem_alloc__88(u32 count) {
+jmp_buf *std_mem_alloc__89(u32 count) {
   return ((jmp_buf *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(jmp_buf)))));
 }
 
-std_vector_Vector__15 *std_mem_alloc__89(u32 count) {
+std_vector_Vector__15 *std_mem_alloc__90(u32 count) {
   return ((std_vector_Vector__15 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__15)))));
 }
 
-compiler_ast_scopes_Symbol **std_mem_alloc__90(u32 count) {
+compiler_ast_scopes_Symbol **std_mem_alloc__91(u32 count) {
   return ((compiler_ast_scopes_Symbol **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_scopes_Symbol *)))));
 }
 
-std_vector_Vector__16 *std_mem_alloc__91(u32 count) {
+std_vector_Vector__16 *std_mem_alloc__92(u32 count) {
   return ((std_vector_Vector__16 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__16)))));
 }
 
-compiler_ast_scopes_Reference *std_mem_alloc__92(u32 count) {
+compiler_ast_scopes_Reference *std_mem_alloc__93(u32 count) {
   return ((compiler_ast_scopes_Reference *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_scopes_Reference)))));
 }
 
-std_vector_Vector__17 *std_mem_alloc__93(u32 count) {
+std_vector_Vector__17 *std_mem_alloc__94(u32 count) {
   return ((std_vector_Vector__17 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__17)))));
 }
 
-compiler_ast_operators_Operator *std_mem_alloc__94(u32 count) {
+compiler_ast_operators_Operator *std_mem_alloc__95(u32 count) {
   return ((compiler_ast_operators_Operator *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_operators_Operator)))));
 }
 
-std_vector_Vector__18 *std_mem_alloc__95(u32 count) {
+std_vector_Vector__18 *std_mem_alloc__96(u32 count) {
   return ((std_vector_Vector__18 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__18)))));
 }
 
-compiler_ast_nodes_Argument **std_mem_alloc__96(u32 count) {
+compiler_ast_nodes_Argument **std_mem_alloc__97(u32 count) {
   return ((compiler_ast_nodes_Argument **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Argument *)))));
 }
 
-std_vector_Vector__19 *std_mem_alloc__97(u32 count) {
+std_vector_Vector__19 *std_mem_alloc__98(u32 count) {
   return ((std_vector_Vector__19 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__19)))));
 }
 
-std_vector_Vector__5 **std_mem_alloc__98(u32 count) {
+std_vector_Vector__5 **std_mem_alloc__99(u32 count) {
   return ((std_vector_Vector__5 **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__5 *)))));
 }
 
-std_vector_Vector__20 *std_mem_alloc__99(u32 count) {
+std_vector_Vector__20 *std_mem_alloc__100(u32 count) {
   return ((std_vector_Vector__20 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__20)))));
 }
 
-compiler_ast_nodes_IfBranch *std_mem_alloc__100(u32 count) {
+compiler_ast_nodes_IfBranch *std_mem_alloc__101(u32 count) {
   return ((compiler_ast_nodes_IfBranch *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_IfBranch)))));
 }
 
-std_vector_Vector__21 *std_mem_alloc__101(u32 count) {
+std_vector_Vector__21 *std_mem_alloc__102(u32 count) {
   return ((std_vector_Vector__21 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__21)))));
 }
 
-compiler_ast_nodes_MatchCase **std_mem_alloc__102(u32 count) {
+compiler_ast_nodes_MatchCase **std_mem_alloc__103(u32 count) {
   return ((compiler_ast_nodes_MatchCase **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_MatchCase *)))));
 }
 
-std_vector_Vector__22 *std_mem_alloc__103(u32 count) {
+std_vector_Vector__22 *std_mem_alloc__104(u32 count) {
   return ((std_vector_Vector__22 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__22)))));
 }
 
-std_span_Span *std_mem_alloc__104(u32 count) {
+std_span_Span *std_mem_alloc__105(u32 count) {
   return ((std_span_Span *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_span_Span)))));
 }
 
-std_vector_Vector__23 *std_mem_alloc__105(u32 count) {
+std_vector_Vector__23 *std_mem_alloc__106(u32 count) {
   return ((std_vector_Vector__23 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__23)))));
 }
 
-std_value_Value **std_mem_alloc__106(u32 count) {
+std_value_Value **std_mem_alloc__107(u32 count) {
   return ((std_value_Value **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_value_Value *)))));
 }
 
-std_vector_Vector__24 *std_mem_alloc__107(u32 count) {
+std_vector_Vector__24 *std_mem_alloc__108(u32 count) {
   return ((std_vector_Vector__24 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__24)))));
 }
 
-std_compact_map_Item__0 *std_mem_alloc__108(u32 count) {
+std_compact_map_Item__0 *std_mem_alloc__109(u32 count) {
   return ((std_compact_map_Item__0 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_compact_map_Item__0)))));
 }
 
-std_vector_Vector__25 *std_mem_alloc__109(u32 count) {
+std_vector_Vector__25 *std_mem_alloc__110(u32 count) {
   return ((std_vector_Vector__25 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__25)))));
 }
 
-u32 *std_mem_alloc__110(u32 count) {
+std_compact_map_Item__1 *std_mem_alloc__111(u32 count) {
+  return ((std_compact_map_Item__1 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_compact_map_Item__1)))));
+}
+
+std_vector_Vector__26 *std_mem_alloc__112(u32 count) {
+  return ((std_vector_Vector__26 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__26)))));
+}
+
+u32 *std_mem_alloc__113(u32 count) {
   return ((u32 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(u32)))));
 }
 
@@ -15094,7 +15161,7 @@ u8 *std_mem_realloc__0(u8 *ptr, u32 old_count, u32 new_count) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  u8 *new_ptr = std_mem_alloc__24(new_count);
+  u8 *new_ptr = std_mem_alloc__25(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15107,7 +15174,7 @@ compiler_types_Type **std_mem_realloc__1(compiler_types_Type **ptr, u32 old_coun
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_types_Type **new_ptr = std_mem_alloc__60(new_count);
+  compiler_types_Type **new_ptr = std_mem_alloc__61(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15120,7 +15187,7 @@ compiler_ast_scopes_Scope **std_mem_realloc__2(compiler_ast_scopes_Scope **ptr, 
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_scopes_Scope **new_ptr = std_mem_alloc__62(new_count);
+  compiler_ast_scopes_Scope **new_ptr = std_mem_alloc__63(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15133,7 +15200,7 @@ compiler_ast_program_Namespace **std_mem_realloc__3(compiler_ast_program_Namespa
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_program_Namespace **new_ptr = std_mem_alloc__64(new_count);
+  compiler_ast_program_Namespace **new_ptr = std_mem_alloc__65(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15146,7 +15213,7 @@ compiler_ast_scopes_TemplateInstance **std_mem_realloc__4(compiler_ast_scopes_Te
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_scopes_TemplateInstance **new_ptr = std_mem_alloc__66(new_count);
+  compiler_ast_scopes_TemplateInstance **new_ptr = std_mem_alloc__67(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15159,7 +15226,7 @@ compiler_ast_nodes_Variable **std_mem_realloc__5(compiler_ast_nodes_Variable **p
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_Variable **new_ptr = std_mem_alloc__68(new_count);
+  compiler_ast_nodes_Variable **new_ptr = std_mem_alloc__69(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15172,7 +15239,7 @@ compiler_ast_nodes_ImportPart **std_mem_realloc__6(compiler_ast_nodes_ImportPart
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_ImportPart **new_ptr = std_mem_alloc__70(new_count);
+  compiler_ast_nodes_ImportPart **new_ptr = std_mem_alloc__71(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15185,7 +15252,7 @@ compiler_ast_nodes_Function **std_mem_realloc__7(compiler_ast_nodes_Function **p
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_Function **new_ptr = std_mem_alloc__72(new_count);
+  compiler_ast_nodes_Function **new_ptr = std_mem_alloc__73(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15198,7 +15265,7 @@ char **std_mem_realloc__8(char **ptr, u32 old_count, u32 new_count) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  char **new_ptr = std_mem_alloc__74(new_count);
+  char **new_ptr = std_mem_alloc__75(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15211,7 +15278,7 @@ compiler_ast_nodes_Structure **std_mem_realloc__9(compiler_ast_nodes_Structure *
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_Structure **new_ptr = std_mem_alloc__76(new_count);
+  compiler_ast_nodes_Structure **new_ptr = std_mem_alloc__77(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15224,7 +15291,7 @@ compiler_tokens_Token **std_mem_realloc__10(compiler_tokens_Token **ptr, u32 old
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_tokens_Token **new_ptr = std_mem_alloc__78(new_count);
+  compiler_tokens_Token **new_ptr = std_mem_alloc__79(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15237,7 +15304,7 @@ compiler_attributes_Attribute **std_mem_realloc__11(compiler_attributes_Attribut
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_attributes_Attribute **new_ptr = std_mem_alloc__80(new_count);
+  compiler_attributes_Attribute **new_ptr = std_mem_alloc__81(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15250,7 +15317,7 @@ compiler_errors_Error **std_mem_realloc__12(compiler_errors_Error **ptr, u32 old
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_errors_Error **new_ptr = std_mem_alloc__82(new_count);
+  compiler_errors_Error **new_ptr = std_mem_alloc__83(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15263,7 +15330,7 @@ compiler_ast_nodes_Enum **std_mem_realloc__13(compiler_ast_nodes_Enum **ptr, u32
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_Enum **new_ptr = std_mem_alloc__84(new_count);
+  compiler_ast_nodes_Enum **new_ptr = std_mem_alloc__85(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15276,7 +15343,7 @@ compiler_ast_nodes_AST **std_mem_realloc__14(compiler_ast_nodes_AST **ptr, u32 o
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_AST **new_ptr = std_mem_alloc__86(new_count);
+  compiler_ast_nodes_AST **new_ptr = std_mem_alloc__87(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15289,7 +15356,7 @@ jmp_buf *std_mem_realloc__15(jmp_buf *ptr, u32 old_count, u32 new_count) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  jmp_buf *new_ptr = std_mem_alloc__88(new_count);
+  jmp_buf *new_ptr = std_mem_alloc__89(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15302,7 +15369,7 @@ compiler_ast_scopes_Symbol **std_mem_realloc__16(compiler_ast_scopes_Symbol **pt
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_scopes_Symbol **new_ptr = std_mem_alloc__90(new_count);
+  compiler_ast_scopes_Symbol **new_ptr = std_mem_alloc__91(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15315,7 +15382,7 @@ compiler_ast_scopes_Reference *std_mem_realloc__17(compiler_ast_scopes_Reference
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_scopes_Reference *new_ptr = std_mem_alloc__92(new_count);
+  compiler_ast_scopes_Reference *new_ptr = std_mem_alloc__93(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15328,7 +15395,7 @@ compiler_ast_operators_Operator *std_mem_realloc__18(compiler_ast_operators_Oper
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_operators_Operator *new_ptr = std_mem_alloc__94(new_count);
+  compiler_ast_operators_Operator *new_ptr = std_mem_alloc__95(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15341,7 +15408,7 @@ compiler_ast_nodes_Argument **std_mem_realloc__19(compiler_ast_nodes_Argument **
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_Argument **new_ptr = std_mem_alloc__96(new_count);
+  compiler_ast_nodes_Argument **new_ptr = std_mem_alloc__97(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15354,7 +15421,7 @@ std_vector_Vector__5 **std_mem_realloc__20(std_vector_Vector__5 **ptr, u32 old_c
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  std_vector_Vector__5 **new_ptr = std_mem_alloc__98(new_count);
+  std_vector_Vector__5 **new_ptr = std_mem_alloc__99(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15367,7 +15434,7 @@ compiler_ast_nodes_IfBranch *std_mem_realloc__21(compiler_ast_nodes_IfBranch *pt
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_IfBranch *new_ptr = std_mem_alloc__100(new_count);
+  compiler_ast_nodes_IfBranch *new_ptr = std_mem_alloc__101(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15380,7 +15447,7 @@ compiler_ast_nodes_MatchCase **std_mem_realloc__22(compiler_ast_nodes_MatchCase 
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_MatchCase **new_ptr = std_mem_alloc__102(new_count);
+  compiler_ast_nodes_MatchCase **new_ptr = std_mem_alloc__103(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15393,7 +15460,7 @@ std_span_Span *std_mem_realloc__23(std_span_Span *ptr, u32 old_count, u32 new_co
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  std_span_Span *new_ptr = std_mem_alloc__104(new_count);
+  std_span_Span *new_ptr = std_mem_alloc__105(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15406,7 +15473,7 @@ std_value_Value **std_mem_realloc__24(std_value_Value **ptr, u32 old_count, u32 
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  std_value_Value **new_ptr = std_mem_alloc__106(new_count);
+  std_value_Value **new_ptr = std_mem_alloc__107(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15419,20 +15486,33 @@ std_compact_map_Item__0 *std_mem_realloc__25(std_compact_map_Item__0 *ptr, u32 o
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  std_compact_map_Item__0 *new_ptr = std_mem_alloc__108(new_count);
+  std_compact_map_Item__0 *new_ptr = std_mem_alloc__109(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
 }
 
-u32 *std_mem_realloc__26(u32 *ptr, u32 old_count, u32 new_count) {
+std_compact_map_Item__1 *std_mem_realloc__26(std_compact_map_Item__1 *ptr, u32 old_count, u32 new_count) {
+  u32 old_size = (old_count * ((u32)sizeof(std_compact_map_Item__1)));
+  u32 new_size = (new_count * ((u32)sizeof(std_compact_map_Item__1)));
+  if (std_mem_state_realloc_fn != NULL) {
+    return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
+  }
+  if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
+  std_compact_map_Item__1 *new_ptr = std_mem_alloc__111(new_count);
+  memcpy(new_ptr, ptr, old_size);
+  std_mem_free(ptr);
+  return new_ptr;
+}
+
+u32 *std_mem_realloc__27(u32 *ptr, u32 old_count, u32 new_count) {
   u32 old_size = (old_count * ((u32)sizeof(u32)));
   u32 new_size = (new_count * ((u32)sizeof(u32)));
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  u32 *new_ptr = std_mem_alloc__110(new_count);
+  u32 *new_ptr = std_mem_alloc__113(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -15578,8 +15658,107 @@ void std_compact_map_Map__0_resize_if_necessary(std_compact_map_Map__0 *this) {
   }
 }
 
+void std_compact_map_Map__1_free(std_compact_map_Map__1 *this) {
+  if (!((bool)this)) {
+    return;
+  }
+  std_mem_free(this->indices);
+  std_vector_Vector__25_free(this->items);
+  std_mem_free(this);
+}
+
+void std_compact_map_Map__1_insert(std_compact_map_Map__1 *this, char *key, std_span_Span value) {
+  u32 hash = str_hash(key);
+  u32 index = std_compact_map_Map__1_get_index(this, key, hash);
+  if (this->indices[index] < 0) {
+    this->indices[index]=((i32)this->items->size);
+    std_vector_Vector__25_push(this->items, (std_compact_map_Item__1){.hash=hash, .key=key, .value=value});
+    std_compact_map_Map__1_resize_if_necessary(this);
+  } else {
+    if (this->indices[index]==std_compact_map_INDEX_DELETED) {
+      this->num_tombstones-=1;
+    }
+    u32 item_index = ((u32)this->indices[index]);
+    this->items->data[item_index].value=value;
+  }
+}
+
+u32 std_compact_map_Map__1_get_index(std_compact_map_Map__1 *this, char *key, u32 hash) {
+  u32 perturb = hash;
+  u32 j = (hash % this->capacity);
+  u32 i = j;
+  i32 first_deleted = -1;
+  while (this->indices[i] != std_compact_map_INDEX_FREE) {
+    if (this->indices[i]==std_compact_map_INDEX_DELETED) {
+      if (first_deleted < 0) {
+        first_deleted=((i32)i);
+      }
+    } else {
+      std_compact_map_Item__1 item = this->items->data[this->indices[i]];
+      if (item.hash==hash && str_eq(item.key, key)) {
+        return i;
+      }
+    }
+    j=(((5 * j) + perturb) + 1);
+    i=(j % this->capacity);
+    perturb=(perturb >> 5);
+  }
+  if (first_deleted < 0) {
+    return i;
+  }
+  return ((u32)first_deleted);
+}
+
+void std_compact_map_Map__1_resize(std_compact_map_Map__1 *this, u32 new_capacity) {
+  i32 *old_indices = this->indices;
+  this->indices=std_mem_alloc__22(new_capacity);
+  this->capacity=new_capacity;
+  for (u32 i = 0; i < new_capacity; i++) {
+    this->indices[i]=std_compact_map_INDEX_FREE;
+  }
+  for (u32 i = 0; i < this->items->size; i++) {
+    std_compact_map_Item__1 item = std_vector_Vector__25_at(this->items, i);
+    u32 index = std_compact_map_Map__1_get_index(this, item.key, item.hash);
+    if (this->indices[index]==std_compact_map_INDEX_FREE) {
+      this->indices[index]=((i32)i);
+    }
+  }
+  this->num_tombstones=0;
+  std_mem_free(old_indices);
+}
+
+std_compact_map_Item__1 *std_compact_map_Map__1_get_item(std_compact_map_Map__1 *this, char *key) {
+  u32 hash = str_hash(key);
+  u32 index = std_compact_map_Map__1_get_index(this, key, hash);
+  if (this->indices[index] < 0) {
+    return NULL;
+  }
+  u32 idx = ((u32)this->indices[index]);
+  return &this->items->data[idx];
+}
+
+std_compact_map_Map__1 *std_compact_map_Map__1_new(u32 capacity) {
+  std_vector_Vector__25 *items = std_vector_Vector__25_new(capacity);
+  i32 *indices = std_mem_alloc__22(capacity);
+  for (u32 i = 0; i < capacity; i++) {
+    indices[i]=std_compact_map_INDEX_FREE;
+  }
+  std_compact_map_Map__1 *map = std_mem_alloc__24(1);
+  map->items=items;
+  map->indices=indices;
+  map->capacity=capacity;
+  map->num_tombstones=0;
+  return map;
+}
+
+void std_compact_map_Map__1_resize_if_necessary(std_compact_map_Map__1 *this) {
+  if ((this->num_tombstones + ((u32)this->items->size)) >= ((this->capacity * 3) / 4)) {
+    std_compact_map_Map__1_resize(this, (this->capacity * 2));
+  }
+}
+
 std_buffer_Buffer std_buffer_Buffer_make(u32 capacity) {
-  return (std_buffer_Buffer){.data=std_mem_alloc__24(capacity), .size=0, .capacity=capacity};
+  return (std_buffer_Buffer){.data=std_mem_alloc__25(capacity), .size=0, .capacity=capacity};
 }
 
 std_buffer_Buffer std_buffer_Buffer_from_str(char *s) {
@@ -15712,7 +15891,7 @@ bool std_set_Set__0_contains(std_set_Set__0 *this, u64 key) {
 }
 
 std_set_Set__0 *std_set_Set__0_new(void) {
-  std_set_Set__0 *set = std_mem_alloc__25(1);
+  std_set_Set__0 *set = std_mem_alloc__26(1);
   set->map=std_map_Map__0_new(8);
   return set;
 }
@@ -15732,7 +15911,7 @@ bool std_set_Set__1_contains(std_set_Set__1 *this, char *key) {
 }
 
 std_set_Set__1 *std_set_Set__1_new(void) {
-  std_set_Set__1 *set = std_mem_alloc__26(1);
+  std_set_Set__1 *set = std_mem_alloc__27(1);
   set->map=std_map_Map__1_new(8);
   return set;
 }
@@ -15748,7 +15927,7 @@ void std_set_Set__2_add(std_set_Set__2 *this, std_span_Span key) {
 }
 
 std_set_Set__2 *std_set_Set__2_new(void) {
-  std_set_Set__2 *set = std_mem_alloc__27(1);
+  std_set_Set__2 *set = std_mem_alloc__28(1);
   set->map=std_map_Map__9_new(8);
   return set;
 }
@@ -15883,7 +16062,7 @@ u32 u64_hash(u64 this) {
 }
 
 std_value_Value *std_value_Value_new(std_value_ValueType type) {
-  std_value_Value *val = std_mem_alloc__28(1);
+  std_value_Value *val = std_mem_alloc__29(1);
   val->type=type;
   switch (type) {
     case std_value_ValueType_Dictionary: {
@@ -16080,7 +16259,7 @@ std_fs_DirectoryEntry std_fs_DirectoryIterator_cur(std_fs_DirectoryIterator *thi
 }
 
 std_map_Item__0 *std_map_Item__0_new(u64 key, bool value, std_map_Item__0 *next) {
-  std_map_Item__0 *node = std_mem_alloc__29(1);
+  std_map_Item__0 *node = std_mem_alloc__30(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16133,7 +16312,7 @@ void std_map_Map__0_resize(std_map_Map__0 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__30(this->num_buckets);
+  this->buckets=std_mem_alloc__31(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__0 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16162,9 +16341,9 @@ u32 std_map_Map__0_hash(std_map_Map__0 *this, u64 key) {
 }
 
 std_map_Map__0 *std_map_Map__0_new(u32 capacity) {
-  std_map_Map__0 *map = std_mem_alloc__31(1);
+  std_map_Map__0 *map = std_mem_alloc__32(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__30(map->num_buckets);
+  map->buckets=std_mem_alloc__31(map->num_buckets);
   return map;
 }
 
@@ -16181,7 +16360,7 @@ std_map_Item__0 *std_map_Map__0_get_item(std_map_Map__0 *this, u64 key) {
 }
 
 std_map_Item__1 *std_map_Item__1_new(char *key, bool value, std_map_Item__1 *next) {
-  std_map_Item__1 *node = std_mem_alloc__32(1);
+  std_map_Item__1 *node = std_mem_alloc__33(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16234,7 +16413,7 @@ void std_map_Map__1_resize(std_map_Map__1 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__33(this->num_buckets);
+  this->buckets=std_mem_alloc__34(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__1 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16263,9 +16442,9 @@ u32 std_map_Map__1_hash(std_map_Map__1 *this, char *key) {
 }
 
 std_map_Map__1 *std_map_Map__1_new(u32 capacity) {
-  std_map_Map__1 *map = std_mem_alloc__34(1);
+  std_map_Map__1 *map = std_mem_alloc__35(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__33(map->num_buckets);
+  map->buckets=std_mem_alloc__34(map->num_buckets);
   return map;
 }
 
@@ -16282,7 +16461,7 @@ std_map_Item__1 *std_map_Map__1_get_item(std_map_Map__1 *this, char *key) {
 }
 
 std_map_Item__2 *std_map_Item__2_new(char *key, compiler_types_Type *value, std_map_Item__2 *next) {
-  std_map_Item__2 *node = std_mem_alloc__35(1);
+  std_map_Item__2 *node = std_mem_alloc__36(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16372,7 +16551,7 @@ void std_map_Map__2_resize(std_map_Map__2 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__36(this->num_buckets);
+  this->buckets=std_mem_alloc__37(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__2 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16401,9 +16580,9 @@ u32 std_map_Map__2_hash(std_map_Map__2 *this, char *key) {
 }
 
 std_map_Map__2 *std_map_Map__2_new(u32 capacity) {
-  std_map_Map__2 *map = std_mem_alloc__37(1);
+  std_map_Map__2 *map = std_mem_alloc__38(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__36(map->num_buckets);
+  map->buckets=std_mem_alloc__37(map->num_buckets);
   return map;
 }
 
@@ -16424,7 +16603,7 @@ std_map_Iterator__2 std_map_Map__2_iter(std_map_Map__2 *this) {
 }
 
 std_map_Item__3 *std_map_Item__3_new(char *key, compiler_ast_program_Namespace *value, std_map_Item__3 *next) {
-  std_map_Item__3 *node = std_mem_alloc__38(1);
+  std_map_Item__3 *node = std_mem_alloc__39(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16524,7 +16703,7 @@ void std_map_Map__3_resize(std_map_Map__3 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__39(this->num_buckets);
+  this->buckets=std_mem_alloc__40(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__3 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16569,9 +16748,9 @@ bool std_map_ValueIterator__3_has_value(std_map_ValueIterator__3 *this) {
 }
 
 std_map_Map__3 *std_map_Map__3_new(u32 capacity) {
-  std_map_Map__3 *map = std_mem_alloc__40(1);
+  std_map_Map__3 *map = std_mem_alloc__41(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__39(map->num_buckets);
+  map->buckets=std_mem_alloc__40(map->num_buckets);
   return map;
 }
 
@@ -16592,7 +16771,7 @@ std_map_Iterator__3 std_map_Map__3_iter(std_map_Map__3 *this) {
 }
 
 std_map_Item__4 *std_map_Item__4_new(char *key, compiler_ast_scopes_Symbol *value, std_map_Item__4 *next) {
-  std_map_Item__4 *node = std_mem_alloc__41(1);
+  std_map_Item__4 *node = std_mem_alloc__42(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16688,7 +16867,7 @@ void std_map_Map__4_resize(std_map_Map__4 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__42(this->num_buckets);
+  this->buckets=std_mem_alloc__43(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__4 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16733,9 +16912,9 @@ bool std_map_ValueIterator__4_has_value(std_map_ValueIterator__4 *this) {
 }
 
 std_map_Map__4 *std_map_Map__4_new(u32 capacity) {
-  std_map_Map__4 *map = std_mem_alloc__43(1);
+  std_map_Map__4 *map = std_mem_alloc__44(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__42(map->num_buckets);
+  map->buckets=std_mem_alloc__43(map->num_buckets);
   return map;
 }
 
@@ -16756,7 +16935,7 @@ std_map_Iterator__4 std_map_Map__4_iter(std_map_Map__4 *this) {
 }
 
 std_map_Item__5 *std_map_Item__5_new(compiler_ast_operators_OperatorOverload key, compiler_ast_nodes_Function *value, std_map_Item__5 *next) {
-  std_map_Item__5 *node = std_mem_alloc__44(1);
+  std_map_Item__5 *node = std_mem_alloc__45(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16805,7 +16984,7 @@ void std_map_Map__5_resize(std_map_Map__5 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__45(this->num_buckets);
+  this->buckets=std_mem_alloc__46(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__5 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16834,9 +17013,9 @@ u32 std_map_Map__5_hash(std_map_Map__5 *this, compiler_ast_operators_OperatorOve
 }
 
 std_map_Map__5 *std_map_Map__5_new(u32 capacity) {
-  std_map_Map__5 *map = std_mem_alloc__46(1);
+  std_map_Map__5 *map = std_mem_alloc__47(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__45(map->num_buckets);
+  map->buckets=std_mem_alloc__46(map->num_buckets);
   return map;
 }
 
@@ -16853,7 +17032,7 @@ std_map_Item__5 *std_map_Map__5_get_item(std_map_Map__5 *this, compiler_ast_oper
 }
 
 std_map_Item__6 *std_map_Item__6_new(char *key, char *value, std_map_Item__6 *next) {
-  std_map_Item__6 *node = std_mem_alloc__47(1);
+  std_map_Item__6 *node = std_mem_alloc__48(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -16943,7 +17122,7 @@ void std_map_Map__6_resize(std_map_Map__6 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__48(this->num_buckets);
+  this->buckets=std_mem_alloc__49(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__6 *node = old_buckets[i];
     while (((bool)node)) {
@@ -16972,9 +17151,9 @@ u32 std_map_Map__6_hash(std_map_Map__6 *this, char *key) {
 }
 
 std_map_Map__6 *std_map_Map__6_new(u32 capacity) {
-  std_map_Map__6 *map = std_mem_alloc__49(1);
+  std_map_Map__6 *map = std_mem_alloc__50(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__48(map->num_buckets);
+  map->buckets=std_mem_alloc__49(map->num_buckets);
   return map;
 }
 
@@ -16995,7 +17174,7 @@ std_map_Iterator__6 std_map_Map__6_iter(std_map_Map__6 *this) {
 }
 
 std_map_Item__7 *std_map_Item__7_new(char *key, compiler_ast_nodes_Function *value, std_map_Item__7 *next) {
-  std_map_Item__7 *node = std_mem_alloc__50(1);
+  std_map_Item__7 *node = std_mem_alloc__51(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -17087,7 +17266,7 @@ void std_map_Map__7_resize(std_map_Map__7 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__51(this->num_buckets);
+  this->buckets=std_mem_alloc__52(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__7 *node = old_buckets[i];
     while (((bool)node)) {
@@ -17132,9 +17311,9 @@ bool std_map_ValueIterator__7_has_value(std_map_ValueIterator__7 *this) {
 }
 
 std_map_Map__7 *std_map_Map__7_new(u32 capacity) {
-  std_map_Map__7 *map = std_mem_alloc__52(1);
+  std_map_Map__7 *map = std_mem_alloc__53(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__51(map->num_buckets);
+  map->buckets=std_mem_alloc__52(map->num_buckets);
   return map;
 }
 
@@ -17155,7 +17334,7 @@ std_map_Iterator__7 std_map_Map__7_iter(std_map_Map__7 *this) {
 }
 
 std_map_Item__8 *std_map_Item__8_new(char *key, compiler_ast_nodes_MatchCase *value, std_map_Item__8 *next) {
-  std_map_Item__8 *node = std_mem_alloc__53(1);
+  std_map_Item__8 *node = std_mem_alloc__54(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -17216,7 +17395,7 @@ void std_map_Map__8_resize(std_map_Map__8 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__54(this->num_buckets);
+  this->buckets=std_mem_alloc__55(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__8 *node = old_buckets[i];
     while (((bool)node)) {
@@ -17245,9 +17424,9 @@ u32 std_map_Map__8_hash(std_map_Map__8 *this, char *key) {
 }
 
 std_map_Map__8 *std_map_Map__8_new(u32 capacity) {
-  std_map_Map__8 *map = std_mem_alloc__55(1);
+  std_map_Map__8 *map = std_mem_alloc__56(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__54(map->num_buckets);
+  map->buckets=std_mem_alloc__55(map->num_buckets);
   return map;
 }
 
@@ -17264,7 +17443,7 @@ std_map_Item__8 *std_map_Map__8_get_item(std_map_Map__8 *this, char *key) {
 }
 
 std_map_Item__9 *std_map_Item__9_new(std_span_Span key, bool value, std_map_Item__9 *next) {
-  std_map_Item__9 *node = std_mem_alloc__56(1);
+  std_map_Item__9 *node = std_mem_alloc__57(1);
   node->key=key;
   node->value=value;
   node->next=next;
@@ -17350,7 +17529,7 @@ void std_map_Map__9_resize(std_map_Map__9 *this) {
   this->num_collisions=0;
   this->num_buckets*=2;
   this->num_buckets=u32_max(this->num_buckets, 16);
-  this->buckets=std_mem_alloc__57(this->num_buckets);
+  this->buckets=std_mem_alloc__58(this->num_buckets);
   for (u32 i = 0; i < old_num_buckets; i+=1) {
     std_map_Item__9 *node = old_buckets[i];
     while (((bool)node)) {
@@ -17379,9 +17558,9 @@ u32 std_map_Map__9_hash(std_map_Map__9 *this, std_span_Span key) {
 }
 
 std_map_Map__9 *std_map_Map__9_new(u32 capacity) {
-  std_map_Map__9 *map = std_mem_alloc__58(1);
+  std_map_Map__9 *map = std_mem_alloc__59(1);
   map->num_buckets=capacity;
-  map->buckets=std_mem_alloc__57(map->num_buckets);
+  map->buckets=std_mem_alloc__58(map->num_buckets);
   return map;
 }
 
@@ -17437,9 +17616,9 @@ void std_vector_Vector__0_resize(std_vector_Vector__0 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__0 *std_vector_Vector__0_new(u32 capacity) {
-  std_vector_Vector__0 *list = std_mem_alloc__59(1);
+  std_vector_Vector__0 *list = std_mem_alloc__60(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__60(capacity);
+  list->data=std_mem_alloc__61(capacity);
   list->size=0;
   return list;
 }
@@ -17478,9 +17657,9 @@ void std_vector_Vector__1_resize(std_vector_Vector__1 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__1 *std_vector_Vector__1_new(u32 capacity) {
-  std_vector_Vector__1 *list = std_mem_alloc__61(1);
+  std_vector_Vector__1 *list = std_mem_alloc__62(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__62(capacity);
+  list->data=std_mem_alloc__63(capacity);
   list->size=0;
   return list;
 }
@@ -17522,9 +17701,9 @@ void std_vector_Vector__2_resize(std_vector_Vector__2 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__2 *std_vector_Vector__2_new(u32 capacity) {
-  std_vector_Vector__2 *list = std_mem_alloc__63(1);
+  std_vector_Vector__2 *list = std_mem_alloc__64(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__64(capacity);
+  list->data=std_mem_alloc__65(capacity);
   list->size=0;
   return list;
 }
@@ -17568,9 +17747,9 @@ void std_vector_Vector__3_resize(std_vector_Vector__3 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__3 *std_vector_Vector__3_new(u32 capacity) {
-  std_vector_Vector__3 *list = std_mem_alloc__65(1);
+  std_vector_Vector__3 *list = std_mem_alloc__66(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__66(capacity);
+  list->data=std_mem_alloc__67(capacity);
   list->size=0;
   return list;
 }
@@ -17634,9 +17813,9 @@ void std_vector_Vector__4_resize(std_vector_Vector__4 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__4 *std_vector_Vector__4_new(u32 capacity) {
-  std_vector_Vector__4 *list = std_mem_alloc__67(1);
+  std_vector_Vector__4 *list = std_mem_alloc__68(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__68(capacity);
+  list->data=std_mem_alloc__69(capacity);
   list->size=0;
   return list;
 }
@@ -17685,9 +17864,9 @@ void std_vector_Vector__5_resize(std_vector_Vector__5 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__5 *std_vector_Vector__5_new(u32 capacity) {
-  std_vector_Vector__5 *list = std_mem_alloc__69(1);
+  std_vector_Vector__5 *list = std_mem_alloc__70(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__70(capacity);
+  list->data=std_mem_alloc__71(capacity);
   list->size=0;
   return list;
 }
@@ -17741,9 +17920,9 @@ void std_vector_Vector__6_resize(std_vector_Vector__6 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__6 *std_vector_Vector__6_new(u32 capacity) {
-  std_vector_Vector__6 *list = std_mem_alloc__71(1);
+  std_vector_Vector__6 *list = std_mem_alloc__72(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__72(capacity);
+  list->data=std_mem_alloc__73(capacity);
   list->size=0;
   return list;
 }
@@ -17809,9 +17988,9 @@ void std_vector_Vector__7_resize(std_vector_Vector__7 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__7 *std_vector_Vector__7_new(u32 capacity) {
-  std_vector_Vector__7 *list = std_mem_alloc__73(1);
+  std_vector_Vector__7 *list = std_mem_alloc__74(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__74(capacity);
+  list->data=std_mem_alloc__75(capacity);
   list->size=0;
   return list;
 }
@@ -17864,9 +18043,9 @@ void std_vector_Vector__8_resize(std_vector_Vector__8 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__8 *std_vector_Vector__8_new(u32 capacity) {
-  std_vector_Vector__8 *list = std_mem_alloc__75(1);
+  std_vector_Vector__8 *list = std_mem_alloc__76(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__76(capacity);
+  list->data=std_mem_alloc__77(capacity);
   list->size=0;
   return list;
 }
@@ -17902,9 +18081,9 @@ void std_vector_Vector__9_resize(std_vector_Vector__9 *this, u32 new_capacity) {
 }
 
 std_vector_Vector__9 *std_vector_Vector__9_new(u32 capacity) {
-  std_vector_Vector__9 *list = std_mem_alloc__77(1);
+  std_vector_Vector__9 *list = std_mem_alloc__78(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__78(capacity);
+  list->data=std_mem_alloc__79(capacity);
   list->size=0;
   return list;
 }
@@ -17953,9 +18132,9 @@ void std_vector_Vector__10_resize(std_vector_Vector__10 *this, u32 new_capacity)
 }
 
 std_vector_Vector__10 *std_vector_Vector__10_new(u32 capacity) {
-  std_vector_Vector__10 *list = std_mem_alloc__79(1);
+  std_vector_Vector__10 *list = std_mem_alloc__80(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__80(capacity);
+  list->data=std_mem_alloc__81(capacity);
   list->size=0;
   return list;
 }
@@ -18017,9 +18196,9 @@ void std_vector_Vector__11_resize(std_vector_Vector__11 *this, u32 new_capacity)
 }
 
 std_vector_Vector__11 *std_vector_Vector__11_new(u32 capacity) {
-  std_vector_Vector__11 *list = std_mem_alloc__81(1);
+  std_vector_Vector__11 *list = std_mem_alloc__82(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__82(capacity);
+  list->data=std_mem_alloc__83(capacity);
   list->size=0;
   return list;
 }
@@ -18067,9 +18246,9 @@ void std_vector_Vector__12_resize(std_vector_Vector__12 *this, u32 new_capacity)
 }
 
 std_vector_Vector__12 *std_vector_Vector__12_new(u32 capacity) {
-  std_vector_Vector__12 *list = std_mem_alloc__83(1);
+  std_vector_Vector__12 *list = std_mem_alloc__84(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__84(capacity);
+  list->data=std_mem_alloc__85(capacity);
   list->size=0;
   return list;
 }
@@ -18133,9 +18312,9 @@ void std_vector_Vector__13_resize(std_vector_Vector__13 *this, u32 new_capacity)
 }
 
 std_vector_Vector__13 *std_vector_Vector__13_new(u32 capacity) {
-  std_vector_Vector__13 *list = std_mem_alloc__85(1);
+  std_vector_Vector__13 *list = std_mem_alloc__86(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__86(capacity);
+  list->data=std_mem_alloc__87(capacity);
   list->size=0;
   return list;
 }
@@ -18163,9 +18342,9 @@ void std_vector_Vector__14_resize(std_vector_Vector__14 *this, u32 new_capacity)
 }
 
 std_vector_Vector__14 *std_vector_Vector__14_new(u32 capacity) {
-  std_vector_Vector__14 *list = std_mem_alloc__87(1);
+  std_vector_Vector__14 *list = std_mem_alloc__88(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__88(capacity);
+  list->data=std_mem_alloc__89(capacity);
   list->size=0;
   return list;
 }
@@ -18206,9 +18385,9 @@ void std_vector_Vector__15_resize(std_vector_Vector__15 *this, u32 new_capacity)
 }
 
 std_vector_Vector__15 *std_vector_Vector__15_new(u32 capacity) {
-  std_vector_Vector__15 *list = std_mem_alloc__89(1);
+  std_vector_Vector__15 *list = std_mem_alloc__90(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__90(capacity);
+  list->data=std_mem_alloc__91(capacity);
   list->size=0;
   return list;
 }
@@ -18252,9 +18431,9 @@ void std_vector_Vector__16_resize(std_vector_Vector__16 *this, u32 new_capacity)
 }
 
 std_vector_Vector__16 *std_vector_Vector__16_new(u32 capacity) {
-  std_vector_Vector__16 *list = std_mem_alloc__91(1);
+  std_vector_Vector__16 *list = std_mem_alloc__92(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__92(capacity);
+  list->data=std_mem_alloc__93(capacity);
   list->size=0;
   return list;
 }
@@ -18298,9 +18477,9 @@ void std_vector_Vector__17_resize(std_vector_Vector__17 *this, u32 new_capacity)
 }
 
 std_vector_Vector__17 *std_vector_Vector__17_new(u32 capacity) {
-  std_vector_Vector__17 *list = std_mem_alloc__93(1);
+  std_vector_Vector__17 *list = std_mem_alloc__94(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__94(capacity);
+  list->data=std_mem_alloc__95(capacity);
   list->size=0;
   return list;
 }
@@ -18360,9 +18539,9 @@ void std_vector_Vector__18_resize(std_vector_Vector__18 *this, u32 new_capacity)
 }
 
 std_vector_Vector__18 *std_vector_Vector__18_new(u32 capacity) {
-  std_vector_Vector__18 *list = std_mem_alloc__95(1);
+  std_vector_Vector__18 *list = std_mem_alloc__96(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__96(capacity);
+  list->data=std_mem_alloc__97(capacity);
   list->size=0;
   return list;
 }
@@ -18411,9 +18590,9 @@ void std_vector_Vector__19_resize(std_vector_Vector__19 *this, u32 new_capacity)
 }
 
 std_vector_Vector__19 *std_vector_Vector__19_new(u32 capacity) {
-  std_vector_Vector__19 *list = std_mem_alloc__97(1);
+  std_vector_Vector__19 *list = std_mem_alloc__98(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__98(capacity);
+  list->data=std_mem_alloc__99(capacity);
   list->size=0;
   return list;
 }
@@ -18462,9 +18641,9 @@ void std_vector_Vector__20_resize(std_vector_Vector__20 *this, u32 new_capacity)
 }
 
 std_vector_Vector__20 *std_vector_Vector__20_new(u32 capacity) {
-  std_vector_Vector__20 *list = std_mem_alloc__99(1);
+  std_vector_Vector__20 *list = std_mem_alloc__100(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__100(capacity);
+  list->data=std_mem_alloc__101(capacity);
   list->size=0;
   return list;
 }
@@ -18513,9 +18692,9 @@ void std_vector_Vector__21_resize(std_vector_Vector__21 *this, u32 new_capacity)
 }
 
 std_vector_Vector__21 *std_vector_Vector__21_new(u32 capacity) {
-  std_vector_Vector__21 *list = std_mem_alloc__101(1);
+  std_vector_Vector__21 *list = std_mem_alloc__102(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__102(capacity);
+  list->data=std_mem_alloc__103(capacity);
   list->size=0;
   return list;
 }
@@ -18564,9 +18743,9 @@ void std_vector_Vector__22_resize(std_vector_Vector__22 *this, u32 new_capacity)
 }
 
 std_vector_Vector__22 *std_vector_Vector__22_new(u32 capacity) {
-  std_vector_Vector__22 *list = std_mem_alloc__103(1);
+  std_vector_Vector__22 *list = std_mem_alloc__104(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__104(capacity);
+  list->data=std_mem_alloc__105(capacity);
   list->size=0;
   return list;
 }
@@ -18593,9 +18772,9 @@ void std_vector_Vector__23_resize(std_vector_Vector__23 *this, u32 new_capacity)
 }
 
 std_vector_Vector__23 *std_vector_Vector__23_new(u32 capacity) {
-  std_vector_Vector__23 *list = std_mem_alloc__105(1);
+  std_vector_Vector__23 *list = std_mem_alloc__106(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__106(capacity);
+  list->data=std_mem_alloc__107(capacity);
   list->size=0;
   return list;
 }
@@ -18644,9 +18823,9 @@ void std_vector_Vector__24_resize(std_vector_Vector__24 *this, u32 new_capacity)
 }
 
 std_vector_Vector__24 *std_vector_Vector__24_new(u32 capacity) {
-  std_vector_Vector__24 *list = std_mem_alloc__107(1);
+  std_vector_Vector__24 *list = std_mem_alloc__108(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__108(capacity);
+  list->data=std_mem_alloc__109(capacity);
   list->size=0;
   return list;
 }
@@ -18659,7 +18838,7 @@ void std_vector_Vector__24_push(std_vector_Vector__24 *this, std_compact_map_Ite
   this->size+=1;
 }
 
-u32 std_vector_Vector__25_at(std_vector_Vector__25 *this, u32 i) {
+std_compact_map_Item__1 std_vector_Vector__25_at(std_vector_Vector__25 *this, u32 i) {
   if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:107:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
   return this->data[i];
 }
@@ -18678,16 +18857,50 @@ void std_vector_Vector__25_resize(std_vector_Vector__25 *this, u32 new_capacity)
 }
 
 std_vector_Vector__25 *std_vector_Vector__25_new(u32 capacity) {
-  std_vector_Vector__25 *list = std_mem_alloc__109(1);
+  std_vector_Vector__25 *list = std_mem_alloc__110(1);
   list->capacity=capacity;
-  list->data=std_mem_alloc__110(capacity);
+  list->data=std_mem_alloc__111(capacity);
   list->size=0;
   return list;
 }
 
-void std_vector_Vector__25_push(std_vector_Vector__25 *this, u32 value) {
+void std_vector_Vector__25_push(std_vector_Vector__25 *this, std_compact_map_Item__1 value) {
   if (this->size==this->capacity) {
     std_vector_Vector__25_resize(this, (this->capacity * 2));
+  }
+  this->data[this->size]=value;
+  this->size+=1;
+}
+
+u32 std_vector_Vector__26_at(std_vector_Vector__26 *this, u32 i) {
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:107:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  return this->data[i];
+}
+
+void std_vector_Vector__26_free(std_vector_Vector__26 *this) {
+  std_mem_free(this->data);
+  std_mem_free(this);
+}
+
+void std_vector_Vector__26_resize(std_vector_Vector__26 *this, u32 new_capacity) {
+  if (this->capacity >= new_capacity) {
+    return;
+  }
+  this->data=std_mem_realloc__27(this->data, this->capacity, new_capacity);
+  this->capacity=new_capacity;
+}
+
+std_vector_Vector__26 *std_vector_Vector__26_new(u32 capacity) {
+  std_vector_Vector__26 *list = std_mem_alloc__112(1);
+  list->capacity=capacity;
+  list->data=std_mem_alloc__113(capacity);
+  list->size=0;
+  return list;
+}
+
+void std_vector_Vector__26_push(std_vector_Vector__26 *this, u32 value) {
+  if (this->size==this->capacity) {
+    std_vector_Vector__26_resize(this, (this->capacity * 2));
   }
   this->data[this->size]=value;
   this->size+=1;
