@@ -100,7 +100,8 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Import | Break | Continue | IntLiteral | FloatLiteral |
         BoolLiteral | StringLiteral | CharLiteral | Null => {}
 
-        Return | Yield | Defer => .mark(node.u.child)
+        Yield | Defer => .mark(node.u.child)
+        Return => .mark(node.u.ret.expr)
         UnaryOp => .mark(node.u.unary.expr)
 
         SizeOf => .mark_type(node.u.size_of_type)

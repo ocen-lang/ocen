@@ -377,6 +377,11 @@ struct ArrayLiteral {
     elements: &Vector<&AST>
 }
 
+struct Return {
+    expr: &AST
+    return_span: Span
+}
+
 union ASTUnion {
     assertion: Assertion
     binary: Binary
@@ -402,6 +407,7 @@ union ASTUnion {
     spec: Specialization
     array_literal: ArrayLiteral
     child: &AST
+    ret: Return
 }
 
 struct AST {
@@ -438,6 +444,13 @@ def AST::new_binop(op: Operator, lhs: &AST, rhs: &AST, op_span: Span): &AST {
     ast.u.binary.rhs = rhs
     ast.u.binary.op_span = op_span
     return ast
+}
+
+//! Returns the span we want to display in the LSP for this node
+def AST::display_span(&this): Span => match .type {
+    Match => .u.match_stmt.match_span
+    If => .u.if_stmt.if_span
+    else => .span
 }
 
 def AST::is_identifier(&this): bool => match .type {
