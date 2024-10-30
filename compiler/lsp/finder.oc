@@ -327,7 +327,7 @@ def Finder::find_in_statement(&this, node: &AST): bool {
             if decl.init? and .find_in_expression(decl.init) return true
         }
         Block => return .find_in_block(node)
-        Return => return node.u.child? and .find_in_expression(node.u.child)
+        Return => return node.u.ret.expr? and .find_in_expression(node.u.ret.expr)
         Import => {
             let path = node.u.import_path
             let prev = path.root_sym

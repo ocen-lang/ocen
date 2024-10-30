@@ -836,11 +836,12 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .gen_defers_upto(upto)
             .gen_indent()
 
-            if node.u.child? {
-                if not node.u.child.returns {
+            let expr = node.u.ret.expr
+            if expr? {
+                if not expr.returns {
                     .out += "return "
                 }
-                .gen_expression(node.u.child, is_top_level: true)
+                .gen_expression(expr, is_top_level: true)
                 .out += ";\n"
             } else {
                 .out += "return;\n"

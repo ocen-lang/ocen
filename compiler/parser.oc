@@ -1332,13 +1332,14 @@ def Parser::parse_statement(&this): &AST {
     match .token().type {
         TokenType::OpenCurly => node = .parse_block()
         TokenType::Return => {
-            .consume(TokenType::Return)
+            let tok = .consume(TokenType::Return)
             let expr = null as &AST
             if not .is_end_of_statement() {
                 expr = .parse_expression(end_type: TokenType::Newline)
             }
             node = AST::new(Return, start_span.join(.token().span))
-            node.u.child = expr
+            node.u.ret.expr = expr
+            node.u.ret.return_span = tok.span
             .consume_end_of_statement()
         }
         TokenType::Yield => {
@@ -1647,7 +1648,8 @@ def Parser::parse_function(&this): &Function {
         let stmt = .parse_expression(end_type: TokenType::Newline)
         if returns {
             let ret = AST::new(Return, stmt.span)
-            ret.u.child = stmt
+            ret.u.ret.expr = stmt
+            ret.u.ret.return_span = arrow.span
             stmt = ret
         }
 

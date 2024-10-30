@@ -1733,7 +1733,8 @@ def TypeChecker::check_statement(&this, node: &AST) {
             let expected = cur_func.return_type
 
             let res: &Type = null
-            let child = node.u.child
+            let child = node.u.ret.expr
+            let ret_span = node.u.ret.return_span
             if child? then res = .check_expression(child, hint: expected)
 
             if child? and child.returns {
@@ -1742,14 +1743,14 @@ def TypeChecker::check_statement(&this, node: &AST) {
             } else if expected.base == BaseType::Void {
                 // We allow using arrow returns in void functions, they just don't return anything.
                 if node.u.child? {
-                    .error(Error::new(node.span, "Cannot return a value from a void function"))
+                    .error(Error::new(ret_span, "Cannot return a value from a void function"))
                 }
             } else if child? {
                 if res? and not res.eq(expected) {
-                    .error(Error::new(node.span, `Return type {res.str()} does not match function return type {expected.str()}`))
+                    .error(Error::new(ret_span, `Return type {res.str()} does not match function return type {expected.str()}`))
                 }
             } else {
-                .error(Error::new(node.span, "Expected a return value for non-void function"))
+                .error(Error::new(ret_span, "Expected a return value for non-void function"))
             }
             node.returns = true
         }
