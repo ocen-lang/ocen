@@ -128,6 +128,15 @@ def GenericPass::find_in_symbol(&this, sym: &Symbol, name: str, allow_templated:
         if method? then return method.sym
         yield null
     }
+    ValueEnum => {
+        let venom = sym.u.venom
+        let variant = venom.get_variant(name)
+        if variant? then return variant.sym
+
+        let method = venom.type.methods.get(name, null)
+        if method? then return method.sym
+        yield null
+    }
     else => null
 }
 

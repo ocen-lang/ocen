@@ -1,4 +1,4 @@
-/// fail: Could not find type with this name
+/// fail: Couldn't find this identifier: u128
 
 def main() {
     let x = 125u128

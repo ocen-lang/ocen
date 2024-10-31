@@ -1,0 +1,17 @@
+/// fail: Field type does not match previous branch: i32
+
+venum Foo {
+    Case0(i32)
+    Case1(str, i32)
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case1("hello", 42)
+    match foo {
+        Case0(x) | Case1(x, _) => println(`0|1 => {x}`)
+        Case2(y) => println(`2 => {y}`)
+        Case3 => println(`3 => ()`)
+    }
+}

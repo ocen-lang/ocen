@@ -64,7 +64,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         else => `&{gen_type_string(type.u.ptr, full)}`
     }
     Array => `&{gen_type_string(type.u.arr.elem_type, full)}`
-    Structure | Enum | Alias => {
+    Structure | Enum | Alias | ValueEnum => {
         if not type.template_instance? return match full {
             true => type.sym.display
             false => type.sym.name
@@ -192,6 +192,26 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
     Enum | EnumVariant => `enum {sym.display}`
     Structure => `struct {sym.display}`
     Namespace => `namespace {sym.display}`
+    ValueEnum => `venum {sym.display}`
+    ValueEnumVariant => {
+        let variant = sym.u.venom_var
+        let buf = Buffer::make()
+        buf <<= `venum {variant.sym.display}`
+        if variant.fields.size > 0 {
+            buf += "("
+            for let i = 0; i < variant.fields.size; i += 1 {
+                if i > 0 then buf += ", "
+                let field = variant.fields[i]
+                buf += gen_type_string(field.type, full: false)
+            }
+            buf += ")"
+        }
+        yield buf.str()
+    }
+    ValueEnumField => {
+        let field = sym.u.venom_field
+        yield `venum {field.variant.sym.display}.{field.idx}`
+    }
 }
 
 def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
@@ -203,6 +223,7 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
     Enum => sym.u.enum_.type
     Structure => sym.u.struc.type
     Namespace => null
+    else => std::panic(f"get_symbol_typedef: unhandled symbol type: {sym.type}")
 }
 
 def gen_error_json(err: &Error): &Value {

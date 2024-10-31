@@ -1,0 +1,15 @@
+/// lsp: -h 14 22
+/// {"hover": "venum Foo::Case2(str)\nDoc on Case2\n"}
+
+//! Doc on foo
+venum Foo {
+    Case0(i32)
+    Case1(str, i32)
+    //! Doc on Case2
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case2("hi")
+}

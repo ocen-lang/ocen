@@ -357,6 +357,23 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     .yield_vars.pop()
 }
 
+def CodeGenerator::gen_venom_constructor(&this, variant: &ValueEnumVariant, args: &Vector<&Argument> = null) {
+    let venom = variant.parent
+
+    .out <<= `({venom.sym.out_name()})\{`
+    .out <<= `.tag={variant.sym.out_name()},`
+    if args? and args.size > 0 {
+        .out <<= `.{variant.sym.out_name()}=\{`
+        for let i = 0; i < args.size; i += 1 {
+            if i != 0 then .out += ", "
+            let arg = args.at(i)
+            .gen_expression(arg.expr)
+        }
+        .out += "}"
+    }
+    .out += "}"
+}
+
 def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
     .out <<= `({struc.sym.out_name()})\{`
     let fields = struc.fields
@@ -470,7 +487,8 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             }
             match sym.type {
                 Function | Variable | Constant | EnumVariant => .out += sym.out_name()
-                else => std::panic(`Unhandled symbol type: {sym.type}`)
+                ValueEnumVariant => .gen_venom_constructor(sym.u.venom_var)
+                else => assert false, `Unhandled symbol type: {sym.type}`
             }
         }
         Call => {
@@ -483,9 +501,22 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             }
 
             let sym = callee.symbol()
-            if sym? and sym.type == Structure and node.u.call.is_constructor {
-                .gen_constructor(node, sym.u.struc)
-                return
+            if sym? {
+                match node.u.call.call_type {
+                    StructConstructor => {
+                        assert sym.type == Structure
+                        .gen_constructor(node, sym.u.struc)
+                        return
+                    }
+                    ValueEnumConstructor => {
+                        assert sym.type == ValueEnumVariant
+                        .gen_venom_constructor(sym.u.venom_var, node.u.call.args)
+                        return
+                    }
+
+                    // Fallthrough
+                    else => {}
+                }
             }
 
             .gen_expression(callee)
@@ -740,6 +771,92 @@ def CodeGenerator::gen_custom_match(&this, node: &AST) {
     .out += "}\n"
 }
 
+def CodeGenerator::gen_match_venom(&this, node: &AST) {
+    let match_stmt = &node.u.match_stmt
+    let expr = match_stmt.expr
+    assert expr.etype? and expr.etype.base == ValueEnum
+
+    let venom = expr.etype.u.venom
+
+    .gen_indent()
+    .out += "switch (("
+    .gen_expression(expr)
+    .out += ").tag) {\n"
+
+    let is_first_variant = true
+    let uid = .uid++
+    let branch_num = 0;
+
+    .indent += 1
+    for cas in match_stmt.cases.iter() {
+        if is_first_variant and cas.args? {
+            is_first_variant = false
+            .gen_indent()
+            .out += "{\n"
+            .indent += 1
+            for arg in cas.args.iter() {
+                if not arg.sym.name.eq("_") {
+                    .gen_indent()
+                    .gen_type_and_name(arg.type, arg.sym.out_name())
+                    .out += ";\n"
+                }
+            }
+        }
+
+        let resolved = cas.cond.resolved_symbol
+        assert resolved? and resolved.type == ValueEnumVariant
+        let variant = resolved.u.venom_var
+
+        .gen_indent()
+        .out += "case "
+        .out += variant.sym.out_name()
+        .out += ":\n"
+
+        .indent += 1
+        if cas.args? {
+            let args = cas.args
+            for let i = 0; i < args.size; i += 1 {
+                let arg = args.at(i)
+                if not arg.sym.name.eq("_") {
+                    .gen_indent()
+                    .out += arg.sym.out_name()
+                    .out += " = ("
+                    .gen_expression(expr)
+                    .out += ")."
+                    .out += variant.sym.out_name()
+                    .out <<= f".f{i}"
+                    .out += ";\n"
+                }
+            }
+            .gen_indent()
+            .out += f"goto m_{uid}_{branch_num};\n"
+        }
+        .indent -= 1
+
+        if cas.body? {
+            .gen_indent()
+            .out += f"m_{uid}_{branch_num}:\n"
+            .indent += 1
+            .gen_indent()
+            .gen_control_body(node, cas.body)
+            .out += " break;\n"
+            .indent -= 1
+            is_first_variant = true
+            branch_num += 1
+
+            if cas.args? {
+                .indent -= 1
+                .gen_indent()
+                .out += "}\n"
+            }
+        }
+
+    }
+    .indent -= 1
+    .gen_indent()
+    .out += "}\n"
+}
+
 //! Generate an if-else statement when we are matching a boolean
 def CodeGenerator::gen_match_bool(&this, node: &AST) {
     let stmt = node.u.match_stmt
@@ -770,9 +887,17 @@ def CodeGenerator::gen_match(&this, node: &AST) {
         return
     }
 
-    if stmt.expr.etype.base == Bool {
-        .gen_match_bool(node)
-        return
+
+    match stmt.expr.etype.base {
+        Bool => {
+            .gen_match_bool(node)
+            return
+        }
+        ValueEnum => {
+            .gen_match_venom(node)
+            return
+        }
+        else => {}
     }
 
     .gen_indent()
@@ -1007,6 +1132,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
         F32  | F64 => acc.replace(`{cur.base.str()} {acc}`)
         Structure => acc.replace(`{cur.u.struc.sym.out_name()} {acc}`)
         Enum => acc.replace(`{cur.u.enum_.sym.out_name()} {acc}`)
+        ValueEnum => acc.replace(`{cur.u.venom.sym.out_name()} {acc}`)
 
         Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
 
@@ -1249,9 +1375,8 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
     .out += "};\n\n"
 }
 
-def CodeGenerator::gen_structs_and_typedefs(&this) {
+def CodeGenerator::gen_struct_typedefs(&this) {
     let structs = .o.program.ordered_structs
-
     if structs.size == 0 then return
 
     .out += "/* Struct typedefs */\n"
@@ -1266,6 +1391,23 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
             .out <<= `typedef struct {strufull_name} {strufull_name};\n`
         }
     }
+    .out += "\n"
+}
+
+def CodeGenerator::gen_venom_typedefs(&this, ns: &Namespace) {
+    for venom in ns.venoms.iter() {
+        let name = venom.sym.out_name()
+        .out <<= f"typedef enum {name}__kind {name}__kind;\n"
+        .out <<= f"typedef struct {name} {name};\n"
+    }
+    for child : ns.namespaces.iter_values() {
+        .gen_venom_typedefs(child)
+    }
+}
+
+def CodeGenerator::gen_structs(&this) {
+    let structs = .o.program.ordered_structs
+    if structs.size == 0 then return
 
     .out += "\n/* Struct definitions */\n"
     for struc : structs.iter() {
@@ -1274,6 +1416,40 @@ def CodeGenerator::gen_structs_and_typedefs(&this) {
     }
 
     .out += "\n"
+}
+
+def CodeGenerator::gen_venoms(&this, ns: &Namespace) {
+    for venom in ns.venoms.iter() {
+        let name = venom.sym.out_name()
+        .out <<= f"enum {name}__kind \{\n"
+        for variant in venom.variants.iter() {
+            .out <<= f"  {variant.sym.out_name()},\n"
+        }
+        .out += "};\n\n"
+
+        .out <<= f"struct {name} \{\n"
+        .out <<= f"  {name}__kind tag;\n"
+        .out += "  union {\n"
+        for variant in venom.variants.iter() {
+            if variant.fields.size > 0 {
+                .out += "    struct {\n"
+                for let i = 0; i < variant.fields.size; i += 1 {
+                    // TODO: Move this to a resuable method later...
+                    let name = `f{i}`
+                    let field = variant.fields[i]
+                    .out += "      "
+                    .gen_type_and_name(field.type, name)
+                    .out += ";\n"
+                }
+                .out <<= f"    \} {variant.sym.out_name()};\n"
+            }
+        }
+        .out += "  };\n"
+        .out += "};\n\n"
+    }
+    for child : ns.namespaces.iter_values() {
+        .gen_venoms(child)
+    }
 }
 
 def CodeGenerator::generate(&this): str {
@@ -1294,7 +1470,11 @@ def CodeGenerator::generate(&this): str {
     .out += "/* Constants */\n"
     .gen_constants(.o.program.global)
 
-    .gen_structs_and_typedefs()
+    .gen_struct_typedefs()
+    .gen_venom_typedefs(.o.program.global)
+    
+    .gen_structs()
+    .gen_venoms(.o.program.global)
 
     .out += "/* function declarations */\n"
     .gen_function_decls(.o.program.global)

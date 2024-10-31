@@ -10,7 +10,7 @@ import std::fs
 import @ast::nodes::{ * }
 import @ast::program::{ Namespace, Program }
 import @ast::operators::{ Operator }
-import @ast::scopes::{ Symbol, SymbolType, Template }
+import @ast::scopes::{ Symbol, SymbolType, Template, ValueEnumField }
 import @attributes::{ Attribute, AttributeType }
 import @errors::Error
 import @lexer::Lexer
@@ -141,7 +141,6 @@ def Parser::consume(&this, type: TokenType): &Token {
     let tok = .token()
     if not .consume_if(type) {
         .error_msg(`Expected TokenType::{type.str()}`)
-        println(f"Error context size: {.program.err_jmp_stack.size}")
         .program.get_error_context().jump_back(1)
     }
     return tok
@@ -494,6 +493,23 @@ def Parser::parse_match(&this): &AST {
 
         } else {
             let cond = .parse_atom(TokenType::Line)
+
+            let args: &Vector<&Variable> = null
+            if .consume_if(OpenParen) {
+                args = Vector<&Variable>::new()
+                while not .token_is_eof_or(CloseParen) {
+                    let name = .consume(Identifier)
+                    let var = Variable::new(null)
+                    var.sym = Symbol::from_local_variable(name.text, var, name.span)
+                    args.push(var)
+
+                    if not .consume_if(Comma) {
+                        break
+                    }
+                }
+                .consume(CloseParen)
+            }
+
             let body = null as &AST
             if not .consume_if(TokenType::Line) {
                 if not .consume_if(TokenType::FatArrow) {
@@ -505,6 +521,7 @@ def Parser::parse_match(&this): &AST {
                 }
             }
             let _case = MatchCase::new(cond, body)
+            _case.args = args
             cases.push(_case)
         }
 
@@ -1936,6 +1953,46 @@ def Parser::parse_struct(&this): &Structure {
     return struc
 }
 
+def Parser::parse_venum(&this): &ValueEnum {
+    let start = .consume(.token().type) // FIXME: Should be TokenType::ValueEnum
+    // assert start.text == "venum"
+
+    let name = .consume(Identifier)
+
+    let venom = ValueEnum::new(start.span)
+    let sym = Symbol::new_with_parent(ValueEnum, .ns, .ns.sym, name.text, name.span)
+    sym.u.venom = venom
+    venom.sym = sym
+    .add_doc_comment(sym, start)
+
+    .consume(OpenCurly)
+    while not .token_is_eof_or(CloseCurly) {
+        let name = .consume(Identifier)
+
+        let variant = ValueEnumVariant::new(name.span)
+        let vsym = Symbol::new_with_parent(ValueEnumVariant, .ns, sym, name.text, name.span)
+        vsym.u.venom_var = variant
+        variant.sym = vsym
+        variant.parent = venom
+        .add_doc_comment(vsym, name)
+
+        if .consume_if(OpenParen) {
+            while not .token_is_eof_or(CloseParen) {
+                let typ = .parse_type()
+                let var = Variable::new(typ)
+                variant.fields.push(var)
+                .consume_if(Comma)
+            }
+            .consume(CloseParen)
+        }
+
+        venom.variants += variant
+        .consume_if(Comma)
+    }
+    .consume(CloseCurly)
+    return venom
+}
+
 def Parser::parse_enum(&this): &Enum {
     let start = .consume(TokenType::Enum)
     let name = .consume(TokenType::Identifier)
@@ -2040,7 +2097,6 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
 
     let ctx = .program.add_error_context()
     if ctx.set_jump_point() > 0 {
-        println("Error in namespace parse context")
         // Presumably, we've seen some error while parsing this file. Try to sync
         // to the next top-level declaration.
         .sync_toplevel()
@@ -2118,6 +2174,20 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 if con? then .ns.constants.push(con)
             }
             AtSign => .parse_compiler_option()
+            Identifier => match .token().text {
+                "venum" => {
+                    let venom = .parse_venum()
+                    if venom? then .ns.venoms.push(venom)
+                }
+                else => {
+                    .error(Error::new(.token().span, `Unexpected token in Parser: {.token().type}`))
+                    .curr += 1
+                }
+            }
+            else => {
+                .error(Error::new(.token().span, `Unexpected token in Parser: {.token().type}`))
+                .curr += 1
+            }
             else => {
                 .error(Error::new(.token().span, `Unexpected token in Parser: {.token().type}`))
                 .curr += 1

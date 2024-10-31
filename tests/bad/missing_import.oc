@@ -1,4 +1,4 @@
-/// fail: Could not find type with this name
+/// fail: Couldn't find this identifier: OldVector
 
 
 def foo(v: &OldVector) {}
