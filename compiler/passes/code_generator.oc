@@ -732,34 +732,32 @@ def CodeGenerator::gen_custom_match(&this, node: &AST) {
 
     let cases = stmt.cases
     .gen_indent()
-    .out += "if ("
-    for let i = 0; i < cases.size; i += 1 {
-        let _case = cases.at(i)
 
-        if _case.cmp_fn? {
-            .out += _case.cmp_fn.sym.out_name()
-            .out += "("
-            .out += match_var
-            .out += ", "
-            .gen_expression(_case.cond)
-            .out += ")"
+    for let i = 0; i < cases.size; i++ {
+        let _case = cases[i]
 
-        } else {
-            .out += f"({match_var} == "
-            .gen_expression(_case.cond)
-            .out += ")"
-        }
+        .out += "if ("
+        let first = true
+        for cond in _case.conds.iter() {
+            if not first then .out += " || "
+            first = false
+            if cond.cmp_fn? {
+                .out += cond.cmp_fn.sym.out_name()
+                .out += "("
+                .out += match_var
+                .out += ", "
+                .gen_expression(cond.expr)
+                .out += ")"
 
-        if _case.body? {
-            .out += ")"
-            .gen_match_case_body(node, _case.body)
-            .out += " else "
-            if i != cases.size - 1 {
-                .out += "if ("
+            } else {
+                .out += f"({match_var} == "
+                .gen_expression(cond.expr)
+                .out += ")"
             }
-        } else {
-            .out += " || "
         }
+        .out += ")"
+        .gen_match_case_body(node, _case.body)
+        .out += " else "
     }
     if stmt.defolt? {
         .gen_match_case_body(node, stmt.defolt)
@@ -783,18 +781,19 @@ def CodeGenerator::gen_match_venom(&this, node: &AST) {
     .gen_expression(expr)
     .out += ").tag) {\n"
 
-    let is_first_variant = true
     let uid = .uid++
-    let branch_num = 0;
-
     .indent += 1
-    for cas in match_stmt.cases.iter() {
-        if is_first_variant and cas.args? {
-            is_first_variant = false
+    for let i = 0; i < match_stmt.cases.size; i += 1 {
+        let _case = match_stmt.cases[i]
+
+        let has_args = _case.conds.size > 0 and _case.conds[0].args?
+
+        if has_args {
+            let args = _case.conds[0].args
             .gen_indent()
             .out += "{\n"
             .indent += 1
-            for arg in cas.args.iter() {
+            for arg in args.iter() {
                 if not arg.sym.name.eq("_") {
                     .gen_indent()
                     .gen_type_and_name(arg.type, arg.sym.out_name())
@@ -803,54 +802,56 @@ def CodeGenerator::gen_match_venom(&this, node: &AST) {
             }
         }
 
-        let resolved = cas.cond.resolved_symbol
-        assert resolved? and resolved.type == ValueEnumVariant
-        let variant = resolved.u.venom_var
+        for let j = 0; j < _case.conds.size; j++ {
+            let cond = _case.conds[j]
 
-        .gen_indent()
-        .out += "case "
-        .out += variant.sym.out_name()
-        .out += ":\n"
+            let resolved = cond.expr.resolved_symbol
+            assert resolved? and resolved.type == ValueEnumVariant
+            let variant = resolved.u.venom_var
 
-        .indent += 1
-        if cas.args? {
-            let args = cas.args
-            for let i = 0; i < args.size; i += 1 {
-                let arg = args.at(i)
-                if not arg.sym.name.eq("_") {
-                    .gen_indent()
-                    .out += arg.sym.out_name()
-                    .out += " = ("
-                    .gen_expression(expr)
-                    .out += ")."
-                    .out += variant.sym.out_name()
-                    .out <<= f".f{i}"
-                    .out += ";\n"
+            .gen_indent()
+            .out += "case "
+            .out += variant.sym.out_name()
+            .out += ":\n"
+
+            .indent += 1
+            if cond.args? {
+                let args = cond.args
+                for let i = 0; i < args.size; i += 1 {
+                    let arg = args.at(i)
+                    if not arg.sym.name.eq("_") {
+                        .gen_indent()
+                        .out += arg.sym.out_name()
+                        .out += " = ("
+                        .gen_expression(expr)
+                        .out += ")."
+                        .out += variant.sym.out_name()
+                        .out <<= f".f{i}"
+                        .out += ";\n"
+                    }
                 }
+                .gen_indent()
+                .out += f"goto m_{uid}_{i};\n"
             }
-            .gen_indent()
-            .out += f"goto m_{uid}_{branch_num};\n"
+            .indent -= 1
         }
-        .indent -= 1
 
-        if cas.body? {
+
+        if _case.body? {
             .gen_indent()
-            .out += f"m_{uid}_{branch_num}:\n"
+            .out += f"m_{uid}_{i}:\n"
             .indent += 1
             .gen_indent()
-            .gen_control_body(node, cas.body)
+            .gen_control_body(node, _case.body)
             .out += " break;\n"
             .indent -= 1
-            is_first_variant = true
-            branch_num += 1
 
-            if cas.args? {
-                .indent -= 1
-                .gen_indent()
-                .out += "}\n"
-            }
         }
-
+        if has_args {
+            .indent -= 1
+            .gen_indent()
+            .out += "}\n"
+        }
     }
     .indent -= 1
     .gen_indent()
@@ -864,7 +865,9 @@ def CodeGenerator::gen_match_bool(&this, node: &AST) {
     let true_case = stmt.cases[0]
     let false_case = stmt.cases[1]
 
-    if not true_case.cond.u.bool_literal {
+    let true_expr = true_case.conds[0].expr
+    assert true_expr.type == BoolLiteral, "Expected a boolean literal in gen_match_bool"
+    if not true_expr.u.bool_literal {
         let tmp = true_case
         true_case = false_case
         false_case = tmp
@@ -908,10 +911,12 @@ def CodeGenerator::gen_match(&this, node: &AST) {
     let cases = stmt.cases
     .indent += 1
     for _case : cases.iter() {
-        .gen_indent()
-        .out += "case "
-        .gen_expression(_case.cond)
-        .out += ":"
+        for cond : _case.conds.iter() {
+            .gen_indent()
+            .out += "case "
+            .gen_expression(cond.expr)
+            .out += ":"
+        }
         if _case.body? {
             .gen_match_case_body(node, _case.body)
             .out += " break;\n"

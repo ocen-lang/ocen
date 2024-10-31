@@ -467,6 +467,33 @@ def Parser::parse_format_string(&this): &AST {
     return node
 }
 
+def Parser::parse_match_case_conds(&this, end_type: TokenType): &Vector<&MatchCond> {
+    let conds = Vector<&MatchCond>::new()
+    while not .token_is_eof_or(end_type) {
+        let expr = .parse_atom(TokenType::Line)
+
+        let args: &Vector<&Variable> = null
+        if .consume_if(OpenParen) {
+            args = Vector<&Variable>::new()
+            while not .token_is_eof_or(CloseParen) {
+                let name = .consume(Identifier)
+                let var = Variable::new(null)
+                var.sym = Symbol::from_local_variable(name.text, var, name.span)
+                args.push(var)
+
+                if not .consume_if(Comma) {
+                    break
+                }
+            }
+            .consume(CloseParen)
+        }
+        conds.push(MatchCond::new(expr, args))
+        if not .consume_if(Line) then break
+    }
+
+    return conds
+}
+
 def Parser::parse_match(&this): &AST {
     let op = .consume(TokenType::Match)
     let expr = .parse_expression(end_type: TokenType::OpenCurly)
@@ -474,7 +501,7 @@ def Parser::parse_match(&this): &AST {
     node.u.match_stmt.expr = expr
     node.u.match_stmt.match_span = op.span
 
-    let cases = Vector<&MatchCase>::new()
+    let cases = Vector<MatchCase>::new()
     node.u.match_stmt.cases = cases
 
     if not .token_is(TokenType::OpenCurly) {
@@ -492,36 +519,15 @@ def Parser::parse_match(&this): &AST {
             node.u.match_stmt.defolt = .parse_statement()
 
         } else {
-            let cond = .parse_atom(TokenType::Line)
-
-            let args: &Vector<&Variable> = null
-            if .consume_if(OpenParen) {
-                args = Vector<&Variable>::new()
-                while not .token_is_eof_or(CloseParen) {
-                    let name = .consume(Identifier)
-                    let var = Variable::new(null)
-                    var.sym = Symbol::from_local_variable(name.text, var, name.span)
-                    args.push(var)
-
-                    if not .consume_if(Comma) {
-                        break
-                    }
-                }
-                .consume(CloseParen)
+            let conds = .parse_match_case_conds(TokenType::FatArrow)
+            if not .consume_if(TokenType::FatArrow) {
+                .error(Error::new(.token().span, "Expected => after match case"))
             }
-
-            let body = null as &AST
-            if not .consume_if(TokenType::Line) {
-                if not .consume_if(TokenType::FatArrow) {
-                    .error(Error::new(.token().span, "Expected => after match case"))
-                }
-                body = .parse_statement()
-                if not .token_is(TokenType::CloseCurly) {
-                    .consume_newline_or(TokenType::Comma)
-                }
+            let body = .parse_statement()
+            if not .token_is(TokenType::CloseCurly) {
+                .consume_newline_or(TokenType::Comma)
             }
-            let _case = MatchCase::new(cond, body)
-            _case.args = args
+            let _case = MatchCase(conds, body)
             cases.push(_case)
         }
 

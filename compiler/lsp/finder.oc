@@ -243,15 +243,16 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         Match => {
             let stmt = &node.u.match_stmt
             if .find_in_expression(stmt.expr) return true
-            for let i = 0; i < stmt.cases.size; i += 1 {
-                let case_ = stmt.cases.at(i) as &MatchCase
-                if .find_in_expression(case_.cond) return true
-                if case_.args? {
-                    for arg in case_.args.iter() {
-                        if .find_in_var(arg, node) return true
+            for _case in stmt.cases.iter() {
+                for cond in _case.conds.iter() {
+                    if .find_in_expression(cond.expr) return true
+                    if cond.args? {
+                        for arg in cond.args.iter() {
+                            if .find_in_var(arg, node) return true
+                        }
                     }
                 }
-                if case_.body? and .find_in_statement(case_.body) return true
+                if _case.body? and .find_in_statement(_case.body) return true
             }
             if stmt.defolt? and .find_in_statement(stmt.defolt) return true
         }

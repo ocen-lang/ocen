@@ -11,7 +11,7 @@ import std::vector::{ Vector }
 
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
-import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase, ValueEnum, ValueEnumVariant }
+import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCond, ValueEnum, ValueEnumVariant }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType }
 import @errors::{ Error }
@@ -1465,75 +1465,77 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
 }
 
 def TypeChecker::check_match_for_venom(&this, venom: &ValueEnum, node: &AST, is_expr: bool, hint: &Type = null) {
-    let mapping = Map<str, &MatchCase>::new()
+    let mapping = Map<str, &MatchCond>::new()
     defer mapping.free()
 
     let cases = node.u.match_stmt.cases
     node.returns = (cases.size > 0)
 
-    let is_first_variant = true
+
     let current_args = Map<str, &Type>::new()
-
     for _case : cases.iter() {
-        let cond = _case.cond
-        let name: str
+        let conds = _case.conds
 
-        match cond.type {
-            Identifier | NSLookup | Specialization => {}
-            else => {
-                .error(Error::new(cond.span, f"Expected value enum variant, got {cond.type}"))
-                continue
-            }
-        }
+        current_args.clear()
+        for let i = 0; i < conds.size; i++ {
+            let cond = conds[i]
+            let name: str
 
-        let resolved_sym = .resolve_scoped_identifier(cond, error: true, hint: venom.type)
-        if not resolved_sym? continue
-        if resolved_sym.type != ValueEnumVariant {
-            .error(Error::new(
-                cond.span, f"Expected value enum variant, got {resolved_sym.type} ({resolved_sym.display})",
-            ))
-            continue
-        }
-        let variant = resolved_sym.u.venom_var
-
-        if variant.parent != venom {
-            .error(Error::new_hint(
-                cond.span, "Condition does not match expression type",
-                node.u.match_stmt.expr.span, `Match expression is of type '{venom.type.str()}'`
-            ))
-        }
-        cond.etype = venom.type
-
-        let args = _case.args
-        if args? and args.size != variant.fields.size {
-            .error(Error::new_hint(
-                cond.span, f"{variant.sym.display} needs {variant.fields.size} fields, got {args.size}",
-                variant.sym.span, f"Variant '{variant.sym.display}' has no fields"
-            ))
-        }
-
-        if is_first_variant {
-            is_first_variant = false
-            current_args.clear()
-
-            if args? {
-                for let i = 0; i < args.size and i < variant.fields.size; i += 1 {
-                    let arg = args[i]
-                    let field = variant.fields[i]
-                    arg.type = field.type
-                    if not arg.sym.name.eq("_") {
-                        current_args[arg.sym.name] = field.type
-                    }
+            let expr = cond.expr
+            match expr.type {
+                Identifier | NSLookup | Specialization => {}
+                else => {
+                    .error(Error::new(expr.span, f"Expected value enum variant, got {expr.type}"))
+                    continue
                 }
             }
 
-        } else {
+            let resolved_sym = .resolve_scoped_identifier(expr, error: true, hint: venom.type)
+            if not resolved_sym? continue
+            if resolved_sym.type != ValueEnumVariant {
+                .error(Error::new(
+                    expr.span, f"Expected value enum variant, got {resolved_sym.type} ({resolved_sym.display})",
+                ))
+                continue
+            }
+            let variant = resolved_sym.u.venom_var
 
-            let found_args = 0
-            if args? {
-                for let i = 0; i < args.size and i < variant.fields.size; i += 1 {
-                    let arg = args[i]
-                    let field = variant.fields[i]
+            if variant.parent != venom {
+                .error(Error::new_hint(
+                    expr.span, "Condition does not match expression type",
+                    node.u.match_stmt.expr.span, `Match expression is of type '{venom.type.str()}'`
+                ))
+            }
+            expr.etype = venom.type
+
+            let args = cond.args
+            if args? and args.size != variant.fields.size {
+                .error(Error::new_hint(
+                    expr.span, f"{variant.sym.display} needs {variant.fields.size} fields, got {args.size}",
+                    variant.sym.span, f"Variant '{variant.sym.display}' has no fields"
+                ))
+            }
+
+            // Populate the current_args map with the fields of the first variant
+            if i == 0 {
+                if args? {
+                    for let j = 0; j < args.size and j < variant.fields.size; j += 1 {
+                        let arg = args[j]
+                        let field = variant.fields[j]
+                        arg.type = field.type
+                        if not arg.sym.name.eq("_") {
+                            current_args[arg.sym.name] = field.type
+                        }
+                    }
+                }
+
+            // For the rest, check that the fields match the first variant
+            } else {
+
+                let found_args = 0
+                for let j = 0; args? and j < args.size and j < variant.fields.size; j += 1 {
+                    let arg = args[j]
+                    let field = variant.fields[j]
                     arg.type = field.type
 
                     if arg.sym.name.eq("_") then continue
@@ -1554,24 +1556,24 @@ def TypeChecker::check_match_for_venom(&this, venom: &ValueEnum, node: &AST, is_
                         continue
                     }
                 }
+                if found_args != current_args.size {
+                    .error(Error::new(
+                        expr.span, "All conditions in this branch must have the same fields"
+                    ))
+                }
             }
-            if found_args != current_args.size {
-                .error(Error::new(
-                    cond.span, "All conditions in this branch must have the same fields"
+
+            name = expr.resolved_symbol.name
+            let prev = mapping.get(name, null)
+            if prev? {
+                .error(Error::new_hint(
+                    expr.span, "Duplicate condition name in match",
+                    prev.expr.span, "This condition was previously used here"
                 ))
             }
-
+            mapping.insert(name, cond)
         }
 
-        name = cond.resolved_symbol.name
-        let prev = mapping.get(name, null)
-        if prev? {
-            .error(Error::new_hint(
-                cond.span, "Duplicate condition name in match",
-                prev.cond.span, "This condition was previously used here"
-            ))
-        }
-        mapping.insert(name, _case)
         if _case.body? {
             .o.push_scope(Scope::new(.o.scope()))
             for arg in current_args.iter() {
@@ -1581,7 +1583,6 @@ def TypeChecker::check_match_for_venom(&this, venom: &ValueEnum, node: &AST, is_
             }
 
             .check_expression_statement(node,  _case.body, is_expr, hint)
-            is_first_variant = true
             .o.pop_scope()
         }
     }
@@ -1619,38 +1620,39 @@ def TypeChecker::check_match_for_venom(&this, venom: &ValueEnum, node: &AST, is_
 
 //! Special case for handling a case where we match against an Enum
 def TypeChecker::check_match_for_enum(&this, enum_: &Enum, node: &AST, is_expr: bool, hint: &Type = null) {
-    let mapping = Map<str, &MatchCase>::new()
+    let mapping = Map<str, &MatchCond>::new()
     defer mapping.free()
 
     let cases = node.u.match_stmt.cases
     node.returns = (cases.size > 0)
 
     for _case : cases.iter() {
-        let cond = _case.cond
-        let name: str
+        for cond : _case.conds.iter() {
+            let expr = cond.expr
+            let cond_type = .check_expression(expr, hint: enum_.type)
+            if not cond_type? then continue
+            if not cond_type.eq(enum_.type) {
+                .error(Error::new_hint(
+                    expr.span, "Condition does not match expression type",
+                    node.u.match_stmt.expr.span, `Match expression is of type '{enum_.type.str()}'`
+                ))
+            }
+            if cond_type.base != BaseType::Enum {
+                .error(Error::new(expr.span, "Expected an enum value"))
+                continue
+            }
 
-        let cond_type = .check_expression(cond, hint: enum_.type)
-        if not cond_type? then continue
-        if not cond_type.eq(enum_.type) {
-            .error(Error::new_hint(
-                cond.span, "Condition does not match expression type",
-                node.u.match_stmt.expr.span, `Match expression is of type '{enum_.type.str()}'`
-            ))
-        }
-        if cond_type.base != BaseType::Enum {
-            .error(Error::new(cond.span, "Expected an enum value"))
-            continue
+            let name = expr.resolved_symbol.name
+            let prev = mapping.get(name, null)
+            if prev? {
+                .error(Error::new_hint(
+                    expr.span, "Duplicate condition name in match",
+                    prev.expr.span, "This condition was previously used here"
+                ))
+            }
+            mapping.insert(name, cond)
         }
 
-        name = cond.resolved_symbol.name
-        let prev = mapping.get(name, null)
-        if prev? {
-            .error(Error::new_hint(
-                cond.span, "Duplicate condition name in match",
-                prev.cond.span, "This condition was previously used here"
-            ))
-        }
-        mapping.insert(name, _case)
         if _case.body? {
             .check_expression_statement(node,  _case.body, is_expr, hint)
         }
@@ -1699,21 +1701,36 @@ def TypeChecker::check_match_for_bool(&this, node: &AST, is_expr: bool, hint: &T
     node.returns = true  // NOTE: `check_expression_statement` will modify this
 
     for _case in match_stmt.cases.iter() {
-        .check_expression(_case.cond)
-        if _case.cond.type != ASTType::BoolLiteral {
-            .error(Error::new(_case.cond.span, "Expected either `true` or `false`"))
-        } else {
-            if _case.cond.u.bool_literal {
-                seen_true = true
+        for cond in _case.conds.iter() {
+            let expr = cond.expr
+            .check_expression(expr)
+            if expr.type != ASTType::BoolLiteral {
+                .error(Error::new(expr.span, "Expected either `true` or `false`"))
             } else {
-                seen_false = true
+                if expr.u.bool_literal {
+                    seen_true = true
+                } else {
+                    seen_false = true
+                }
             }
         }
         if _case.body? {
             .check_expression_statement(node,  _case.body, is_expr, hint)
 
         } else {
-            .error(Error::new(_case.cond.span, "Case must have a body"))
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            // FIXME(NOW)
+            .error(Error::new(node.span, "Case must have a body"))
         }
     }
 
@@ -1725,9 +1742,9 @@ def TypeChecker::check_match_for_bool(&this, node: &AST, is_expr: bool, hint: &T
     }
 }
 
-def TypeChecker::check_match_case_and_find_overload(&this, expr: &AST, mcase: &MatchCase): &Function {
+def TypeChecker::check_match_case_and_find_overload(&this, expr: &AST, cond: &MatchCond): &Function {
     let lhs = expr.etype
-    let rhs = mcase.cond.etype
+    let rhs = cond.expr.etype
 
     if lhs.eq(rhs) {
         if lhs.is_numeric_or_char() return null
@@ -1742,7 +1759,7 @@ def TypeChecker::check_match_case_and_find_overload(&this, expr: &AST, mcase: &M
     let func = .o.program.operator_overloads.get(overload, defolt: null)
     if not func? {
         .error(Error::new_hint(
-            mcase.cond.span, f"Cannot match {lhs.str()} with this case: {rhs.str()}",
+            cond.expr.span, f"Cannot match {lhs.str()} with this case: {rhs.str()}",
             expr.span, f"Match expression is of type {lhs.str()}"
         ))
         return null
@@ -1751,13 +1768,13 @@ def TypeChecker::check_match_case_and_find_overload(&this, expr: &AST, mcase: &M
     let ret = func.return_type.unaliased()
     if ret.base != Bool {
         .error(Error::new_hint(
-            mcase.cond.span, f"Overload {func.sym.display} must return a boolean",
+            cond.expr.span, f"Overload {func.sym.display} must return a boolean",
             func.sym.span, f"Defined here, return type is {ret.str()}"
         ))
         return null
     }
 
-    mcase.cmp_fn = func
+    cond.cmp_fn = func
     return func
 }
 
@@ -1791,19 +1808,22 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     node.returns = (cases.size > 0)
 
     for _case : cases.iter() {
-        let cond_type = .check_expression(_case.cond, hint: expr_type)
-        if not cond_type? then continue
+        for cond : _case.conds.iter() {
+            let cond_expr = cond.expr
+            let cond_type = .check_expression(cond_expr, hint: expr_type)
+            if not cond_type? then continue
 
-        let cmp_fn = .check_match_case_and_find_overload(expr, _case)
-        if cmp_fn? {
-            match_stmt.is_custom_match = true
+            let cmp_fn = .check_match_case_and_find_overload(expr, cond)
+            if cmp_fn? {
+                match_stmt.is_custom_match = true
 
-        } else {
-            let is_constant = _case.cond.resolved_symbol? and _case.cond.resolved_symbol.type == Constant
+            } else {
+                let is_constant = cond_expr.resolved_symbol? and cond_expr.resolved_symbol.type == Constant
 
-            if _case.cond.type != ASTType::IntLiteral and
-                _case.cond.type != ASTType::CharLiteral and not is_constant {
-                .error(Error::new(_case.cond.span, "Match condition must use only literals"))
+                if cond_expr.type != ASTType::IntLiteral and
+                    cond_expr.type != ASTType::CharLiteral and not is_constant {
+                    .error(Error::new(cond_expr.span, "Match condition must use only literals"))
+                }
             }
         }
 
@@ -2283,7 +2303,7 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
             i++
         }
     }
-    buffer <<= doc.substring(prev, doc_len)
+    buffer <<= doc.substring(prev, doc_len-prev)
     sym.comment = buffer.str()
 }
 

@@ -176,7 +176,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
 
     if expected.type == Result.EXIT_WITH_CODE:
         if process.returncode != expected.value:
-            return False, "Expected exit code {expected.value}, but got {process.returncode}", path
+            return False, f"Expected exit code {expected.value}, but got {process.returncode}", path
 
     if expected.type == Result.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8').strip()
