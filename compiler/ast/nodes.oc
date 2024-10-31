@@ -391,25 +391,29 @@ struct FormatString {
     exprs: &Vector<&AST>
 }
 
-struct MatchCase {
-    cond: &AST
-    body: &AST
+struct MatchCond {
+    expr: &AST
     cmp_fn: &Function
-
     // For value enums
     args: &Vector<&Variable>
 }
 
-def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
-    let _case = mem::alloc<MatchCase>()
-    _case.cond = cond
-    _case.body = body
-    return _case
+def MatchCond::new(cond: &AST, args: &Vector<&Variable>, cmp_fn: &Function = null): &MatchCond {
+    let mcond = mem::alloc<MatchCond>()
+    mcond.expr = cond
+    mcond.args = args
+    mcond.cmp_fn = cmp_fn
+    return mcond
+}
+
+struct MatchCase {
+    conds: &Vector<&MatchCond>
+    body: &AST
 }
 
 struct Match {
     expr: &AST
-    cases: &Vector<&MatchCase>
+    cases: &Vector<MatchCase>
     defolt: &AST
     is_custom_match: bool
 

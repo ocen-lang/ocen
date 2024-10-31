@@ -124,11 +124,13 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Match => {
             .mark(node.u.match_stmt.expr)
             for c : node.u.match_stmt.cases.iter() {
-                .mark(c.cond)
-                .mark(c.body)
-                if c.cmp_fn? {
-                    .mark_function(c.cmp_fn)
+                for cond in c.conds.iter() {
+                    .mark(cond.expr)
+                    if cond.cmp_fn? {
+                        .mark_function(cond.cmp_fn)
+                    }
                 }
+                .mark(c.body)
             }
             .mark(node.u.match_stmt.defolt)
         }
