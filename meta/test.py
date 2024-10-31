@@ -127,7 +127,7 @@ def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, deb
     if output == wanted:
         return True, "(Success)", path
 
-    return False, f"Expected LSP output does not match\n  expected: {wanted}\n       got: {output}", path
+    return False, f"Expected LSP output does not match\n  expected: {json.dumps(wanted)}\n       got: {json.dumps(output)}", path
 
 def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
@@ -156,7 +156,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
                 remaining = error.split("Error: ")[1]
             except IndexError:
                 remaining = error
-            return False, f"Did not find expected error message\n  expected: {expected_error}\n  got: '{remaining}'", path
+            return False, f"Did not find expected error message\n  expected: {expected_error}\n       got: '{remaining}'", path
 
     elif process.returncode != 0:
         stdout = textwrap.indent(process.stdout.decode("utf-8"), " "*10).strip()
@@ -182,7 +182,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
-            return False, f'Incorrect output produced\n  expected: {repr(expected_out)}\n  got: {repr(output)}', path
+            return False, f'Incorrect output produced\n  expected: {repr(expected_out)}\n       got: {repr(output)}', path
 
     if expected.type == Result.RUNTIME_FAIL:
         output = process.stdout.decode('utf-8').strip()

@@ -1,0 +1,12 @@
+/// fail: Unknown extra argument for Foo::Case1
+
+venum Foo {
+    Case0(i32)
+    Case1(str, i32)
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case1("hello", 1, 2)
+}

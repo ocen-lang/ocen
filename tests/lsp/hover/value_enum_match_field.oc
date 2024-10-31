@@ -1,0 +1,20 @@
+/// lsp: -h 16 29
+/// {"hover": "x: i32"}
+
+//! Doc on foo
+venum Foo {
+    Case0(i32)
+    Case1(str, i32)
+    //! Doc on Case2
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case2("hi")
+    match foo {
+        Case0(x) | Case1(_, x) => println(`0|1 => {x}`)
+        Case2(y) => println(`2 => {y}`)
+        Case3 => println(`3 => ()`)
+    }
+}

@@ -30,7 +30,7 @@ void dump_backtrace() {
   size_t size = backtrace(array, 40);
   char **strings = backtrace_symbols(array, size);
   printf("\nBacktrace:\n");
-  for (size_t i = 1; i < size; i++) {
+  for (size_t i = size-1; i > 0; i--) {
     printf("%s\n", strings[i]);
   }
   free(strings);
@@ -44,6 +44,7 @@ void dump_backtrace() {
 #endif
 
 void ae_assert_fail(char *dbg_msg, char *msg) {
+  dump_backtrace();
   printf("--------------------------------------------------------------------------------\n");
   printf("%s\n", dbg_msg);
   if (msg) {
@@ -51,6 +52,5 @@ void ae_assert_fail(char *dbg_msg, char *msg) {
   }
   printf("--------------------------------------------------------------------------------\n");
   fflush(stdout);
-  dump_backtrace();
   oc_trap();
 }

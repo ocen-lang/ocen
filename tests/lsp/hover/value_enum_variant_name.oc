@@ -1,0 +1,13 @@
+/// lsp: -h 6 9
+/// {"hover": "venum Foo::Case1(str, i32)"}
+
+venum Foo {
+    Case0(i32)
+    Case1(str, i32)
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case2("hi")
+}

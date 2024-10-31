@@ -1,0 +1,12 @@
+/// fail: Foo::Case1 needs 2 fields to construct
+
+venum Foo {
+    Case0(i32)
+    Case1(str, i32)
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case1
+}

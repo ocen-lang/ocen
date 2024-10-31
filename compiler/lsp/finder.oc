@@ -55,7 +55,7 @@ def Finder::find_in_identifier(&this, node: &AST): bool {
 }
 
 def Finder::find_in_var(&this, var: &Variable, node: &AST): bool {
-    if var.sym.span.contains_loc(.loc) {
+    if var.sym? and var.sym.span.contains_loc(.loc) {
         return .set_usage(var.sym, node)
     }
     if var.parsed_type? and .find_in_type(var.parsed_type) {
@@ -246,6 +246,11 @@ def Finder::find_in_expression(&this, node: &AST): bool {
             for let i = 0; i < stmt.cases.size; i += 1 {
                 let case_ = stmt.cases.at(i) as &MatchCase
                 if .find_in_expression(case_.cond) return true
+                if case_.args? {
+                    for arg in case_.args.iter() {
+                        if .find_in_var(arg, node) return true
+                    }
+                }
                 if case_.body? and .find_in_statement(case_.body) return true
             }
             if stmt.defolt? and .find_in_statement(stmt.defolt) return true
@@ -418,6 +423,18 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         if struc.sym.span.contains_loc(.loc) return .set_usage(struc.sym, node: null)
         for field : struc.fields.iter() {
             if .find_in_var(field, node: null) return true
+        }
+    }
+
+    for venom : ns.venoms.iter() {
+        if venom.sym.span.contains_loc(.loc) return .set_usage(venom.sym, node: null)
+        for variant in venom.variants.iter() {
+            if variant.sym.span.contains_loc(.loc) return .set_usage(variant.sym, node: null)
+            if variant.fields? {
+                for field : variant.fields.iter() {
+                    if .find_in_var(field, node: null) return true
+                }
+            }
         }
     }
 

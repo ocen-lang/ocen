@@ -11,7 +11,7 @@ import std::vector::{ Vector }
 
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
-import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase }
+import @ast::nodes::{ ImportPart, Import, Enum, Argument, MatchCase, ValueEnum, ValueEnumVariant }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType }
 import @errors::{ Error }
@@ -166,6 +166,7 @@ def TypeChecker::resolve_type(
                         }
                     }
                     SymbolType::Enum => resolved = res.u.enum_.type
+                    SymbolType::ValueEnum => resolved = res.u.venom.type
                     else => {
                         if error {
                             .error(Error::new(res.span, `Cannot use {res.display} as a type`))
@@ -175,7 +176,6 @@ def TypeChecker::resolve_type(
                 }
             } else {
                 if error {
-                    .error(Error::new(old.u.unresolved.span, "Could not find type with this name"))
                     resolved = null
                 }
             }
@@ -399,11 +399,23 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
 
             // If we know that the type of this identifier is supposed to be a particular enum,
             // then we can look up the field in that enum implicitly.
-            if hint? and hint.base == Enum {
-                let enum_ = hint.u.enum_
-                let field = enum_.get_field(name) as &Variable
-                if field? {
-                    res = field.sym
+            if hint? {
+                match hint.base {
+                    Enum => {
+                        let enum_ = hint.u.enum_
+                        let field = enum_.get_field(name) as &Variable
+                        if field? {
+                            res = field.sym
+                        }
+                    }
+                    ValueEnum => {
+                        let venom = hint.u.venom
+                        let variant = venom.get_variant(name)
+                        if variant? {
+                            res = variant.sym
+                        }
+                    }
+                    else => {}
                 }
             }
 
@@ -539,7 +551,7 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
 }
 
 def TypeChecker::check_constructor(&this, node: &AST): &Type {
-    node.u.call.is_constructor = true
+    node.u.call.call_type = StructConstructor
 
     let callee = node.u.call.callee
     let type_sym = callee.resolved_symbol.remove_alias()
@@ -552,6 +564,42 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
     .check_call_args(node, params)
 
     return struc.type
+}
+
+def TypeChecker::check_venom_constructor(&this, node: &AST): &Type {
+    node.u.call.call_type = ValueEnumConstructor
+
+    let callee = node.u.call.callee
+    let type_sym = callee.resolved_symbol.remove_alias()
+
+    assert type_sym.type == ValueEnumVariant, `Got non-struct type in check_constructor: {type_sym.type}`
+    let variant = type_sym.u.venom_var
+
+    let expected_fields = variant.fields
+    let args = node.u.call.args
+
+    for let i = 0; i < args.size; i++ {
+        let arg = args[i]
+        if arg.label? {
+            .error(Error::new(arg.label_span, "Labels are not allowed for value enum constructors"))
+        }
+        if i < expected_fields.size {
+            let expected = expected_fields[i].type
+            let arg_type = .check_expression(arg.expr, hint: expected)
+            if not arg_type? then continue
+            if not arg_type.eq(expected) {
+                .error(Error::new(arg.expr.span, `{variant.sym.display} field {i} has type {expected.str()}, but got {arg_type.str()}`))
+            }
+        } else {
+            .error(Error::new(arg.expr.span, `Unknown extra argument for {variant.sym.display}`))
+        }
+    }
+
+    if args.size < expected_fields.size {
+        .error(Error::new(node.u.call.close_paren_span, `{variant.sym.display} needs {expected_fields.size} fields, got {args.size}`))
+    }
+
+    return variant.parent.type
 }
 
 def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
@@ -613,7 +661,7 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
     }
 }
 
-def TypeChecker::check_call(&this, node: &AST): &Type {
+def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
     let callee = node.u.call.callee
     let args = node.u.call.args
 
@@ -630,7 +678,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     let res = match callee.type {
         Member => .check_member(callee, is_being_called: true)
         Identifier | NSLookup | Specialization => {
-            let sym = .resolve_scoped_identifier(callee, error: true)
+            let sym = .resolve_scoped_identifier(callee, error: true, hint)
             yield match sym? {
                 true => {
                     sym = sym.remove_alias()
@@ -638,7 +686,12 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
 
                     yield match sym.type {
                         Structure | TypeDef => {
+                            node.u.call.call_type = StructConstructor
                             return .check_constructor(node)
+                        }
+                        ValueEnumVariant => {
+                            node.u.call.call_type = ValueEnumConstructor
+                            return .check_venom_constructor(node)
                         }
                         else => .check_expression(callee)
                     }
@@ -649,6 +702,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         else => .check_expression(callee)
     }
 
+    node.u.call.call_type = Normal
     if res? {
         if res.base == BaseType::Pointer and res.u.ptr.base == BaseType::Function {
             res = res.u.ptr
@@ -1234,18 +1288,30 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             match item.type {
                 Function => return item.u.func.type
                 Variable | Constant | EnumVariant => return item.u.var.type
+                ValueEnumVariant => {
+                    let variant = item.u.venom_var
+                    if variant.fields.size != 0 {
+                        .error(Error::new(node.span, f"{item.display} needs {variant.fields.size} fields to construct"))
+                        return null
+                    }
+                    return variant.parent.type
+                }
                 TypeDef => {
                     // This is just for a nicer error message
                     .error(Error::new(node.span, f"Cannot use type `{item.name}` as an expression"))
                     return null
                 }
-                Structure | Enum | Namespace => {
+                Structure | Enum | Namespace | ValueEnum => {
                     .error(Error::new(node.span, f"Cannot use {item.type} `{item.name}` as an expression"))
+                    return null
+                }
+                else => {
+                    .error(Error::new(node.span, f"Should not get {item.type} `{item.name}` as an expression"))
                     return null
                 }
             }
         }
-        ASTType::Call => return .check_call(node)
+        ASTType::Call => return .check_call(node, hint)
 
         // Binary operators
         BinaryOp => {
@@ -1396,6 +1462,159 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
     *node_ptr = call
 
     return .check_expression(call)
+}
+
+def TypeChecker::check_match_for_venom(&this, venom: &ValueEnum, node: &AST, is_expr: bool, hint: &Type = null) {
+    let mapping = Map<str, &MatchCase>::new()
+    defer mapping.free()
+
+    let cases = node.u.match_stmt.cases
+    node.returns = (cases.size > 0)
+
+    let is_first_variant = true
+    let current_args = Map<str, &Type>::new()
+
+    for _case : cases.iter() {
+        let cond = _case.cond
+        let name: str
+
+        match cond.type {
+            Identifier | NSLookup | Specialization => {}
+            else => {
+                .error(Error::new(cond.span, f"Expected value enum variant, got {cond.type}"))
+                continue
+            }
+        }
+
+        let resolved_sym = .resolve_scoped_identifier(cond, error: true, hint: venom.type)
+        if not resolved_sym? continue
+        if resolved_sym.type != ValueEnumVariant {
+            .error(Error::new(
+                cond.span, f"Expected value enum variant, got {resolved_sym.type} ({resolved_sym.display})",
+            ))
+            continue
+        }
+        let variant = resolved_sym.u.venom_var
+
+        if variant.parent != venom {
+            .error(Error::new_hint(
+                cond.span, "Condition does not match expression type",
+                node.u.match_stmt.expr.span, `Match expression is of type '{venom.type.str()}'`
+            ))
+        }
+        cond.etype = venom.type
+
+        let args = _case.args
+        if args? and args.size != variant.fields.size {
+            .error(Error::new_hint(
+                cond.span, f"{variant.sym.display} needs {variant.fields.size} fields, got {args.size}",
+                variant.sym.span, f"Variant '{variant.sym.display}' has no fields"
+            ))
+        }
+
+        if is_first_variant {
+            is_first_variant = false
+            current_args.clear()
+
+            if args? {
+                for let i = 0; i < args.size and i < variant.fields.size; i += 1 {
+                    let arg = args[i]
+                    let field = variant.fields[i]
+                    arg.type = field.type
+                    if not arg.sym.name.eq("_") {
+                        current_args[arg.sym.name] = field.type
+                    }
+                }
+            }
+
+        } else {
+
+            let found_args = 0
+            if args? {
+                for let i = 0; i < args.size and i < variant.fields.size; i += 1 {
+                    let arg = args[i]
+                    let field = variant.fields[i]
+                    arg.type = field.type
+
+                    if arg.sym.name.eq("_") then continue
+
+                    let item = current_args.get_item(arg.sym.name)
+                    if not item? {
+                        .error(Error::new(
+                            arg.sym.span, "All conditions in this branch must have the same fields"
+                        ))
+                        continue
+                    }
+
+                    found_args += 1
+                    if not item.value.eq(field.type) {
+                        .error(Error::new(
+                            arg.sym.span, f"Field type does not match previous branch: {item.value.str()}"
+                        ))
+                        continue
+                    }
+                }
+            }
+            if found_args != current_args.size {
+                .error(Error::new(
+                    cond.span, "All conditions in this branch must have the same fields"
+                ))
+            }
+
+        }
+
+        name = cond.resolved_symbol.name
+        let prev = mapping.get(name, null)
+        if prev? {
+            .error(Error::new_hint(
+                cond.span, "Duplicate condition name in match",
+                prev.cond.span, "This condition was previously used here"
+            ))
+        }
+        mapping.insert(name, _case)
+        if _case.body? {
+            .o.push_scope(Scope::new(.o.scope()))
+            for arg in current_args.iter() {
+                let var = Variable::new(arg.value)
+                var.sym = Symbol::from_local_variable(arg.key, var, arg.value.span)
+                .o.insert_into_scope_checked(var.sym)
+            }
+
+            .check_expression_statement(node,  _case.body, is_expr, hint)
+            is_first_variant = true
+            .o.pop_scope()
+        }
+    }
+
+    let defolt = node.u.match_stmt.defolt
+    if mapping.size != venom.variants.size {
+        let buf = Buffer::make()
+        buf += "Remaining fields: "
+        let first = true
+        for variant in venom.variants.iter() {
+            if not mapping.contains(variant.sym.name) {
+                if not first then buf += " | "
+                buf += variant.sym.name
+                first = false
+            }
+        }
+        if not defolt? {
+            .error(Error::new_note(
+                node.u.match_stmt.expr.span, f"Match does not cover all cases (Only {mapping.size} of {venom.variants.size})",
+                buf.str()
+            ))
+        } else {
+            .check_expression_statement(node, defolt, is_expr, hint)
+        }
+    } else {
+        if defolt? {
+            .error(Error::new(node.u.match_stmt.defolt_span, "`else` case is not needed for this match"))
+        }
+    }
+
+    if is_expr and not node.etype? {
+        .error(Error::new(node.u.match_stmt.match_span, "Expression-match must yield a value"))
+    }
 }
 
 //! Special case for handling a case where we match against an Enum
@@ -1555,6 +1774,10 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     match expr_type.base {
         Enum => {
             .check_match_for_enum(expr_type.u.enum_, node, is_expr, hint)
+            return
+        }
+        ValueEnum => {
+            .check_match_for_venom(expr_type.u.venom, node, is_expr, hint)
             return
         }
         Bool => {
@@ -2045,6 +2268,10 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
                 Variable | EnumVariant => `{sym.u.var:x}`
                 Constant => `{sym.u.var:x}`
                 Namespace => `{sym.u.ns:x}`
+                else => {
+                    .error(Error::new(span, `Cannot link to symbol of type {sym.type}`))
+                    return
+                }
             }
 
             buffer += "{{"
@@ -2317,6 +2544,17 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
     }
 }
 
+def TypeChecker::resolve_venom(&this, venom: &ValueEnum) {
+    for variant in venom.variants.iter() {
+        for field in variant.fields.iter() {
+            let res = .resolve_type(field.type)
+            if res? {
+                field.type = res
+            }
+        }
+    }
+}
+
 //! Check if this is a valid overload: do the number of params and types match expected? If yes,
 //! add it to the list.
 def TypeChecker::check_operator_overload_function(&this, func: &Function, op: Operator) {
@@ -2446,6 +2684,10 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
 
     for struc : ns.structs.iter() {
         .resolve_struct(struc)
+    }
+
+    for venom : ns.venoms.iter() {
+        .resolve_venom(venom)
     }
 
     for node : ns.constants.iter() {

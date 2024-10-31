@@ -7,7 +7,7 @@ import @passes::generic_pass::GenericPass
 import @ast::scopes::{ Symbol, SymbolType, Scope }
 import @ast::program::{ Program, Namespace }
 import @types::{ Type, BaseType, FunctionType }
-import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
+import @ast::nodes::{ AST, Function, Structure, Enum, Variable,ValueEnum }
 import @errors::Error
 
 struct RegisterTypes {
@@ -22,6 +22,21 @@ def RegisterTypes::register_struct(&this, ns: &Namespace, struc: &Structure) {
     typ.u.struc = struc
     struc.type = typ
     typ.sym = struc.sym
+}
+
+def RegisterTypes::register_venum(&this, ns: &Namespace, enum_: &ValueEnum) {
+    let item = enum_.sym
+    .o.insert_into_scope_checked(item)
+
+    let typ = Type::new_resolved(ValueEnum, enum_.sym.span)
+    typ.u.venom = enum_
+    enum_.type = typ
+    typ.sym = enum_.sym
+
+    // TODO: Check for duplicate variants
+    for var in enum_.variants.iter() {
+        var.parent = enum_
+    }
 }
 
 def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
@@ -86,6 +101,9 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     for enum_ : ns.enums.iter() {
         .register_enum(ns, enum_)
         .add_dbg_method_for_enum(enum_)
+    }
+    for venom : ns.venoms.iter() {
+        .register_venum(ns, venom)
     }
     for node : ns.constants.iter() {
         .register_globals(node)
@@ -173,6 +191,7 @@ def Finder::to(this, name: str): Finder {
             TypeDef => .type = res.u.type_def
             Structure => .type = res.u.struc.type
             Enum => .type = res.u.enum_.type
+            ValueEnum => .type = res.u.venom.type
             else => .type = null
         }
     } else {
