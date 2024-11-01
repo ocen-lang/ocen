@@ -1,4 +1,4 @@
-/// fail: Cannot use ValueEnum `Foo` as an expression
+/// fail: Cannot use Enum `Foo` as an expression
 
 enum Foo {
     Case0(i32)

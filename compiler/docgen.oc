@@ -19,22 +19,22 @@ struct DocGenerator {
     ocen_root: SV
 }
 
-def DocGenerator::gen_venom(&this, venom: &ValueEnum): &Value {
+def DocGenerator::gen_enum(&this, enom: &Enum): &Value {
     let enum_doc = Value::new(Dictionary)
-    enum_doc["id"] = `{venom.type:x}`
-    enum_doc["name"] = venom.sym.name
-    if venom.sym.comment? {
-        enum_doc["description"] = venom.sym.comment
+    enum_doc["id"] = `{enom.type:x}`
+    enum_doc["name"] = enom.sym.name
+    if enom.sym.comment? {
+        enum_doc["description"] = enom.sym.comment
     }
     enum_doc["kind"] = "enum"
-    if venom.sym.is_extern {
-        enum_doc["extern"] = venom.sym.out_name()
+    if enom.sym.is_extern {
+        enum_doc["extern"] = enom.sym.out_name()
     } else {
-        .gen_location(enum_doc, venom.sym.span)
+        .gen_location(enum_doc, enom.sym.span)
     }
 
     let fields_doc = Value::new(List)
-    for variant : venom.variants.iter() {
+    for variant : enom.variants.iter() {
         // TODO: Add values for the variants if needed
         let field_doc = Value::new(Dictionary)
         field_doc["name"] = variant.sym.name
@@ -48,7 +48,7 @@ def DocGenerator::gen_venom(&this, venom: &ValueEnum): &Value {
     }
     enum_doc["fields"] = fields_doc
 
-    let methods_doc = .gen_methods(venom.type)
+    let methods_doc = .gen_methods(enom.type)
     enum_doc["methods"] = methods_doc
 
     return enum_doc
@@ -90,7 +90,7 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
 
     match type.base {
         Char | Bool | Void | I8 | I16 | I32 | I64 |
-        U8 | U16 | U32 | U64 | F32 | F64 | Alias | ValueEnum => {
+        U8 | U16 | U32 | U64 | F32 | F64 | Alias | Enum => {
             return `\{\{{type:x}\}\}`
         }
         Structure => {
@@ -284,10 +284,10 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         .gen_location(ns_doc, ns.span)
     }
 
-    if not ns.venoms.is_empty() {
+    if not ns.enums.is_empty() {
         let enums_doc = Value::new(Dictionary)
-        for venom : ns.venoms.iter() {
-            enums_doc[venom.sym.name] = .gen_venom(venom)
+        for enom : ns.enums.iter() {
+            enums_doc[enom.sym.name] = .gen_enum(enom)
         }
         ns_doc["enums"] = enums_doc
     }

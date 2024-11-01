@@ -103,16 +103,16 @@ def Structure::get_field(&this, name: str): &Variable {
     return null
 }
 
-// ValueEnum implementation miscellaneous todos:
+// Enum implementation miscellaneous todos:
 // TODO: Handle docs for value enums / their variants
 // TODO: Check for duplicate variants in value enums
 // TODO: Struct-like variants with named fields (currently only tuple-like)
 // TODO: In codegen, store match expression in separate variable to avoid side effects in multiple branches
 // TODO: Need to include value enums in struct topological sorting and ordering to ensure correct codegen
-struct ValueEnum {
+struct Enum {
     sym: &Symbol
     span: Span
-    variants: &Vector<&ValueEnumVariant>
+    variants: &Vector<&EnumVariant>
     type: &Type
     is_dead: bool
 
@@ -120,32 +120,32 @@ struct ValueEnum {
     has_values: bool
 }
 
-def ValueEnum::get_variant(&this, name: str): &ValueEnumVariant {
+def Enum::get_variant(&this, name: str): &EnumVariant {
     for variant : .variants.iter() {
         if variant.sym.name.eq(name) return variant
     }
     return null
 }
 
-def ValueEnum::new(span: Span): &ValueEnum {
-    let venom = mem::alloc<ValueEnum>()
-    venom.variants = Vector<&ValueEnumVariant>::new()
-    venom.span = span
-    return venom
+def Enum::new(span: Span): &Enum {
+    let enom = mem::alloc<Enum>()
+    enom.variants = Vector<&EnumVariant>::new()
+    enom.span = span
+    return enom
 }
 
-struct ValueEnumVariant {
+struct EnumVariant {
     sym: &Symbol
 
     // TODO: Named fields? For now variables just have an empty name / symbol
     fields: &Vector<&Variable>
-    parent: &ValueEnum
+    parent: &Enum
 
     span: Span
 }
 
-def ValueEnumVariant::new(span: Span): &ValueEnumVariant {
-    let variant = mem::alloc<ValueEnumVariant>()
+def EnumVariant::new(span: Span): &EnumVariant {
+    let variant = mem::alloc<EnumVariant>()
     variant.fields = Vector<&Variable>::new()
     return variant
 }
@@ -223,7 +223,7 @@ def Argument::new(expr: &AST, label_token: &Token = null): &Argument {
 enum CallType {
     Normal
     StructConstructor
-    ValueEnumConstructor
+    EnumConstructor
 }
 
 struct FuncCall {
