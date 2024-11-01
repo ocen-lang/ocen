@@ -1,4 +1,4 @@
-/// fail: Duplicate enum value: Beta
+/// fail: Duplicate enum variant: Beta
 
 enum Foo {
     Alpha

@@ -8,7 +8,7 @@ import @types::{ Type, BaseType }
 import @ast::nodes::*
 import @ast::program::{ Program, Namespace }
 import @ast::operators::{ Operator }
-import @ast::scopes::Scope
+import @ast::scopes::{ Scope, Symbol}
 import @errors::Error
 import @passes::generic_pass::GenericPass
 
@@ -359,6 +359,12 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
 
 def CodeGenerator::gen_venom_constructor(&this, variant: &ValueEnumVariant, args: &Vector<&Argument> = null) {
     let venom = variant.parent
+
+    // Simple case, no values
+    if not venom.has_values {
+        .out += variant.sym.out_name()
+        return
+    }
 
     .out <<= `({venom.sym.out_name()})\{`
     .out <<= `.tag={variant.sym.out_name()},`
@@ -779,7 +785,11 @@ def CodeGenerator::gen_match_venom(&this, node: &AST) {
     .gen_indent()
     .out += "switch (("
     .gen_expression(expr)
-    .out += ").tag) {\n"
+    if venom.has_values {
+        .out += ").tag) {\n"
+    } else {
+        .out += ")) {\n"
+    }
 
     let uid = .uid++
     .indent += 1
@@ -853,6 +863,17 @@ def CodeGenerator::gen_match_venom(&this, node: &AST) {
             .out += "}\n"
         }
     }
+
+    if match_stmt.defolt? {
+        .gen_indent()
+        .out += "default:\n"
+        .indent += 1
+        .gen_indent()
+        .gen_control_body(node, match_stmt.defolt)
+        .out += " break;\n"
+        .indent -= 1
+    }
+
     .indent -= 1
     .gen_indent()
     .out += "}\n"
@@ -1316,6 +1337,39 @@ def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
 }
 
 //* Auto-generate `dbg()` method for enums
+def CodeGenerator::gen_venom_dbg_method(&this, venom: &ValueEnum) {
+    let dbg = venom.type.methods.at("dbg")
+    .gen_function_decl(dbg)
+    .out += " {\n"
+    .indent += 1
+    .gen_indent()
+
+    if venom.has_values {
+        .out += "switch (this.tag) {\n"
+    } else {
+        .out += "switch (this) {\n"
+    }
+
+    .indent += 1
+    for variant : venom.variants.iter() {
+        .gen_indent()
+        .out += "case "
+        .out += variant.sym.out_name()
+        .out <<= `: return "{variant.sym.name}";\n`
+    }
+    // This is mostly for extern enums, but is also useful for cases
+    // where a perhaps incorrect value was cast to the enum type.
+    .gen_indent()
+    .out <<= `default: return "<unknown>";\n`
+
+    .indent -= 1
+    .gen_indent()
+    .out += "}\n"
+    .indent -= 1
+    .out += "}\n\n"
+}
+
+//* Auto-generate `dbg()` method for enums
 def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
     let dbg = enum_.type.methods.at("dbg")
     .gen_function_decl(dbg)
@@ -1359,7 +1413,44 @@ def CodeGenerator::gen_enum(&this, enum_: &Enum) {
     .gen_enum_dbg_method(enum_)
 }
 
-def CodeGenerator::gen_struct(&this, struc: &Structure) {
+def CodeGenerator::gen_struct_typedef(&this, struc: &Structure) {
+    if struc.sym.is_extern return
+    if struc.is_dead return
+
+    let strufull_name = struc.sym.out_name()
+    if struc.is_union {
+        .out <<= `typedef union {strufull_name} {strufull_name};\n`
+    } else {
+        .out <<= `typedef struct {strufull_name} {strufull_name};\n`
+    }
+}
+
+def CodeGenerator::gen_sym_typedef(&this, sym: &Symbol) => match sym.type {
+    Structure => .gen_struct_typedef(sym.u.struc)
+    ValueEnum => .gen_venom_typedef(sym.u.venom)
+    else => assert false, `Unhandled symbol type in CodeGenerator::gen_typedef: {sym.type}`
+}
+
+def CodeGenerator::gen_sym_def(&this, sym: &Symbol) => match sym.type {
+    Structure => .gen_struct_def(sym.u.struc)
+    ValueEnum => .gen_venom_def(sym.u.venom)
+    else => assert false, `Unhandled symbol type in CodeGenerator::gen_def: {sym.type}`
+}
+
+def CodeGenerator::gen_venom_typedef(&this, venom: &ValueEnum) {
+    if venom.sym.is_extern return
+
+    let name = venom.sym.out_name()
+    if venom.has_values {
+        .out <<= f"typedef enum {name}__kind {name}__kind;\n"
+        .out <<= f"typedef struct {name} {name};\n"
+    } else {
+        .out <<= f"typedef enum {name} {name};\n"
+    }
+}
+
+def CodeGenerator::gen_struct_def(&this, struc: &Structure) {
+    if struc.sym.is_extern return
     if struc.is_dead then return
 
     let strufull_name = struc.sym.out_name()
@@ -1380,58 +1471,24 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
     .out += "};\n\n"
 }
 
-def CodeGenerator::gen_struct_typedefs(&this) {
-    let structs = .o.program.ordered_structs
-    if structs.size == 0 then return
+def CodeGenerator::gen_venom_def(&this, venom: &ValueEnum) {
+    let name = venom.sym.out_name()
+    defer .gen_venom_dbg_method(venom)
 
-    .out += "/* Struct typedefs */\n"
-    for struc : structs.iter() {
-        if struc.sym.is_extern then continue
-        if struc.is_dead then continue
+    if venom.sym.is_extern return
 
-        let strufull_name = struc.sym.out_name()
-        if struc.is_union {
-            .out <<= `typedef union {strufull_name} {strufull_name};\n`
-        } else {
-            .out <<= `typedef struct {strufull_name} {strufull_name};\n`
-        }
-    }
-    .out += "\n"
-}
-
-def CodeGenerator::gen_venom_typedefs(&this, ns: &Namespace) {
-    for venom in ns.venoms.iter() {
-        let name = venom.sym.out_name()
-        .out <<= f"typedef enum {name}__kind {name}__kind;\n"
-        .out <<= f"typedef struct {name} {name};\n"
-    }
-    for child : ns.namespaces.iter_values() {
-        .gen_venom_typedefs(child)
-    }
-}
-
-def CodeGenerator::gen_structs(&this) {
-    let structs = .o.program.ordered_structs
-    if structs.size == 0 then return
-
-    .out += "\n/* Struct definitions */\n"
-    for struc : structs.iter() {
-        if struc.sym.is_extern then continue
-        .gen_struct(struc)
-    }
-
-    .out += "\n"
-}
-
-def CodeGenerator::gen_venoms(&this, ns: &Namespace) {
-    for venom in ns.venoms.iter() {
-        let name = venom.sym.out_name()
+    // If we don't have any fields, we can just generate a simple enum
+    if venom.has_values {
         .out <<= f"enum {name}__kind \{\n"
-        for variant in venom.variants.iter() {
-            .out <<= f"  {variant.sym.out_name()},\n"
-        }
-        .out += "};\n\n"
+    } else {
+        .out <<= f"enum {name} \{\n"
+    }
+    for variant in venom.variants.iter() {
+        .out <<= f"  {variant.sym.out_name()},\n"
+    }
+    .out += "};\n\n"
 
+    if venom.has_values {
         .out <<= f"struct {name} \{\n"
         .out <<= f"  {name}__kind tag;\n"
         .out += "  union {\n"
@@ -1451,9 +1508,6 @@ def CodeGenerator::gen_venoms(&this, ns: &Namespace) {
         }
         .out += "  };\n"
         .out += "};\n\n"
-    }
-    for child : ns.namespaces.iter_values() {
-        .gen_venoms(child)
     }
 }
 
@@ -1475,11 +1529,16 @@ def CodeGenerator::generate(&this): str {
     .out += "/* Constants */\n"
     .gen_constants(.o.program.global)
 
-    .gen_struct_typedefs()
-    .gen_venom_typedefs(.o.program.global)
-    
-    .gen_structs()
-    .gen_venoms(.o.program.global)
+    .out += "/* Typedefs */\n"
+    for sym in .o.program.ordered_symbols.iter() {
+        .gen_sym_typedef(sym)
+    }
+    .out += "\n"
+
+    .out += "/* Structs */\n"
+    for sym in .o.program.ordered_symbols.iter() {
+        .gen_sym_def(sym)
+    }
 
     .out += "/* function declarations */\n"
     .gen_function_decls(.o.program.global)

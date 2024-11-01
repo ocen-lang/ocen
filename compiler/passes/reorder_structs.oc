@@ -9,12 +9,13 @@ import std::vector::Vector
 import std::set::{ Set }
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable }
-import @ast::scopes::{ TemplateInstance }
+import @ast::scopes::{ TemplateInstance, Symbol }
 
 struct ReorderStructs {
     o: &GenericPass
     all_structs: &Vector<&Structure>
-    done: &Set<str>
+    all_syms: &Vector<&Symbol>
+    done: &Set<untyped_ptr>
 }
 
 def ReorderStructs::new(program: &Program): &ReorderStructs {
@@ -22,13 +23,15 @@ def ReorderStructs::new(program: &Program): &ReorderStructs {
     *pass = ReorderStructs(
         o: GenericPass::new(program),
         all_structs: Vector<&Structure>::new(),
-        done: Set<str>::new(),
+        all_syms: Vector<&Symbol>::new(),
+        done: Set<untyped_ptr>::new(),
     )
     return pass
 }
 
 def ReorderStructs::free(&this) {
     .all_structs.free()
+    .all_syms.free()
     .done.free()
     mem::free(.o)
     mem::free(this)
@@ -42,35 +45,54 @@ def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
                 let sym = instance.resolved
                 assert sym.type == Structure
                 .all_structs += sym.u.struc
+                .all_syms += sym
             }
 
         } else {
             .all_structs += struc
+            .all_syms += struc.sym
         }
+    }
+    for venom in ns.venoms.iter() {
+        .all_syms += venom.sym
     }
     for child : ns.namespaces.iter_values() {
         .collect_all_structs(child)
     }
 }
 
-def ReorderStructs::dfs(&this, struc: &Structure) {
-    if struc.sym.full_name in .done return
-    .done += struc.sym.full_name
+def ReorderStructs::dfs(&this, sym: &Symbol) {
+    if not sym? or .done.contains(sym) return
+    .done.add(sym)
 
-    for field : struc.fields.iter() {
-        if field.type? and field.type.base == Structure {
-            let other = field.type.u.struc
-            .dfs(other)
+    match sym.type {
+        Structure => {
+            for field : sym.u.struc.fields.iter() {
+                if field.type? {
+                    .dfs(field.type.sym)
+                }
+            }
+            .o.program.ordered_structs += sym.u.struc
         }
+        ValueEnum => {
+            for variant in sym.u.venom.variants.iter() {
+                for field in variant.fields.iter() {
+                    if field.type? {
+                        .dfs(field.type.sym)
+                    }
+                }
+            }
+        }
+        else => return  // Don't care about other types
     }
-    .o.program.ordered_structs += struc
+    .o.program.ordered_symbols += sym
 }
 
 // This function topologically sorts the structs based on depedencies, and stores
 // the result inside `program.ordered_structs`
 def ReorderStructs::reorder_structs(&this) {
-    for struc : .all_structs.iter() {
-        .dfs(struc)
+    for sym : .all_syms.iter() {
+        .dfs(sym)
     }
 }
 

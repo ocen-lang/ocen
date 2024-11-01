@@ -1970,9 +1970,28 @@ def Parser::parse_venum(&this): &ValueEnum {
     sym.u.venom = venom
     venom.sym = sym
     .add_doc_comment(sym, start)
+    venom.has_values = false
+
+    let is_extern = false
+    for attr : .attrs.iter() {
+        match attr.type {
+            Extern => {
+                .get_extern_from_attr(venom.sym, attr)
+                is_extern = true
+            }
+            else => .error(Error::new(attr.span, "Invalid attribute for value enum"))
+        }
+    }
+
+    if .token_is(Extern) {
+        .parse_extern_into_symbol(venom.sym)
+    }
 
     .consume(OpenCurly)
     while not .token_is_eof_or(CloseCurly) {
+        // Parse any attributes for the enum value
+        .parse_attributes_if_any()
+
         let name = .consume(Identifier)
 
         let variant = ValueEnumVariant::new(name.span)
@@ -1982,14 +2001,38 @@ def Parser::parse_venum(&this): &ValueEnum {
         variant.parent = venom
         .add_doc_comment(vsym, name)
 
-        if .consume_if(OpenParen) {
+        if .token_is(OpenParen) {
+            let start = .consume(OpenParen)
             while not .token_is_eof_or(CloseParen) {
                 let typ = .parse_type()
+                venom.has_values = true
                 let var = Variable::new(typ)
                 variant.fields.push(var)
                 .consume_if(Comma)
             }
-            .consume(CloseParen)
+            let end = .consume(CloseParen)
+            if is_extern and variant.fields.size > 0 {
+                .error(Error::new(start.span + end.span, "Extern value enum variants cannot have fields"))
+            }
+        }
+
+        // FIXME: Deprecate this
+        if .consume_if(TokenType::Equals) {
+            .parse_extern_into_symbol(variant.sym)
+            if venom.has_values {
+                .error(Error::new(variant.sym.span, "Non-trivial value enums can't be extern"))
+            }
+        }
+        for attr in .attrs.iter() {
+            match attr.type {
+                Extern => {
+                    .get_extern_from_attr(variant.sym, attr)
+                    if venom.has_values {
+                        .error(Error::new(variant.sym.span, "Non-trivial value enums can't be extern"))
+                    }
+                }
+                else => .error(Error::new(attr.span, "Invalid attribute for value enum variant"))
+            }
         }
 
         venom.variants += variant
@@ -2168,8 +2211,15 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 }
             }
             Enum => {
-                let enum_value = .parse_enum()
-                if enum_value? then .ns.enums.push(enum_value)
+                let venoms_only = false
+                venoms_only = true
+                if venoms_only {
+                    let venom = .parse_venum()
+                    if venom? then .ns.venoms.push(venom)
+                } else {
+                    let enum_value = .parse_enum()
+                    if enum_value? then .ns.enums.push(enum_value)
+                }
             }
             Let => {
                 let var = .parse_global_value(is_const: false)

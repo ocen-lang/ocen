@@ -177,6 +177,10 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) 
         .insert_into_scope_checked_and_export(export, enum_.sym)
     }
 
+    for venom : ns.venoms.iter() {
+        .insert_into_scope_checked_and_export(export, venom.sym)
+    }
+
     for node : ns.variables.iter() {
         let var = node.u.var_decl.var
         .insert_into_scope_checked_and_export(export, var.sym)

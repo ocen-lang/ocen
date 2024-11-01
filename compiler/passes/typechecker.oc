@@ -191,7 +191,7 @@ def TypeChecker::resolve_type(
         }
         Structure | Char | Bool | Void | I8 | I16 |
         I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 |
-        Enum => {}
+        Enum | ValueEnum => {}
 
         else => {
             if error {
@@ -578,6 +578,12 @@ def TypeChecker::check_venom_constructor(&this, node: &AST): &Type {
     let expected_fields = variant.fields
     let args = node.u.call.args
 
+    if variant.fields.size == 0 and args.size == 0 {
+        let span = node.u.call.open_paren_span + node.u.call.close_paren_span
+        .error(Error::new(span, `Unnecessary empty constructor for {variant.sym.display}, no fields expected`))
+        return variant.parent.type
+    }
+
     for let i = 0; i < args.size; i++ {
         let arg = args[i]
         if arg.label? {
@@ -888,29 +894,48 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             return .get_base_type(BaseType::Bool, node.span)
         }
         Equals => {
-            if not lhs.eq(rhs) or lhs.base == BaseType::Structure {
+            let is_invalid = if {
+                not lhs.eq(rhs) => true
+                lhs.base == Structure => true
+                lhs.base == ValueEnum => match lhs.u.venom.has_values {
+                    true => {
+                        .error(Error::new(node.span, f"Operator `{op}` does not support non-trivial enum `{lhs.str()}`"))
+                        return .get_base_type(BaseType::Bool, node.span)
+                    }
+                    false => false
+                }
+                else => false
+            }
+            if is_invalid {
                 .error(Error::new(node.span,
                     f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
                 ))
-                return null
             }
             return .get_base_type(BaseType::Bool, node.span)
         }
         NotEquals => {
-            if not lhs.eq(rhs) or lhs.base == BaseType::Structure {
+            let is_invalid = if {
+                not lhs.eq(rhs) => true
+                lhs.base == Structure => true
+                lhs.base == ValueEnum and lhs.u.venom.has_values => true
+                else => false
+            }
+            if is_invalid {
                 // Try using the == operator and negating the result
                 let res = .find_and_replace_overloaded_op(Equals, node, node.u.binary.lhs, node.u.binary.rhs)
-                if res? {
-                    let copy = AST::new(UnaryOp, node.span)
-                    *copy = *node
-                    *node = *AST::new_unop(Not, node.span, copy)
-                    .check_expression(node)
-
-                } else {
-                    .error(Error::new(node.span,
-                        f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                if {
+                    res? => {
+                        let copy = AST::new(UnaryOp, node.span)
+                        *copy = *node
+                        *node = *AST::new_unop(Not, node.span, copy)
+                        .check_expression(node)
+                    }
+                    lhs.base == ValueEnum => .error(Error::new(
+                        node.span, f"Operator `{op}` does not support non-trivial enum `{lhs.str()}`"
                     ))
-                    return null
+                    else => .error(Error::new(
+                        node.span, f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                    ))
                 }
             }
             return .get_base_type(BaseType::Bool, node.span)
@@ -1448,7 +1473,10 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
     let node: &AST = *node_ptr
 
     if not node.etype? return null
-    if node.etype.base != BaseType::Enum return node.etype
+    match node.etype.base {
+        Enum | ValueEnum => {}
+        else => return node.etype
+    }
 
     let member = AST::new(ASTType::Member, node.span)
     member.u.member.lhs = node
@@ -1482,6 +1510,7 @@ def TypeChecker::check_match_for_venom(&this, venom: &ValueEnum, node: &AST, is_
             let name: str
 
             let expr = cond.expr
+            expr.hint = venom.type
             match expr.type {
                 Identifier | NSLookup | Specialization => {}
                 else => {
@@ -2502,6 +2531,16 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
                     .o.error(Error::new_hint(
                         func.sym.span, "Enum value with this name already exists",
                         name.sym.span, "Previous definition here"
+                    ))
+                }
+            }
+            ValueEnum => {
+                let venom = parent_type.u.venom
+                let var = venom.get_variant(func.sym.name)
+                if var? {
+                    .o.error(Error::new_hint(
+                        func.sym.span, "Enum variant with this name already exists",
+                        var.sym.span, "Previous definition here"
                     ))
                 }
             }
