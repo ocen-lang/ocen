@@ -7,7 +7,7 @@ import std::mem
 import std::setjmp::{ ErrorContext }
 import std::sv::{ SV }
 import @ast::scopes::{ Symbol, Scope }
-import @ast::nodes::{ AST, Function, Structure, Enum, ValueEnum }
+import @ast::nodes::{ AST, Function, Structure, ValueEnum }
 import @ast::operators::{ OperatorOverload }
 import @errors::Error
 import @types::{ Type, BaseType }
@@ -21,7 +21,6 @@ struct Namespace {
 
     functions: &Vector<&Function>
     structs: &Vector<&Structure>
-    enums: &Vector<&Enum>
     venoms: &Vector<&ValueEnum>
     constants: &Vector<&AST>
     variables: &Vector<&AST>
@@ -63,7 +62,6 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
     ns.scope = null // Initialized post-parser
     ns.functions = Vector<&Function>::new()
     ns.structs = Vector<&Structure>::new()
-    ns.enums = Vector<&Enum>::new()
     ns.venoms = Vector<&ValueEnum>::new()
     ns.constants = Vector<&AST>::new()
     ns.variables = Vector<&AST>::new()
@@ -90,10 +88,6 @@ def Namespace::dump(&this) {
         println(f"     - {s.sym.display}")
     }
     println(f"   Enums:")
-    for e in .enums.iter() {
-        println(f"     - {e.sym.display}")
-    }
-    println(f"   Venoms:")
     for v in .venoms.iter() {
         println(f"     - {v.sym.display}")
     }
@@ -135,12 +129,8 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
         if struc.sym.name.eq(name) return struc.sym
     }
 
-    for enum_ : .enums.iter() {
-        if enum_.sym.name.eq(name) return enum_.sym
-    }
-
-    for enum_ : .venoms.iter() {
-        if enum_.sym.name.eq(name) return enum_.sym
+    for venom : .venoms.iter() {
+        if venom.sym.name.eq(name) return venom.sym
     }
 
     if .exported_symbols.contains(name) {

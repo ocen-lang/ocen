@@ -33,9 +33,9 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
         println(`(struct) {struc.sym.display}`)
     }
 
-    for enum_ : ns.enums.iter() {
+    for venom : ns.venoms.iter() {
         .print_indent()
-        println(`(enum) {enum_.sym.display}`)
+        println(`(enum) {venom.sym.display}`)
     }
 
     for node : ns.variables.iter() {

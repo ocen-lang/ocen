@@ -64,7 +64,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         else => `&{gen_type_string(type.u.ptr, full)}`
     }
     Array => `&{gen_type_string(type.u.arr.elem_type, full)}`
-    Structure | Enum | Alias | ValueEnum => {
+    Structure | Alias | ValueEnum => {
         if not type.template_instance? return match full {
             true => type.sym.display
             false => type.sym.name
@@ -189,7 +189,6 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
         sb += gen_type_string(sym.u.var.type)
         yield sb.str()
     }
-    Enum | EnumVariant => `enum {sym.display}`
     Structure => `struct {sym.display}`
     Namespace => `namespace {sym.display}`
     ValueEnum => `enum {sym.display}`
@@ -218,13 +217,13 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
     TypeDef => sym.u.type_def
     Function => sym.u.func.type
     Variable => sym.u.var.type
-    EnumVariant => sym.u.var.type
     Constant => sym.u.var.type
-    Enum => sym.u.enum_.type
     Structure => sym.u.struc.type
     Namespace => null
     ValueEnum => sym.u.venom.type
-    else => std::panic(f"get_symbol_typedef: unhandled symbol type: {sym.type}")
+    ValueEnumVariant => sym.u.venom_var.parent.type
+    ValueEnumField => sym.u.venom_field.variant.parent.type
+    // else => std::panic(f"get_symbol_typedef: unhandled symbol type: {sym.type}")
 }
 
 def gen_error_json(err: &Error): &Value {
@@ -299,25 +298,25 @@ def gen_type_methods_into(obj: &Value, type: &Type) {
     }
 }
 
-def gen_enum_json(enum_: &Enum): &Value {
+def gen_venom_json(venom: &ValueEnum): &Value {
     let obj = Value::new(Dictionary)
-    obj["name"] = enum_.sym.name
-    obj["detail"] = gen_hover_string(enum_.sym)
+    obj["name"] = venom.sym.name
+    obj["detail"] = gen_hover_string(venom.sym)
     obj["kind"] = "enum"
-    obj["range"] = gen_span_json(enum_.sym.span)
-    obj["selection_range"] = gen_span_json(enum_.sym.span)
+    obj["range"] = gen_span_json(venom.sym.span)
+    obj["selection_range"] = gen_span_json(venom.sym.span)
 
     let children = Value::new(List)
-    for member : enum_.fields.iter() {
+    for variant : venom.variants.iter() {
         let member_obj = Value::new(Dictionary)
-        member_obj["name"] = member.sym.name
+        member_obj["name"] = variant.sym.name
         member_obj["kind"] = "enum-member"
-        member_obj["range"] = gen_span_json(member.sym.span)
-        member_obj["selection_range"] = gen_span_json(member.sym.span)
+        member_obj["range"] = gen_span_json(variant.sym.span)
+        member_obj["selection_range"] = gen_span_json(variant.sym.span)
         member_obj["children"] = Value::new(List)
         children += member_obj
     }
-    gen_type_methods_into(children, enum_.type)
+    gen_type_methods_into(children, venom.type)
     obj["children"] = children
 
     return obj
@@ -369,9 +368,6 @@ def gen_namespace_json(ns: &Namespace): &Value {
     obj["selection_range"] = gen_span_json(ns.span)
 
     let children = Value::new(List)
-    for enum_ : ns.enums.iter() {
-        children += gen_enum_json(enum_)
-    }
 
     for struc : ns.structs.iter() {
         children += gen_struct_json(struc)
@@ -544,13 +540,6 @@ def gen_renames_json(sym: &Symbol, loc: Location): &Value {
 
 def gen_completions_from_scope(scope: &Scope, completions: &Value, hint_type: &Type, seen: &Set<str>) {
     if not scope? return
-    if hint_type? and hint_type.base == Enum {
-        // Suggest names of enum variants
-        let enom = hint_type.u.enum_
-        for field in enom.fields.iter() {
-            insert_completion_item(completions, field.sym, seen)
-        }
-    }
     if hint_type? and hint_type.base == ValueEnum {
         // Suggest names of enum variants
         let venom = hint_type.u.venom
@@ -569,10 +558,6 @@ def gen_completions_from_scope(scope: &Scope, completions: &Value, hint_type: &T
 
 def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set<str>) {
     for it : ns.namespaces.iter_values() {
-        seen += it.sym.name
-        insert_completion_item(completions, it.sym, seen)
-    }
-    for it : ns.enums.iter() {
         seen += it.sym.name
         insert_completion_item(completions, it.sym, seen)
     }
@@ -648,16 +633,6 @@ def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value, s
         }
         TypeDef => {
             for mth : sym.u.type_def.methods.iter_values() {
-                insert_completion_item(completions, mth.sym, seen)
-            }
-        }
-        Enum => {
-            if (node? and node.type == NSLookup) {
-                for field : sym.u.enum_.fields.iter() {
-                    insert_completion_item(completions, field.sym, seen)
-                }
-            }
-            for mth : sym.u.enum_.type.methods.iter_values() {
                 insert_completion_item(completions, mth.sym, seen)
             }
         }

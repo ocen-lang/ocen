@@ -19,35 +19,36 @@ struct DocGenerator {
     ocen_root: SV
 }
 
-def DocGenerator::gen_enum(&this, enum_: &Enum): &Value {
+def DocGenerator::gen_venom(&this, venom: &ValueEnum): &Value {
     let enum_doc = Value::new(Dictionary)
-    enum_doc["id"] = `{enum_.type:x}`
-    enum_doc["name"] = enum_.sym.name
-    if enum_.sym.comment? {
-        enum_doc["description"] = enum_.sym.comment
+    enum_doc["id"] = `{venom.type:x}`
+    enum_doc["name"] = venom.sym.name
+    if venom.sym.comment? {
+        enum_doc["description"] = venom.sym.comment
     }
     enum_doc["kind"] = "enum"
-    if enum_.sym.is_extern {
-        enum_doc["extern"] = enum_.sym.out_name()
+    if venom.sym.is_extern {
+        enum_doc["extern"] = venom.sym.out_name()
     } else {
-        .gen_location(enum_doc, enum_.sym.span)
+        .gen_location(enum_doc, venom.sym.span)
     }
 
     let fields_doc = Value::new(List)
-    for field : enum_.fields.iter() {
+    for variant : venom.variants.iter() {
+        // TODO: Add values for the variants if needed
         let field_doc = Value::new(Dictionary)
-        field_doc["name"] = field.sym.name
-        if field.sym.comment? {
-            field_doc["description"] = field.sym.comment
+        field_doc["name"] = variant.sym.name
+        if variant.sym.comment? {
+            field_doc["description"] = variant.sym.comment
         }
-        if field.sym.is_extern {
-            field_doc["extern"] = field.sym.out_name()
+        if variant.sym.is_extern {
+            field_doc["extern"] = variant.sym.out_name()
         }
         fields_doc.push(field_doc)
     }
     enum_doc["fields"] = fields_doc
 
-    let methods_doc = .gen_methods(enum_.type)
+    let methods_doc = .gen_methods(venom.type)
     enum_doc["methods"] = methods_doc
 
     return enum_doc
@@ -89,7 +90,7 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
 
     match type.base {
         Char | Bool | Void | I8 | I16 | I32 | I64 |
-        U8 | U16 | U32 | U64 | F32 | F64 | Alias | Enum | ValueEnum => {
+        U8 | U16 | U32 | U64 | F32 | F64 | Alias | ValueEnum => {
             return `\{\{{type:x}\}\}`
         }
         Structure => {
@@ -283,10 +284,10 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
         .gen_location(ns_doc, ns.span)
     }
 
-    if not ns.enums.is_empty() {
+    if not ns.venoms.is_empty() {
         let enums_doc = Value::new(Dictionary)
-        for enum_ : ns.enums.iter() {
-            enums_doc[enum_.sym.name] = .gen_enum(enum_)
+        for venom : ns.venoms.iter() {
+            enums_doc[venom.sym.name] = .gen_venom(venom)
         }
         ns_doc["enums"] = enums_doc
     }
