@@ -1,6 +1,6 @@
 /// fail: Match does not cover all cases (Only 3 of 4)
 
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     Case2(str)

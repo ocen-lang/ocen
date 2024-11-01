@@ -1,6 +1,6 @@
 /// fail: Field type does not match previous branch: i32
 
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     Case2(str)

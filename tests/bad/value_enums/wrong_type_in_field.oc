@@ -1,6 +1,6 @@
 /// fail: Couldn't find this identifier: Baz
 
-venum Foo {
+enum Foo {
     Foo(i32)
     Bar(Baz)
 }

@@ -40,7 +40,7 @@ else
 fi
 
 echo "[+] Testing docgen"
-if ./meta/gen_docs.sh /tmp/docs.json; then
+if OCEN=./build/stage3 ./meta/gen_docs.sh /tmp/docs.json; then
     echo
 else
     echo

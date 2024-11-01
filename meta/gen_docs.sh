@@ -29,7 +29,10 @@ import .lsp
 EOF
 
 export OCEN_ROOT=$(pwd)
-./bootstrap/ocen compiler/doc.oc --docs $1
+if [[ -z "$OCEN" ]]; then
+    export OCEN=./bootstrap/ocen
+fi
+$OCEN compiler/doc.oc --docs $1
 EXIT_CODE=$?
 
 rm compiler/doc.oc

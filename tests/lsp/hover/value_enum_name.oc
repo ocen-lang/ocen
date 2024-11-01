@@ -1,8 +1,8 @@
 /// lsp: -h 14 16
-/// {"hover": "venum Foo\nDoc on foo\n"}
+/// {"hover": "enum Foo\nDoc on foo\n"}
 
 //! Doc on foo
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     //! Doc on Case2

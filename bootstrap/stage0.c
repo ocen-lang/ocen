@@ -3285,6 +3285,7 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
     case compiler_types_BaseType_F64:
     case compiler_types_BaseType_Alias:
     case compiler_types_BaseType_Enum:
+    case compiler_types_BaseType_ValueEnum:
     m_0_0:
       {
         return std_format("{{%x}}", type);
@@ -14502,14 +14503,14 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
       case compiler_ast_scopes_SymbolType_ValueEnum:
       m_108_7:
         {
-          __yield_0 = std_format("venum %s", sym->display);
+          __yield_0 = std_format("enum %s", sym->display);
         } break;
       case compiler_ast_scopes_SymbolType_ValueEnumVariant:
       m_108_8:
         {
           compiler_ast_nodes_ValueEnumVariant *variant = sym->u.venom_var;
           std_buffer_Buffer buf = std_buffer_Buffer_make(16);
-          std_buffer_Buffer_write_str_f(&buf, std_format("venum %s", variant->sym->display));
+          std_buffer_Buffer_write_str_f(&buf, std_format("enum %s", variant->sym->display));
           if (variant->fields->size > 0) {
             std_buffer_Buffer_write_str(&buf, "(");
             for (u32 i = 0; i < variant->fields->size; i+=1) {

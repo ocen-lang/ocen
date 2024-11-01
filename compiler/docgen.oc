@@ -89,7 +89,7 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
 
     match type.base {
         Char | Bool | Void | I8 | I16 | I32 | I64 |
-        U8 | U16 | U32 | U64 | F32 | F64 | Alias | Enum => {
+        U8 | U16 | U32 | U64 | F32 | F64 | Alias | Enum | ValueEnum => {
             return `\{\{{type:x}\}\}`
         }
         Structure => {

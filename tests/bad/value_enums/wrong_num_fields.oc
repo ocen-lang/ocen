@@ -1,6 +1,6 @@
 /// fail: Foo::Case1 needs 2 fields, got 1
 
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     Case2(str)

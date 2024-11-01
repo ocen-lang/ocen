@@ -192,11 +192,11 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
     Enum | EnumVariant => `enum {sym.display}`
     Structure => `struct {sym.display}`
     Namespace => `namespace {sym.display}`
-    ValueEnum => `venum {sym.display}`
+    ValueEnum => `enum {sym.display}`
     ValueEnumVariant => {
         let variant = sym.u.venom_var
         let buf = Buffer::make()
-        buf <<= `venum {variant.sym.display}`
+        buf <<= `enum {variant.sym.display}`
         if variant.fields.size > 0 {
             buf += "("
             for let i = 0; i < variant.fields.size; i += 1 {
