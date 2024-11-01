@@ -12,3 +12,4 @@ def f32::eq(this, other: f32): bool => this == other
 def f64::eq(this, other: f64): bool => this == other
 def bool::eq(this, other: bool): bool => this == other
 def char::eq(this, other: char): bool => this == other
+def untyped_ptr::eq(this, other: untyped_ptr): bool => this == other

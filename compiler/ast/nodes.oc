@@ -136,6 +136,9 @@ struct ValueEnum {
     variants: &Vector<&ValueEnumVariant>
     type: &Type
     is_dead: bool
+
+    // To quickly check if this is a "normal" enum with no values stored
+    has_values: bool
 }
 
 def ValueEnum::get_variant(&this, name: str): &ValueEnumVariant {

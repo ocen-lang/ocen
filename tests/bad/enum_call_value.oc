@@ -1,4 +1,4 @@
-/// fail: Cannot call a non-function type
+/// fail: Unnecessary empty constructor for Variable::Integer, no fields expected
 
 enum Variable {
     Integer

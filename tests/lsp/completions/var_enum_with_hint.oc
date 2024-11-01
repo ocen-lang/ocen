@@ -1,5 +1,5 @@
 /// lsp: -c 11 19
-/// {"completions": [{"label": "Identifier", "detail": "enum Kind::Identifier", "insertText": "Identifier", "kind": "field", "labelDetails": "enum Kind::Identifier"}, {"label": "String", "detail": "enum Kind::String", "insertText": "String", "kind": "field", "labelDetails": "enum Kind::String"}, {"label": "x", "detail": "x: Kind", "insertText": "x", "kind": "field", "labelDetails": "x: Kind"}, {"label": "Kind", "detail": "enum Kind", "insertText": "Kind", "kind": "field", "labelDetails": "enum Kind"}]}
+/// {"completions": [{"label": "Identifier", "detail": "venum Kind::Identifier", "insertText": "Identifier", "kind": "field", "labelDetails": "venum Kind::Identifier"}, {"label": "String", "detail": "venum Kind::String", "insertText": "String", "kind": "field", "labelDetails": "venum Kind::String"}, {"label": "x", "detail": "x: Kind", "insertText": "x", "kind": "field", "labelDetails": "x: Kind"}, {"label": "Kind", "detail": "venum Kind", "insertText": "Kind", "kind": "field", "labelDetails": "venum Kind"}]}
 
 
 enum Kind {

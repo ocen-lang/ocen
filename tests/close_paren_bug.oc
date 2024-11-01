@@ -1,3 +1,4 @@
+/// compile
 
 struct Stack<T> {
     tail: &T
@@ -6,3 +7,4 @@ struct Foo {
     stack: Stack<u32>
 }
 def Stack::back_off(&this, off: u32): T => *(.tail - off)
+def main() => 0

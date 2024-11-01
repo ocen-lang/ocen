@@ -68,6 +68,7 @@ def Span::is_valid(this): bool {
 }
 
 // Needs to be called in the correct order!
+[operator "+"]
 def Span::join(this, other: Span): Span {
     let span: Span
     span.start = this.start

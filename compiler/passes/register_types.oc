@@ -34,8 +34,19 @@ def RegisterTypes::register_venum(&this, ns: &Namespace, enum_: &ValueEnum) {
     typ.sym = enum_.sym
 
     // TODO: Check for duplicate variants
+    let values = Map<str, Span>::new()
     for var in enum_.variants.iter() {
         var.parent = enum_
+        let name = var.sym.name
+        let res = values.get_item(name)
+        if res? {
+            .o.error(Error::new_hint(
+                var.sym.span, `Duplicate enum variant: {var.sym.name}`,
+                res.value, "Previous definition here"
+            ))
+        } else {
+            values[name] = var.sym.span
+        }
     }
 }
 
@@ -93,6 +104,29 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enum_: &Enum) {
     enum_.type.methods.insert("dbg", func)
 }
 
+def RegisterTypes::add_dbg_method_for_venum(&this, venom: &ValueEnum) {
+    let span = venom.sym.span
+
+    let func = Function::new()
+    func.span = Span::default()
+    func.sym = Symbol::new_with_parent(Function, venom.sym.ns, venom.sym, "dbg", span)
+    func.sym.u.func = func
+    func.return_type = .o.program.get_type_by_name("str", span)
+    func.is_method = true
+    func.parent_type = venom.type
+
+    let var = Variable::new(venom.type)
+    var.sym = Symbol::from_local_variable("this", var, span)
+
+    func.params.push(var)
+
+    let typ = Type::new_resolved(Function, span)
+    typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
+    func.type = typ
+
+    venom.type.methods.insert("dbg", func)
+}
+
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     for struc : ns.structs.iter() {
@@ -104,6 +138,7 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     }
     for venom : ns.venoms.iter() {
         .register_venum(ns, venom)
+        .add_dbg_method_for_venum(venom)
     }
     for node : ns.constants.iter() {
         .register_globals(node)

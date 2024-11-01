@@ -1,4 +1,4 @@
-/// fail: Enum value with this name already exists
+/// fail: Enum variant with this name already exists
 
 enum Variable {
     Integer

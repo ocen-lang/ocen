@@ -223,6 +223,7 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
     Enum => sym.u.enum_.type
     Structure => sym.u.struc.type
     Namespace => null
+    ValueEnum => sym.u.venom.type
     else => std::panic(f"get_symbol_typedef: unhandled symbol type: {sym.type}")
 }
 
@@ -543,17 +544,24 @@ def gen_renames_json(sym: &Symbol, loc: Location): &Value {
 
 def gen_completions_from_scope(scope: &Scope, completions: &Value, hint_type: &Type, seen: &Set<str>) {
     if not scope? return
+    if hint_type? and hint_type.base == Enum {
+        // Suggest names of enum variants
+        let enom = hint_type.u.enum_
+        for field in enom.fields.iter() {
+            insert_completion_item(completions, field.sym, seen)
+        }
+    }
+    if hint_type? and hint_type.base == ValueEnum {
+        // Suggest names of enum variants
+        let venom = hint_type.u.venom
+        for variant in venom.variants.iter() {
+            insert_completion_item(completions, variant.sym, seen)
+        }
+    }
     for item in scope.items.iter_values() {
         let item_type = get_symbol_typedef(item)
-        if hint_type? and not item_type.eq(hint_type) continue
+        if not item_type.eq(hint_type) continue
 
-        if hint_type? and hint_type.base == Enum {
-            // Suggest names of enum variants
-            let enom = hint_type.u.enum_
-            for field in enom.fields.iter() {
-                insert_completion_item(completions, field.sym, seen)
-            }
-        }
         insert_completion_item(completions, item, seen)
     }
     gen_completions_from_scope(scope.parent, completions, hint_type, seen)
@@ -650,6 +658,16 @@ def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value, s
                 }
             }
             for mth : sym.u.enum_.type.methods.iter_values() {
+                insert_completion_item(completions, mth.sym, seen)
+            }
+        }
+        ValueEnum => {
+            if (node? and node.type == NSLookup) {
+                for variant : sym.u.venom.variants.iter() {
+                    insert_completion_item(completions, variant.sym, seen)
+                }
+            }
+            for mth : sym.u.venom.type.methods.iter_values() {
                 insert_completion_item(completions, mth.sym, seen)
             }
         }

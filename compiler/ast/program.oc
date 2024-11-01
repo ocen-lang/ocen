@@ -93,6 +93,10 @@ def Namespace::dump(&this) {
     for e in .enums.iter() {
         println(f"     - {e.sym.display}")
     }
+    println(f"   Venoms:")
+    for v in .venoms.iter() {
+        println(f"     - {v.sym.display}")
+    }
     println(f"   Constants:")
     for c in .constants.iter() {
         println(f"     - {c.u.var_decl.var.sym.display}")
@@ -165,6 +169,7 @@ struct Program {
 
     //* Structs in topologically sorted order. Filled by {{passes::reorder_structs}}
     ordered_structs: &Vector<&Structure>
+    ordered_symbols: &Vector<&Symbol>
 
     c_includes: &Vector<str>
     c_flags: &Vector<str>
@@ -193,6 +198,7 @@ def Program::new(): &Program {
     let prog = mem::alloc<Program>()
     prog.global = Namespace::new(null, "")
     prog.ordered_structs = Vector<&Structure>::new()
+    prog.ordered_symbols = Vector<&Symbol>::new()
     prog.global.sym = Symbol::new(
         Namespace,
         ns: prog.global,

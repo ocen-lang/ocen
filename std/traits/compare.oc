@@ -10,4 +10,6 @@ def u32::compare(this, b: u32): i8 => (this > b) as i8 - (this < b) as i8
 def u64::compare(this, b: u64): i8 => (this > b) as i8 - (this < b) as i8
 def f32::compare(this, b: f32): i8 => (this > b) as i8 - (this < b) as i8
 def f64::compare(this, b: f64): i8 => (this > b) as i8 - (this < b) as i8
-def str::compare(this, b: str): i8 => std::libc::strcmp(this, b) as i8
+
+// NOTE: Sometimes `res` is outside the range of i8, so we can't just cast it.
+def str::compare(this, b: str): i8 => std::libc::strcmp(this, b).compare(0)

@@ -1,0 +1,19 @@
+/// compile
+
+// When we have a "simple" venum, this should directly codegen to a
+// C-style enum, and we should be able to compare them directly.
+
+venum Foo {
+    A
+    B
+}
+
+def main() {
+    let x: Foo
+    let y = Foo::B
+    if x == y {
+        println("x == y")
+    } else {
+        println("x != y")
+    }
+}
