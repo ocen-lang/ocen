@@ -492,7 +492,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
                 return
             }
             match sym.type {
-                Function | Variable | Constant | EnumVariant => .out += sym.out_name()
+                Function | Variable | Constant => .out += sym.out_name()
                 ValueEnumVariant => .gen_venom_constructor(sym.u.venom_var)
                 else => assert false, `Unhandled symbol type: {sym.type}`
             }
@@ -1157,7 +1157,6 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
         U8   | U16  | U32  | U64 |
         F32  | F64 => acc.replace(`{cur.base.str()} {acc}`)
         Structure => acc.replace(`{cur.u.struc.sym.out_name()} {acc}`)
-        Enum => acc.replace(`{cur.u.enum_.sym.out_name()} {acc}`)
         ValueEnum => acc.replace(`{cur.u.venom.sym.out_name()} {acc}`)
 
         Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
@@ -1326,16 +1325,6 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     }
 }
 
-def CodeGenerator::gen_enum_types(&this, ns: &Namespace) {
-    for enum_ : ns.enums.iter() {
-        .gen_enum(enum_)
-    }
-
-    for child : ns.namespaces.iter_values() {
-        .gen_enum_types(child)
-    }
-}
-
 //* Auto-generate `dbg()` method for enums
 def CodeGenerator::gen_venom_dbg_method(&this, venom: &ValueEnum) {
     let dbg = venom.type.methods.at("dbg")
@@ -1367,50 +1356,6 @@ def CodeGenerator::gen_venom_dbg_method(&this, venom: &ValueEnum) {
     .out += "}\n"
     .indent -= 1
     .out += "}\n\n"
-}
-
-//* Auto-generate `dbg()` method for enums
-def CodeGenerator::gen_enum_dbg_method(&this, enum_: &Enum) {
-    let dbg = enum_.type.methods.at("dbg")
-    .gen_function_decl(dbg)
-    .out += " {\n"
-    .indent += 1
-    .gen_indent()
-
-    .out += "switch (this) {\n"
-    .indent += 1
-    for field : enum_.fields.iter() {
-        .gen_indent()
-        .out += "case "
-        .out += field.sym.out_name()
-        .out <<= `: return "{field.sym.name}";\n`
-    }
-    // This is mostly for extern enums, but is also useful for cases
-    // where a perhaps incorrect value was cast to the enum type.
-    .gen_indent()
-    .out <<= `default: return "<unknown>";\n`
-
-    .indent -= 1
-    .gen_indent()
-    .out += "}\n"
-    .indent -= 1
-    .out += "}\n\n"
-}
-
-def CodeGenerator::gen_enum(&this, enum_: &Enum) {
-    if enum_.is_dead return
-    let enum_name = enum_.sym.out_name()
-
-    if not enum_.sym.is_extern {
-        .out <<= `typedef enum {enum_name} \{\n`
-        for field : enum_.fields.iter() {
-            .out += "  "
-            .out += field.sym.out_name()
-            .out += ",\n"
-        }
-        .out <<= `\} {enum_name};\n\n`
-    }
-    .gen_enum_dbg_method(enum_)
 }
 
 def CodeGenerator::gen_struct_typedef(&this, struc: &Structure) {
@@ -1522,9 +1467,6 @@ def CodeGenerator::generate(&this): str {
         .out += it.value
         .out += "\n\n"
     }
-
-    .out += "/* Enums */\n"
-    .gen_enum_types(.o.program.global)
 
     .out += "/* Constants */\n"
     .gen_constants(.o.program.global)

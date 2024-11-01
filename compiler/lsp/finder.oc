@@ -439,13 +439,6 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         }
     }
 
-    for enm : ns.enums.iter() {
-        if enm.sym.span.contains_loc(.loc) return .set_usage(enm.sym, node: null)
-        for field : enm.fields.iter() {
-            if .find_in_var(field, node: null) return true
-        }
-    }
-
     for func : ns.functions.iter() {
         if func.sym.span.contains_loc(.loc) return .set_usage(func.sym, node: null)
         if .find_in_function(func) return true

@@ -7,7 +7,7 @@ import @ast::scopes::{ Scope, Symbol, SymbolType }
 import @ast::program::{ Program, Namespace }
 import @errors::Error
 import @types::{ Type, BaseType }
-import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
+import @ast::nodes::{ AST, Function, Structure, Variable }
 
 //* Base class for passes
 //*
@@ -119,15 +119,6 @@ def GenericPass::find_in_symbol(&this, sym: &Symbol, name: str, allow_templated:
         if not method? return null
         yield method.sym
     }
-    Enum => {
-        let enum_ = sym.u.enum_
-        let field = enum_.get_field(name)
-        if field? then return field.sym
-
-        let method = enum_.type.methods.get(name, null)
-        if method? then return method.sym
-        yield null
-    }
     ValueEnum => {
         let venom = sym.u.venom
         let variant = venom.get_variant(name)
@@ -156,7 +147,7 @@ def GenericPass::find_in_symbol_or_error(&this, sym: &Symbol, name: str, span: S
         Namespace => .error(Error::new(span, `Could not find symbol {name} in namespace {sym.display}`))
         Structure => .error(Error::new(span, `Could not find method {name} in structure {sym.display}`))
         TypeDef => .error(Error::new(span, `Could not find method {name} in type {sym.display}`))
-        Enum => .error(Error::new(span, `Could not find value/method {name} in enum {sym.display}`))
+        ValueEnum => .error(Error::new(span, `Could not find variant/method {name} in enum {sym.display}`))
         else => .error(Error::new(span, `Can't lookup a name inside a {sym.type}`))
     }
     return null
@@ -171,10 +162,6 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) 
 
     for struc : ns.structs.iter() {
         .insert_into_scope_checked_and_export(export, struc.sym)
-    }
-
-    for enum_ : ns.enums.iter() {
-        .insert_into_scope_checked_and_export(export, enum_.sym)
     }
 
     for venom : ns.venoms.iter() {
@@ -213,9 +200,9 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol, export: bool) {
                 .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
-        Enum => {
-            for field : sym.u.enum_.fields.iter() {
-                .insert_into_scope_checked_and_export(export, field.sym)
+        ValueEnum => {
+            for variant : sym.u.venom.variants.iter() {
+                .insert_into_scope_checked_and_export(export, variant.sym)
             }
         }
         else => {

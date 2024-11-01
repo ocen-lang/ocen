@@ -103,27 +103,6 @@ def Structure::get_field(&this, name: str): &Variable {
     return null
 }
 
-struct Enum {
-    sym: &Symbol
-    span: Span
-    fields: &Vector<&Variable>
-    type: &Type
-    is_dead: bool
-}
-
-def Enum::new(): &Enum {
-    let enum_ = mem::alloc<Enum>()
-    enum_.fields = Vector<&Variable>::new()
-    return enum_
-}
-
-def Enum::get_field(&this, name: str): &Variable {
-    for field : .fields.iter() {
-        if field.sym.name.eq(name) return field
-    }
-    return null
-}
-
 // ValueEnum implementation miscellaneous todos:
 // TODO: Handle docs for value enums / their variants
 // TODO: Check for duplicate variants in value enums

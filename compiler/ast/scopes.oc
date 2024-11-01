@@ -5,7 +5,7 @@ import std::span::{ Span, Location }
 import std::map::Map
 import std::vector::Vector
 
-import @ast::nodes::{ AST, Structure, Enum, Variable, Function }
+import @ast::nodes::{ AST, Structure, Variable, Function }
 import @ast::nodes::{ ValueEnum, ValueEnumVariant }
 import @ast::program::Namespace
 import @types::Type
@@ -13,8 +13,6 @@ import @types::Type
 enum SymbolType {
     Function
     Structure
-    Enum
-    EnumVariant
     TypeDef
     Namespace
     Variable
@@ -83,7 +81,6 @@ struct ValueEnumField {
 union SymbolUnion {
     func: &Function
     struc: &Structure
-    enum_: &Enum
     ns: &Namespace
     type_def: &Type
     var: &Variable

@@ -41,7 +41,6 @@ def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
     match sym.type {
         Function => .mark_function(sym.u.func)
         Structure => .mark_struct(sym.u.struc)
-        Enum => sym.u.enum_.is_dead = false
         Constant | Variable => .mark_type(sym.u.var.type)
         else => {}
     }
@@ -197,7 +196,6 @@ def MarkDeadCode::mark_sym_as_dead_by_default(&this, sym: &Symbol) {
     match sym.type {
         Function => sym.u.func.is_dead = true
         Structure => sym.u.struc.is_dead = true
-        Enum => sym.u.enum_.is_dead = true
         ValueEnum => sym.u.venom.is_dead = true
         else => {}
     }
@@ -230,9 +228,6 @@ def MarkDeadCode::run(program: &Program) {
         }
         for s : ns.structs.iter() {
             pass.mark_sym_as_dead_by_default(s.sym)
-        }
-        for e : ns.enums.iter() {
-            pass.mark_sym_as_dead_by_default(e.sym)
         }
         for e : ns.venoms.iter() {
             pass.mark_sym_as_dead_by_default(e.sym)
