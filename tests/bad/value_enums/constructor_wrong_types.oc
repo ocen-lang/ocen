@@ -1,6 +1,6 @@
 /// fail: Foo::Case2 field 0 has type str, but got u32
 
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     Case2(str)

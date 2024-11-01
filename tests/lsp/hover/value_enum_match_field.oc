@@ -2,7 +2,7 @@
 /// {"hover": "x: i32"}
 
 //! Doc on foo
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     //! Doc on Case2

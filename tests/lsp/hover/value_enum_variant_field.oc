@@ -1,7 +1,7 @@
 /// lsp: -h 7 12
 /// {"hover": "str"}
 
-venum Foo {
+enum Foo {
     Case0(i32)
     Case1(str, i32)
     Case2(str)

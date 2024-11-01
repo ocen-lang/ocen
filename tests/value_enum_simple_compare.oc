@@ -3,7 +3,7 @@
 // When we have a "simple" venum, this should directly codegen to a
 // C-style enum, and we should be able to compare them directly.
 
-venum Foo {
+enum Foo {
     A
     B
 }
