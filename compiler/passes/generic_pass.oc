@@ -119,12 +119,12 @@ def GenericPass::find_in_symbol(&this, sym: &Symbol, name: str, allow_templated:
         if not method? return null
         yield method.sym
     }
-    ValueEnum => {
-        let venom = sym.u.venom
-        let variant = venom.get_variant(name)
+    Enum => {
+        let enom = sym.u.enom
+        let variant = enom.get_variant(name)
         if variant? then return variant.sym
 
-        let method = venom.type.methods.get(name, null)
+        let method = enom.type.methods.get(name, null)
         if method? then return method.sym
         yield null
     }
@@ -147,7 +147,7 @@ def GenericPass::find_in_symbol_or_error(&this, sym: &Symbol, name: str, span: S
         Namespace => .error(Error::new(span, `Could not find symbol {name} in namespace {sym.display}`))
         Structure => .error(Error::new(span, `Could not find method {name} in structure {sym.display}`))
         TypeDef => .error(Error::new(span, `Could not find method {name} in type {sym.display}`))
-        ValueEnum => .error(Error::new(span, `Could not find variant/method {name} in enum {sym.display}`))
+        Enum => .error(Error::new(span, `Could not find variant/method {name} in enum {sym.display}`))
         else => .error(Error::new(span, `Can't lookup a name inside a {sym.type}`))
     }
     return null
@@ -164,8 +164,8 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) 
         .insert_into_scope_checked_and_export(export, struc.sym)
     }
 
-    for venom : ns.venoms.iter() {
-        .insert_into_scope_checked_and_export(export, venom.sym)
+    for enom : ns.enums.iter() {
+        .insert_into_scope_checked_and_export(export, enom.sym)
     }
 
     for node : ns.variables.iter() {
@@ -200,8 +200,8 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol, export: bool) {
                 .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
-        ValueEnum => {
-            for variant : sym.u.venom.variants.iter() {
+        Enum => {
+            for variant : sym.u.enom.variants.iter() {
                 .insert_into_scope_checked_and_export(export, variant.sym)
             }
         }

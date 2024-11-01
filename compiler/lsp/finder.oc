@@ -427,9 +427,9 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         }
     }
 
-    for venom : ns.venoms.iter() {
-        if venom.sym.span.contains_loc(.loc) return .set_usage(venom.sym, node: null)
-        for variant in venom.variants.iter() {
+    for enom : ns.enums.iter() {
+        if enom.sym.span.contains_loc(.loc) return .set_usage(enom.sym, node: null)
+        for variant in enom.variants.iter() {
             if variant.sym.span.contains_loc(.loc) return .set_usage(variant.sym, node: null)
             if variant.fields? {
                 for field : variant.fields.iter() {

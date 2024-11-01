@@ -6,7 +6,7 @@ import std::map::Map
 import std::vector::Vector
 
 import @ast::nodes::{ AST, Structure, Variable, Function }
-import @ast::nodes::{ ValueEnum, ValueEnumVariant }
+import @ast::nodes::{ Enum, EnumVariant }
 import @ast::program::Namespace
 import @types::Type
 
@@ -18,9 +18,9 @@ enum SymbolType {
     Variable
     Constant
 
-    ValueEnum
-    ValueEnumVariant
-    ValueEnumField
+    Enum
+    EnumVariant
+    EnumField
 }
 
 struct TemplateInstance {
@@ -73,8 +73,8 @@ struct Reference {
     span: Span
 }
 
-struct ValueEnumField {
-    variant: &ValueEnumVariant
+struct EnumField {
+    variant: &EnumVariant
     idx: u32
 }
 
@@ -84,9 +84,9 @@ union SymbolUnion {
     ns: &Namespace
     type_def: &Type
     var: &Variable
-    venom: &ValueEnum
-    venom_var: &ValueEnumVariant
-    venom_field: ValueEnumField
+    enom: &Enum
+    enum_var: &EnumVariant
+    enum_field: EnumField
 }
 
 struct Symbol {

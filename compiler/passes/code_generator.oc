@@ -357,16 +357,16 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     .yield_vars.pop()
 }
 
-def CodeGenerator::gen_venom_constructor(&this, variant: &ValueEnumVariant, args: &Vector<&Argument> = null) {
-    let venom = variant.parent
+def CodeGenerator::gen_enum_constructor(&this, variant: &EnumVariant, args: &Vector<&Argument> = null) {
+    let enom = variant.parent
 
     // Simple case, no values
-    if not venom.has_values {
+    if not enom.has_values {
         .out += variant.sym.out_name()
         return
     }
 
-    .out <<= `({venom.sym.out_name()})\{`
+    .out <<= `({enom.sym.out_name()})\{`
     .out <<= `.tag={variant.sym.out_name()},`
     if args? and args.size > 0 {
         .out <<= `.{variant.sym.out_name()}=\{`
@@ -493,7 +493,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             }
             match sym.type {
                 Function | Variable | Constant => .out += sym.out_name()
-                ValueEnumVariant => .gen_venom_constructor(sym.u.venom_var)
+                EnumVariant => .gen_enum_constructor(sym.u.enum_var)
                 else => assert false, `Unhandled symbol type: {sym.type}`
             }
         }
@@ -514,9 +514,9 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
                         .gen_constructor(node, sym.u.struc)
                         return
                     }
-                    ValueEnumConstructor => {
-                        assert sym.type == ValueEnumVariant
-                        .gen_venom_constructor(sym.u.venom_var, node.u.call.args)
+                    EnumConstructor => {
+                        assert sym.type == EnumVariant
+                        .gen_enum_constructor(sym.u.enum_var, node.u.call.args)
                         return
                     }
 
@@ -775,17 +775,17 @@ def CodeGenerator::gen_custom_match(&this, node: &AST) {
     .out += "}\n"
 }
 
-def CodeGenerator::gen_match_venom(&this, node: &AST) {
+def CodeGenerator::gen_match_enum(&this, node: &AST) {
     let match_stmt = &node.u.match_stmt
     let expr = match_stmt.expr
-    assert expr.etype? and expr.etype.base == ValueEnum
+    assert expr.etype? and expr.etype.base == Enum
 
-    let venom = expr.etype.u.venom
+    let enom = expr.etype.u.enom
 
     .gen_indent()
     .out += "switch (("
     .gen_expression(expr)
-    if venom.has_values {
+    if enom.has_values {
         .out += ").tag) {\n"
     } else {
         .out += ")) {\n"
@@ -816,8 +816,8 @@ def CodeGenerator::gen_match_venom(&this, node: &AST) {
             let cond = _case.conds[j]
 
             let resolved = cond.expr.resolved_symbol
-            assert resolved? and resolved.type == ValueEnumVariant
-            let variant = resolved.u.venom_var
+            assert resolved? and resolved.type == EnumVariant
+            let variant = resolved.u.enum_var
 
             .gen_indent()
             .out += "case "
@@ -917,8 +917,8 @@ def CodeGenerator::gen_match(&this, node: &AST) {
             .gen_match_bool(node)
             return
         }
-        ValueEnum => {
-            .gen_match_venom(node)
+        Enum => {
+            .gen_match_enum(node)
             return
         }
         else => {}
@@ -1157,7 +1157,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
         U8   | U16  | U32  | U64 |
         F32  | F64 => acc.replace(`{cur.base.str()} {acc}`)
         Structure => acc.replace(`{cur.u.struc.sym.out_name()} {acc}`)
-        ValueEnum => acc.replace(`{cur.u.venom.sym.out_name()} {acc}`)
+        Enum => acc.replace(`{cur.u.enom.sym.out_name()} {acc}`)
 
         Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
 
@@ -1326,21 +1326,21 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 }
 
 //* Auto-generate `dbg()` method for enums
-def CodeGenerator::gen_venom_dbg_method(&this, venom: &ValueEnum) {
-    let dbg = venom.type.methods.at("dbg")
+def CodeGenerator::gen_enum_dbg_method(&this, enom: &Enum) {
+    let dbg = enom.type.methods.at("dbg")
     .gen_function_decl(dbg)
     .out += " {\n"
     .indent += 1
     .gen_indent()
 
-    if venom.has_values {
+    if enom.has_values {
         .out += "switch (this.tag) {\n"
     } else {
         .out += "switch (this) {\n"
     }
 
     .indent += 1
-    for variant : venom.variants.iter() {
+    for variant : enom.variants.iter() {
         .gen_indent()
         .out += "case "
         .out += variant.sym.out_name()
@@ -1372,21 +1372,21 @@ def CodeGenerator::gen_struct_typedef(&this, struc: &Structure) {
 
 def CodeGenerator::gen_sym_typedef(&this, sym: &Symbol) => match sym.type {
     Structure => .gen_struct_typedef(sym.u.struc)
-    ValueEnum => .gen_venom_typedef(sym.u.venom)
+    Enum => .gen_enum_typedef(sym.u.enom)
     else => assert false, `Unhandled symbol type in CodeGenerator::gen_typedef: {sym.type}`
 }
 
 def CodeGenerator::gen_sym_def(&this, sym: &Symbol) => match sym.type {
     Structure => .gen_struct_def(sym.u.struc)
-    ValueEnum => .gen_venom_def(sym.u.venom)
+    Enum => .gen_enum_def(sym.u.enom)
     else => assert false, `Unhandled symbol type in CodeGenerator::gen_def: {sym.type}`
 }
 
-def CodeGenerator::gen_venom_typedef(&this, venom: &ValueEnum) {
-    if venom.sym.is_extern return
+def CodeGenerator::gen_enum_typedef(&this, enom: &Enum) {
+    if enom.sym.is_extern return
 
-    let name = venom.sym.out_name()
-    if venom.has_values {
+    let name = enom.sym.out_name()
+    if enom.has_values {
         .out <<= f"typedef enum {name}__kind {name}__kind;\n"
         .out <<= f"typedef struct {name} {name};\n"
     } else {
@@ -1416,28 +1416,28 @@ def CodeGenerator::gen_struct_def(&this, struc: &Structure) {
     .out += "};\n\n"
 }
 
-def CodeGenerator::gen_venom_def(&this, venom: &ValueEnum) {
-    let name = venom.sym.out_name()
-    defer .gen_venom_dbg_method(venom)
+def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
+    let name = enom.sym.out_name()
+    defer .gen_enum_dbg_method(enom)
 
-    if venom.sym.is_extern return
+    if enom.sym.is_extern return
 
     // If we don't have any fields, we can just generate a simple enum
-    if venom.has_values {
+    if enom.has_values {
         .out <<= f"enum {name}__kind \{\n"
     } else {
         .out <<= f"enum {name} \{\n"
     }
-    for variant in venom.variants.iter() {
+    for variant in enom.variants.iter() {
         .out <<= f"  {variant.sym.out_name()},\n"
     }
     .out += "};\n\n"
 
-    if venom.has_values {
+    if enom.has_values {
         .out <<= f"struct {name} \{\n"
         .out <<= f"  {name}__kind tag;\n"
         .out += "  union {\n"
-        for variant in venom.variants.iter() {
+        for variant in enom.variants.iter() {
             if variant.fields.size > 0 {
                 .out += "    struct {\n"
                 for let i = 0; i < variant.fields.size; i += 1 {

@@ -10,7 +10,7 @@ import std::fs
 import @ast::nodes::{ * }
 import @ast::program::{ Namespace, Program }
 import @ast::operators::{ Operator }
-import @ast::scopes::{ Symbol, SymbolType, Template, ValueEnumField }
+import @ast::scopes::{ Symbol, SymbolType, Template, EnumField }
 import @attributes::{ Attribute, AttributeType }
 import @errors::Error
 import @lexer::Lexer
@@ -1959,24 +1959,24 @@ def Parser::parse_struct(&this): &Structure {
     return struc
 }
 
-def Parser::parse_venum(&this): &ValueEnum {
-    let start = .consume(.token().type) // FIXME: Should be TokenType::ValueEnum
-    // assert start.text == "venum"
+def Parser::parse_enum(&this): &Enum {
+    let start = .consume(.token().type) // FIXME: Should be TokenType::Enum
+    // assert start.text == "enum"
 
     let name = .consume(Identifier)
 
-    let venom = ValueEnum::new(start.span)
-    let sym = Symbol::new_with_parent(ValueEnum, .ns, .ns.sym, name.text, name.span)
-    sym.u.venom = venom
-    venom.sym = sym
+    let enom = Enum::new(start.span)
+    let sym = Symbol::new_with_parent(Enum, .ns, .ns.sym, name.text, name.span)
+    sym.u.enom = enom
+    enom.sym = sym
     .add_doc_comment(sym, start)
-    venom.has_values = false
+    enom.has_values = false
 
     let is_extern = false
     for attr : .attrs.iter() {
         match attr.type {
             Extern => {
-                .get_extern_from_attr(venom.sym, attr)
+                .get_extern_from_attr(enom.sym, attr)
                 is_extern = true
             }
             else => .error(Error::new(attr.span, "Invalid attribute for value enum"))
@@ -1984,7 +1984,7 @@ def Parser::parse_venum(&this): &ValueEnum {
     }
 
     if .token_is(Extern) {
-        .parse_extern_into_symbol(venom.sym)
+        .parse_extern_into_symbol(enom.sym)
     }
 
     .consume(OpenCurly)
@@ -1994,18 +1994,18 @@ def Parser::parse_venum(&this): &ValueEnum {
 
         let name = .consume(Identifier)
 
-        let variant = ValueEnumVariant::new(name.span)
-        let vsym = Symbol::new_with_parent(ValueEnumVariant, .ns, sym, name.text, name.span)
-        vsym.u.venom_var = variant
+        let variant = EnumVariant::new(name.span)
+        let vsym = Symbol::new_with_parent(EnumVariant, .ns, sym, name.text, name.span)
+        vsym.u.enum_var = variant
         variant.sym = vsym
-        variant.parent = venom
+        variant.parent = enom
         .add_doc_comment(vsym, name)
 
         if .token_is(OpenParen) {
             let start = .consume(OpenParen)
             while not .token_is_eof_or(CloseParen) {
                 let typ = .parse_type()
-                venom.has_values = true
+                enom.has_values = true
                 let var = Variable::new(typ)
                 variant.fields.push(var)
                 .consume_if(Comma)
@@ -2019,7 +2019,7 @@ def Parser::parse_venum(&this): &ValueEnum {
         // FIXME: Deprecate this
         if .consume_if(TokenType::Equals) {
             .parse_extern_into_symbol(variant.sym)
-            if venom.has_values {
+            if enom.has_values {
                 .error(Error::new(variant.sym.span, "Non-trivial value enums can't be extern"))
             }
         }
@@ -2027,7 +2027,7 @@ def Parser::parse_venum(&this): &ValueEnum {
             match attr.type {
                 Extern => {
                     .get_extern_from_attr(variant.sym, attr)
-                    if venom.has_values {
+                    if enom.has_values {
                         .error(Error::new(variant.sym.span, "Non-trivial value enums can't be extern"))
                     }
                 }
@@ -2035,11 +2035,11 @@ def Parser::parse_venum(&this): &ValueEnum {
             }
         }
 
-        venom.variants += variant
+        enom.variants += variant
         .consume_if(Comma)
     }
     .consume(CloseCurly)
-    return venom
+    return enom
 }
 
 def Parser::parse_attribute(&this) {
@@ -2160,8 +2160,8 @@ def Parser::parse_namespace_until(&this, end_type: TokenType) {
                 }
             }
             Enum => {
-                let venom = .parse_venum()
-                if venom? then .ns.venoms.push(venom)
+                let enom = .parse_enum()
+                if enom? then .ns.enums.push(enom)
             }
             Let => {
                 let var = .parse_global_value(is_const: false)

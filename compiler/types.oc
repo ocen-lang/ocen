@@ -6,7 +6,7 @@ import std::map::{ Map }
 import std::mem
 import std::span::{ Span }
 
-import @ast::nodes::{ AST, ASTType, Structure, Variable, Function, ValueEnum }
+import @ast::nodes::{ AST, ASTType, Structure, Variable, Function, Enum }
 import @ast::scopes::{ Symbol, TemplateInstance }
 import @ast::program::Namespace
 import @tokens::{ Token, TokenType }
@@ -36,7 +36,7 @@ enum BaseType {
     Array
     Alias
     UnresolvedTemplate
-    ValueEnum
+    Enum
 
     Error
 }
@@ -89,7 +89,7 @@ struct UnresolvedTemplate {
 struct TypeUnion {
     ptr: &Type
     struc: &Structure
-    venom: &ValueEnum
+    enom: &Enum
     unresolved: &AST
     func: FunctionType
     arr: ArrayType
@@ -159,7 +159,7 @@ def Type::is_numeric_or_char(&this): bool => .is_numeric() or .base == BaseType:
 def Type::can_have_methods(&this): bool => match .base {
     Char | Bool | Void | I8 | I16 | I32 | I64 |
     U8 | U16 | U32 | U64 | F32 | F64 | Structure |
-    Alias | ValueEnum => true
+    Alias | Enum => true
     else => false
 }
 
@@ -210,7 +210,7 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
             return .u.ptr.eq(other.u.ptr, strict: true)
         }
         Structure => return .u.struc == other.u.struc
-        ValueEnum => return .u.venom == other.u.venom
+        Enum => return .u.enom == other.u.enom
         Array => {
             if not .u.arr.elem_type.eq(other.u.arr.elem_type, strict: true) return false
             if .u.arr.size_known and other.u.arr.size_known {
@@ -280,7 +280,7 @@ def Type::str(&this): str => match .base {
         return buf.str()
     }
     Structure => .u.struc.sym.display
-    ValueEnum => .u.venom.sym.display
+    Enum => .u.enom.sym.display
     Alias => .name
     else => .base.str()
 }

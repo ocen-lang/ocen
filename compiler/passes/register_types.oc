@@ -7,7 +7,7 @@ import @passes::generic_pass::GenericPass
 import @ast::scopes::{ Symbol, SymbolType, Scope }
 import @ast::program::{ Program, Namespace }
 import @types::{ Type, BaseType, FunctionType }
-import @ast::nodes::{ AST, Function, Structure, Variable,ValueEnum }
+import @ast::nodes::{ AST, Function, Structure, Variable,Enum }
 import @errors::Error
 
 struct RegisterTypes {
@@ -24,12 +24,12 @@ def RegisterTypes::register_struct(&this, ns: &Namespace, struc: &Structure) {
     typ.sym = struc.sym
 }
 
-def RegisterTypes::register_venum(&this, ns: &Namespace, enum_: &ValueEnum) {
+def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     let item = enum_.sym
     .o.insert_into_scope_checked(item)
 
-    let typ = Type::new_resolved(ValueEnum, enum_.sym.span)
-    typ.u.venom = enum_
+    let typ = Type::new_resolved(Enum, enum_.sym.span)
+    typ.u.enom = enum_
     enum_.type = typ
     typ.sym = enum_.sym
 
@@ -55,18 +55,18 @@ def RegisterTypes::register_globals(&this, node: &AST) {
     .o.insert_into_scope_checked(var.sym)
 }
 
-def RegisterTypes::add_dbg_method_for_venum(&this, venom: &ValueEnum) {
-    let span = venom.sym.span
+def RegisterTypes::add_dbg_method_for_enum(&this, enom: &Enum) {
+    let span = enom.sym.span
 
     let func = Function::new()
     func.span = Span::default()
-    func.sym = Symbol::new_with_parent(Function, venom.sym.ns, venom.sym, "dbg", span)
+    func.sym = Symbol::new_with_parent(Function, enom.sym.ns, enom.sym, "dbg", span)
     func.sym.u.func = func
     func.return_type = .o.program.get_type_by_name("str", span)
     func.is_method = true
-    func.parent_type = venom.type
+    func.parent_type = enom.type
 
-    let var = Variable::new(venom.type)
+    let var = Variable::new(enom.type)
     var.sym = Symbol::from_local_variable("this", var, span)
 
     func.params.push(var)
@@ -75,7 +75,7 @@ def RegisterTypes::add_dbg_method_for_venum(&this, venom: &ValueEnum) {
     typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
     func.type = typ
 
-    venom.type.methods.insert("dbg", func)
+    enom.type.methods.insert("dbg", func)
 }
 
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
@@ -83,9 +83,9 @@ def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     for struc : ns.structs.iter() {
         .register_struct(ns, struc)
     }
-    for venom : ns.venoms.iter() {
-        .register_venum(ns, venom)
-        .add_dbg_method_for_venum(venom)
+    for enom : ns.enums.iter() {
+        .register_enum(ns, enom)
+        .add_dbg_method_for_enum(enom)
     }
     for node : ns.constants.iter() {
         .register_globals(node)
@@ -172,7 +172,7 @@ def Finder::to(this, name: str): Finder {
         match res.type {
             TypeDef => .type = res.u.type_def
             Structure => .type = res.u.struc.type
-            ValueEnum => .type = res.u.venom.type
+            Enum => .type = res.u.enom.type
             else => .type = null
         }
     } else {

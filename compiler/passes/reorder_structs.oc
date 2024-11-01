@@ -53,8 +53,8 @@ def ReorderStructs::collect_all_structs(&this, ns: &Namespace) {
             .all_syms += struc.sym
         }
     }
-    for venom in ns.venoms.iter() {
-        .all_syms += venom.sym
+    for enom in ns.enums.iter() {
+        .all_syms += enom.sym
     }
     for child : ns.namespaces.iter_values() {
         .collect_all_structs(child)
@@ -74,8 +74,8 @@ def ReorderStructs::dfs(&this, sym: &Symbol) {
             }
             .o.program.ordered_structs += sym.u.struc
         }
-        ValueEnum => {
-            for variant in sym.u.venom.variants.iter() {
+        Enum => {
+            for variant in sym.u.enom.variants.iter() {
                 for field in variant.fields.iter() {
                     if field.type? {
                         .dfs(field.type.sym)

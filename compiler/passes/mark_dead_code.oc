@@ -196,7 +196,7 @@ def MarkDeadCode::mark_sym_as_dead_by_default(&this, sym: &Symbol) {
     match sym.type {
         Function => sym.u.func.is_dead = true
         Structure => sym.u.struc.is_dead = true
-        ValueEnum => sym.u.venom.is_dead = true
+        Enum => sym.u.enom.is_dead = true
         else => {}
     }
 
@@ -229,7 +229,7 @@ def MarkDeadCode::run(program: &Program) {
         for s : ns.structs.iter() {
             pass.mark_sym_as_dead_by_default(s.sym)
         }
-        for e : ns.venoms.iter() {
+        for e : ns.enums.iter() {
             pass.mark_sym_as_dead_by_default(e.sym)
         }
     }

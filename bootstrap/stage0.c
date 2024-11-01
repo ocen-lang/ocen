@@ -101,7 +101,7 @@ typedef struct compiler_ast_scopes_TemplateInstance compiler_ast_scopes_Template
 typedef struct compiler_ast_scopes_Template compiler_ast_scopes_Template;
 typedef enum compiler_ast_scopes_ReferenceType compiler_ast_scopes_ReferenceType;
 typedef struct compiler_ast_scopes_Reference compiler_ast_scopes_Reference;
-typedef struct compiler_ast_scopes_ValueEnumField compiler_ast_scopes_ValueEnumField;
+typedef struct compiler_ast_scopes_EnumField compiler_ast_scopes_EnumField;
 typedef union compiler_ast_scopes_SymbolUnion compiler_ast_scopes_SymbolUnion;
 typedef enum compiler_ast_scopes_SymbolType compiler_ast_scopes_SymbolType;
 typedef struct compiler_ast_scopes_Symbol compiler_ast_scopes_Symbol;
@@ -111,8 +111,8 @@ typedef struct compiler_ast_operators_OperatorOverload compiler_ast_operators_Op
 typedef struct compiler_ast_nodes_Variable compiler_ast_nodes_Variable;
 typedef struct compiler_ast_nodes_VarDeclaration compiler_ast_nodes_VarDeclaration;
 typedef struct compiler_ast_nodes_Structure compiler_ast_nodes_Structure;
-typedef struct compiler_ast_nodes_ValueEnum compiler_ast_nodes_ValueEnum;
-typedef struct compiler_ast_nodes_ValueEnumVariant compiler_ast_nodes_ValueEnumVariant;
+typedef struct compiler_ast_nodes_Enum compiler_ast_nodes_Enum;
+typedef struct compiler_ast_nodes_EnumVariant compiler_ast_nodes_EnumVariant;
 typedef struct compiler_ast_nodes_Function compiler_ast_nodes_Function;
 typedef struct compiler_ast_nodes_Block compiler_ast_nodes_Block;
 typedef struct compiler_ast_nodes_Identifier compiler_ast_nodes_Identifier;
@@ -371,7 +371,7 @@ struct compiler_ast_program_Namespace {
   compiler_ast_program_Namespace *parent;
   std_vector_Vector__6 *functions;
   std_vector_Vector__9 *structs;
-  std_vector_Vector__15 *venoms;
+  std_vector_Vector__15 *enums;
   std_vector_Vector__16 *constants;
   std_vector_Vector__16 *variables;
   std_vector_Vector__16 *imports;
@@ -448,8 +448,8 @@ struct compiler_ast_scopes_Reference {
   std_span_Span span;
 };
 
-struct compiler_ast_scopes_ValueEnumField {
-  compiler_ast_nodes_ValueEnumVariant *variant;
+struct compiler_ast_scopes_EnumField {
+  compiler_ast_nodes_EnumVariant *variant;
   u32 idx;
 };
 
@@ -459,9 +459,9 @@ union compiler_ast_scopes_SymbolUnion {
   compiler_ast_program_Namespace *ns;
   compiler_types_Type *type_def;
   compiler_ast_nodes_Variable *var;
-  compiler_ast_nodes_ValueEnum *venom;
-  compiler_ast_nodes_ValueEnumVariant *venom_var;
-  compiler_ast_scopes_ValueEnumField venom_field;
+  compiler_ast_nodes_Enum *enom;
+  compiler_ast_nodes_EnumVariant *enum_var;
+  compiler_ast_scopes_EnumField enum_field;
 };
 
 enum compiler_ast_scopes_SymbolType {
@@ -471,9 +471,9 @@ enum compiler_ast_scopes_SymbolType {
   compiler_ast_scopes_SymbolType_Namespace,
   compiler_ast_scopes_SymbolType_Variable,
   compiler_ast_scopes_SymbolType_Constant,
-  compiler_ast_scopes_SymbolType_ValueEnum,
-  compiler_ast_scopes_SymbolType_ValueEnumVariant,
-  compiler_ast_scopes_SymbolType_ValueEnumField,
+  compiler_ast_scopes_SymbolType_Enum,
+  compiler_ast_scopes_SymbolType_EnumVariant,
+  compiler_ast_scopes_SymbolType_EnumField,
 };
 
 char *compiler_ast_scopes_SymbolType_dbg(compiler_ast_scopes_SymbolType this) {
@@ -484,9 +484,9 @@ char *compiler_ast_scopes_SymbolType_dbg(compiler_ast_scopes_SymbolType this) {
     case compiler_ast_scopes_SymbolType_Namespace: return "Namespace";
     case compiler_ast_scopes_SymbolType_Variable: return "Variable";
     case compiler_ast_scopes_SymbolType_Constant: return "Constant";
-    case compiler_ast_scopes_SymbolType_ValueEnum: return "ValueEnum";
-    case compiler_ast_scopes_SymbolType_ValueEnumVariant: return "ValueEnumVariant";
-    case compiler_ast_scopes_SymbolType_ValueEnumField: return "ValueEnumField";
+    case compiler_ast_scopes_SymbolType_Enum: return "Enum";
+    case compiler_ast_scopes_SymbolType_EnumVariant: return "EnumVariant";
+    case compiler_ast_scopes_SymbolType_EnumField: return "EnumField";
     default: return "<unknown>";
   }
 }
@@ -634,7 +634,7 @@ struct compiler_ast_nodes_Structure {
   char *format_args;
 };
 
-struct compiler_ast_nodes_ValueEnum {
+struct compiler_ast_nodes_Enum {
   compiler_ast_scopes_Symbol *sym;
   std_span_Span span;
   std_vector_Vector__19 *variants;
@@ -643,10 +643,10 @@ struct compiler_ast_nodes_ValueEnum {
   bool has_values;
 };
 
-struct compiler_ast_nodes_ValueEnumVariant {
+struct compiler_ast_nodes_EnumVariant {
   compiler_ast_scopes_Symbol *sym;
   std_vector_Vector__4 *fields;
-  compiler_ast_nodes_ValueEnum *parent;
+  compiler_ast_nodes_Enum *parent;
   std_span_Span span;
 };
 
@@ -693,14 +693,14 @@ struct compiler_ast_nodes_Argument {
 enum compiler_ast_nodes_CallType {
   compiler_ast_nodes_CallType_Normal,
   compiler_ast_nodes_CallType_StructConstructor,
-  compiler_ast_nodes_CallType_ValueEnumConstructor,
+  compiler_ast_nodes_CallType_EnumConstructor,
 };
 
 char *compiler_ast_nodes_CallType_dbg(compiler_ast_nodes_CallType this) {
   switch (this) {
     case compiler_ast_nodes_CallType_Normal: return "Normal";
     case compiler_ast_nodes_CallType_StructConstructor: return "StructConstructor";
-    case compiler_ast_nodes_CallType_ValueEnumConstructor: return "ValueEnumConstructor";
+    case compiler_ast_nodes_CallType_EnumConstructor: return "EnumConstructor";
     default: return "<unknown>";
   }
 }
@@ -1271,7 +1271,7 @@ struct compiler_types_UnresolvedTemplate {
 struct compiler_types_TypeUnion {
   compiler_types_Type *ptr;
   compiler_ast_nodes_Structure *struc;
-  compiler_ast_nodes_ValueEnum *venom;
+  compiler_ast_nodes_Enum *enom;
   compiler_ast_nodes_AST *unresolved;
   compiler_types_FunctionType func;
   compiler_types_ArrayType arr;
@@ -1300,7 +1300,7 @@ enum compiler_types_BaseType {
   compiler_types_BaseType_Array,
   compiler_types_BaseType_Alias,
   compiler_types_BaseType_UnresolvedTemplate,
-  compiler_types_BaseType_ValueEnum,
+  compiler_types_BaseType_Enum,
   compiler_types_BaseType_Error,
 };
 
@@ -1327,7 +1327,7 @@ char *compiler_types_BaseType_dbg(compiler_types_BaseType this) {
     case compiler_types_BaseType_Array: return "Array";
     case compiler_types_BaseType_Alias: return "Alias";
     case compiler_types_BaseType_UnresolvedTemplate: return "UnresolvedTemplate";
-    case compiler_types_BaseType_ValueEnum: return "ValueEnum";
+    case compiler_types_BaseType_Enum: return "Enum";
     case compiler_types_BaseType_Error: return "Error";
     default: return "<unknown>";
   }
@@ -1842,7 +1842,7 @@ struct std_vector_Vector__14 {
 };
 
 struct std_vector_Vector__15 {
-  compiler_ast_nodes_ValueEnum **data;
+  compiler_ast_nodes_Enum **data;
   u32 size;
   u32 capacity;
 };
@@ -1866,7 +1866,7 @@ struct std_vector_Vector__18 {
 };
 
 struct std_vector_Vector__19 {
-  compiler_ast_nodes_ValueEnumVariant **data;
+  compiler_ast_nodes_EnumVariant **data;
   u32 size;
   u32 capacity;
 };
@@ -2031,7 +2031,7 @@ struct std_vector_Iterator__24 {
 };
 
 /* function declarations */
-std_value_Value *compiler_docgen_DocGenerator_gen_venom(compiler_docgen_DocGenerator *this, compiler_ast_nodes_ValueEnum *venom);
+std_value_Value *compiler_docgen_DocGenerator_gen_enum(compiler_docgen_DocGenerator *this, compiler_ast_nodes_Enum *enom);
 void compiler_docgen_DocGenerator_gen_location(compiler_docgen_DocGenerator *this, std_value_Value *obj, std_span_Span span);
 char *compiler_docgen_DocGenerator_gen_templated_type(compiler_docgen_DocGenerator *this, compiler_types_Type *base, std_vector_Vector__0 *args);
 char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator *this, compiler_types_Type *type);
@@ -2046,9 +2046,9 @@ void compiler_docgen_generate_doc_json(compiler_ast_program_Program *program, ch
 void compiler_passes_run_typecheck_passes(compiler_ast_program_Program *program);
 char *compiler_passes_run_codegen_passes(compiler_ast_program_Program *program);
 void compiler_passes_register_types_RegisterTypes_register_struct(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_Structure *struc);
-void compiler_passes_register_types_RegisterTypes_register_venum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_ValueEnum *enum_);
+void compiler_passes_register_types_RegisterTypes_register_enum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_Enum *enum_);
 void compiler_passes_register_types_RegisterTypes_register_globals(compiler_passes_register_types_RegisterTypes *this, compiler_ast_nodes_AST *node);
-void compiler_passes_register_types_RegisterTypes_add_dbg_method_for_venum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_nodes_ValueEnum *venom);
+void compiler_passes_register_types_RegisterTypes_add_dbg_method_for_enum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_nodes_Enum *enom);
 void compiler_passes_register_types_RegisterTypes_register_namespace(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns);
 void compiler_passes_register_types_RegisterTypes_register_base_type(compiler_passes_register_types_RegisterTypes *this, compiler_types_BaseType base);
 void compiler_passes_register_types_RegisterTypes_register_alias(compiler_passes_register_types_RegisterTypes *this, char *name, compiler_types_Type *orig);
@@ -2098,7 +2098,7 @@ void compiler_passes_typechecker_TypeChecker_check_block(compiler_passes_typeche
 void compiler_passes_typechecker_TypeChecker_check_method_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *method, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_internal_print(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_venom_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_enum_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, bool is_variadic);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
@@ -2111,7 +2111,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compile
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_assignment(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_helper(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_value(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST **node_ptr);
-void compiler_passes_typechecker_TypeChecker_check_match_for_venom(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_ValueEnum *venom, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
+void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enom, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
 void compiler_passes_typechecker_TypeChecker_check_match_for_bool(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
 compiler_ast_nodes_Function *compiler_passes_typechecker_TypeChecker_check_match_case_and_find_overload(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *expr, compiler_ast_nodes_MatchCond *cond);
 void compiler_passes_typechecker_TypeChecker_check_match(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
@@ -2131,7 +2131,7 @@ void compiler_passes_typechecker_TypeChecker_handle_import_statement(compiler_pa
 void compiler_passes_typechecker_TypeChecker_pre_check_function(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_Function *func);
 void compiler_passes_typechecker_TypeChecker_loosely_resolve_templated_struct(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Structure *struc);
 void compiler_passes_typechecker_TypeChecker_resolve_struct(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Structure *struc);
-void compiler_passes_typechecker_TypeChecker_resolve_venom(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_ValueEnum *venom);
+void compiler_passes_typechecker_TypeChecker_resolve_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enom);
 void compiler_passes_typechecker_TypeChecker_check_operator_overload_function(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *func, compiler_ast_operators_Operator op);
 void compiler_passes_typechecker_TypeChecker_check_function_declaration(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *func);
 void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns, bool pre_import);
@@ -2158,13 +2158,13 @@ void compiler_passes_code_generator_CodeGenerator_gen_constants(compiler_passes_
 void compiler_passes_code_generator_CodeGenerator_gen_global_variables(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_program_Namespace *ns);
 void compiler_passes_code_generator_CodeGenerator_gen_control_body(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *body);
 void compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
-void compiler_passes_code_generator_CodeGenerator_gen_venom_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnumVariant *variant, std_vector_Vector__7 *args);
+void compiler_passes_code_generator_CodeGenerator_gen_enum_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_EnumVariant *variant, std_vector_Vector__7 *args);
 void compiler_passes_code_generator_CodeGenerator_gen_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_Structure *struc);
 void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, bool is_top_level);
 void compiler_passes_code_generator_CodeGenerator_gen_var_declaration(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
 void compiler_passes_code_generator_CodeGenerator_gen_match_case_body(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *body);
 void compiler_passes_code_generator_CodeGenerator_gen_custom_match(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
-void compiler_passes_code_generator_CodeGenerator_gen_match_venom(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
+void compiler_passes_code_generator_CodeGenerator_gen_match_enum(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
 void compiler_passes_code_generator_CodeGenerator_gen_match_bool(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
 void compiler_passes_code_generator_CodeGenerator_gen_match(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node);
 void compiler_passes_code_generator_CodeGenerator_gen_defers_upto(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Scope *end_scope);
@@ -2178,13 +2178,13 @@ void compiler_passes_code_generator_CodeGenerator_gen_function(compiler_passes_c
 void compiler_passes_code_generator_CodeGenerator_gen_function_decl(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Function *func);
 void compiler_passes_code_generator_CodeGenerator_gen_functions(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_program_Namespace *ns);
 void compiler_passes_code_generator_CodeGenerator_gen_function_decls(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_program_Namespace *ns);
-void compiler_passes_code_generator_CodeGenerator_gen_venom_dbg_method(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnum *venom);
+void compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom);
 void compiler_passes_code_generator_CodeGenerator_gen_struct_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Structure *struc);
 void compiler_passes_code_generator_CodeGenerator_gen_sym_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Symbol *sym);
 void compiler_passes_code_generator_CodeGenerator_gen_sym_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Symbol *sym);
-void compiler_passes_code_generator_CodeGenerator_gen_venom_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnum *venom);
+void compiler_passes_code_generator_CodeGenerator_gen_enum_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom);
 void compiler_passes_code_generator_CodeGenerator_gen_struct_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Structure *struc);
-void compiler_passes_code_generator_CodeGenerator_gen_venom_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnum *venom);
+void compiler_passes_code_generator_CodeGenerator_gen_enum_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom);
 char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code_generator_CodeGenerator *this);
 compiler_passes_code_generator_CodeGenerator compiler_passes_code_generator_CodeGenerator_make(compiler_ast_program_Program *program);
 char *compiler_passes_code_generator_CodeGenerator_run(compiler_ast_program_Program *program);
@@ -2256,7 +2256,7 @@ std_vector_Vector__5 *compiler_parser_Parser_parse_import_path(compiler_parser_P
 compiler_ast_nodes_AST *compiler_parser_Parser_parse_import(compiler_parser_Parser *this);
 bool compiler_parser_Parser_parse_struct_field(compiler_parser_Parser *this, compiler_ast_nodes_Structure *struc);
 compiler_ast_nodes_Structure *compiler_parser_Parser_parse_struct(compiler_parser_Parser *this);
-compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser_Parser *this);
+compiler_ast_nodes_Enum *compiler_parser_Parser_parse_enum(compiler_parser_Parser *this);
 void compiler_parser_Parser_parse_attribute(compiler_parser_Parser *this);
 void compiler_parser_Parser_parse_attributes_if_any(compiler_parser_Parser *this);
 void compiler_parser_Parser_parse_namespace_until(compiler_parser_Parser *this, compiler_tokens_TokenType end_type);
@@ -2333,9 +2333,9 @@ bool compiler_ast_operators_OperatorOverload_eq(compiler_ast_operators_OperatorO
 compiler_ast_nodes_Variable *compiler_ast_nodes_Variable_new(compiler_types_Type *type);
 compiler_ast_nodes_Structure *compiler_ast_nodes_Structure_new(void);
 compiler_ast_nodes_Variable *compiler_ast_nodes_Structure_get_field(compiler_ast_nodes_Structure *this, char *name);
-compiler_ast_nodes_ValueEnumVariant *compiler_ast_nodes_ValueEnum_get_variant(compiler_ast_nodes_ValueEnum *this, char *name);
-compiler_ast_nodes_ValueEnum *compiler_ast_nodes_ValueEnum_new(std_span_Span span);
-compiler_ast_nodes_ValueEnumVariant *compiler_ast_nodes_ValueEnumVariant_new(std_span_Span span);
+compiler_ast_nodes_EnumVariant *compiler_ast_nodes_Enum_get_variant(compiler_ast_nodes_Enum *this, char *name);
+compiler_ast_nodes_Enum *compiler_ast_nodes_Enum_new(std_span_Span span);
+compiler_ast_nodes_EnumVariant *compiler_ast_nodes_EnumVariant_new(std_span_Span span);
 compiler_ast_nodes_Function *compiler_ast_nodes_Function_new(void);
 bool compiler_ast_nodes_Function_is_template_instance(compiler_ast_nodes_Function *this);
 compiler_ast_nodes_Argument *compiler_ast_nodes_Argument_new(compiler_ast_nodes_AST *expr, compiler_tokens_Token *label_token);
@@ -2484,8 +2484,8 @@ compiler_ast_scopes_Symbol *std_mem_alloc__7(u32 count);
 compiler_ast_scopes_Scope *std_mem_alloc__8(u32 count);
 compiler_ast_nodes_Variable *std_mem_alloc__9(u32 count);
 compiler_ast_nodes_Structure *std_mem_alloc__10(u32 count);
-compiler_ast_nodes_ValueEnum *std_mem_alloc__11(u32 count);
-compiler_ast_nodes_ValueEnumVariant *std_mem_alloc__12(u32 count);
+compiler_ast_nodes_Enum *std_mem_alloc__11(u32 count);
+compiler_ast_nodes_EnumVariant *std_mem_alloc__12(u32 count);
 compiler_ast_nodes_Function *std_mem_alloc__13(u32 count);
 compiler_ast_nodes_Argument *std_mem_alloc__14(u32 count);
 compiler_ast_nodes_ImportPart *std_mem_alloc__15(u32 count);
@@ -2569,7 +2569,7 @@ compiler_attributes_Attribute **std_mem_alloc__92(u32 count);
 std_vector_Vector__14 *std_mem_alloc__93(u32 count);
 compiler_errors_Error **std_mem_alloc__94(u32 count);
 std_vector_Vector__15 *std_mem_alloc__95(u32 count);
-compiler_ast_nodes_ValueEnum **std_mem_alloc__96(u32 count);
+compiler_ast_nodes_Enum **std_mem_alloc__96(u32 count);
 std_vector_Vector__16 *std_mem_alloc__97(u32 count);
 compiler_ast_nodes_AST **std_mem_alloc__98(u32 count);
 std_vector_Vector__17 *std_mem_alloc__99(u32 count);
@@ -2577,7 +2577,7 @@ jmp_buf *std_mem_alloc__100(u32 count);
 std_vector_Vector__18 *std_mem_alloc__101(u32 count);
 compiler_ast_scopes_Reference *std_mem_alloc__102(u32 count);
 std_vector_Vector__19 *std_mem_alloc__103(u32 count);
-compiler_ast_nodes_ValueEnumVariant **std_mem_alloc__104(u32 count);
+compiler_ast_nodes_EnumVariant **std_mem_alloc__104(u32 count);
 std_vector_Vector__20 *std_mem_alloc__105(u32 count);
 compiler_ast_operators_Operator *std_mem_alloc__106(u32 count);
 std_vector_Vector__21 *std_mem_alloc__107(u32 count);
@@ -2613,11 +2613,11 @@ compiler_ast_nodes_MatchCond **std_mem_realloc__12(compiler_ast_nodes_MatchCond 
 compiler_tokens_Token **std_mem_realloc__13(compiler_tokens_Token **ptr, u32 old_count, u32 new_count);
 compiler_attributes_Attribute **std_mem_realloc__14(compiler_attributes_Attribute **ptr, u32 old_count, u32 new_count);
 compiler_errors_Error **std_mem_realloc__15(compiler_errors_Error **ptr, u32 old_count, u32 new_count);
-compiler_ast_nodes_ValueEnum **std_mem_realloc__16(compiler_ast_nodes_ValueEnum **ptr, u32 old_count, u32 new_count);
+compiler_ast_nodes_Enum **std_mem_realloc__16(compiler_ast_nodes_Enum **ptr, u32 old_count, u32 new_count);
 compiler_ast_nodes_AST **std_mem_realloc__17(compiler_ast_nodes_AST **ptr, u32 old_count, u32 new_count);
 jmp_buf *std_mem_realloc__18(jmp_buf *ptr, u32 old_count, u32 new_count);
 compiler_ast_scopes_Reference *std_mem_realloc__19(compiler_ast_scopes_Reference *ptr, u32 old_count, u32 new_count);
-compiler_ast_nodes_ValueEnumVariant **std_mem_realloc__20(compiler_ast_nodes_ValueEnumVariant **ptr, u32 old_count, u32 new_count);
+compiler_ast_nodes_EnumVariant **std_mem_realloc__20(compiler_ast_nodes_EnumVariant **ptr, u32 old_count, u32 new_count);
 compiler_ast_operators_Operator *std_mem_realloc__21(compiler_ast_operators_Operator *ptr, u32 old_count, u32 new_count);
 std_vector_Vector__5 **std_mem_realloc__22(std_vector_Vector__5 **ptr, u32 old_count, u32 new_count);
 compiler_ast_nodes_IfBranch *std_mem_realloc__23(compiler_ast_nodes_IfBranch *ptr, u32 old_count, u32 new_count);
@@ -3015,14 +3015,14 @@ void std_vector_Vector__14_resize(std_vector_Vector__14 *this, u32 new_capacity)
 std_vector_Vector__14 *std_vector_Vector__14_new(u32 capacity);
 void std_vector_Vector__14_push(std_vector_Vector__14 *this, compiler_errors_Error *value);
 std_vector_Iterator__15 std_vector_Vector__15_iter(std_vector_Vector__15 *this);
-compiler_ast_nodes_ValueEnum *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this);
+compiler_ast_nodes_Enum *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this);
 void std_vector_Iterator__15_next(std_vector_Iterator__15 *this);
 bool std_vector_Iterator__15_has_value(std_vector_Iterator__15 *this);
 std_vector_Iterator__15 std_vector_Iterator__15_make(std_vector_Vector__15 *vec);
 bool std_vector_Vector__15_is_empty(std_vector_Vector__15 *this);
 void std_vector_Vector__15_resize(std_vector_Vector__15 *this, u32 new_capacity);
 std_vector_Vector__15 *std_vector_Vector__15_new(u32 capacity);
-void std_vector_Vector__15_push(std_vector_Vector__15 *this, compiler_ast_nodes_ValueEnum *value);
+void std_vector_Vector__15_push(std_vector_Vector__15 *this, compiler_ast_nodes_Enum *value);
 compiler_ast_nodes_AST *std_vector_Vector__16_pop(std_vector_Vector__16 *this);
 std_vector_Iterator__16 std_vector_Vector__16_iter(std_vector_Vector__16 *this);
 compiler_ast_nodes_AST *std_vector_Iterator__16_cur(std_vector_Iterator__16 *this);
@@ -3047,13 +3047,13 @@ void std_vector_Vector__18_resize(std_vector_Vector__18 *this, u32 new_capacity)
 std_vector_Vector__18 *std_vector_Vector__18_new(u32 capacity);
 void std_vector_Vector__18_push(std_vector_Vector__18 *this, compiler_ast_scopes_Reference value);
 std_vector_Iterator__19 std_vector_Vector__19_iter(std_vector_Vector__19 *this);
-compiler_ast_nodes_ValueEnumVariant *std_vector_Iterator__19_cur(std_vector_Iterator__19 *this);
+compiler_ast_nodes_EnumVariant *std_vector_Iterator__19_cur(std_vector_Iterator__19 *this);
 void std_vector_Iterator__19_next(std_vector_Iterator__19 *this);
 bool std_vector_Iterator__19_has_value(std_vector_Iterator__19 *this);
 std_vector_Iterator__19 std_vector_Iterator__19_make(std_vector_Vector__19 *vec);
 void std_vector_Vector__19_resize(std_vector_Vector__19 *this, u32 new_capacity);
 std_vector_Vector__19 *std_vector_Vector__19_new(u32 capacity);
-void std_vector_Vector__19_push(std_vector_Vector__19 *this, compiler_ast_nodes_ValueEnumVariant *value);
+void std_vector_Vector__19_push(std_vector_Vector__19 *this, compiler_ast_nodes_EnumVariant *value);
 std_vector_Iterator__20 std_vector_Vector__20_iter(std_vector_Vector__20 *this);
 compiler_ast_operators_Operator std_vector_Iterator__20_cur(std_vector_Iterator__20 *this);
 void std_vector_Iterator__20_next(std_vector_Iterator__20 *this);
@@ -3142,22 +3142,22 @@ void (*std_mem_state_free_fn)(void *, void *) = std_mem_impl_my_free;
 std_logging_LogLevel std_logging_log_level = std_logging_LogLevel_Warn;
 char *std_logging_log_time_format = "%H:%M:%S";
 /* function implementations */
-std_value_Value *compiler_docgen_DocGenerator_gen_venom(compiler_docgen_DocGenerator *this, compiler_ast_nodes_ValueEnum *venom) {
+std_value_Value *compiler_docgen_DocGenerator_gen_enum(compiler_docgen_DocGenerator *this, compiler_ast_nodes_Enum *enom) {
   std_value_Value *enum_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-  std_value_Value_insert_str(enum_doc, "id", std_format("%x", venom->type));
-  std_value_Value_insert_str(enum_doc, "name", venom->sym->name);
-  if (((bool)venom->sym->comment)) {
-    std_value_Value_insert_str(enum_doc, "description", venom->sym->comment);
+  std_value_Value_insert_str(enum_doc, "id", std_format("%x", enom->type));
+  std_value_Value_insert_str(enum_doc, "name", enom->sym->name);
+  if (((bool)enom->sym->comment)) {
+    std_value_Value_insert_str(enum_doc, "description", enom->sym->comment);
   }
   std_value_Value_insert_str(enum_doc, "kind", "enum");
-  if (venom->sym->is_extern) {
-    std_value_Value_insert_str(enum_doc, "extern", compiler_ast_scopes_Symbol_out_name(venom->sym));
+  if (enom->sym->is_extern) {
+    std_value_Value_insert_str(enum_doc, "extern", compiler_ast_scopes_Symbol_out_name(enom->sym));
   } else {
-    compiler_docgen_DocGenerator_gen_location(this, enum_doc, venom->sym->span);
+    compiler_docgen_DocGenerator_gen_location(this, enum_doc, enom->sym->span);
   }
   std_value_Value *fields_doc = std_value_Value_new(std_value_ValueType_List);
-  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-    compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+    compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
     {
       std_value_Value *field_doc = std_value_Value_new(std_value_ValueType_Dictionary);
       std_value_Value_insert_str(field_doc, "name", variant->sym->name);
@@ -3171,7 +3171,7 @@ std_value_Value *compiler_docgen_DocGenerator_gen_venom(compiler_docgen_DocGener
     }
   }
   std_value_Value_insert(enum_doc, "fields", fields_doc);
-  std_value_Value *methods_doc = compiler_docgen_DocGenerator_gen_methods(this, venom->type);
+  std_value_Value *methods_doc = compiler_docgen_DocGenerator_gen_methods(this, enom->type);
   std_value_Value_insert(enum_doc, "methods", methods_doc);
   return enum_doc;
 }
@@ -3228,7 +3228,7 @@ char *compiler_docgen_DocGenerator_gen_typename_str(compiler_docgen_DocGenerator
     case compiler_types_BaseType_F32:
     case compiler_types_BaseType_F64:
     case compiler_types_BaseType_Alias:
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_0_0:
       {
         return std_format("{{%x}}", type);
@@ -3437,12 +3437,12 @@ std_value_Value *compiler_docgen_DocGenerator_gen_ns(compiler_docgen_DocGenerato
   if (ns->is_a_file || ns->is_dir_with_mod) {
     compiler_docgen_DocGenerator_gen_location(this, ns_doc, ns->span);
   }
-  if (!std_vector_Vector__15_is_empty(ns->venoms)) {
+  if (!std_vector_Vector__15_is_empty(ns->enums)) {
     std_value_Value *enums_doc = std_value_Value_new(std_value_ValueType_Dictionary);
-    for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-      compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+    for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+      compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
       {
-        std_value_Value_insert(enums_doc, venom->sym->name, compiler_docgen_DocGenerator_gen_venom(this, venom));
+        std_value_Value_insert(enums_doc, enom->sym->name, compiler_docgen_DocGenerator_gen_enum(this, enom));
       }
     }
     std_value_Value_insert(ns_doc, "enums", enums_doc);
@@ -3615,16 +3615,16 @@ void compiler_passes_register_types_RegisterTypes_register_struct(compiler_passe
   typ->sym=struc->sym;
 }
 
-void compiler_passes_register_types_RegisterTypes_register_venum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_ValueEnum *enum_) {
+void compiler_passes_register_types_RegisterTypes_register_enum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_Enum *enum_) {
   compiler_ast_scopes_Symbol *item = enum_->sym;
   compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, item, NULL);
-  compiler_types_Type *typ = compiler_types_Type_new_resolved(compiler_types_BaseType_ValueEnum, enum_->sym->span);
-  typ->u.venom=enum_;
+  compiler_types_Type *typ = compiler_types_Type_new_resolved(compiler_types_BaseType_Enum, enum_->sym->span);
+  typ->u.enom=enum_;
   enum_->type=typ;
   typ->sym=enum_->sym;
   std_compact_map_Map__1 *values = std_compact_map_Map__1_new(16);
   for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enum_->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-    compiler_ast_nodes_ValueEnumVariant *var = std_vector_Iterator__19_cur(&__iter);
+    compiler_ast_nodes_EnumVariant *var = std_vector_Iterator__19_cur(&__iter);
     {
       var->parent=enum_;
       char *name = var->sym->name;
@@ -3643,22 +3643,22 @@ void compiler_passes_register_types_RegisterTypes_register_globals(compiler_pass
   compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, var->sym, NULL);
 }
 
-void compiler_passes_register_types_RegisterTypes_add_dbg_method_for_venum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_nodes_ValueEnum *venom) {
-  std_span_Span span = venom->sym->span;
+void compiler_passes_register_types_RegisterTypes_add_dbg_method_for_enum(compiler_passes_register_types_RegisterTypes *this, compiler_ast_nodes_Enum *enom) {
+  std_span_Span span = enom->sym->span;
   compiler_ast_nodes_Function *func = compiler_ast_nodes_Function_new();
   func->span=std_span_Span_default();
-  func->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Function, venom->sym->ns, venom->sym, "dbg", span);
+  func->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Function, enom->sym->ns, enom->sym, "dbg", span);
   func->sym->u.func=func;
   func->return_type=compiler_ast_program_Program_get_type_by_name(this->o->program, "str", span);
   func->is_method=true;
-  func->parent_type=venom->type;
-  compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(venom->type);
+  func->parent_type=enom->type;
+  compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(enom->type);
   var->sym=compiler_ast_scopes_Symbol_from_local_variable("this", var, span);
   std_vector_Vector__4_push(func->params, var);
   compiler_types_Type *typ = compiler_types_Type_new_resolved(compiler_types_BaseType_Function, span);
   typ->u.func=(compiler_types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type, .is_variadic=func->is_variadic};
   func->type=typ;
-  std_map_Map__8_insert(venom->type->methods, "dbg", func);
+  std_map_Map__8_insert(enom->type->methods, "dbg", func);
 }
 
 void compiler_passes_register_types_RegisterTypes_register_namespace(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns) {
@@ -3669,11 +3669,11 @@ void compiler_passes_register_types_RegisterTypes_register_namespace(compiler_pa
       compiler_passes_register_types_RegisterTypes_register_struct(this, ns, struc);
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      compiler_passes_register_types_RegisterTypes_register_venum(this, ns, venom);
-      compiler_passes_register_types_RegisterTypes_add_dbg_method_for_venum(this, venom);
+      compiler_passes_register_types_RegisterTypes_register_enum(this, ns, enom);
+      compiler_passes_register_types_RegisterTypes_add_dbg_method_for_enum(this, enom);
     }
   }
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->constants); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
@@ -3762,10 +3762,10 @@ compiler_passes_register_types_Finder compiler_passes_register_types_Finder_to(c
         {
           this.type=res->u.struc->type;
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnum:
+      case compiler_ast_scopes_SymbolType_Enum:
       m_2_2:
         {
-          this.type=res->u.venom->type;
+          this.type=res->u.enom->type;
         } break;
       default:
         {
@@ -4126,10 +4126,10 @@ void compiler_passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(com
       {
         sym->u.struc->is_dead=true;
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_6_2:
       {
-        sym->u.venom->is_dead=true;
+        sym->u.enom->is_dead=true;
       } break;
     default:
       {
@@ -4174,8 +4174,8 @@ void compiler_passes_mark_dead_code_MarkDeadCode_run(compiler_ast_program_Progra
           compiler_passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(pass, s->sym);
         }
       }
-      for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-        compiler_ast_nodes_ValueEnum *e = std_vector_Iterator__15_cur(&__iter);
+      for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+        compiler_ast_nodes_Enum *e = std_vector_Iterator__15_cur(&__iter);
         {
           compiler_passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(pass, e->sym);
         }
@@ -4319,15 +4319,15 @@ compiler_ast_scopes_Symbol *compiler_passes_generic_pass_GenericPass_find_in_sym
           }
           __yield_0 = method->sym;
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnum:
+      case compiler_ast_scopes_SymbolType_Enum:
       m_7_3:
         {
-          compiler_ast_nodes_ValueEnum *venom = sym->u.venom;
-          compiler_ast_nodes_ValueEnumVariant *variant = compiler_ast_nodes_ValueEnum_get_variant(venom, name);
+          compiler_ast_nodes_Enum *enom = sym->u.enom;
+          compiler_ast_nodes_EnumVariant *variant = compiler_ast_nodes_Enum_get_variant(enom, name);
           if (((bool)variant)) {
             return variant->sym;
           }
-          compiler_ast_nodes_Function *method = std_map_Map__8_get(venom->type->methods, name, NULL);
+          compiler_ast_nodes_Function *method = std_map_Map__8_get(enom->type->methods, name, NULL);
           if (((bool)method)) {
             return method->sym;
           }
@@ -4366,7 +4366,7 @@ compiler_ast_scopes_Symbol *compiler_passes_generic_pass_GenericPass_find_in_sym
       {
         compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(span, std_format("Could not find method %s in type %s", name, sym->display)));
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_8_3:
       {
         compiler_passes_generic_pass_GenericPass_error(this, compiler_errors_Error_new(span, std_format("Could not find variant/method %s in enum %s", name, sym->display)));
@@ -4394,10 +4394,10 @@ void compiler_passes_generic_pass_GenericPass_import_all_from_namespace(compiler
       compiler_passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, struc->sym, NULL);
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      compiler_passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, venom->sym, NULL);
+      compiler_passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, enom->sym, NULL);
     }
   }
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->variables); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
@@ -4455,11 +4455,11 @@ void compiler_passes_generic_pass_GenericPass_import_all_from_symbol(compiler_pa
           }
         }
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_9_3:
       {
-        for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(sym->u.venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-          compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+        for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(sym->u.enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+          compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
           {
             compiler_passes_generic_pass_GenericPass_insert_into_scope_checked_and_export(this, export, variant->sym, NULL);
           }
@@ -4651,10 +4651,10 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_resolve_type(compil
                   resolved=type;
                 }
               } break;
-            case compiler_ast_scopes_SymbolType_ValueEnum:
+            case compiler_ast_scopes_SymbolType_Enum:
             m_13_3:
               {
-                resolved=res->u.venom->type;
+                resolved=res->u.enom->type;
               } break;
             default:
               {
@@ -4694,7 +4694,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_resolve_type(compil
     case compiler_types_BaseType_U64:
     case compiler_types_BaseType_F32:
     case compiler_types_BaseType_F64:
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_11_5:
       {
       } break;
@@ -4883,11 +4883,11 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_scop
         compiler_ast_scopes_Symbol *res = ((compiler_ast_scopes_Symbol *)NULL);
         if (((bool)hint)) {
           switch ((hint->base)) {
-            case compiler_types_BaseType_ValueEnum:
+            case compiler_types_BaseType_Enum:
             m_16_0:
               {
-                compiler_ast_nodes_ValueEnum *venom = hint->u.venom;
-                compiler_ast_nodes_ValueEnumVariant *variant = compiler_ast_nodes_ValueEnum_get_variant(venom, name);
+                compiler_ast_nodes_Enum *enom = hint->u.enom;
+                compiler_ast_nodes_EnumVariant *variant = compiler_ast_nodes_Enum_get_variant(enom, name);
                 if (((bool)variant)) {
                   res=variant->sym;
                 }
@@ -5039,12 +5039,12 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
   return struc->type;
 }
 
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_venom_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
-  node->u.call.call_type=compiler_ast_nodes_CallType_ValueEnumConstructor;
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_enum_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
+  node->u.call.call_type=compiler_ast_nodes_CallType_EnumConstructor;
   compiler_ast_nodes_AST *callee = node->u.call.callee;
   compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
-  if(!(type_sym->type==compiler_ast_scopes_SymbolType_ValueEnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:567:12: Assertion failed: `type_sym.type == ValueEnumVariant`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
-  compiler_ast_nodes_ValueEnumVariant *variant = type_sym->u.venom_var;
+  if(!(type_sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:567:12: Assertion failed: `type_sym.type == EnumVariant`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
+  compiler_ast_nodes_EnumVariant *variant = type_sym->u.enum_var;
   std_vector_Vector__4 *expected_fields = variant->fields;
   std_vector_Vector__7 *args = node->u.call.args;
   if (variant->fields->size==0 && args->size==0) {
@@ -5161,11 +5161,11 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler
                       node->u.call.call_type=compiler_ast_nodes_CallType_StructConstructor;
                       return compiler_passes_typechecker_TypeChecker_check_constructor(this, node);
                     } break;
-                  case compiler_ast_scopes_SymbolType_ValueEnumVariant:
+                  case compiler_ast_scopes_SymbolType_EnumVariant:
                   m_18_1:
                     {
-                      node->u.call.call_type=compiler_ast_nodes_CallType_ValueEnumConstructor;
-                      return compiler_passes_typechecker_TypeChecker_check_venom_constructor(this, node);
+                      node->u.call.call_type=compiler_ast_nodes_CallType_EnumConstructor;
+                      return compiler_passes_typechecker_TypeChecker_check_enum_constructor(this, node);
                     } break;
                   default:
                     {
@@ -5393,9 +5393,9 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
             __yield_0 = true;
           } else if (lhs->base==compiler_types_BaseType_Structure) {
             __yield_0 = true;
-          } else if (lhs->base==compiler_types_BaseType_ValueEnum) {
+          } else if (lhs->base==compiler_types_BaseType_Enum) {
             __yield_0 = ({ bool __yield_1;
-              if (lhs->u.venom->has_values) {
+              if (lhs->u.enom->has_values) {
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support non-trivial enum `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs))));
                 return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
               } else {
@@ -5420,7 +5420,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
             __yield_0 = true;
           } else if (lhs->base==compiler_types_BaseType_Structure) {
             __yield_0 = true;
-          } else if (lhs->base==compiler_types_BaseType_ValueEnum && lhs->u.venom->has_values) {
+          } else if (lhs->base==compiler_types_BaseType_Enum && lhs->u.enom->has_values) {
             __yield_0 = true;
           } else {
             __yield_0 = false;
@@ -5434,7 +5434,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
             (*copy)=(*node);
             (*node)=(*compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Not, node->span, copy));
             compiler_passes_typechecker_TypeChecker_check_expression(this, node, NULL);
-          } else if (lhs->base==compiler_types_BaseType_ValueEnum) {
+          } else if (lhs->base==compiler_types_BaseType_Enum) {
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support non-trivial enum `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs))));
           } else {
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
@@ -5930,10 +5930,10 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
             {
               return item->u.var->type;
             } break;
-          case compiler_ast_scopes_SymbolType_ValueEnumVariant:
+          case compiler_ast_scopes_SymbolType_EnumVariant:
           m_29_2:
             {
-              compiler_ast_nodes_ValueEnumVariant *variant = item->u.venom_var;
+              compiler_ast_nodes_EnumVariant *variant = item->u.enum_var;
               if (variant->fields->size != 0) {
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("%s needs %u fields to construct", item->display, variant->fields->size)));
                 return NULL;
@@ -5948,7 +5948,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
             } break;
           case compiler_ast_scopes_SymbolType_Structure:
           case compiler_ast_scopes_SymbolType_Namespace:
-          case compiler_ast_scopes_SymbolType_ValueEnum:
+          case compiler_ast_scopes_SymbolType_Enum:
           m_29_4:
             {
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot use %s `%s` as an expression", compiler_ast_scopes_SymbolType_dbg(item->type), item->name)));
@@ -6125,7 +6125,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_va
     return NULL;
   }
   switch ((node->etype->base)) {
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_31_0:
       {
       } break;
@@ -6145,7 +6145,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_va
   return compiler_passes_typechecker_TypeChecker_check_expression(this, call, NULL);
 }
 
-void compiler_passes_typechecker_TypeChecker_check_match_for_venom(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_ValueEnum *venom, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
+void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enom, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
   std_map_Map__9 *mapping = std_map_Map__9_new(8);
   std_vector_Vector__23 *cases = node->u.match_stmt.cases;
   node->returns=(cases->size > 0);
@@ -6159,7 +6159,7 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_venom(compiler_pass
         compiler_ast_nodes_MatchCond *cond = std_vector_Vector__11_at(conds, i);
         char *name;
         compiler_ast_nodes_AST *expr = cond->expr;
-        expr->hint=venom->type;
+        expr->hint=enom->type;
         switch ((expr->type)) {
           case compiler_ast_nodes_ASTType_Identifier:
           case compiler_ast_nodes_ASTType_NSLookup:
@@ -6173,19 +6173,19 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_venom(compiler_pass
               continue;
             } break;
         }
-        compiler_ast_scopes_Symbol *resolved_sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, expr, true, venom->type, true);
+        compiler_ast_scopes_Symbol *resolved_sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, expr, true, enom->type, true);
         if (!((bool)resolved_sym)) {
           continue;
         }
-        if (resolved_sym->type != compiler_ast_scopes_SymbolType_ValueEnumVariant) {
+        if (resolved_sym->type != compiler_ast_scopes_SymbolType_EnumVariant) {
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, std_format("Expected value enum variant, got %s (%s)", compiler_ast_scopes_SymbolType_dbg(resolved_sym->type), resolved_sym->display)));
           continue;
         }
-        compiler_ast_nodes_ValueEnumVariant *variant = resolved_sym->u.venom_var;
-        if (variant->parent != venom) {
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, "Condition does not match expression type", node->u.match_stmt.expr->span, std_format("Match expression is of type '%s'", compiler_types_Type_str(venom->type))));
+        compiler_ast_nodes_EnumVariant *variant = resolved_sym->u.enum_var;
+        if (variant->parent != enom) {
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, "Condition does not match expression type", node->u.match_stmt.expr->span, std_format("Match expression is of type '%s'", compiler_types_Type_str(enom->type))));
         }
-        expr->etype=venom->type;
+        expr->etype=enom->type;
         std_vector_Vector__4 *args = cond->args;
         if (((bool)args) && (args->size != variant->fields->size)) {
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, std_format("%s needs %u fields, got %u", variant->sym->display, variant->fields->size, args->size), variant->sym->span, std_format("Variant '%s' has no fields", variant->sym->display)));
@@ -6248,12 +6248,12 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_venom(compiler_pass
     }
   }
   compiler_ast_nodes_AST *defolt = node->u.match_stmt.defolt;
-  if (mapping->size != venom->variants->size) {
+  if (mapping->size != enom->variants->size) {
     std_buffer_Buffer buf = std_buffer_Buffer_make(16);
     std_buffer_Buffer_write_str(&buf, "Remaining fields: ");
     bool first = true;
-    for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-      compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+    for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+      compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
       {
         if (!std_map_Map__9_contains(mapping, variant->sym->name)) {
           if (!first) {
@@ -6265,7 +6265,7 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_venom(compiler_pass
       }
     }
     if (!((bool)defolt)) {
-      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->u.match_stmt.expr->span, std_format("Match does not cover all cases (Only %u of %u)", mapping->size, venom->variants->size), std_buffer_Buffer_str(buf)));
+      compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->u.match_stmt.expr->span, std_format("Match does not cover all cases (Only %u of %u)", mapping->size, enom->variants->size), std_buffer_Buffer_str(buf)));
     } else {
       compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, defolt, is_expr, hint);
     }
@@ -6364,10 +6364,10 @@ void compiler_passes_typechecker_TypeChecker_check_match(compiler_passes_typeche
     return;
   }
   switch ((expr_type->base)) {
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_33_0:
       {
-        compiler_passes_typechecker_TypeChecker_check_match_for_venom(this, expr_type->u.venom, node, is_expr, hint);
+        compiler_passes_typechecker_TypeChecker_check_match_for_enum(this, expr_type->u.enom, node, is_expr, hint);
         return;
       } break;
     case compiler_types_BaseType_Bool:
@@ -6790,12 +6790,12 @@ void compiler_passes_typechecker_TypeChecker_check_namespace(compiler_passes_typ
       compiler_passes_typechecker_TypeChecker_check_globals(this, node, false);
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, venom->sym);
-      for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-        compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+      compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, enom->sym);
+      for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+        compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
         {
           compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, variant->sym);
         }
@@ -6874,15 +6874,15 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
             {
               __yield_0 = std_format("%x", sym->u.func);
             } break;
-          case compiler_ast_scopes_SymbolType_ValueEnum:
+          case compiler_ast_scopes_SymbolType_Enum:
           m_36_2:
             {
-              __yield_0 = std_format("%x", sym->u.venom);
+              __yield_0 = std_format("%x", sym->u.enom);
             } break;
-          case compiler_ast_scopes_SymbolType_ValueEnumVariant:
+          case compiler_ast_scopes_SymbolType_EnumVariant:
           m_36_3:
             {
-              __yield_0 = std_format("%x", sym->u.venom_var);
+              __yield_0 = std_format("%x", sym->u.enum_var);
             } break;
           case compiler_ast_scopes_SymbolType_TypeDef:
           m_36_4:
@@ -7160,11 +7160,11 @@ void compiler_passes_typechecker_TypeChecker_pre_check_function(compiler_passes_
             compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(func->sym->span, "Field with this name already exists", name->sym->span, "Previous definition here"));
           }
         } break;
-      case compiler_types_BaseType_ValueEnum:
+      case compiler_types_BaseType_Enum:
       m_41_1:
         {
-          compiler_ast_nodes_ValueEnum *venom = parent_type->u.venom;
-          compiler_ast_nodes_ValueEnumVariant *var = compiler_ast_nodes_ValueEnum_get_variant(venom, func->sym->name);
+          compiler_ast_nodes_Enum *enom = parent_type->u.enom;
+          compiler_ast_nodes_EnumVariant *var = compiler_ast_nodes_Enum_get_variant(enom, func->sym->name);
           if (((bool)var)) {
             compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(func->sym->span, "Enum variant with this name already exists", var->sym->span, "Previous definition here"));
           }
@@ -7219,9 +7219,9 @@ void compiler_passes_typechecker_TypeChecker_resolve_struct(compiler_passes_type
   }
 }
 
-void compiler_passes_typechecker_TypeChecker_resolve_venom(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_ValueEnum *venom) {
-  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-    compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+void compiler_passes_typechecker_TypeChecker_resolve_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enom) {
+  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+    compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
     {
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(variant->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
         compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
@@ -7364,10 +7364,10 @@ void compiler_passes_typechecker_TypeChecker_check_post_import(compiler_passes_t
       compiler_passes_typechecker_TypeChecker_resolve_struct(this, struc);
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      compiler_passes_typechecker_TypeChecker_resolve_venom(this, venom);
+      compiler_passes_typechecker_TypeChecker_resolve_enum(this, enom);
     }
   }
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->constants); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
@@ -7984,13 +7984,13 @@ void compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(compiler_
   std_vector_Vector__8_pop(this->yield_vars);
 }
 
-void compiler_passes_code_generator_CodeGenerator_gen_venom_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnumVariant *variant, std_vector_Vector__7 *args) {
-  compiler_ast_nodes_ValueEnum *venom = variant->parent;
-  if (!venom->has_values) {
+void compiler_passes_code_generator_CodeGenerator_gen_enum_constructor(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_EnumVariant *variant, std_vector_Vector__7 *args) {
+  compiler_ast_nodes_Enum *enom = variant->parent;
+  if (!enom->has_values) {
     std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
     return;
   }
-  std_buffer_Buffer_write_str_f(&this->out, std_format("(%s){", compiler_ast_scopes_Symbol_out_name(venom->sym)));
+  std_buffer_Buffer_write_str_f(&this->out, std_format("(%s){", compiler_ast_scopes_Symbol_out_name(enom->sym)));
   std_buffer_Buffer_write_str_f(&this->out, std_format(".tag=%s,", compiler_ast_scopes_Symbol_out_name(variant->sym)));
   if (((bool)args) && (args->size > 0)) {
     std_buffer_Buffer_write_str_f(&this->out, std_format(".%s={", compiler_ast_scopes_Symbol_out_name(variant->sym)));
@@ -8146,10 +8146,10 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
             {
               std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
             } break;
-          case compiler_ast_scopes_SymbolType_ValueEnumVariant:
+          case compiler_ast_scopes_SymbolType_EnumVariant:
           m_50_1:
             {
-              compiler_passes_code_generator_CodeGenerator_gen_venom_constructor(this, sym->u.venom_var, NULL);
+              compiler_passes_code_generator_CodeGenerator_gen_enum_constructor(this, sym->u.enum_var, NULL);
             } break;
           default:
             {
@@ -8175,11 +8175,11 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
                 compiler_passes_code_generator_CodeGenerator_gen_constructor(this, node, sym->u.struc);
                 return;
               } break;
-            case compiler_ast_nodes_CallType_ValueEnumConstructor:
+            case compiler_ast_nodes_CallType_EnumConstructor:
             m_51_1:
               {
-                if(!(sym->type==compiler_ast_scopes_SymbolType_ValueEnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:518:32: Assertion failed: `sym.type == ValueEnumVariant`", NULL); }
-                compiler_passes_code_generator_CodeGenerator_gen_venom_constructor(this, sym->u.venom_var, node->u.call.args);
+                if(!(sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:518:32: Assertion failed: `sym.type == EnumVariant`", NULL); }
+                compiler_passes_code_generator_CodeGenerator_gen_enum_constructor(this, sym->u.enum_var, node->u.call.args);
                 return;
               } break;
             default:
@@ -8476,15 +8476,15 @@ void compiler_passes_code_generator_CodeGenerator_gen_custom_match(compiler_pass
   std_buffer_Buffer_write_str(&this->out, "}\n");
 }
 
-void compiler_passes_code_generator_CodeGenerator_gen_match_venom(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
+void compiler_passes_code_generator_CodeGenerator_gen_match_enum(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
   compiler_ast_nodes_Match *match_stmt = &node->u.match_stmt;
   compiler_ast_nodes_AST *expr = match_stmt->expr;
-  if(!(((bool)expr->etype) && expr->etype->base==compiler_types_BaseType_ValueEnum)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:781:12: Assertion failed: `expr.etype? and expr.etype.base == ValueEnum`", NULL); }
-  compiler_ast_nodes_ValueEnum *venom = expr->etype->u.venom;
+  if(!(((bool)expr->etype) && expr->etype->base==compiler_types_BaseType_Enum)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:781:12: Assertion failed: `expr.etype? and expr.etype.base == Enum`", NULL); }
+  compiler_ast_nodes_Enum *enom = expr->etype->u.enom;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
   std_buffer_Buffer_write_str(&this->out, "switch ((");
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
-  if (venom->has_values) {
+  if (enom->has_values) {
     std_buffer_Buffer_write_str(&this->out, ").tag) {\n");
   } else {
     std_buffer_Buffer_write_str(&this->out, ")) {\n");
@@ -8513,8 +8513,8 @@ void compiler_passes_code_generator_CodeGenerator_gen_match_venom(compiler_passe
     for (u32 j = 0; j < _case.conds->size; j++) {
       compiler_ast_nodes_MatchCond *cond = std_vector_Vector__11_at(_case.conds, j);
       compiler_ast_scopes_Symbol *resolved = cond->expr->resolved_symbol;
-      if(!(((bool)resolved) && resolved->type==compiler_ast_scopes_SymbolType_ValueEnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:819:20: Assertion failed: `resolved? and resolved.type == ValueEnumVariant`", NULL); }
-      compiler_ast_nodes_ValueEnumVariant *variant = resolved->u.venom_var;
+      if(!(((bool)resolved) && resolved->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:819:20: Assertion failed: `resolved? and resolved.type == EnumVariant`", NULL); }
+      compiler_ast_nodes_EnumVariant *variant = resolved->u.enum_var;
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       std_buffer_Buffer_write_str(&this->out, "case ");
       std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
@@ -8602,10 +8602,10 @@ void compiler_passes_code_generator_CodeGenerator_gen_match(compiler_passes_code
         compiler_passes_code_generator_CodeGenerator_gen_match_bool(this, node);
         return;
       } break;
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_55_1:
       {
-        compiler_passes_code_generator_CodeGenerator_gen_match_venom(this, node);
+        compiler_passes_code_generator_CodeGenerator_gen_match_enum(this, node);
         return;
       } break;
     default:
@@ -8901,10 +8901,10 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
       {
         str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.struc->sym), acc));
       } break;
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_57_2:
       {
-        str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.venom->sym), acc));
+        str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.enom->sym), acc));
       } break;
     case compiler_types_BaseType_Alias:
     m_57_3:
@@ -9100,20 +9100,20 @@ void compiler_passes_code_generator_CodeGenerator_gen_function_decls(compiler_pa
   }
 }
 
-void compiler_passes_code_generator_CodeGenerator_gen_venom_dbg_method(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnum *venom) {
-  compiler_ast_nodes_Function *dbg = std_map_Map__8_at(venom->type->methods, "dbg");
+void compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom) {
+  compiler_ast_nodes_Function *dbg = std_map_Map__8_at(enom->type->methods, "dbg");
   compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, dbg);
   std_buffer_Buffer_write_str(&this->out, " {\n");
   this->indent+=1;
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-  if (venom->has_values) {
+  if (enom->has_values) {
     std_buffer_Buffer_write_str(&this->out, "switch (this.tag) {\n");
   } else {
     std_buffer_Buffer_write_str(&this->out, "switch (this) {\n");
   }
   this->indent+=1;
-  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-    compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+    compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
     {
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       std_buffer_Buffer_write_str(&this->out, "case ");
@@ -9152,10 +9152,10 @@ void compiler_passes_code_generator_CodeGenerator_gen_sym_typedef(compiler_passe
       {
         compiler_passes_code_generator_CodeGenerator_gen_struct_typedef(this, sym->u.struc);
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_58_1:
       {
-        compiler_passes_code_generator_CodeGenerator_gen_venom_typedef(this, sym->u.venom);
+        compiler_passes_code_generator_CodeGenerator_gen_enum_typedef(this, sym->u.enom);
       } break;
     default:
       {
@@ -9171,10 +9171,10 @@ void compiler_passes_code_generator_CodeGenerator_gen_sym_def(compiler_passes_co
       {
         compiler_passes_code_generator_CodeGenerator_gen_struct_def(this, sym->u.struc);
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_59_1:
       {
-        compiler_passes_code_generator_CodeGenerator_gen_venom_def(this, sym->u.venom);
+        compiler_passes_code_generator_CodeGenerator_gen_enum_def(this, sym->u.enom);
       } break;
     default:
       {
@@ -9183,12 +9183,12 @@ void compiler_passes_code_generator_CodeGenerator_gen_sym_def(compiler_passes_co
   }
 }
 
-void compiler_passes_code_generator_CodeGenerator_gen_venom_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnum *venom) {
-  if (venom->sym->is_extern) {
+void compiler_passes_code_generator_CodeGenerator_gen_enum_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom) {
+  if (enom->sym->is_extern) {
     return;
   }
-  char *name = compiler_ast_scopes_Symbol_out_name(venom->sym);
-  if (venom->has_values) {
+  char *name = compiler_ast_scopes_Symbol_out_name(enom->sym);
+  if (enom->has_values) {
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef enum %s__kind %s__kind;\n", name, name));
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef struct %s %s;\n", name, name));
   } else {
@@ -9223,31 +9223,31 @@ void compiler_passes_code_generator_CodeGenerator_gen_struct_def(compiler_passes
   std_buffer_Buffer_write_str(&this->out, "};\n\n");
 }
 
-void compiler_passes_code_generator_CodeGenerator_gen_venom_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_ValueEnum *venom) {
-  char *name = compiler_ast_scopes_Symbol_out_name(venom->sym);
-  if (venom->sym->is_extern) {
+void compiler_passes_code_generator_CodeGenerator_gen_enum_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom) {
+  char *name = compiler_ast_scopes_Symbol_out_name(enom->sym);
+  if (enom->sym->is_extern) {
     /* defers */
-    compiler_passes_code_generator_CodeGenerator_gen_venom_dbg_method(this, venom);
+    compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enom);
     return;
   }
-  if (venom->has_values) {
+  if (enom->has_values) {
     std_buffer_Buffer_write_str_f(&this->out, std_format("enum %s__kind {\n", name));
   } else {
     std_buffer_Buffer_write_str_f(&this->out, std_format("enum %s {\n", name));
   }
-  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-    compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+  for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+    compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
     {
       std_buffer_Buffer_write_str_f(&this->out, std_format("  %s,\n", compiler_ast_scopes_Symbol_out_name(variant->sym)));
     }
   }
   std_buffer_Buffer_write_str(&this->out, "};\n\n");
-  if (venom->has_values) {
+  if (enom->has_values) {
     std_buffer_Buffer_write_str_f(&this->out, std_format("struct %s {\n", name));
     std_buffer_Buffer_write_str_f(&this->out, std_format("  %s__kind tag;\n", name));
     std_buffer_Buffer_write_str(&this->out, "  union {\n");
-    for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-      compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+    for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+      compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
       {
         if (variant->fields->size > 0) {
           std_buffer_Buffer_write_str(&this->out, "    struct {\n");
@@ -9266,7 +9266,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_venom_def(compiler_passes_
     std_buffer_Buffer_write_str(&this->out, "};\n\n");
   }
   /* defers */
-  compiler_passes_code_generator_CodeGenerator_gen_venom_dbg_method(this, venom);
+  compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enom);
 }
 
 char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code_generator_CodeGenerator *this) {
@@ -9353,10 +9353,10 @@ void compiler_passes_reorder_structs_ReorderStructs_collect_all_structs(compiler
       }
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      std_vector_Vector__10_push(this->all_syms, venom->sym);
+      std_vector_Vector__10_push(this->all_syms, enom->sym);
     }
   }
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
@@ -9386,11 +9386,11 @@ void compiler_passes_reorder_structs_ReorderStructs_dfs(compiler_passes_reorder_
         }
         std_vector_Vector__9_push(this->o->program->ordered_structs, sym->u.struc);
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_60_1:
       {
-        for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(sym->u.venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-          compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+        for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(sym->u.enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+          compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
           {
             for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(variant->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
               compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
@@ -11433,15 +11433,15 @@ compiler_ast_nodes_Structure *compiler_parser_Parser_parse_struct(compiler_parse
   return struc;
 }
 
-compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser_Parser *this) {
+compiler_ast_nodes_Enum *compiler_parser_Parser_parse_enum(compiler_parser_Parser *this) {
   compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
   compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
-  compiler_ast_nodes_ValueEnum *venom = compiler_ast_nodes_ValueEnum_new(start->span);
-  compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_ValueEnum, this->ns, this->ns->sym, name->text, name->span);
-  sym->u.venom=venom;
-  venom->sym=sym;
+  compiler_ast_nodes_Enum *enom = compiler_ast_nodes_Enum_new(start->span);
+  compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Enum, this->ns, this->ns->sym, name->text, name->span);
+  sym->u.enom=enom;
+  enom->sym=sym;
   compiler_parser_Parser_add_doc_comment(this, sym, start);
-  venom->has_values=false;
+  enom->has_values=false;
   bool is_extern = false;
   for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(this->attrs); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
     compiler_attributes_Attribute *attr = std_vector_Iterator__13_cur(&__iter);
@@ -11450,7 +11450,7 @@ compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser
         case compiler_attributes_AttributeType_Extern:
         m_79_0:
           {
-            compiler_parser_Parser_get_extern_from_attr(this, venom->sym, attr);
+            compiler_parser_Parser_get_extern_from_attr(this, enom->sym, attr);
             is_extern=true;
           } break;
         default:
@@ -11461,23 +11461,23 @@ compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser
     }
   }
   if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Extern)) {
-    compiler_parser_Parser_parse_extern_into_symbol(this, venom->sym);
+    compiler_parser_Parser_parse_extern_into_symbol(this, enom->sym);
   }
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
   while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseCurly)) {
     compiler_parser_Parser_parse_attributes_if_any(this);
     compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
-    compiler_ast_nodes_ValueEnumVariant *variant = compiler_ast_nodes_ValueEnumVariant_new(name->span);
-    compiler_ast_scopes_Symbol *vsym = compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_ValueEnumVariant, this->ns, sym, name->text, name->span);
-    vsym->u.venom_var=variant;
+    compiler_ast_nodes_EnumVariant *variant = compiler_ast_nodes_EnumVariant_new(name->span);
+    compiler_ast_scopes_Symbol *vsym = compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_EnumVariant, this->ns, sym, name->text, name->span);
+    vsym->u.enum_var=variant;
     variant->sym=vsym;
-    variant->parent=venom;
+    variant->parent=enom;
     compiler_parser_Parser_add_doc_comment(this, vsym, name);
     if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_OpenParen)) {
       compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenParen);
       while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseParen)) {
         compiler_types_Type *typ = compiler_parser_Parser_parse_type(this);
-        venom->has_values=true;
+        enom->has_values=true;
         compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(typ);
         std_vector_Vector__4_push(variant->fields, var);
         compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Comma);
@@ -11489,7 +11489,7 @@ compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser
     }
     if (compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Equals)) {
       compiler_parser_Parser_parse_extern_into_symbol(this, variant->sym);
-      if (venom->has_values) {
+      if (enom->has_values) {
         compiler_parser_Parser_error(this, compiler_errors_Error_new(variant->sym->span, "Non-trivial value enums can't be extern"));
       }
     }
@@ -11501,7 +11501,7 @@ compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser
           m_80_0:
             {
               compiler_parser_Parser_get_extern_from_attr(this, variant->sym, attr);
-              if (venom->has_values) {
+              if (enom->has_values) {
                 compiler_parser_Parser_error(this, compiler_errors_Error_new(variant->sym->span, "Non-trivial value enums can't be extern"));
               }
             } break;
@@ -11512,11 +11512,11 @@ compiler_ast_nodes_ValueEnum *compiler_parser_Parser_parse_venum(compiler_parser
         }
       }
     }
-    std_vector_Vector__19_push(venom->variants, variant);
+    std_vector_Vector__19_push(enom->variants, variant);
     compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Comma);
   }
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseCurly);
-  return venom;
+  return enom;
 }
 
 void compiler_parser_Parser_parse_attribute(compiler_parser_Parser *this) {
@@ -11636,9 +11636,9 @@ void compiler_parser_Parser_parse_namespace_until(compiler_parser_Parser *this, 
       case compiler_tokens_TokenType_Enum:
       m_81_5:
         {
-          compiler_ast_nodes_ValueEnum *venom = compiler_parser_Parser_parse_venum(this);
-          if (((bool)venom)) {
-            std_vector_Vector__15_push(this->ns->venoms, venom);
+          compiler_ast_nodes_Enum *enom = compiler_parser_Parser_parse_enum(this);
+          if (((bool)enom)) {
+            std_vector_Vector__15_push(this->ns->enums, enom);
           }
         } break;
       case compiler_tokens_TokenType_Let:
@@ -12476,7 +12476,7 @@ compiler_ast_program_Namespace *compiler_ast_program_Namespace_new(compiler_ast_
   ns->scope=NULL;
   ns->functions=std_vector_Vector__6_new(16);
   ns->structs=std_vector_Vector__9_new(16);
-  ns->venoms=std_vector_Vector__15_new(16);
+  ns->enums=std_vector_Vector__15_new(16);
   ns->constants=std_vector_Vector__16_new(16);
   ns->variables=std_vector_Vector__16_new(16);
   ns->typedefs=std_map_Map__2_new(8);
@@ -12532,11 +12532,11 @@ compiler_ast_scopes_Symbol *compiler_ast_program_Namespace_find_importable_symbo
       }
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(this->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(this->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      if (str_eq(venom->sym->name, name)) {
-        return venom->sym;
+      if (str_eq(enom->sym->name, name)) {
+        return enom->sym;
       }
     }
   }
@@ -13242,9 +13242,9 @@ compiler_ast_nodes_Variable *compiler_ast_nodes_Structure_get_field(compiler_ast
   return NULL;
 }
 
-compiler_ast_nodes_ValueEnumVariant *compiler_ast_nodes_ValueEnum_get_variant(compiler_ast_nodes_ValueEnum *this, char *name) {
+compiler_ast_nodes_EnumVariant *compiler_ast_nodes_Enum_get_variant(compiler_ast_nodes_Enum *this, char *name) {
   for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(this->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-    compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+    compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
     {
       if (str_eq(variant->sym->name, name)) {
         return variant;
@@ -13254,15 +13254,15 @@ compiler_ast_nodes_ValueEnumVariant *compiler_ast_nodes_ValueEnum_get_variant(co
   return NULL;
 }
 
-compiler_ast_nodes_ValueEnum *compiler_ast_nodes_ValueEnum_new(std_span_Span span) {
-  compiler_ast_nodes_ValueEnum *venom = std_mem_alloc__11(1);
-  venom->variants=std_vector_Vector__19_new(16);
-  venom->span=span;
-  return venom;
+compiler_ast_nodes_Enum *compiler_ast_nodes_Enum_new(std_span_Span span) {
+  compiler_ast_nodes_Enum *enom = std_mem_alloc__11(1);
+  enom->variants=std_vector_Vector__19_new(16);
+  enom->span=span;
+  return enom;
 }
 
-compiler_ast_nodes_ValueEnumVariant *compiler_ast_nodes_ValueEnumVariant_new(std_span_Span span) {
-  compiler_ast_nodes_ValueEnumVariant *variant = std_mem_alloc__12(1);
+compiler_ast_nodes_EnumVariant *compiler_ast_nodes_EnumVariant_new(std_span_Span span) {
+  compiler_ast_nodes_EnumVariant *variant = std_mem_alloc__12(1);
   variant->fields=std_vector_Vector__4_new(16);
   return variant;
 }
@@ -13855,7 +13855,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
         } break;
       case compiler_types_BaseType_Structure:
       case compiler_types_BaseType_Alias:
-      case compiler_types_BaseType_ValueEnum:
+      case compiler_types_BaseType_Enum:
       m_101_3:
         {
           if (!((bool)type->template_instance)) {
@@ -14066,15 +14066,15 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
         {
           __yield_0 = std_format("namespace %s", sym->display);
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnum:
+      case compiler_ast_scopes_SymbolType_Enum:
       m_105_6:
         {
           __yield_0 = std_format("enum %s", sym->display);
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnumVariant:
+      case compiler_ast_scopes_SymbolType_EnumVariant:
       m_105_7:
         {
-          compiler_ast_nodes_ValueEnumVariant *variant = sym->u.venom_var;
+          compiler_ast_nodes_EnumVariant *variant = sym->u.enum_var;
           std_buffer_Buffer buf = std_buffer_Buffer_make(16);
           std_buffer_Buffer_write_str_f(&buf, std_format("enum %s", variant->sym->display));
           if (variant->fields->size > 0) {
@@ -14090,11 +14090,11 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
           }
           __yield_0 = std_buffer_Buffer_str(buf);
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnumField:
+      case compiler_ast_scopes_SymbolType_EnumField:
       m_105_8:
         {
-          compiler_ast_scopes_ValueEnumField field = sym->u.venom_field;
-          __yield_0 = std_format("venum %s.%u", field.variant->sym->display, field.idx);
+          compiler_ast_scopes_EnumField field = sym->u.enum_field;
+          __yield_0 = std_format("enum %s.%u", field.variant->sym->display, field.idx);
         } break;
     }
 
@@ -14134,20 +14134,20 @@ compiler_types_Type *compiler_lsp_utils_get_symbol_typedef(compiler_ast_scopes_S
         {
           __yield_0 = NULL;
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnum:
+      case compiler_ast_scopes_SymbolType_Enum:
       m_106_6:
         {
-          __yield_0 = sym->u.venom->type;
+          __yield_0 = sym->u.enom->type;
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnumVariant:
+      case compiler_ast_scopes_SymbolType_EnumVariant:
       m_106_7:
         {
-          __yield_0 = sym->u.venom_var->parent->type;
+          __yield_0 = sym->u.enum_var->parent->type;
         } break;
-      case compiler_ast_scopes_SymbolType_ValueEnumField:
+      case compiler_ast_scopes_SymbolType_EnumField:
       m_106_8:
         {
-          __yield_0 = sym->u.venom_field.variant->parent->type;
+          __yield_0 = sym->u.enum_field.variant->parent->type;
         } break;
     }
 
@@ -14479,10 +14479,10 @@ void compiler_lsp_utils_gen_completions_from_scope(compiler_ast_scopes_Scope *sc
   if (!((bool)scope)) {
     return;
   }
-  if (((bool)hint_type) && hint_type->base==compiler_types_BaseType_ValueEnum) {
-    compiler_ast_nodes_ValueEnum *venom = hint_type->u.venom;
-    for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-      compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+  if (((bool)hint_type) && hint_type->base==compiler_types_BaseType_Enum) {
+    compiler_ast_nodes_Enum *enom = hint_type->u.enom;
+    for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+      compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
       {
         compiler_lsp_utils_insert_completion_item(completions, variant->sym, seen);
       }
@@ -14612,18 +14612,18 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
           }
         }
       } break;
-    case compiler_ast_scopes_SymbolType_ValueEnum:
+    case compiler_ast_scopes_SymbolType_Enum:
     m_111_2:
       {
         if (((bool)node) && node->type==compiler_ast_nodes_ASTType_NSLookup) {
-          for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(sym->u.venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-            compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+          for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(sym->u.enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+            compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
             {
               compiler_lsp_utils_insert_completion_item(completions, variant->sym, seen);
             }
           }
         }
-        for (std_map_ValueIterator__8 __iter = std_map_Map__8_iter_values(sym->u.venom->type->methods); std_map_ValueIterator__8_has_value(&__iter); std_map_ValueIterator__8_next(&__iter)) {
+        for (std_map_ValueIterator__8 __iter = std_map_Map__8_iter_values(sym->u.enom->type->methods); std_map_ValueIterator__8_has_value(&__iter); std_map_ValueIterator__8_next(&__iter)) {
           compiler_ast_nodes_Function *mth = std_map_ValueIterator__8_cur(&__iter);
           {
             compiler_lsp_utils_insert_completion_item(completions, mth->sym, seen);
@@ -15291,14 +15291,14 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
       }
     }
   }
-  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->venoms); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
-    compiler_ast_nodes_ValueEnum *venom = std_vector_Iterator__15_cur(&__iter);
+  for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
+    compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
     {
-      if (std_span_Span_contains_loc(venom->sym->span, this->loc)) {
-        return compiler_lsp_finder_Finder_set_usage(this, venom->sym, NULL);
+      if (std_span_Span_contains_loc(enom->sym->span, this->loc)) {
+        return compiler_lsp_finder_Finder_set_usage(this, enom->sym, NULL);
       }
-      for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(venom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
-        compiler_ast_nodes_ValueEnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
+      for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
+        compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
         {
           if (std_span_Span_contains_loc(variant->sym->span, this->loc)) {
             return compiler_lsp_finder_Finder_set_usage(this, variant->sym, NULL);
@@ -16010,7 +16010,7 @@ bool compiler_types_Type_can_have_methods(compiler_types_Type *this) {
       case compiler_types_BaseType_F64:
       case compiler_types_BaseType_Structure:
       case compiler_types_BaseType_Alias:
-      case compiler_types_BaseType_ValueEnum:
+      case compiler_types_BaseType_Enum:
       m_127_0:
         {
           __yield_0 = true;
@@ -16122,10 +16122,10 @@ bool compiler_types_Type_eq(compiler_types_Type *this, compiler_types_Type *othe
       {
         return this->u.struc==other->u.struc;
       } break;
-    case compiler_types_BaseType_ValueEnum:
+    case compiler_types_BaseType_Enum:
     m_129_4:
       {
-        return this->u.venom==other->u.venom;
+        return this->u.enom==other->u.enom;
       } break;
     case compiler_types_BaseType_Array:
     m_129_5:
@@ -16215,10 +16215,10 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
         {
           __yield_0 = this->u.struc->sym->display;
         } break;
-      case compiler_types_BaseType_ValueEnum:
+      case compiler_types_BaseType_Enum:
       m_130_4:
         {
-          __yield_0 = this->u.venom->sym->display;
+          __yield_0 = this->u.enom->sym->display;
         } break;
       case compiler_types_BaseType_Alias:
       m_130_5:
@@ -16713,12 +16713,12 @@ compiler_ast_nodes_Structure *std_mem_alloc__10(u32 count) {
   return ((compiler_ast_nodes_Structure *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Structure)))));
 }
 
-compiler_ast_nodes_ValueEnum *std_mem_alloc__11(u32 count) {
-  return ((compiler_ast_nodes_ValueEnum *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_ValueEnum)))));
+compiler_ast_nodes_Enum *std_mem_alloc__11(u32 count) {
+  return ((compiler_ast_nodes_Enum *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Enum)))));
 }
 
-compiler_ast_nodes_ValueEnumVariant *std_mem_alloc__12(u32 count) {
-  return ((compiler_ast_nodes_ValueEnumVariant *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_ValueEnumVariant)))));
+compiler_ast_nodes_EnumVariant *std_mem_alloc__12(u32 count) {
+  return ((compiler_ast_nodes_EnumVariant *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_EnumVariant)))));
 }
 
 compiler_ast_nodes_Function *std_mem_alloc__13(u32 count) {
@@ -17053,8 +17053,8 @@ std_vector_Vector__15 *std_mem_alloc__95(u32 count) {
   return ((std_vector_Vector__15 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__15)))));
 }
 
-compiler_ast_nodes_ValueEnum **std_mem_alloc__96(u32 count) {
-  return ((compiler_ast_nodes_ValueEnum **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_ValueEnum *)))));
+compiler_ast_nodes_Enum **std_mem_alloc__96(u32 count) {
+  return ((compiler_ast_nodes_Enum **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_Enum *)))));
 }
 
 std_vector_Vector__16 *std_mem_alloc__97(u32 count) {
@@ -17085,8 +17085,8 @@ std_vector_Vector__19 *std_mem_alloc__103(u32 count) {
   return ((std_vector_Vector__19 *)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(std_vector_Vector__19)))));
 }
 
-compiler_ast_nodes_ValueEnumVariant **std_mem_alloc__104(u32 count) {
-  return ((compiler_ast_nodes_ValueEnumVariant **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_ValueEnumVariant *)))));
+compiler_ast_nodes_EnumVariant **std_mem_alloc__104(u32 count) {
+  return ((compiler_ast_nodes_EnumVariant **)std_mem_state_alloc_fn(std_mem_state_allocator, (count * ((u32)sizeof(compiler_ast_nodes_EnumVariant *)))));
 }
 
 std_vector_Vector__20 *std_mem_alloc__105(u32 count) {
@@ -17376,14 +17376,14 @@ compiler_errors_Error **std_mem_realloc__15(compiler_errors_Error **ptr, u32 old
   return new_ptr;
 }
 
-compiler_ast_nodes_ValueEnum **std_mem_realloc__16(compiler_ast_nodes_ValueEnum **ptr, u32 old_count, u32 new_count) {
-  u32 old_size = (old_count * ((u32)sizeof(compiler_ast_nodes_ValueEnum *)));
-  u32 new_size = (new_count * ((u32)sizeof(compiler_ast_nodes_ValueEnum *)));
+compiler_ast_nodes_Enum **std_mem_realloc__16(compiler_ast_nodes_Enum **ptr, u32 old_count, u32 new_count) {
+  u32 old_size = (old_count * ((u32)sizeof(compiler_ast_nodes_Enum *)));
+  u32 new_size = (new_count * ((u32)sizeof(compiler_ast_nodes_Enum *)));
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_ValueEnum **new_ptr = std_mem_alloc__96(new_count);
+  compiler_ast_nodes_Enum **new_ptr = std_mem_alloc__96(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -17428,14 +17428,14 @@ compiler_ast_scopes_Reference *std_mem_realloc__19(compiler_ast_scopes_Reference
   return new_ptr;
 }
 
-compiler_ast_nodes_ValueEnumVariant **std_mem_realloc__20(compiler_ast_nodes_ValueEnumVariant **ptr, u32 old_count, u32 new_count) {
-  u32 old_size = (old_count * ((u32)sizeof(compiler_ast_nodes_ValueEnumVariant *)));
-  u32 new_size = (new_count * ((u32)sizeof(compiler_ast_nodes_ValueEnumVariant *)));
+compiler_ast_nodes_EnumVariant **std_mem_realloc__20(compiler_ast_nodes_EnumVariant **ptr, u32 old_count, u32 new_count) {
+  u32 old_size = (old_count * ((u32)sizeof(compiler_ast_nodes_EnumVariant *)));
+  u32 new_size = (new_count * ((u32)sizeof(compiler_ast_nodes_EnumVariant *)));
   if (std_mem_state_realloc_fn != NULL) {
     return std_mem_state_realloc_fn(std_mem_state_allocator, ptr, old_size, new_size);
   }
   if(!(new_size >= old_size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/mem.oc:63:12: Assertion failed: `new_size >= old_size`", "Cannot shrink memory in default allocator"); }
-  compiler_ast_nodes_ValueEnumVariant **new_ptr = std_mem_alloc__104(new_count);
+  compiler_ast_nodes_EnumVariant **new_ptr = std_mem_alloc__104(new_count);
   memcpy(new_ptr, ptr, old_size);
   std_mem_free(ptr);
   return new_ptr;
@@ -20570,7 +20570,7 @@ std_vector_Iterator__15 std_vector_Vector__15_iter(std_vector_Vector__15 *this) 
   return std_vector_Iterator__15_make(this);
 }
 
-compiler_ast_nodes_ValueEnum *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this) {
+compiler_ast_nodes_Enum *std_vector_Iterator__15_cur(std_vector_Iterator__15 *this) {
   if(!(this->index < this->vec->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:152:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current"); }
   return this->vec->data[this->index];
 }
@@ -20608,7 +20608,7 @@ std_vector_Vector__15 *std_vector_Vector__15_new(u32 capacity) {
   return list;
 }
 
-void std_vector_Vector__15_push(std_vector_Vector__15 *this, compiler_ast_nodes_ValueEnum *value) {
+void std_vector_Vector__15_push(std_vector_Vector__15 *this, compiler_ast_nodes_Enum *value) {
   if (this->size==this->capacity) {
     std_vector_Vector__15_resize(this, (this->capacity * 2));
   }
@@ -20754,7 +20754,7 @@ std_vector_Iterator__19 std_vector_Vector__19_iter(std_vector_Vector__19 *this) 
   return std_vector_Iterator__19_make(this);
 }
 
-compiler_ast_nodes_ValueEnumVariant *std_vector_Iterator__19_cur(std_vector_Iterator__19 *this) {
+compiler_ast_nodes_EnumVariant *std_vector_Iterator__19_cur(std_vector_Iterator__19 *this) {
   if(!(this->index < this->vec->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:152:12: Assertion failed: `.index < .vec.size`", "Out of bounds in Iterator::current"); }
   return this->vec->data[this->index];
 }
@@ -20788,7 +20788,7 @@ std_vector_Vector__19 *std_vector_Vector__19_new(u32 capacity) {
   return list;
 }
 
-void std_vector_Vector__19_push(std_vector_Vector__19 *this, compiler_ast_nodes_ValueEnumVariant *value) {
+void std_vector_Vector__19_push(std_vector_Vector__19 *this, compiler_ast_nodes_EnumVariant *value) {
   if (this->size==this->capacity) {
     std_vector_Vector__19_resize(this, (this->capacity * 2));
   }
