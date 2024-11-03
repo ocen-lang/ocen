@@ -9,7 +9,9 @@ from pathlib import Path
 
 _, inp_file, args, out_file = argv
 
-expected = sp.check_output(f"ocen lsp {args} {inp_file}", text=True, shell=True)
+# Rebuild compiler...
+sp.run("ocen compiler/main.oc -o ./build/ocen", shell=True, check=True)
+expected = sp.check_output(f"./build/ocen lsp {args} {inp_file}", text=True, shell=True)
 try:
     expected = json.loads(expected)
 except json.JSONDecodeError:
