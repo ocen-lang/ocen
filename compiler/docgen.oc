@@ -35,20 +35,37 @@ def DocGenerator::gen_enum(&this, enom: &Enum): &Value {
         .gen_location(enum_doc, enom.sym.span)
     }
 
-    let fields_doc = Value::new(List)
+    let shared_fields_doc = Value::new(List)
+    for field : enom.shared_fields.iter() {
+        let field_doc = Value::new(Dictionary)
+        field_doc["name"] = field.sym.name
+        field_doc["type"] = .gen_typename(field.type)
+        if field.sym.comment? {
+            field_doc["description"] = field.sym.comment
+        }
+        shared_fields_doc.push(field_doc)
+    }
+    enum_doc["shared_fields"] = shared_fields_doc
+
+    let variants_doc = Value::new(List)
     for variant : enom.variants.iter() {
         // TODO: Add values for the variants if needed
-        let field_doc = Value::new(Dictionary)
-        field_doc["name"] = variant.sym.name
+        let variant_doc = Value::new(Dictionary)
+        variant_doc["name"] = variant.sym.name
         if variant.sym.comment? {
-            field_doc["description"] = variant.sym.comment
+            variant_doc["description"] = variant.sym.comment
         }
         if variant.sym.is_extern {
-            field_doc["extern"] = variant.sym.out_name()
+            variant_doc["extern"] = variant.sym.out_name()
         }
-        fields_doc.push(field_doc)
+        let fields_doc = Value::new(List)
+        for field : variant.specific_fields.iter() {
+            fields_doc.push(.gen_typename(field.type))
+        }
+        variant_doc["fields"] = fields_doc
+        variants_doc.push(variant_doc)
     }
-    enum_doc["fields"] = fields_doc
+    enum_doc["variants"] = variants_doc
 
     let methods_doc = .gen_methods(enom.type)
     enum_doc["methods"] = methods_doc
