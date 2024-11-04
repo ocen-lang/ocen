@@ -1,0 +1,21 @@
+
+enum Foo {
+    x: i32
+    y: i32
+
+    FooA(str)
+    FooB(untyped_ptr)
+    FooC
+}
+
+def main() {
+    let a = Foo::FooA(1, 2, "hello")
+    println(`a.x: {a.x}`)
+
+    let b = Foo::FooC(1, 2)
+    match a {
+        FooA(x, y, s) => println(`FooA: {x}, {y}, {s}`)
+        FooC(x, y) => println(`FooC: {x}, {y}`)
+        else => println("else")
+    }
+}

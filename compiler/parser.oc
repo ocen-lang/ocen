@@ -1994,6 +1994,19 @@ def Parser::parse_enum(&this): &Enum {
 
         let name = .consume(Identifier)
 
+        // Shared field
+        if .consume_if(Colon) {
+            let type = .parse_type()
+            let var = Variable::new(type)
+            var.sym = Symbol::from_local_variable(name.text, var, name.span)
+            .add_doc_comment(var.sym, name)
+            enom.shared_fields.push(var)
+            .consume_if(Comma)
+            enom.has_values = true
+            continue
+        }
+
+
         let variant = EnumVariant::new(name.span)
         let vsym = Symbol::new_with_parent(EnumVariant, .ns, sym, name.text, name.span)
         vsym.u.enum_var = variant
@@ -2007,11 +2020,11 @@ def Parser::parse_enum(&this): &Enum {
                 let typ = .parse_type()
                 enom.has_values = true
                 let var = Variable::new(typ)
-                variant.fields.push(var)
+                variant.specific_fields.push(var)
                 .consume_if(Comma)
             }
             let end = .consume(CloseParen)
-            if is_extern and variant.fields.size > 0 {
+            if is_extern and variant.num_fields() > 0 {
                 .error(Error::new(start.span + end.span, "Extern value enum variants cannot have fields"))
             }
         }

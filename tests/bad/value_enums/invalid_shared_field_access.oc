@@ -1,0 +1,15 @@
+/// fail: Type Foo has no member named 'z'
+
+enum Foo {
+    x: i32
+    y: i32
+
+    FooA(str)
+    FooB(untyped_ptr)
+    FooC
+}
+
+def main() {
+    let a = Foo::FooA(1, 2, "hello")
+    println(`a.z: {a.z}`)
+}

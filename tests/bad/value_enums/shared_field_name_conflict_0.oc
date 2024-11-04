@@ -1,0 +1,13 @@
+/// fail: Field with name `x` already exists
+
+enum Foo {
+    x: i32
+    y: i32
+    x: str
+
+    FooA(str)
+    FooB(untyped_ptr)
+    FooC
+}
+
+def main() => 0

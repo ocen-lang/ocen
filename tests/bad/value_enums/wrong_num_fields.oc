@@ -1,4 +1,4 @@
-/// fail: Foo::Case1 needs 2 fields, got 1
+/// fail: Foo::Case1 needs 2 fields, but got 1
 
 enum Foo {
     Case0(i32)

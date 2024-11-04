@@ -368,12 +368,22 @@ def CodeGenerator::gen_enum_constructor(&this, variant: &EnumVariant, args: &Vec
 
     .out <<= `({enom.sym.out_name()})\{`
     .out <<= `.tag={variant.sym.out_name()},`
-    if args? and args.size > 0 {
+
+    let shared_fields = enom.shared_fields
+    let i = 0
+    for null; i < shared_fields.size; i += 1 {
+        let arg = args.at(i)
+        let field = shared_fields.at(i)
+        .out <<= `.{field.sym.out_name()}=`
+        .gen_expression(arg.expr)
+        .out += ", "
+    }
+    if args? and i < args.size {
         .out <<= `.{variant.sym.out_name()}=\{`
-        for let i = 0; i < args.size; i += 1 {
-            if i != 0 then .out += ", "
+        for null; i < args.size; i += 1 {
             let arg = args.at(i)
             .gen_expression(arg.expr)
+            .out += ", "
         }
         .out += "}"
     }
@@ -781,6 +791,7 @@ def CodeGenerator::gen_match_enum(&this, node: &AST) {
     assert expr.etype? and expr.etype.base == Enum
 
     let enom = expr.etype.u.enom
+    let shared_fields = enom.shared_fields
 
     .gen_indent()
     .out += "switch (("
@@ -830,14 +841,28 @@ def CodeGenerator::gen_match_enum(&this, node: &AST) {
                 for let i = 0; i < args.size; i += 1 {
                     let arg = args.at(i)
                     if not arg.sym.name.eq("_") {
-                        .gen_indent()
-                        .out += arg.sym.out_name()
-                        .out += " = ("
-                        .gen_expression(expr)
-                        .out += ")."
-                        .out += variant.sym.out_name()
-                        .out <<= f".f{i}"
-                        .out += ";\n"
+                        if i < shared_fields.size {
+                            let field = shared_fields.at(i)
+                            .gen_indent()
+                            .out += arg.sym.out_name()
+                            .out += " = ("
+                            .gen_expression(expr)
+                            .out += ")."
+                            .out += field.sym.out_name()
+                            .out += ";\n"
+
+                        } else {
+                            let field_idx = i - shared_fields.size
+                            .gen_indent()
+                            .out += arg.sym.out_name()
+                            .out += " = ("
+                            .gen_expression(expr)
+                            .out += ")."
+                            .out += variant.sym.out_name()
+                            .out <<= f".f{field_idx}"
+                            .out += ";\n"
+                        }
+
                     }
                 }
                 .gen_indent()
@@ -1436,14 +1461,19 @@ def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
     if enom.has_values {
         .out <<= f"struct {name} \{\n"
         .out <<= f"  {name}__kind tag;\n"
+        for field in enom.shared_fields.iter() {
+            .out += "  "
+            .gen_type_and_name(field.type, field.sym.out_name())
+            .out += ";\n"
+        }
         .out += "  union {\n"
         for variant in enom.variants.iter() {
-            if variant.fields.size > 0 {
+            if variant.specific_fields.size > 0 {
                 .out += "    struct {\n"
-                for let i = 0; i < variant.fields.size; i += 1 {
+                for let i = 0; i < variant.specific_fields.size; i += 1 {
                     // TODO: Move this to a resuable method later...
                     let name = `f{i}`
-                    let field = variant.fields[i]
+                    let field = variant.specific_fields[i]
                     .out += "      "
                     .gen_type_and_name(field.type, name)
                     .out += ";\n"
