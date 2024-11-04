@@ -104,14 +104,14 @@ def Structure::get_field(&this, name: str): &Variable {
 }
 
 // Enum implementation miscellaneous todos:
-// TODO: Handle docs for value enums / their variants
-// TODO: Check for duplicate variants in value enums
 // TODO: Struct-like variants with named fields (currently only tuple-like)
 // TODO: In codegen, store match expression in separate variable to avoid side effects in multiple branches
-// TODO: Need to include value enums in struct topological sorting and ordering to ensure correct codegen
+// TODO: Potentially(?) replace tuple-like completely with struct-like variants. Makes match expressions more readable
+// TODO: Find some syntax to be able to construct variants without fully specifying all (shared) fields (for eg: for Node)
 struct Enum {
     sym: &Symbol
     span: Span
+    shared_fields: &Vector<&Variable>
     variants: &Vector<&EnumVariant>
     type: &Type
     is_dead: bool
@@ -127,9 +127,17 @@ def Enum::get_variant(&this, name: str): &EnumVariant {
     return null
 }
 
+def Enum::get_shared_field(&this, name: str): &Variable {
+    for field : .shared_fields.iter() {
+        if field.sym.name.eq(name) return field
+    }
+    return null
+}
+
 def Enum::new(span: Span): &Enum {
     let enom = mem::alloc<Enum>()
     enom.variants = Vector<&EnumVariant>::new()
+    enom.shared_fields = Vector<&Variable>::new()
     enom.span = span
     return enom
 }
@@ -138,15 +146,27 @@ struct EnumVariant {
     sym: &Symbol
 
     // TODO: Named fields? For now variables just have an empty name / symbol
-    fields: &Vector<&Variable>
+    specific_fields: &Vector<&Variable>
     parent: &Enum
 
     span: Span
 }
 
+//! Includes both shared and specific fields
+def EnumVariant::num_fields(&this): u32 => .parent.shared_fields.size + .specific_fields.size
+
+//! Returns the field at the given index, (including shared fields)
+def EnumVariant::get_field(&this, idx: u32): &Variable {
+    if idx < .parent.shared_fields.size {
+        return .parent.shared_fields[idx]
+    } else {
+        return .specific_fields[idx - .parent.shared_fields.size]
+    }
+}
+
 def EnumVariant::new(span: Span): &EnumVariant {
     let variant = mem::alloc<EnumVariant>()
-    variant.fields = Vector<&Variable>::new()
+    variant.specific_fields = Vector<&Variable>::new()
     return variant
 }
 

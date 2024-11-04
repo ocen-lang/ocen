@@ -19,6 +19,8 @@ struct DocGenerator {
     ocen_root: SV
 }
 
+// TODO: Add support for value-enums, and show fields of variants
+// TODO: Add support for shared fields in value-enums
 def DocGenerator::gen_enum(&this, enom: &Enum): &Value {
     let enum_doc = Value::new(Dictionary)
     enum_doc["id"] = `{enom.type:x}`

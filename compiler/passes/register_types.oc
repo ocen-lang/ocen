@@ -33,7 +33,6 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
     enum_.type = typ
     typ.sym = enum_.sym
 
-    // TODO: Check for duplicate variants
     let values = Map<str, Span>::new()
     for var in enum_.variants.iter() {
         var.parent = enum_

@@ -1,0 +1,14 @@
+/// fail: Expected shared field `x` with type i32, but got str
+
+enum Foo {
+    x: i32
+    y: i32
+
+    FooA(str)
+    FooB(untyped_ptr)
+    FooC
+}
+
+def main() {
+    let a = Foo::FooA("hello")
+}

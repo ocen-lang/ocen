@@ -1,0 +1,18 @@
+/// fail: Foo::FooA needs 3 fields (2 shared), but got 0
+
+enum Foo {
+    x: i32
+    y: i32
+
+    FooA(str)
+    FooB(untyped_ptr)
+    FooC
+}
+
+def main() {
+    let a: Foo
+    match a {
+        FooA() => println("FooA")
+        else => {}
+    }
+}

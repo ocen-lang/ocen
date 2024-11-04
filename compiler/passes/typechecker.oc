@@ -566,11 +566,12 @@ def TypeChecker::check_enum_constructor(&this, node: &AST): &Type {
 
     assert type_sym.type == EnumVariant, `Got non-struct type in check_constructor: {type_sym.type}`
     let variant = type_sym.u.enum_var
+    let enom = variant.parent
 
-    let expected_fields = variant.fields
+    let num_expected_fields = variant.num_fields()
+
     let args = node.u.call.args
-
-    if variant.fields.size == 0 and args.size == 0 {
+    if num_expected_fields == 0 and args.size == 0 {
         let span = node.u.call.open_paren_span + node.u.call.close_paren_span
         .error(Error::new(span, `Unnecessary empty constructor for {variant.sym.display}, no fields expected`))
         return variant.parent.type
@@ -581,20 +582,30 @@ def TypeChecker::check_enum_constructor(&this, node: &AST): &Type {
         if arg.label? {
             .error(Error::new(arg.label_span, "Labels are not allowed for value enum constructors"))
         }
-        if i < expected_fields.size {
-            let expected = expected_fields[i].type
-            let arg_type = .check_expression(arg.expr, hint: expected)
+
+        if i < num_expected_fields {
+            let expected = variant.get_field(i)
+            let arg_type = .check_expression(arg.expr, hint: expected.type)
             if not arg_type? then continue
-            if not arg_type.eq(expected) {
-                .error(Error::new(arg.expr.span, `{variant.sym.display} field {i} has type {expected.str()}, but got {arg_type.str()}`))
+            if not arg_type.eq(expected.type) {
+                if {
+                    expected.sym? => .error(Error::new_hint(
+                        arg.expr.span, f"Expected shared field `{expected.sym.name}` with type {expected.type.str()}, but got {arg_type.str()}",
+                        expected.sym.span, "Field defined here"
+                    ))
+                    else => .error(Error::new_hint(
+                        arg.expr.span, `{variant.sym.display} field {i} has type {expected.type.str()}, but got {arg_type.str()}`,
+                        variant.sym.span, "Field defined here"
+                    ))
+                }
             }
         } else {
             .error(Error::new(arg.expr.span, `Unknown extra argument for {variant.sym.display}`))
         }
     }
 
-    if args.size < expected_fields.size {
-        .error(Error::new(node.u.call.close_paren_span, `{variant.sym.display} needs {expected_fields.size} fields, got {args.size}`))
+    if args.size < num_expected_fields {
+        .error(Error::new(node.u.call.close_paren_span, `{variant.sym.display} needs {num_expected_fields} fields, got {args.size}`))
     }
 
     return variant.parent.type
@@ -1066,14 +1077,28 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool, hint: &T
     let rhs_name = node.u.member.rhs_name
     if not rhs_name? return hint
 
-    if lhs.base == BaseType::Structure {
-        let struc = lhs.u.struc
-        let field = struc.get_field(rhs_name)
-        if field? {
-            node.u.member.is_pointer = is_pointer
-            .set_resolved_symbol(node, field.sym)
-            return field.type
+    match lhs.base {
+        Structure => {
+            let struc = lhs.u.struc
+            let field = struc.get_field(rhs_name)
+            if field? {
+                node.u.member.is_pointer = is_pointer
+                .set_resolved_symbol(node, field.sym)
+                return field.type
+            }
         }
+        Enum => {
+            let enom = lhs.u.enom
+            let field = enom.get_shared_field(rhs_name)
+            if field? {
+                node.u.member.is_pointer = is_pointer
+                .set_resolved_symbol(node, field.sym)
+                return field.type
+            }
+        }
+
+        // Fallthrough
+        else => {}
     }
 
     if lhs.can_have_methods() {
@@ -1307,8 +1332,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 Variable | Constant => return item.u.var.type
                 EnumVariant => {
                     let variant = item.u.enum_var
-                    if variant.fields.size != 0 {
-                        .error(Error::new(node.span, f"{item.display} needs {variant.fields.size} fields to construct"))
+                    if variant.num_fields() != 0 {
+                        .error(Error::new(node.span, f"{item.display} needs {variant.num_fields()} fields to construct"))
                         return null
                     }
                     return variant.parent.type
@@ -1530,19 +1555,30 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
             expr.etype = enom.type
 
             let args = cond.args
-            if args? and args.size != variant.fields.size {
-                .error(Error::new_hint(
-                    expr.span, f"{variant.sym.display} needs {variant.fields.size} fields, got {args.size}",
-                    variant.sym.span, f"Variant '{variant.sym.display}' has no fields"
-                ))
+
+            let shared_fields = enom.shared_fields
+            let num_expected_fields = variant.num_fields()
+
+            if args? and args.size != num_expected_fields {
+                if shared_fields.size == 0 {
+                    .error(Error::new_hint(
+                        expr.span, f"{variant.sym.display} needs {num_expected_fields} fields, but got {args.size}",
+                        variant.sym.span, f"Variant specified here"
+                    ))
+                } else {
+                    .error(Error::new_hint(
+                        expr.span, f"{variant.sym.display} needs {num_expected_fields} fields ({shared_fields.size} shared), but got {args.size}",
+                        variant.sym.span, f"Variant specified here"
+                    ))
+                }
             }
 
             // Populate the current_args map with the fields of the first variant
             if i == 0 {
                 if args? {
-                    for let j = 0; j < args.size and j < variant.fields.size; j += 1 {
+                    for let j = 0; j < args.size and j < num_expected_fields; j += 1 {
                         let arg = args[j]
-                        let field = variant.fields[j]
+                        let field = variant.get_field(j)
                         arg.type = field.type
                         if not arg.sym.name.eq("_") {
                             current_args[arg.sym.name] = field.type
@@ -1554,9 +1590,9 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
             } else {
 
                 let found_args = 0
-                for let j = 0; args? and j < args.size and j < variant.fields.size; j += 1 {
+                for let j = 0; args? and j < args.size and j < num_expected_fields; j += 1 {
                     let arg = args[j]
-                    let field = variant.fields[j]
+                    let field = variant.get_field(j)
                     arg.type = field.type
 
                     if arg.sym.name.eq("_") then continue
@@ -2437,7 +2473,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
                 let name = struc.get_field(func.sym.name)
                 if name? {
                     .o.error(Error::new_hint(
-                        func.sym.span, "Field with this name already exists",
+                        func.sym.span, f"Field with name `{func.sym.name}` already exists",
                         name.sym.span, "Previous definition here"
                     ))
                 }
@@ -2447,8 +2483,15 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
                 let var = enom.get_variant(func.sym.name)
                 if var? {
                     .o.error(Error::new_hint(
-                        func.sym.span, "Enum variant with this name already exists",
+                        func.sym.span, f"Enum variant with name `{func.sym.name}` already exists",
                         var.sym.span, "Previous definition here"
+                    ))
+                }
+                let field = enom.get_shared_field(func.sym.name)
+                if field? {
+                    .o.error(Error::new_hint(
+                        func.sym.span, f"Field with name `{func.sym.name}` already exists",
+                        field.sym.span, "Previous definition here"
                     ))
                 }
             }
@@ -2512,8 +2555,25 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
 }
 
 def TypeChecker::resolve_enum(&this, enom: &Enum) {
+    let seen_fields = Map<str, Span>::new()
+    defer seen_fields.free()
+
+    for field in enom.shared_fields.iter() {
+        let res = .resolve_type(field.type)
+        if res? {
+            field.type = res
+        }
+        let item = seen_fields.get_item(field.sym.name)
+        if item? {
+            .error(Error::new_hint(
+                field.sym.span, f"Field with name `{field.sym.name}` already exists",
+                item.value, "Previous definition here"
+            ))
+        }
+        seen_fields[field.sym.name] = field.sym.span
+    }
     for variant in enom.variants.iter() {
-        for field in variant.fields.iter() {
+        for field in variant.specific_fields.iter() {
             let res = .resolve_type(field.type)
             if res? {
                 field.type = res

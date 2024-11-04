@@ -1,0 +1,19 @@
+/// fail: Operator `Equals` does not support non-trivial enum `Foo`
+
+enum Foo {
+    x: i32
+    y: str
+
+    FooA
+    FooB
+    FooC
+}
+
+def main() {
+    let x: Foo
+    if (x == x) {
+        println("x == x")
+    } else {
+        println("x != x")
+    }
+}

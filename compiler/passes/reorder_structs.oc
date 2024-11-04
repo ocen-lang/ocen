@@ -75,8 +75,13 @@ def ReorderStructs::dfs(&this, sym: &Symbol) {
             .o.program.ordered_structs += sym.u.struc
         }
         Enum => {
+            for field in sym.u.enom.shared_fields.iter() {
+                if field.type? {
+                    .dfs(field.type.sym)
+                }
+            }
             for variant in sym.u.enom.variants.iter() {
-                for field in variant.fields.iter() {
+                for field in variant.specific_fields.iter() {
                     if field.type? {
                         .dfs(field.type.sym)
                     }
