@@ -64,13 +64,16 @@ $ ocen file.oc -o ./build/out # generates ./build/out and ./build/out.c
 $ ocen file.oc -n -c ./temp.c # generates only ./temp.c
 ```
 
-For tips on developing the compiler, see [DEVELOPING.md](./DEVELOPING.md).
+## Usage
 
-## Language
+- For an overview of the language and it's features, look at the [getting started doc](./docs/GETTING_STARTED.md).
+- For tips / workflow on developing the compiler, look at the [compiler development doc](./docs/DEVELOPMENT.md).
+- For recommended code style (used in the repo), look at the [style guide](./docs/CODE_STYLE.md).
 
-You can find various examples of the language in:
-- [tests](./tests): Unit tests for the compiler
+
+You also can find various examples of the language being used in:
+- [tests](./tests): Unit tests for the compiler (shows all the features)
 - [std](./std): The standard library (implementations + C bindings)
-- [examples](./examples): Various examples of the language
+- [examples](./examples): Few non-trivial examples of programs
 - [compiler](./compiler): The compiler itself!
 
