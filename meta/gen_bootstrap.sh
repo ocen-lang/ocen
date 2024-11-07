@@ -10,9 +10,9 @@ mkdir -p build
 set -e
 
 echo "[+] Testing 3-stage bootstrap for validity"
-$initial compiler/main.oc -o build/stage1
-./build/stage1 compiler/main.oc -o build/stage2
-./build/stage2 compiler/main.oc -o build/stage3
+$initial -d compiler/main.oc -o build/stage1
+./build/stage1 -d compiler/main.oc -o build/stage2
+./build/stage2 -d compiler/main.oc -o build/stage3
 if diff build/stage2.c build/stage3.c; then
     echo "[+] Verification successful!"
     echo

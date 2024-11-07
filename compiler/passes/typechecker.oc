@@ -587,85 +587,177 @@ def TypeChecker::check_enum_constructor(&this, node: &AST): &Type {
     return enom.type
 }
 
-def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
+def TypeChecker::check_call_args_labelled(&this, node: &AST, params: &Vector<&Variable>, start: u32) {
     let args = node.u.call.args
+    let callee = node.u.call.callee
+    let new_args = Vector<&Argument>::new()
 
-    for let i = 0; i < params.size; i += 1 {
+    let kwargs = Map<str, &Argument>::new()
+    let expected_params = Map<str, &Variable>::new()
+
+    for let i = 0; i < params.size; i++ {
         let param = params.at(i)
-        // Normal case
-        if i < args.size {
-            let arg = args.at(i)
-
-            if arg.label? {
-                if {
-                    // NOTE: This only happens for enum constructors, FIXME: remove in future when enforced named arguments
-                    not param.sym? => .error(Error::new(
-                        arg.label_span, "Cannot use a labelled argument for a non-labeled parameter"
-                    ))
-                    not arg.label.eq(param.sym.name) => .error(Error::new_hint(
-                        arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.sym.name}'`,
-                        param.sym.span, "Parameter defined here"
-                    ))
-                    else => {}
-                }
-            }
-
-            let arg_type = .check_expression(arg.expr, hint: param.type)
-            if not arg_type? or not param.type? then continue
-            if not arg_type.eq(param.type) {
-                if param.sym? {
-                    .error(Error::new_hint(
-                        arg.expr.span, f"Expected `{param.sym.name}` with type {param.type.str()}, but got {arg_type.str()}",
-                        param.sym.span, "Parameter defined here"
-                    ))
-                } else {
-                    .error(Error::new(arg.expr.span, `Expected field {i} with type {param.type.str()}, but got {arg_type.str()}`))
-                }
-            }
-
-        // Default argument case
-        } else if param.default_value? {
-
-            // FIXME: We should not be evaluating the default argument here during every call,
-            // we should be evaluating it at the time of checking the function declaration and using
-            // a cached value here
-            let new_arg = Argument::new(param.default_value)
-            // Plus the default argument to the list of arguments
-            args.push(new_arg)
-
-        } else {
-            if param.sym? {
-                .error(Error::new_hint(
-                    node.u.call.close_paren_span, f"Missing required argument `{param.sym.name}` of type {param.type.str()}",
-                    param.sym.span, "Parameter defined here"
-                ))
-            } else {
-                .error(Error::new(node.u.call.close_paren_span, `Missing required field {i} of type {param.type.str()}`))
-            }
-            return
+        if not param.sym? {
+            .error(Error::new(param.type.span, "Not allowed to have unlabeled parameter here"))
+            continue
+        }
+        expected_params[param.sym.name] = param
+        if i < start {
+            let arg = args[i]
+            kwargs[param.sym.name] = arg
+            new_args.push(args[i])
         }
     }
 
+    for let i = start; i < args.size; i++ {
+        let arg = args.at(i)
+        // TODO: At parsing time, try and get implicit labels for unlabeled arguments such as for identifiers
+        if not arg.label? {
+            .error(Error::new(arg.expr.span, "Can't have positional arguments after labelled arguments"))
+            continue
+        }
+        let param_item = expected_params.get_item(arg.label)
+        let kwarg_item = kwargs.get_item(arg.label)
+
+        let expected_type: &Type = null
+        if {
+            not param_item? => .error(Error::new(
+                arg.label_span, f"Unexpected labelled argument `{arg.label}`"
+            ))
+            kwarg_item? => .error(Error::new_hint(
+                arg.label_span, f"Duplicate argument for parameter `{arg.label}`",
+                kwarg_item.value.expr.span, "Previously specified here"
+            ))
+            else => {
+                kwargs[arg.label] = arg
+                expected_type = param_item.value.type
+            }
+        }
+        let arg_type = .check_expression(arg.expr)
+        if arg_type? and expected_type? and not arg_type.eq(expected_type) {
+            .error(Error::new_hint(
+                arg.expr.span, f"Expected `{arg.label}` with type {expected_type.str()}, but got {arg_type.str()}",
+                param_item.value.sym.span, "Parameter defined here"
+            ))
+        }
+    }
+
+    for let i = start; i < params.size; i++ {
+        let param = params.at(i)
+        assert param.sym?, f"Expected a symbol for parameter {i}"
+
+        let item = kwargs.get_item(param.sym.name)
+        if item? {
+            new_args.push(item.value)
+
+        } else if param.default_value? {
+            let new_arg = Argument::new(param.default_value)
+            new_args.push(new_arg)
+
+        } else {
+            .error(Error::new_hint(
+                node.u.call.close_paren_span, f"Missing required argument `{param.sym.name}` of type {param.type.str()}",
+                param.sym.span, "Parameter defined here"
+            ))
+        }
+    }
+
+    args.free()
+    kwargs.free()
+    expected_params.free()
+    node.u.call.args = new_args
+}
+
+
+def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
+    let args = node.u.call.args
+
+    for let i = 0; i < params.size; i++ {
+        let param = params.at(i)
+
+        // We would only get here if we have not gone through the labelled arguments yet
+        if i >= args.size {
+            if param.default_value? {
+                let new_arg = Argument::new(param.default_value)
+                args.push(new_arg)
+            } else {
+                if param.sym? {
+                    .error(Error::new_hint(
+                        node.u.call.close_paren_span, f"Missing required argument `{param.sym.name}` of type {param.type.str()}",
+                        param.sym.span, "Parameter defined here"
+                    ))
+                } else {
+                    .error(Error::new(node.u.call.close_paren_span, `Missing required field {i} of type {param.type.str()}`))
+                }
+            }
+            continue
+        }
+
+        let arg = args.at(i)
+        if arg.label? {
+            if {
+                not param.sym? => .error(Error::new(
+                    arg.label_span, "Cannot use a labelled argument for a non-labeled parameter"
+                ))
+                not arg.label.eq(param.sym.name) => if {
+                    // If we have started looking at the default arguments, we can start allowing
+                    // unordered arguments when they are labelled
+                    param.default_value? => {
+                        if is_variadic {
+                            .error(Error::new(
+                                arg.label_span, `Variadic functions not allowed with default arguments`,
+                            ))
+                        }
+
+                        .check_call_args_labelled(node, params, i)
+                        break
+                    }
+                    // If this parameter doesn't have a default value, then we should error
+                    else => {
+                        .error(Error::new_hint(
+                            arg.label_span, f"Expected positional argument `{param.sym.name}`, but got label `{arg.label}`",
+                            param.sym.span, "Parameter defined here"
+                        ))
+                    }
+                    // Fallthrough, and check the argument as if it were positional anyway
+                }
+                // Fallthrough
+                else => {}
+            }
+        }
+
+        let arg_type = .check_expression(arg.expr, hint: param.type)
+        if not arg_type? or not param.type? {
+            continue
+        }
+        if not arg_type.eq(param.type) {
+            if param.sym? {
+                .error(Error::new_hint(
+                    arg.expr.span, f"Expected `{param.sym.name}` with type {param.type.str()}, but got {arg_type.str()}",
+                    param.sym.span, "Parameter defined here"
+                ))
+            } else {
+                .error(Error::new(arg.expr.span, `Expected field {i} with type {param.type.str()}, but got {arg_type.str()}`))
+            }
+        }
+    }
+
+    // The arguments might have been updated by `check_call_args_labelled`, so we need to re-fetch them
+    args = node.u.call.args
+
     if is_variadic {
-        if args.size < params.size {
-            assert .o.program.errors.size > 1, "Should have errored already"
-            return
-        }
-
-        for let i = params.size; i < args.size; i += 1 {
+        for let i = params.size; i < args.size; i++ {
             let arg = args.at(i)
             let arg_type = .check_expression(arg.expr)
-            if not arg_type? then continue
+            if not arg_type? {
+                continue
+            }
         }
-
-    } else if params.size < args.size {
-        // Too many arguments... check them but throw errors
-        let err_msg = f"Unexpected argument, expected only {params.size}"
-        for let i = params.size; i < args.size; i += 1 {
+    } else {
+        for let i = params.size; i < args.size; i++ {
             let arg = args.at(i)
-            .error(Error::new(arg.expr.span, err_msg))
             let arg_type = .check_expression(arg.expr)
-            if not arg_type? then continue
+            .error(Error::new(arg.expr.span, `Unexpected argument, expected only {params.size}`))
         }
     }
 }
