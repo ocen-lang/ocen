@@ -1,8 +1,14 @@
-/// fail: Expected positional argument `a`, but got label `c`
+/// fail: Missing required argument `b` of type u32
 
 
 def foo(a: u32, b: u32, c: u32 = 5): u32 => a + b + c
 
 def main() {
-    foo(c: 7)
+    // All OK
+    foo(1, 2, c: 7)
+    foo(1, b: 2, c: 7)
+    foo(a: 1, b: 2, c: 7)
+
+    // Fail
+    foo(c: 7, a: 1)
 }

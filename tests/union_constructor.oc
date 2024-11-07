@@ -1,0 +1,50 @@
+
+
+enum NodeType {
+    Number
+    Add
+    Sub
+}
+
+struct Binary {
+    lhs: &Node
+    rhs: &Node
+}
+
+union NodeUnion {
+    num: i32
+    bin: Binary
+}
+
+struct Node {
+    type: NodeType
+    u: NodeUnion
+}
+
+def Node::print(&this) {
+    match .type {
+        NodeType::Number => print(`{.u.num}`)
+        NodeType::Add => {
+            print("(")
+            .u.bin.lhs.print()
+            print(" + ")
+            .u.bin.rhs.print()
+            print(")")
+        }
+        NodeType::Sub => {
+            print("(")
+            .u.bin.lhs.print()
+            print(" - ")
+            .u.bin.rhs.print()
+            print(")")
+        }
+    }
+}
+
+def main() {
+    let a = @new Node(Number, u: NodeUnion(num: 42))
+    let b = @new Node(Add, u: NodeUnion(bin: Binary(lhs: a, rhs: a)))
+    a.print()
+    println("")
+    b.print()
+}

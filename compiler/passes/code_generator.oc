@@ -394,14 +394,33 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
     .out <<= `({struc.sym.out_name()})\{`
     let fields = struc.fields
     let args = node.u.call.args
-    for let i = 0; i < args.size; i += 1 {
-        if i != 0 then .out += ", "
-        let arg = args.at(i)
-        let field = fields.at(i)
 
+    if struc.is_union {
+        assert args.size == 1, "Should have been checked in the type checker"
+        let arg = args[0]
+        assert arg.label?, "Should have been checked in the type checker"
+
+        let field: &Variable = null
+        for f in fields.iter() {
+            if f.sym? and f.sym.name.eq(arg.label) {
+                field = f
+                break
+            }
+        }
+        assert field?, "Should have been checked in the type checker"
         .out <<= `.{field.sym.out_name()}=`
         .gen_expression(arg.expr)
+
+    } else {
+        for let i = 0; i < args.size; i += 1 {
+            if i != 0 then .out += ", "
+            let arg = args.at(i)
+            let field = fields.at(i)
+            .out <<= `.{field.sym.out_name()}=`
+            .gen_expression(arg.expr)
+        }
     }
+
     .out += "}"
 }
 

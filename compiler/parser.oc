@@ -1919,9 +1919,15 @@ def Parser::parse_struct_field(&this, struc: &Structure): bool {
 
     let type = .parse_type()
 
+    let default_value: &AST = null
+    if .consume_if(TokenType::Equals) {
+        default_value = .parse_expression(end_type: TokenType::Comma)
+    }
+
     for var : fields.iter() {
         var.type = type
         var.parsed_type = type
+        var.default_value = default_value
         struc.fields.push(var)
     }
 
@@ -2022,6 +2028,11 @@ def Parser::parse_enum(&this): &Enum {
             var.sym = Symbol::from_local_variable(name.text, var, name.span)
             .add_doc_comment(var.sym, name)
             enom.shared_fields.push(var)
+
+            if .consume_if(Equals) {
+                var.default_value = .parse_expression(end_type: TokenType::Comma)
+            }
+
             .consume_if(Comma)
             enom.has_values = true
             continue
@@ -2038,9 +2049,28 @@ def Parser::parse_enum(&this): &Enum {
         if .token_is(OpenParen) {
             let start = .consume(OpenParen)
             while not .token_is_eof_or(CloseParen) {
-                let typ = .parse_type()
+                let var = match .peek(1).type {
+                    Colon => {
+                        let ident = .consume(Identifier)
+                        .consume(Colon)
+                        let type = .parse_type()
+                        let var = Variable::new(type)
+                        var.sym = Symbol::from_local_variable(ident.text, var, ident.span)
+
+                        if .consume_if(Equals) {
+                            var.default_value = .parse_expression(end_type: TokenType::Comma)
+                        }
+
+                        yield var
+                    }
+                    // FIXME: Possibly remove un-named fields
+                    else => {
+                        let type = .parse_type()
+                        let var = Variable::new(type)
+                        yield var
+                    }
+                }
                 enom.has_values = true
-                let var = Variable::new(typ)
                 variant.specific_fields.push(var)
                 .consume_if(Comma)
             }
