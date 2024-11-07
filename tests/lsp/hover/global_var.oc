@@ -1,0 +1,5 @@
+/// lsp: -h 4 6
+/// {"hover": "foo: i32"}
+
+let foo: i32 = 4
+def main() {}

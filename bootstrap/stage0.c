@@ -29510,45 +29510,107 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
   }
 
 #line 463 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  std_vector_Vector__1_pop(this->scopes);
+  for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->variables); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+#line 463 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    compiler_ast_nodes_AST *vardecl = std_vector_Iterator__16_cur(&__iter);
 
-#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-    compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
-
-#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 463 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     {
 
-#line 466 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-      if (std_span_Span_contains_loc(child->sym->span, this->loc)) {
+#line 464 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      compiler_ast_nodes_Variable *var = vardecl->u.var_decl.var;
 
-#line 466 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-        return compiler_lsp_finder_Finder_set_usage(this, child->sym, NULL);
+#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (std_span_Span_contains_loc(var->sym->span, this->loc)) {
+
+#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+        return compiler_lsp_finder_Finder_set_usage(this, var->sym, NULL);
       }
 
 #line 467 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-      if (compiler_lsp_finder_Finder_find_in_program(this, child)) {
+      compiler_ast_nodes_AST *init = vardecl->u.var_decl.init;
 
-#line 467 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 468 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (((bool)init) && compiler_lsp_finder_Finder_find_in_expression(this, init)) {
+
+#line 468 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return true;
       }
     }
   }
 
-#line 470 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 471 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->constants); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
+
+#line 471 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    compiler_ast_nodes_AST *vardecl = std_vector_Iterator__16_cur(&__iter);
+
+#line 471 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    {
+
+#line 472 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      compiler_ast_nodes_Variable *var = vardecl->u.var_decl.var;
+
+#line 473 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (std_span_Span_contains_loc(var->sym->span, this->loc)) {
+
+#line 473 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+        return compiler_lsp_finder_Finder_set_usage(this, var->sym, NULL);
+      }
+
+#line 475 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      compiler_ast_nodes_AST *init = vardecl->u.var_decl.init;
+
+#line 476 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (((bool)init) && compiler_lsp_finder_Finder_find_in_expression(this, init)) {
+
+#line 476 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+        return true;
+      }
+    }
+  }
+
+#line 479 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  std_vector_Vector__1_pop(this->scopes);
+
+#line 481 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
+
+#line 481 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
+
+#line 481 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    {
+
+#line 482 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (std_span_Span_contains_loc(child->sym->span, this->loc)) {
+
+#line 482 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+        return compiler_lsp_finder_Finder_set_usage(this, child->sym, NULL);
+      }
+
+#line 483 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (compiler_lsp_finder_Finder_find_in_program(this, child)) {
+
+#line 483 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+        return true;
+      }
+    }
+  }
+
+#line 486 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return false;
 }
 
 
-#line 473 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 489 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
 bool compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program) {
 
-#line 474 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 490 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   std_vector_Vector__1_push(this->scopes, program->global->scope);
 
-#line 475 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 491 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return compiler_lsp_finder_Finder_find_in_program(this, program->global);
 }
 

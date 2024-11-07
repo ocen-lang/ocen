@@ -1,0 +1,5 @@
+/// lsp: -h 4 9
+/// {"hover": "const foo: i32"}
+
+const foo: i32 = 4
+def main() {}
