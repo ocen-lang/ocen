@@ -1,0 +1,8 @@
+/// fail: Unknown labelled argument `foo`
+
+
+def foo(a: u32, b: u32 = 4, c: u32 = 5): u32 => a + b + c
+
+def main() {
+    foo(1, c: 8, foo: 7)
+}
