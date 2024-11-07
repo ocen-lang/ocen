@@ -1,4 +1,4 @@
-/// fail: Foo::Case1 needs 2 fields, got 1
+/// fail: Missing required field 1 of type i32
 
 enum Foo {
     Case0(i32)
