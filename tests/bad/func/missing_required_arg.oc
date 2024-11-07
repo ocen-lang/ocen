@@ -1,0 +1,9 @@
+/// fail: Missing required argument `b` of type i32
+
+def foo(a: i32, b: i32): i32 {
+    return a + b
+}
+
+def main() {
+    foo(1)
+}

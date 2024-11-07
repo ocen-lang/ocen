@@ -622,7 +622,7 @@ def TypeChecker::check_call_args_labelled(&this, node: &AST, params: &Vector<&Va
         let expected_type: &Type = null
         if {
             not param_item? => .error(Error::new(
-                arg.label_span, f"Unexpected labelled argument `{arg.label}`"
+                arg.label_span, f"Unknown labelled argument `{arg.label}`"
             ))
             kwarg_item? => .error(Error::new_hint(
                 arg.label_span, f"Duplicate argument for parameter `{arg.label}`",
@@ -655,6 +655,10 @@ def TypeChecker::check_call_args_labelled(&this, node: &AST, params: &Vector<&Va
             new_args.push(new_arg)
 
         } else {
+            // Currently... this can never be reached, since we only go to this function AFTER
+            // we have seen a default arg. In the future, we might want to allow all arguments to
+            // be unordered as long as the positional ones are provided somewhere, and in that case
+            // this check would be necessary.
             .error(Error::new_hint(
                 node.u.call.close_paren_span, f"Missing required argument `{param.sym.name}` of type {param.type.str()}",
                 param.sym.span, "Parameter defined here"
