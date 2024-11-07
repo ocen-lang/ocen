@@ -1,4 +1,4 @@
-/// fail: Unknown extra argument for Foo::Case1
+/// fail: Unexpected argument, expected only 2
 
 enum Foo {
     Case0(i32)

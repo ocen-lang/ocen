@@ -1,4 +1,4 @@
-/// fail: Expected shared field `x` with type i32, but got str
+/// fail: Expected `x` with type i32, but got str
 
 enum Foo {
     x: i32

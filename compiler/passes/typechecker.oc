@@ -569,6 +569,11 @@ def TypeChecker::check_enum_constructor(&this, node: &AST): &Type {
     let enom = variant.parent
 
     let num_expected_fields = variant.num_fields()
+    let params = Vector<&Variable>::new()
+    for let i = 0; i < num_expected_fields; i += 1 {
+        let field = variant.get_field(i)
+        params.push(field)
+    }
 
     let args = node.u.call.args
     if num_expected_fields == 0 and args.size == 0 {
@@ -577,38 +582,9 @@ def TypeChecker::check_enum_constructor(&this, node: &AST): &Type {
         return variant.parent.type
     }
 
-    for let i = 0; i < args.size; i++ {
-        let arg = args[i]
-        if arg.label? {
-            .error(Error::new(arg.label_span, "Labels are not allowed for value enum constructors"))
-        }
-
-        if i < num_expected_fields {
-            let expected = variant.get_field(i)
-            let arg_type = .check_expression(arg.expr, hint: expected.type)
-            if not arg_type? then continue
-            if not arg_type.eq(expected.type) {
-                if {
-                    expected.sym? => .error(Error::new_hint(
-                        arg.expr.span, f"Expected shared field `{expected.sym.name}` with type {expected.type.str()}, but got {arg_type.str()}",
-                        expected.sym.span, "Field defined here"
-                    ))
-                    else => .error(Error::new_hint(
-                        arg.expr.span, `{variant.sym.display} field {i} has type {expected.type.str()}, but got {arg_type.str()}`,
-                        variant.sym.span, "Field defined here"
-                    ))
-                }
-            }
-        } else {
-            .error(Error::new(arg.expr.span, `Unknown extra argument for {variant.sym.display}`))
-        }
-    }
-
-    if args.size < num_expected_fields {
-        .error(Error::new(node.u.call.close_paren_span, `{variant.sym.display} needs {num_expected_fields} fields, got {args.size}`))
-    }
-
-    return variant.parent.type
+    .check_call_args(node, params)
+    params.clear()
+    return enom.type
 }
 
 def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, is_variadic: bool = false) {
@@ -620,14 +596,31 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
         if i < args.size {
             let arg = args.at(i)
 
-            if arg.label? and not arg.label.eq(param.sym.name) {
-                .error(Error::new(arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.sym.name}'`))
+            if arg.label? {
+                if {
+                    // NOTE: This only happens for enum constructors, FIXME: remove in future when enforced named arguments
+                    not param.sym? => .error(Error::new(
+                        arg.label_span, "Cannot use a labelled argument for a non-labeled parameter"
+                    ))
+                    not arg.label.eq(param.sym.name) => .error(Error::new_hint(
+                        arg.label_span, `Argument label '{arg.label}' does not match parameter name '{param.sym.name}'`,
+                        param.sym.span, "Parameter defined here"
+                    ))
+                    else => {}
+                }
             }
 
             let arg_type = .check_expression(arg.expr, hint: param.type)
             if not arg_type? or not param.type? then continue
             if not arg_type.eq(param.type) {
-                .error(Error::new(arg.expr.span, `Argument {param.sym.name} has type {arg_type.str()} but expected {param.type.str()}`))
+                if param.sym? {
+                    .error(Error::new_hint(
+                        arg.expr.span, f"Expected `{param.sym.name}` with type {param.type.str()}, but got {arg_type.str()}",
+                        param.sym.span, "Parameter defined here"
+                    ))
+                } else {
+                    .error(Error::new(arg.expr.span, `Expected field {i} with type {param.type.str()}, but got {arg_type.str()}`))
+                }
             }
 
         // Default argument case
@@ -641,7 +634,14 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
             args.push(new_arg)
 
         } else {
-            .error(Error::new(node.u.call.close_paren_span, `Missing required argument {param.sym.name}`))
+            if param.sym? {
+                .error(Error::new_hint(
+                    node.u.call.close_paren_span, f"Missing required argument `{param.sym.name}` of type {param.type.str()}",
+                    param.sym.span, "Parameter defined here"
+                ))
+            } else {
+                .error(Error::new(node.u.call.close_paren_span, `Missing required field {i} of type {param.type.str()}`))
+            }
             return
         }
     }

@@ -38,7 +38,7 @@ def vlog(level: LogLevel, fmt: str, vargs: VarArgs) {
         time::strftime(time_buf, 64, log_time_format, tm_info)
         print(`({time_buf}) `)
     }
- 
+
     match level {
         Debug => print("[DEBUG] ")
         Info => print("[INFO] ")
