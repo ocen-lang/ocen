@@ -1,4 +1,4 @@
-/// fail: Foo::Case2 field 0 has type str, but got u32
+/// fail: Expected field 0 with type str, but got u32
 
 enum Foo {
     Case0(i32)

@@ -1,3 +1,4 @@
+/// out: 'a.x: 1\nFooA: 1, 2, hello'
 
 enum Foo {
     x: i32
