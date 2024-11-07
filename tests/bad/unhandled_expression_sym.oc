@@ -1,4 +1,4 @@
-/// fail: Unexpected token in parse_expression: AtSign
+/// fail: Expected compiler operation after @
 
 // Previously, this was getting stuck in an infinite loop
 // in the parser.

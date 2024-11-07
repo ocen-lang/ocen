@@ -75,10 +75,19 @@ def Lexer::inc(&this) {
 }
 
 def Lexer::peek(&this, offset: u32 = 1): char {
-    if .cur() == '\0' {
-        return .cur()
+    if .i + offset >= .source_len {
+        return '\0'
     }
     return .source[.i + offset]
+}
+
+def Lexer::starts_with(&this, s: str): bool {
+    for let i = 0; i < s.len(); i += 1 {
+        if .peek(i) != s[i] {
+            return false
+        }
+    }
+    return true
 }
 
 def Lexer::lex_char_literal(&this) {

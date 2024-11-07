@@ -5,7 +5,7 @@ import std::span::{ Span }
 import std::compact_map::{ Map }
 import @passes::generic_pass::GenericPass
 import @ast::scopes::{ Symbol, SymbolType, Scope }
-import @ast::program::{ Program, Namespace }
+import @ast::program::{ Program, Namespace, CachedSymbols }
 import @types::{ Type, BaseType, FunctionType }
 import @ast::nodes::{ AST, Function, Structure, Variable,Enum }
 import @errors::Error
@@ -163,6 +163,7 @@ struct Finder {
     type: &Type
 }
 
+[operator "[]"]
 def Finder::to(this, name: str): Finder {
     if not .sym? return this
     let res = .o.find_in_symbol(.sym, name, allow_templated: true)
@@ -187,8 +188,21 @@ def Finder::to(this, name: str): Finder {
 def RegisterTypes::register_cached_types(&this) {
     let finder = Finder(.o, .o.program.global.sym, null)
 
-    let res = finder.to("std").to("format")
-    .o.program.cached_symbols.fmt_string_fn = res.sym
+    let fmt_string_fn = finder["std"]["format"].sym
+
+    let alloc_fn = finder["std"]["mem"]["state"]["alloc_fn"].sym
+    let allocator = finder["std"]["mem"]["state"]["allocator"].sym
+
+    // Sanity checks to make sure the function is what we expect
+    assert alloc_fn.type == Variable and alloc_fn.u.var.type.base == Function
+    assert allocator.type == Variable
+    assert alloc_fn.u.var.type.u.func.params.size == 2
+
+    .o.program.cached_symbols = CachedSymbols(
+        fmt_string_fn: fmt_string_fn,
+        mem_alloc_fn: alloc_fn,
+        mem_allocator: allocator,
+    )
 }
 
 def RegisterTypes::create_namespace_scopes(&this, ns: &Namespace, parent: &Namespace) {

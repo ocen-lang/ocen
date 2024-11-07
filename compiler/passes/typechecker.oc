@@ -1570,6 +1570,19 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             arr.u.arr.size = node.u.array_literal.elements.size
             return arr
         }
+        ASTType::CreateNew => {
+            let child_typ = .check_expression(node.u.child)
+            if not child_typ? return null
+
+            if child_typ.base == Pointer {
+                // FIXME: Should we allow this?
+                .error(Error::new(node.span, "Cannot use `@new` on a pointer type"))
+            }
+
+            let typ = Type::new_resolved(Pointer, node.span)
+            typ.u.ptr = child_typ
+            return typ
+        }
         Error => {
             return hint
         }

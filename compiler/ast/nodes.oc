@@ -44,6 +44,10 @@ enum ASTType {
     Specialization
     ArrayLiteral
 
+    // Used for heap-allocating the result of an expression
+    // @new XYZ   =>  { let a = mem::alloc<typeof(XYZ)>(); *a = XYZ; yield a  }
+    CreateNew
+
     UnaryOp
     BinaryOp
 }

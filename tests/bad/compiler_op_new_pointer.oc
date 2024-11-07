@@ -1,0 +1,10 @@
+/// fail: Cannot use `@new` on a pointer type
+
+struct Foo {
+    a: i32
+}
+
+def main() {
+    let f: Foo
+    let g = @new &f
+}

@@ -328,6 +328,8 @@ def Program::get_type_by_name(&this, name: str, span: Span): &Type {
 
 struct CachedSymbols {
     fmt_string_fn: &Symbol
+    mem_alloc_fn: &Symbol
+    mem_allocator: &Symbol
 }
 
 def Program::iter_namespaces(&this): NSIterator {
