@@ -1,4 +1,4 @@
-/// fail: Argument label 'incorrect' does not match parameter name 'does_exist'
+/// fail: Expected positional argument `does_exist`, but got label `incorrect`
 
 def foo(val: i32, does_exist: bool): i32 {
     return val

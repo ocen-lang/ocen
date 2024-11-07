@@ -1,0 +1,29 @@
+/// out: "0123 1223 1233 1234 - 0123 1223 1233 1234 - 1153 1153 1122 1122 1247"
+
+def foo(a: u32, b: u32 = 1, c: u32 = 2, d: u32 = 3) => print(`{a}{b}{c}{d} `)
+
+
+def main() {
+    // Allow used as positional in order
+    foo(0)
+    foo(1, 2)
+    foo(1, 2, 3)
+    foo(1, 2, 3, 4)
+    print("- ")
+
+    // Allow labelling, in order
+    foo(a: 0)
+    foo(a: 1, b: 2)
+    foo(a: 1, b: 2, c: 3)
+    foo(a: 1, b: 2, c: 3, d: 4)
+    print("- ")
+
+    // Allow labelling, but not in order
+    foo(a: 1, c: 5)
+    foo(1, c: 5)
+    foo(a: 1, d: 2)
+    foo(1, d: 2)
+    foo(1, 2, d: 7, c: 4)
+
+    println("")
+}
