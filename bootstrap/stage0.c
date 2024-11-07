@@ -2147,6 +2147,7 @@ compiler_ast_scopes_Symbol *compiler_passes_typechecker_TypeChecker_resolve_scop
 void compiler_passes_typechecker_TypeChecker_check_block(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint);
 void compiler_passes_typechecker_TypeChecker_check_method_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *method, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_internal_print(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
+void compiler_passes_typechecker_TypeChecker_check_union_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_enum_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node);
 void compiler_passes_typechecker_TypeChecker_check_call_args_labelled(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, u32 start);
@@ -7334,421 +7335,517 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_internal_prin
 
 
 #line 545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
+void compiler_passes_typechecker_TypeChecker_check_union_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params) {
 
 #line 546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  node->u.call.call_type=compiler_ast_nodes_CallType_StructConstructor;
+  std_vector_Vector__7 *args = node->u.call.args;
+
+#line 547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  if (args->size != 1) {
 
 #line 548 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  compiler_ast_nodes_AST *callee = node->u.call.callee;
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Union constructors must have exactly one field")));
 
 #line 549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
+    for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(args); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
 
-#line 551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  if(!(type_sym->type==compiler_ast_scopes_SymbolType_Structure)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:551:12: Assertion failed: `type_sym.type == Structure`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
+#line 549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+      compiler_ast_nodes_Argument *arg = std_vector_Iterator__7_cur(&__iter);
+
+#line 549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+      {
+
+#line 550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+        compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
+      }
+    }
 
 #line 552 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  compiler_ast_nodes_Structure *struc = type_sym->u.struc;
+    return;
+  }
 
-#line 554 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  std_vector_Vector__4 *params = struc->fields;
+#line 555 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, 0);
 
 #line 556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  compiler_passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
+  if (!((bool)arg->label)) {
+
+#line 557 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, std_format("Union constructors must have a label for the field")));
 
 #line 558 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
+
+#line 559 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    return;
+  }
+
+#line 562 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  compiler_ast_nodes_Variable *param = NULL;
+
+#line 563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
+
+#line 563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_ast_nodes_Variable *p = std_vector_Iterator__4_cur(&__iter);
+
+#line 563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    {
+
+#line 564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+      if (((bool)p->sym) && str_eq(p->sym->name, arg->label)) {
+
+#line 565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+        param=p;
+
+#line 566 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+        break;
+      }
+    }
+  }
+
+#line 569 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  if (!((bool)param)) {
+
+#line 570 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, std_format("Unknown field %s in union constructor", arg->label)));
+
+#line 571 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
+
+#line 572 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    return;
+  }
+
+#line 575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  compiler_types_Type *arg_type = compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, param->type);
+
+#line 576 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  if (((bool)arg_type) && !compiler_types_Type_eq(arg_type, param->type, false)) {
+
+#line 577 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(arg->expr->span, std_format("Expected `%s` with type %s, but got %s", arg->label, compiler_types_Type_str(param->type), compiler_types_Type_str(arg_type)), param->sym->span, "Parameter defined here"));
+  }
+}
+
+
+#line 584 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
+
+#line 585 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  node->u.call.call_type=compiler_ast_nodes_CallType_StructConstructor;
+
+#line 587 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  compiler_ast_nodes_AST *callee = node->u.call.callee;
+
+#line 588 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
+
+#line 590 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  if(!(type_sym->type==compiler_ast_scopes_SymbolType_Structure)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:590:12: Assertion failed: `type_sym.type == Structure`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
+
+#line 591 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  compiler_ast_nodes_Structure *struc = type_sym->u.struc;
+
+#line 593 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  std_vector_Vector__4 *params = struc->fields;
+
+#line 594 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  if (struc->is_union) {
+
+#line 595 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_check_union_constructor(this, node, params);
+  } else {
+
+#line 596 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    compiler_passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
+  }
+
+#line 600 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return struc->type;
 }
 
 
-#line 561 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 603 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_enum_constructor(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
 
-#line 562 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 604 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->u.call.call_type=compiler_ast_nodes_CallType_EnumConstructor;
 
-#line 564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 606 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *callee = node->u.call.callee;
 
-#line 565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 607 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
 
-#line 567 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-  if(!(type_sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:567:12: Assertion failed: `type_sym.type == EnumVariant`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
+#line 609 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+  if(!(type_sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:609:12: Assertion failed: `type_sym.type == EnumVariant`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
 
-#line 568 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 610 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_EnumVariant *variant = type_sym->u.enum_var;
 
-#line 569 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 611 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Enum *enom = variant->parent;
 
-#line 571 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 613 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   u32 num_expected_fields = compiler_ast_nodes_EnumVariant_num_fields(variant);
 
-#line 572 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 614 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__4 *params = std_vector_Vector__4_new(16);
 
-#line 573 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 615 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = 0; i < num_expected_fields; i+=1) {
 
-#line 574 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 616 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *field = compiler_ast_nodes_EnumVariant_get_field(variant, i);
 
-#line 575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 617 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_vector_Vector__4_push(params, field);
   }
 
-#line 578 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 620 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7 *args = node->u.call.args;
 
-#line 579 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 621 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (num_expected_fields==0 && args->size==0) {
 
-#line 580 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 622 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_span_Span span = std_span_Span_join(node->u.call.open_paren_span, node->u.call.close_paren_span);
 
-#line 581 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 623 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Unnecessary empty constructor for %s, no fields expected", variant->sym->display)));
 
-#line 582 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return variant->parent->type;
   }
 
-#line 585 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 627 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_call_args(this, node, params, false);
 
-#line 586 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 628 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__4_clear(params);
 
-#line 587 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 629 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return enom->type;
 }
 
 
-#line 590 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 632 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_call_args_labelled(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, u32 start) {
 
-#line 591 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 633 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7 *args = node->u.call.args;
 
-#line 592 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 634 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *callee = node->u.call.callee;
 
-#line 593 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 635 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7 *new_args = std_vector_Vector__7_new(16);
 
-#line 595 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 637 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__9 *kwargs = std_map_Map__9_new(8);
 
-#line 596 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__10 *expected_params = std_map_Map__10_new(8);
 
-#line 598 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 640 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = 0; i < params->size; i++) {
 
-#line 599 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 641 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
 
-#line 600 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 642 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)param->sym)) {
 
-#line 601 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 643 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(param->type->span, "Not allowed to have unlabeled parameter here"));
 
-#line 602 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 644 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       continue;
     }
 
-#line 604 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Map__10_insert(expected_params, param->sym->name, param);
 
-#line 605 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 647 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (i < start) {
 
-#line 606 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 648 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
 
-#line 607 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 649 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_map_Map__9_insert(kwargs, param->sym->name, arg);
 
-#line 608 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_vector_Vector__7_push(new_args, std_vector_Vector__7_at(args, i));
     }
   }
 
-#line 612 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 654 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = start; i < args->size; i++) {
 
-#line 613 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
 
-#line 615 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 657 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)arg->label)) {
 
-#line 616 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 658 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, "Can't have positional arguments after labelled arguments"));
 
-#line 617 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 659 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       continue;
     }
 
-#line 619 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 661 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Item__10 *param_item = std_map_Map__10_get_item(expected_params, arg->label);
 
-#line 620 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 662 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Item__9 *kwarg_item = std_map_Map__9_get_item(kwargs, arg->label);
 
-#line 622 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 664 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *expected_type = NULL;
 
-#line 623 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 665 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)param_item)) {
 
-#line 624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 666 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->label_span, std_format("Unknown labelled argument `%s`", arg->label)));
     } else if (((bool)kwarg_item)) {
 
-#line 627 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 669 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(arg->label_span, std_format("Duplicate argument for parameter `%s`", arg->label), kwarg_item->value->expr->span, "Previously specified here"));
     } else {
 
-#line 632 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 674 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_map_Map__9_insert(kwargs, arg->label, arg);
 
-#line 633 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 675 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       expected_type=param_item->value->type;
     }
 
-#line 636 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 678 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *arg_type = compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
 
-#line 637 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 679 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if ((((bool)arg_type) && ((bool)expected_type)) && !compiler_types_Type_eq(arg_type, expected_type, false)) {
 
-#line 638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 680 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(arg->expr->span, std_format("Expected `%s` with type %s, but got %s", arg->label, compiler_types_Type_str(expected_type), compiler_types_Type_str(arg_type)), param_item->value->sym->span, "Parameter defined here"));
     }
   }
 
-#line 645 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 687 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = start; i < params->size; i++) {
 
-#line 646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
 
-#line 647 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-    if(!(((bool)param->sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:647:16: Assertion failed: `param.sym?`", std_format("Expected a symbol for parameter %u", i)); }
+#line 689 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+    if(!(((bool)param->sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:689:16: Assertion failed: `param.sym?`", std_format("Expected a symbol for parameter %u", i)); }
 
-#line 649 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 691 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Item__9 *item = std_map_Map__9_get_item(kwargs, param->sym->name);
 
-#line 650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 692 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)item)) {
 
-#line 651 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 693 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_vector_Vector__7_push(new_args, item->value);
     } else if (((bool)param->default_value)) {
 
-#line 654 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 696 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_Argument *new_arg = compiler_ast_nodes_Argument_new(param->default_value, NULL);
 
-#line 655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 697 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_vector_Vector__7_push(new_args, new_arg);
     } else {
 
-#line 662 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(node->u.call.close_paren_span, std_format("Missing required argument `%s` of type %s", param->sym->name, compiler_types_Type_str(param->type)), param->sym->span, "Parameter defined here"));
     }
   }
 
-#line 669 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 711 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7_free(args);
 
-#line 670 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 712 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__9_free(kwargs);
 
-#line 671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 713 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__10_free(expected_params);
 
-#line 672 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 714 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->u.call.args=new_args;
 }
 
 
-#line 676 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 718 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_call_args(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, std_vector_Vector__4 *params, bool is_variadic) {
 
-#line 677 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 719 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7 *args = node->u.call.args;
 
-#line 679 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 721 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = 0; i < params->size; i++) {
 
-#line 680 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 722 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_at(params, i);
 
-#line 683 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 725 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (i >= args->size) {
 
-#line 684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)param->default_value)) {
 
-#line 685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 727 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Argument *new_arg = compiler_ast_nodes_Argument_new(param->default_value, NULL);
 
-#line 686 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 728 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_vector_Vector__7_push(args, new_arg);
       } else {
 
-#line 688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 730 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)param->sym)) {
 
-#line 689 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 731 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(node->u.call.close_paren_span, std_format("Missing required argument `%s` of type %s", param->sym->name, compiler_types_Type_str(param->type)), param->sym->span, "Parameter defined here"));
         } else {
 
-#line 694 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 736 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.call.close_paren_span, std_format("Missing required field %u of type %s", i, compiler_types_Type_str(param->type))));
         }
       }
 
-#line 697 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 739 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       continue;
     }
 
-#line 700 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 742 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
 
-#line 701 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 743 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)arg->label)) {
 
-#line 702 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 744 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)param->sym)) {
 
-#line 703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->label_span, "Cannot use a labelled argument for a non-labeled parameter"));
-      } else if (!str_eq(arg->label, param->sym->name)) 
-#line 706 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-        if (((bool)param->default_value)) {
+      } else if (!str_eq(arg->label, param->sym->name)) {
 
-#line 710 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-          if (is_variadic) {
+#line 752 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+        if (is_variadic) {
 
-#line 711 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-            compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->label_span, std_format("Variadic functions not allowed with default arguments")));
-          }
-
-#line 716 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-          compiler_passes_typechecker_TypeChecker_check_call_args_labelled(this, node, params, i);
-
-#line 717 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-          break;
-        } else {
-
-#line 721 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(arg->label_span, std_format("Expected positional argument `%s`, but got label `%s`", param->sym->name, arg->label), param->sym->span, "Parameter defined here"));
+#line 753 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+          compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->label_span, std_format("Variadic functions not allowed with default arguments")));
         }
-       else {
+
+#line 758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+        compiler_passes_typechecker_TypeChecker_check_call_args_labelled(this, node, params, i);
+
+#line 759 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+        break;
+      } else {
       }
     }
 
-#line 733 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 766 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *arg_type = compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, param->type);
 
-#line 734 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 767 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)arg_type) || !((bool)param->type)) {
 
-#line 735 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 768 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       continue;
     }
 
-#line 737 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 770 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!compiler_types_Type_eq(arg_type, param->type, false)) {
 
-#line 738 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 771 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)param->sym)) {
 
-#line 739 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 772 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(arg->expr->span, std_format("Expected `%s` with type %s, but got %s", param->sym->name, compiler_types_Type_str(param->type), compiler_types_Type_str(arg_type)), param->sym->span, "Parameter defined here"));
       } else {
 
-#line 744 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 777 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, std_format("Expected field %u with type %s, but got %s", i, compiler_types_Type_str(param->type), compiler_types_Type_str(arg_type))));
       }
     }
   }
 
-#line 750 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   args=node->u.call.args;
 
-#line 752 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 785 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (is_variadic) {
 
-#line 753 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 786 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     for (u32 i = params->size; i < args->size; i++) {
 
-#line 754 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 787 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
 
-#line 755 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 788 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *arg_type = compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
 
-#line 756 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)arg_type)) {
 
-#line 757 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         continue;
       }
     }
   } else {
 
-#line 761 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     for (u32 i = params->size; i < args->size; i++) {
 
-#line 762 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 795 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
 
-#line 763 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *arg_type = compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
 
-#line 764 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 797 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->expr->span, std_format("Unexpected argument, expected only %u", params->size)));
     }
   }
 }
 
 
-#line 769 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 802 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint) {
 
-#line 770 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *callee = node->u.call.callee;
 
-#line 771 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 804 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7 *args = node->u.call.args;
 
-#line 774 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 807 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (callee->type==compiler_ast_nodes_ASTType_Identifier) {
 
-#line 775 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 808 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     callee->u.ident.is_function=false;
 
-#line 776 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 809 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     char *name = callee->u.ident.name;
 
-#line 778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 811 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (str_eq(name, "print") || str_eq(name, "println")) {
 
-#line 779 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 812 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return compiler_passes_typechecker_TypeChecker_check_internal_print(this, node);
     }
   }
 
-#line 783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 816 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *res = ({ compiler_types_Type *__yield_0;
 
-#line 783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 816 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((callee->type)) {
       case compiler_ast_nodes_ASTType_Member:
       m_17_0:
@@ -7761,45 +7858,45 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler
       m_17_1:
         {
 
-#line 786 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 819 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_scopes_Symbol *sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, callee, true, hint, true);
 
-#line 787 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 820 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           __yield_0 = ({ compiler_types_Type *__yield_1;
 
-#line 787 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 820 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (((bool)sym)) {
 
-#line 789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 822 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               sym=compiler_ast_scopes_Symbol_remove_alias(sym);
 
-#line 790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, callee, sym);
 
-#line 792 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               __yield_1 = ({ compiler_types_Type *__yield_2;
 
-#line 792 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 switch ((sym->type)) {
                   case compiler_ast_scopes_SymbolType_Structure:
                   case compiler_ast_scopes_SymbolType_TypeDef:
                   m_18_0:
                     {
 
-#line 794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 827 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                       node->u.call.call_type=compiler_ast_nodes_CallType_StructConstructor;
 
-#line 795 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 828 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                       return compiler_passes_typechecker_TypeChecker_check_constructor(this, node);
                     } break;
                   case compiler_ast_scopes_SymbolType_EnumVariant:
                   m_18_1:
                     {
 
-#line 798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                       node->u.call.call_type=compiler_ast_nodes_CallType_EnumConstructor;
 
-#line 799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                       return compiler_passes_typechecker_TypeChecker_check_enum_constructor(this, node);
                     } break;
                   default:
@@ -7822,98 +7919,98 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler
 
   __yield_0; });
 
-#line 810 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 843 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->u.call.call_type=compiler_ast_nodes_CallType_Normal;
 
-#line 811 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)res)) {
 
-#line 812 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (res->base==compiler_types_BaseType_Pointer && res->u.ptr->base==compiler_types_BaseType_Function) {
 
-#line 813 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       res=res->u.ptr;
     } else if (res->base != compiler_types_BaseType_Function) {
 
-#line 816 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 849 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(callee->span, std_format("Cannot call a non-function type: %s", compiler_types_Type_str(res))));
 
-#line 818 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 851 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       res=this->o->error_type;
     }
   } else {
 
-#line 823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 856 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     res=this->o->error_type;
   }
 
-#line 829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 862 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (res->base==compiler_types_BaseType_Error) {
 
-#line 830 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     for (std_vector_Iterator__7 __iter = std_vector_Vector__7_iter(args); std_vector_Iterator__7_has_value(&__iter); std_vector_Iterator__7_next(&__iter)) {
 
-#line 830 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_Argument *arg = std_vector_Iterator__7_cur(&__iter);
 
-#line 830 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       {
 
-#line 831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 864 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_expression(this, arg->expr, NULL);
       }
     }
 
-#line 833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 836 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 869 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_FunctionType func = res->u.func;
 
-#line 837 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 870 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)func.orig) && func.orig->exits) {
 
-#line 837 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 870 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     node->returns=true;
   }
 
-#line 838 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 871 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__4 *params = func.params;
 
-#line 840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if ((((bool)func.orig) && func.orig->is_method) && !func.orig->is_static) {
 
-#line 841 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 874 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_method_call(this, func.orig, node);
   }
 
-#line 844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 877 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_call_args(this, node, params, func.is_variadic);
 
-#line 846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool is_variadic_format = (((bool)func.orig) && func.orig->is_variadic_format);
 
-#line 847 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 880 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (is_variadic_format && (args->size >= params->size)) {
 
-#line 848 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 881 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_vector_Vector__7 *args = node->u.call.args;
 
-#line 850 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 883 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *param = std_vector_Vector__4_back(params, 0);
 
-#line 851 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 884 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *arg = std_vector_Vector__7_at(args, (params->size - 1))->expr;
 
-#line 853 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!compiler_types_Type_is_str(param->type)) {
 
-#line 854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 887 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func.orig->sym->span, "Variadic-format function must have last positional argument of type 'str'"));
     }
 
-#line 858 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 891 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((arg->type)) {
       case compiler_ast_nodes_ASTType_StringLiteral:
       case compiler_ast_nodes_ASTType_FormatStringLiteral:
@@ -7923,135 +8020,135 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_call(compiler
       default:
         {
 
-#line 861 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 894 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->span, "Expected a string literal for variadic-format function"));
         } break;
     }
   }
 
-#line 868 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 901 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)func.orig)) {
 
-#line 869 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     node->u.call.is_function_pointer=false;
 
-#line 870 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 903 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     node->u.call.func=func.orig;
   }
 
-#line 873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return func.return_type;
 }
 
 
-#line 876 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 909 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_pointer_arith(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
 
-#line 877 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 910 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_operators_Operator op = node->u.binary.op;
 
-#line 878 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 911 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (op==compiler_ast_operators_Operator_Plus || op==compiler_ast_operators_Operator_Minus) {
 
-#line 879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 912 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (lhs->base==compiler_types_BaseType_Pointer && compiler_types_Type_is_integer(rhs)) {
 
-#line 880 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 913 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return lhs;
     }
 
-#line 882 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 915 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (compiler_types_Type_is_integer(lhs) && rhs->base==compiler_types_BaseType_Pointer) {
 
-#line 883 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 916 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return rhs;
     }
 
-#line 885 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 918 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (compiler_types_Type_eq(lhs, rhs, false) && lhs->base==compiler_types_BaseType_Pointer) {
 
-#line 886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 919 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (op==compiler_ast_operators_Operator_Minus) {
 
-#line 887 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 920 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_I64, node->span);
       }
     }
   }
 
-#line 891 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 924 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Invalid pointer arithmetic"));
 
-#line 892 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 925 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return NULL;
 }
 
 
-#line 895 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 928 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_operators_Operator op, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *arg1, compiler_ast_nodes_AST *arg2, compiler_ast_nodes_AST *arg3) {
 
-#line 896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 929 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_ast_operators_Operator_needs_lhs_pointer_for_overload(op)) {
 
-#line 898 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 931 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (compiler_ast_nodes_AST_is_lvalue(arg1) && (arg1->etype->base != compiler_types_BaseType_Pointer)) {
 
-#line 899 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 932 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       arg1=compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Address, arg1->span, arg1);
 
-#line 900 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 933 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg1, NULL))) {
 
-#line 900 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 933 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return NULL;
       }
     }
   }
 
-#line 904 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 937 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_operators_OperatorOverload overload = {0};
 
-#line 905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 938 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   overload.op=op;
 
-#line 906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 939 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)arg1)) {
 
-#line 906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 939 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     overload.type1=arg1->etype;
   }
 
-#line 907 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 940 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)arg2)) {
 
-#line 907 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 940 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     overload.type2=arg2->etype;
   }
 
-#line 908 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 941 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)arg3)) {
 
-#line 908 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 941 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     overload.type3=arg3->etype;
   }
 
-#line 909 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 942 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Function *func = std_map_Map__5_get(this->o->program->operator_overloads, overload, NULL);
 
-#line 910 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)func)) {
 
-#line 910 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 912 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 945 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *callee = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_OverloadedOperator, node->u.binary.op_span);
 
-#line 913 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 946 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   callee->u.operator_span=({ std_span_Span __yield_0;
 
-#line 913 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 946 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((node->type)) {
       case compiler_ast_nodes_ASTType_BinaryOp:
       m_20_0:
@@ -8071,67 +8168,67 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_find_and_replace_ov
 
   __yield_0; });
 
-#line 918 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 951 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, callee, func->sym);
 
-#line 920 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 953 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__7 *args = std_vector_Vector__7_new(16);
 
-#line 921 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 954 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)arg1)) {
 
-#line 921 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 954 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_vector_Vector__7_push(args, compiler_ast_nodes_Argument_new(arg1, NULL));
   }
 
-#line 922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 955 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)arg2)) {
 
-#line 922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 955 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_vector_Vector__7_push(args, compiler_ast_nodes_Argument_new(arg2, NULL));
   }
 
-#line 923 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 956 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)arg3)) {
 
-#line 923 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 956 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_vector_Vector__7_push(args, compiler_ast_nodes_Argument_new(arg3, NULL));
   }
 
-#line 925 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 958 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->type=compiler_ast_nodes_ASTType_Call;
 
-#line 926 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 959 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->u.call.callee=callee;
 
-#line 927 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 960 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->u.call.args=args;
 
-#line 928 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 961 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->etype=func->return_type;
 
-#line 929 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 962 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return func->return_type;
 }
 
 
-#line 932 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 965 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
 
-#line 933 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 966 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_operators_Operator op = node->u.binary.op;
 
-#line 934 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 967 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, op, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
 
-#line 935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 968 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)res)) {
 
-#line 935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 968 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return res;
   }
 
-#line 937 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 970 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((op)) {
     case compiler_ast_operators_Operator_Plus:
     case compiler_ast_operators_Operator_Minus:
@@ -8140,28 +8237,28 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     m_21_0:
       {
 
-#line 939 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 972 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (lhs->base==compiler_types_BaseType_Pointer || rhs->base==compiler_types_BaseType_Pointer) {
 
-#line 940 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 973 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return compiler_passes_typechecker_TypeChecker_check_pointer_arith(this, node, lhs, rhs);
         } else if (!compiler_types_Type_is_numeric(lhs) || !compiler_types_Type_is_numeric(rhs)) {
 
-#line 943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 976 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 946 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 979 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         } else if (!compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 949 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 982 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 953 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 986 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         } else {
 
-#line 955 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 988 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return lhs;
         }
       } break;
@@ -8172,40 +8269,40 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     m_21_1:
       {
 
-#line 959 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 992 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *lhs_node = node->u.binary.lhs;
 
-#line 960 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 993 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_ast_nodes_AST_is_lvalue(lhs_node)) {
 
-#line 961 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 994 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Left hand side of assignment must be assignable"));
 
-#line 962 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 995 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 964 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 997 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_is_numeric(lhs) || !compiler_types_Type_is_numeric(rhs)) {
 
-#line 965 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 998 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 968 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1001 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 970 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1003 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 971 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1004 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 975 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1008 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 977 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1010 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return lhs;
       } break;
     case compiler_ast_operators_Operator_LessThan:
@@ -8215,37 +8312,37 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     m_21_2:
       {
 
-#line 980 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1013 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 981 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1014 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         }
 
-#line 986 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1019 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         lhs=compiler_types_Type_unaliased(lhs);
 
-#line 987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1020 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_is_numeric_or_char(lhs) && (lhs->base != compiler_types_BaseType_Pointer)) {
 
-#line 988 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1021 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 991 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1024 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 993 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1026 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
       } break;
     case compiler_ast_operators_Operator_Equals:
     m_21_3:
       {
 
-#line 996 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1029 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         bool is_invalid = ({ bool __yield_0;
 
-#line 996 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1029 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!compiler_types_Type_eq(lhs, rhs, false)) {
             __yield_0 = true;
           } else if (lhs->base==compiler_types_BaseType_Structure) {
@@ -8253,13 +8350,13 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
           } else if (lhs->base==compiler_types_BaseType_Enum) {
             __yield_0 = ({ bool __yield_1;
 
-#line 999 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1032 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (lhs->u.enom->has_values) {
 
-#line 1001 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1034 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support non-trivial enum `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs))));
 
-#line 1002 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
               } else {
                 __yield_1 = false;
@@ -8271,24 +8368,24 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
 
         __yield_0; });
 
-#line 1008 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1041 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (is_invalid) {
 
-#line 1009 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1042 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         }
 
-#line 1013 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1046 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
       } break;
     case compiler_ast_operators_Operator_NotEquals:
     m_21_4:
       {
 
-#line 1016 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1049 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         bool is_invalid = ({ bool __yield_0;
 
-#line 1016 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1049 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!compiler_types_Type_eq(lhs, rhs, false)) {
             __yield_0 = true;
           } else if (lhs->base==compiler_types_BaseType_Structure) {
@@ -8301,38 +8398,38 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
 
         __yield_0; });
 
-#line 1022 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1055 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (is_invalid) {
 
-#line 1024 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1057 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, compiler_ast_operators_Operator_Equals, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
 
-#line 1025 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1058 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)res)) {
 
-#line 1027 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1060 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_ast_nodes_AST *copy = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_UnaryOp, node->span);
 
-#line 1028 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1061 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             (*copy)=(*node);
 
-#line 1029 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1062 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             (*node)=(*compiler_ast_nodes_AST_new_unop(compiler_ast_operators_Operator_Not, node->span, copy));
 
-#line 1030 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1063 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_check_expression(this, node, NULL);
           } else if (lhs->base==compiler_types_BaseType_Enum) {
 
-#line 1032 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1065 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support non-trivial enum `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs))));
           } else {
 
-#line 1035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1068 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
           }
         }
 
-#line 1040 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1073 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
       } break;
     case compiler_ast_operators_Operator_And:
@@ -8340,41 +8437,41 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     m_21_5:
       {
 
-#line 1043 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1076 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_eq(lhs, rhs, false) || (lhs->base != compiler_types_BaseType_Bool)) {
 
-#line 1044 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1077 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 1047 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1080 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1049 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1082 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
       } break;
     case compiler_ast_operators_Operator_BitwiseXor:
     m_21_6:
       {
 
-#line 1052 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1085 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 1053 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1086 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 1056 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1089 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1058 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1091 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if ((lhs->base != compiler_types_BaseType_Bool) && !compiler_types_Type_is_integer(lhs)) {
 
-#line 1059 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1092 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Operator requires integer types"));
         }
 
-#line 1061 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1094 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return lhs;
       } break;
     case compiler_ast_operators_Operator_Modulus:
@@ -8387,39 +8484,39 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
     m_21_7:
       {
 
-#line 1064 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1097 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_is_integer(lhs) || !compiler_types_Type_is_integer(rhs)) {
 
-#line 1065 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1098 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Operator `%s` does not support `%s` and `%s`", compiler_ast_operators_Operator_dbg(op), compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
 
-#line 1068 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1101 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1070 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1103 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 1071 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1104 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->span, "Operands must be of the same type", std_format("Got types '%s' and '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
         }
 
-#line 1077 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1110 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *lhs_node = node->u.binary.lhs;
 
-#line 1078 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1111 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         switch ((op)) {
           case compiler_ast_operators_Operator_LeftShiftEquals:
           case compiler_ast_operators_Operator_RightShiftEquals:
           m_22_0:
             
-#line 1079 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1112 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!compiler_ast_nodes_AST_is_lvalue(lhs_node)) {
 
-#line 1080 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1113 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs_node->span, std_format("Must be an l-value")));
 
-#line 1081 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1114 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
              break;
@@ -8428,68 +8525,68 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_binary_op(com
             } break;
         }
 
-#line 1086 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1119 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return lhs;
       } break;
     default:
       {
 
-#line 1088 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1121 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_panic(std_format("Internal error: unhandled op in check_binary_op: %s", compiler_ast_nodes_ASTType_dbg(node->type)));
       } break;
   }
 }
 
 
-#line 1092 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1125 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
 
-#line 1093 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1126 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__8 *parts = node->u.fmt_str.parts;
 
-#line 1094 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1127 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__16 *exprs = node->u.fmt_str.exprs;
 
-#line 1096 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1129 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (parts->size != (exprs->size + 1)) {
 
-#line 1097 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1130 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Number of format string parts does not match number of expressions"));
   }
 
-#line 1100 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1133 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = 0; i < exprs->size; i+=1) {
 
-#line 1101 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1134 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *expr = std_vector_Vector__16_at(exprs, i);
 
-#line 1102 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1135 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, expr, NULL);
 
-#line 1103 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1136 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)typ)) {
 
-#line 1103 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1136 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       continue;
     }
 
-#line 1105 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1138 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     typ=compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_value(this, &expr);
 
-#line 1106 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1139 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     exprs->data[i]=expr;
 
-#line 1108 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1141 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)typ)) {
 
-#line 1108 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1141 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       continue;
     }
 
-#line 1109 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1142 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     typ=compiler_types_Type_unaliased(typ);
 
-#line 1111 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1144 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((typ->base)) {
       case compiler_types_BaseType_Bool:
       case compiler_types_BaseType_Char:
@@ -8510,27 +8607,27 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string
       default:
         {
 
-#line 1115 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1148 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           bool can_format = false;
 
-#line 1116 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1149 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (typ->base==compiler_types_BaseType_Structure) {
 
-#line 1117 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1150 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_ast_nodes_Structure *struc = typ->u.struc;
 
-#line 1118 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1151 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (((bool)struc) && ((bool)struc->format_spec)) {
 
-#line 1119 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1152 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               can_format=true;
             }
           }
 
-#line 1123 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1156 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (can_format) {
 
-#line 1129 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1162 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             switch ((expr->type)) {
               case compiler_ast_nodes_ASTType_Identifier:
               case compiler_ast_nodes_ASTType_Member:
@@ -8538,105 +8635,105 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_format_string
               m_24_0:
                 {
 
-#line 1130 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1163 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   continue;
                 } break;
               default:
                 {
 
-#line 1132 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1165 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(expr->span, std_format("Can only format %s in simple expressions", typ->sym->display), "Try moving the expression into a variable and formatting that instead"));
                 } break;
             }
           } else {
 
-#line 1140 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1173 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, std_format("Type '%s' cannot be formatted automatically", compiler_types_Type_str(typ))));
           }
         } break;
     }
   }
 
-#line 1148 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1181 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span);
 }
 
 
-#line 1151 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1184 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_being_called, compiler_types_Type *hint) {
 
-#line 1152 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1185 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.member.lhs, NULL);
 
-#line 1153 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1186 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)lhs)) {
 
-#line 1153 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1186 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 1156 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool is_pointer = false;
 
-#line 1157 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (lhs->base==compiler_types_BaseType_Pointer) {
 
-#line 1158 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1191 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     is_pointer=true;
 
-#line 1160 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1193 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)lhs->u.ptr)) {
 
-#line 1161 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1194 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs->span, "Got unresolved type"));
 
-#line 1162 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1195 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return hint;
     }
 
-#line 1164 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1197 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     lhs=lhs->u.ptr;
   }
 
-#line 1169 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1202 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (lhs->base==compiler_types_BaseType_UnresolvedTemplate) {
 
-#line 1170 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1203 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     lhs=lhs->u.unresolved_spec.base;
   }
 
-#line 1173 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1206 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   char *rhs_name = node->u.member.rhs_name;
 
-#line 1174 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1207 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)rhs_name)) {
 
-#line 1174 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1207 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return hint;
   }
 
-#line 1176 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1209 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((lhs->base)) {
     case compiler_types_BaseType_Structure:
     m_25_0:
       {
 
-#line 1178 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1211 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Structure *struc = lhs->u.struc;
 
-#line 1179 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1212 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Variable *field = compiler_ast_nodes_Structure_get_field(struc, rhs_name);
 
-#line 1180 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1213 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)field)) {
 
-#line 1181 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1214 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           node->u.member.is_pointer=is_pointer;
 
-#line 1182 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1215 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, node, field->sym);
 
-#line 1183 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1216 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return field->type;
         }
       } break;
@@ -8644,22 +8741,22 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compil
     m_25_1:
       {
 
-#line 1187 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1220 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Enum *enom = lhs->u.enom;
 
-#line 1188 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1221 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Variable *field = compiler_ast_nodes_Enum_get_shared_field(enom, rhs_name);
 
-#line 1189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1222 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)field)) {
 
-#line 1190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           node->u.member.is_pointer=is_pointer;
 
-#line 1191 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1224 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, node, field->sym);
 
-#line 1192 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1225 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return field->type;
         }
       } break;
@@ -8668,317 +8765,317 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_member(compil
       } break;
   }
 
-#line 1200 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1233 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_types_Type_can_have_methods(lhs)) {
 
-#line 1201 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1234 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Function *method = std_map_Map__8_get(lhs->methods, rhs_name, NULL);
 
-#line 1202 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1235 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)method)) {
 
-#line 1203 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1236 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!is_being_called) {
 
-#line 1204 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1237 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot access method without calling it"));
 
-#line 1205 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1238 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return hint;
       }
 
-#line 1207 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1240 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (method->is_static) {
 
-#line 1208 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1241 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot call static method as instance method"));
 
-#line 1209 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1242 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return hint;
       }
 
-#line 1211 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1244 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       node->u.member.is_pointer=is_pointer;
 
-#line 1212 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1245 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_set_resolved_symbol(this, node, method->sym);
 
-#line 1213 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1246 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return method->type;
     }
   }
 
-#line 1217 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1250 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Type %s has no member named '%s'", compiler_types_Type_str(lhs), rhs_name)));
 
-#line 1220 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1253 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return hint;
 }
 
 
-#line 1226 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1259 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint) {
 
-#line 1227 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1260 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)node->etype)) {
 
-#line 1227 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1260 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return node->etype;
   }
 
-#line 1229 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1262 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression_helper(this, node, hint);
 
-#line 1230 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1263 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)typ) && (node->type != compiler_ast_nodes_ASTType_ArrayLiteral)) {
 
-#line 1230 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1263 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     typ=compiler_types_Type_decay_array(typ);
   }
 
-#line 1231 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1264 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->etype=typ;
 
-#line 1232 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1265 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->hint=(((bool)typ) ? typ : hint);
 
-#line 1233 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1266 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return typ;
 }
 
 
-#line 1236 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1269 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_index(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint, bool is_being_assigned) {
 
-#line 1237 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1270 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
 
-#line 1238 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1271 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, NULL);
 
-#line 1239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1272 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)lhs) || !((bool)rhs)) {
 
-#line 1239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1272 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 1241 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1274 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!is_being_assigned) {
 
-#line 1242 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1275 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, compiler_ast_operators_Operator_Index, node, node->u.binary.lhs, node->u.binary.rhs, NULL);
 
-#line 1243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)res)) {
 
-#line 1243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return res;
     }
   }
 
-#line 1246 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1279 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   rhs=compiler_types_Type_unaliased(rhs);
 
-#line 1247 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1280 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!compiler_types_Type_is_integer(rhs)) {
 
-#line 1248 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1281 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Index must be an integer, got %s", compiler_types_Type_str(rhs))));
 
-#line 1249 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1282 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 1251 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1284 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   lhs=compiler_types_Type_unaliased(lhs);
 
-#line 1252 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1285 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((lhs->base)) {
     case compiler_types_BaseType_Array:
     m_26_0:
       {
 
-#line 1253 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1286 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return lhs->u.arr.elem_type;
       } break;
     case compiler_types_BaseType_Pointer:
     m_26_1:
       {
 
-#line 1254 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1287 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return lhs->u.ptr;
       } break;
     default:
       {
 
-#line 1256 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1289 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot index type %s", compiler_types_Type_str(lhs))));
 
-#line 1257 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1290 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return NULL;
       } break;
   }
 }
 
 
-#line 1264 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1297 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_assignment(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *lhs, compiler_types_Type *rhs) {
 
-#line 1265 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1298 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!compiler_ast_nodes_AST_is_lvalue(node->u.binary.lhs)) {
 
-#line 1266 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1299 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.binary.lhs->span, "Must be an l-value"));
   }
 
-#line 1268 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1301 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 1269 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1302 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.binary.rhs->span, std_format("Variable type does not match assignment type, Expected type '%s', got '%s'", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs))));
   }
 
-#line 1273 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1306 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return lhs;
 }
 
 
-#line 1276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1309 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_helper(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint) {
 
-#line 1277 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1310 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((node->type)) {
     case compiler_ast_nodes_ASTType_IntLiteral:
     m_27_0:
       {
 
-#line 1279 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)node->u.num_literal.suffix)) {
 
-#line 1280 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1313 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return compiler_passes_typechecker_TypeChecker_resolve_type(this, node->u.num_literal.suffix, false, true, true);
         }
 
-#line 1282 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1315 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)hint) && compiler_types_Type_is_integer(hint)) {
 
-#line 1282 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1315 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return hint;
         }
 
-#line 1283 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_U32, node->span);
       } break;
     case compiler_ast_nodes_ASTType_FloatLiteral:
     m_27_1:
       {
 
-#line 1286 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1319 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)node->u.num_literal.suffix)) {
 
-#line 1287 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1320 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return compiler_passes_typechecker_TypeChecker_resolve_type(this, node->u.num_literal.suffix, false, true, true);
         }
 
-#line 1289 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1322 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)hint) && compiler_types_Type_is_float(hint)) {
 
-#line 1289 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1322 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return hint;
         }
 
-#line 1290 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1323 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_F32, node->span);
       } break;
     case compiler_ast_nodes_ASTType_StringLiteral:
     m_27_2:
       {
 
-#line 1293 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span);
       } break;
     case compiler_ast_nodes_ASTType_Null:
     m_27_3:
       {
 
-#line 1296 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)hint)) {
 
-#line 1297 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1330 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (hint->base==compiler_types_BaseType_Pointer) {
 
-#line 1297 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1330 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return hint;
           }
 
-#line 1298 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1331 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (hint->base==compiler_types_BaseType_Function) {
 
-#line 1298 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1331 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return hint;
           }
         }
 
-#line 1301 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1334 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "untyped_ptr", node->span);
       } break;
     case compiler_ast_nodes_ASTType_Cast:
     m_27_4:
       {
 
-#line 1304 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1337 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.cast.lhs, NULL);
 
-#line 1305 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1338 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)typ)) {
 
-#line 1305 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1338 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1306 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1339 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *target = compiler_passes_typechecker_TypeChecker_resolve_type(this, node->u.cast.to, false, true, true);
 
-#line 1307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)target)) {
 
-#line 1307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1308 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1341 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         node->u.cast.to=target;
 
-#line 1310 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1343 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return target;
       } break;
     case compiler_ast_nodes_ASTType_FormatStringLiteral:
     m_27_5:
       {
 
-#line 1313 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1346 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_check_format_string(this, node);
       } break;
     case compiler_ast_nodes_ASTType_CharLiteral:
     m_27_6:
       {
 
-#line 1316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1349 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Char, node->span);
       } break;
     case compiler_ast_nodes_ASTType_BoolLiteral:
     m_27_7:
       {
 
-#line 1319 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1352 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
       } break;
     case compiler_ast_nodes_ASTType_UnaryOp:
     m_27_8:
       {
 
-#line 1321 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1354 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         switch ((node->u.unary.op)) {
           case compiler_ast_operators_Operator_PreIncrement:
           case compiler_ast_operators_Operator_PostIncrement:
@@ -8987,191 +9084,191 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           m_28_0:
             {
 
-#line 1323 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1356 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, NULL);
 
-#line 1324 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!((bool)lhs)) {
-
-#line 1324 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
-              }
-
-#line 1325 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!compiler_types_Type_is_integer(lhs) && (lhs->base != compiler_types_BaseType_Pointer)) {
-
-#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot increment or decrement non-integer type: %s", compiler_types_Type_str(lhs))));
-
-#line 1327 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
-              }
-
-#line 1329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!compiler_ast_nodes_AST_is_lvalue(node->u.unary.expr)) {
-
-#line 1330 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can't perform %s on a non-lvalue", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
-              }
-
-#line 1332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              return lhs;
-            } break;
-          case compiler_ast_operators_Operator_Negate:
-          m_28_1:
-            {
-
-#line 1335 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!(((bool)hint) && compiler_types_Type_is_numeric(hint))) {
-
-#line 1336 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                hint=compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_I32, node->span);
-              }
-
-#line 1338 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, hint);
-
-#line 1339 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!((bool)typ)) {
-
-#line 1339 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
-              }
-
-#line 1340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!compiler_types_Type_is_numeric(typ)) {
-
-#line 1341 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
-
-#line 1342 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
-              }
-
-#line 1344 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              return typ;
-            } break;
-          case compiler_ast_operators_Operator_BitwiseNot:
-          m_28_2:
-            {
-
-#line 1347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, hint);
-
-#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!((bool)typ)) {
-
-#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
-              }
-
-#line 1349 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!compiler_types_Type_is_integer(typ)) {
-
-#line 1350 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot do bitwise-not on non-integer type: %s", compiler_types_Type_str(typ))));
-
-#line 1351 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
-              }
-
-#line 1353 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              return typ;
-            } break;
-          case compiler_ast_operators_Operator_IsNotNull:
-          m_28_3:
-            {
-
-#line 1356 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, NULL);
-
 #line 1357 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!((bool)typ)) {
+              if (!((bool)lhs)) {
 
 #line 1357 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
 #line 1358 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              typ=compiler_types_Type_unaliased(typ);
+              if (!compiler_types_Type_is_integer(lhs) && (lhs->base != compiler_types_BaseType_Pointer)) {
 
 #line 1359 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (typ->base != compiler_types_BaseType_Pointer) {
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot increment or decrement non-integer type: %s", compiler_types_Type_str(lhs))));
 
 #line 1360 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only use ? on pointer types, got %s", compiler_types_Type_str(typ))));
+                return NULL;
               }
 
 #line 1362 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
-            } break;
-          case compiler_ast_operators_Operator_Not:
-          m_28_4:
-            {
+              if (!compiler_ast_nodes_AST_is_lvalue(node->u.unary.expr)) {
 
-#line 1365 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
-
-#line 1366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!((bool)typ)) {
-
-#line 1366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
+#line 1363 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can't perform %s on a non-lvalue", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
               }
 
-#line 1367 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (typ->base != compiler_types_BaseType_Bool) {
+#line 1365 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              return lhs;
+            } break;
+          case compiler_ast_operators_Operator_Negate:
+          m_28_1:
+            {
 
 #line 1368 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-boolean type: %s", compiler_types_Type_str(typ))));
+              if (!(((bool)hint) && compiler_types_Type_is_numeric(hint))) {
 
 #line 1369 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-                return NULL;
+                hint=compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_I32, node->span);
               }
 
 #line 1371 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              return typ;
-            } break;
-          case compiler_ast_operators_Operator_Address:
-          m_28_5:
-            {
+              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, hint);
+
+#line 1372 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!((bool)typ)) {
+
+#line 1372 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1373 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!compiler_types_Type_is_numeric(typ)) {
 
 #line 1374 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, NULL);
-
-#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-              if (!((bool)typ)) {
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
 
 #line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
 #line 1377 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              return typ;
+            } break;
+          case compiler_ast_operators_Operator_BitwiseNot:
+          m_28_2:
+            {
+
+#line 1380 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, hint);
+
+#line 1381 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!((bool)typ)) {
+
+#line 1381 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1382 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!compiler_types_Type_is_integer(typ)) {
+
+#line 1383 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot do bitwise-not on non-integer type: %s", compiler_types_Type_str(typ))));
+
+#line 1384 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1386 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              return typ;
+            } break;
+          case compiler_ast_operators_Operator_IsNotNull:
+          m_28_3:
+            {
+
+#line 1389 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, NULL);
+
+#line 1390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!((bool)typ)) {
+
+#line 1390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1391 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              typ=compiler_types_Type_unaliased(typ);
+
+#line 1392 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (typ->base != compiler_types_BaseType_Pointer) {
+
+#line 1393 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only use ? on pointer types, got %s", compiler_types_Type_str(typ))));
+              }
+
+#line 1395 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
+            } break;
+          case compiler_ast_operators_Operator_Not:
+          m_28_4:
+            {
+
+#line 1398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
+
+#line 1399 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!((bool)typ)) {
+
+#line 1399 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1400 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (typ->base != compiler_types_BaseType_Bool) {
+
+#line 1401 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-boolean type: %s", compiler_types_Type_str(typ))));
+
+#line 1402 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              return typ;
+            } break;
+          case compiler_ast_operators_Operator_Address:
+          m_28_5:
+            {
+
+#line 1407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, NULL);
+
+#line 1408 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+              if (!((bool)typ)) {
+
+#line 1408 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+                return NULL;
+              }
+
+#line 1410 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               switch ((typ->base)) {
                 case compiler_types_BaseType_Char:
                 m_29_0:
                   {
 
-#line 1378 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1411 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     return compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span);
                   } break;
                 case compiler_types_BaseType_Void:
                 m_29_1:
                   {
 
-#line 1379 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1412 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     return compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "untyped_ptr", node->span);
                   } break;
                 default:
                   {
 
-#line 1381 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     compiler_types_Type *ptr = compiler_types_Type_new_resolved(compiler_types_BaseType_Pointer, node->span);
 
-#line 1382 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1415 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     ptr->u.ptr=typ;
 
-#line 1383 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1416 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     return ptr;
                   } break;
               }
@@ -9180,36 +9277,36 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           m_28_6:
             {
 
-#line 1388 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1421 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.unary.expr, NULL);
 
-#line 1389 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)typ)) {
 
-#line 1389 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (typ->base != compiler_types_BaseType_Pointer) {
 
-#line 1391 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1424 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot dereference non-pointer type: %s", compiler_types_Type_str(typ))));
 
-#line 1392 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1394 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return typ->u.ptr;
             } break;
           default:
             {
 
-#line 1397 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1430 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Unknown unary operator in check_expression: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
 
-#line 1398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return NULL;
             } break;
         }
@@ -9218,57 +9315,57 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
     m_27_9:
       {
 
-#line 1402 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1435 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_check_member(this, node, false, hint);
       } break;
     case compiler_ast_nodes_ASTType_SizeOf:
     m_27_10:
       {
 
-#line 1404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1437 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_resolve_type(this, node->u.size_of_type, false, true, true);
 
-#line 1405 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)typ)) {
 
-#line 1405 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1406 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         node->u.size_of_type=typ;
 
-#line 1407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_U32, node->span);
       } break;
     case compiler_ast_nodes_ASTType_If:
     m_27_11:
       {
 
-#line 1410 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1443 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_if(this, node, true, hint);
 
-#line 1411 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1444 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return node->etype;
       } break;
     case compiler_ast_nodes_ASTType_Block:
     m_27_12:
       {
 
-#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1447 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_block(this, node, true, hint);
 
-#line 1415 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1448 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return node->etype;
       } break;
     case compiler_ast_nodes_ASTType_Match:
     m_27_13:
       {
 
-#line 1418 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1451 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_match(this, node, true, hint);
 
-#line 1419 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1452 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return node->etype;
       } break;
     case compiler_ast_nodes_ASTType_Identifier:
@@ -9277,26 +9374,26 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
     m_27_14:
       {
 
-#line 1422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1455 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_scopes_Symbol *item = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, node, true, hint, true);
 
-#line 1423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1456 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)item)) {
 
-#line 1423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1456 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1458 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         item=compiler_ast_scopes_Symbol_remove_alias(item);
 
-#line 1426 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1459 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         switch ((item->type)) {
           case compiler_ast_scopes_SymbolType_Function:
           m_30_0:
             {
 
-#line 1427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return item->u.func->type;
             } break;
           case compiler_ast_scopes_SymbolType_Variable:
@@ -9304,37 +9401,37 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           m_30_1:
             {
 
-#line 1428 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1461 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return item->u.var->type;
             } break;
           case compiler_ast_scopes_SymbolType_EnumVariant:
           m_30_2:
             {
 
-#line 1430 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1463 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_EnumVariant *variant = item->u.enum_var;
 
-#line 1431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1464 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (compiler_ast_nodes_EnumVariant_num_fields(variant) != 0) {
 
-#line 1432 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1465 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("%s needs %u fields to construct", item->display, compiler_ast_nodes_EnumVariant_num_fields(variant))));
 
-#line 1433 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1466 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1435 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1468 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return variant->parent->type;
             } break;
           case compiler_ast_scopes_SymbolType_TypeDef:
           m_30_3:
             {
 
-#line 1439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1472 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot use type `%s` as an expression", item->name)));
 
-#line 1440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1473 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return NULL;
             } break;
           case compiler_ast_scopes_SymbolType_Structure:
@@ -9343,19 +9440,19 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           m_30_4:
             {
 
-#line 1443 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1476 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot use %s `%s` as an expression", compiler_ast_scopes_SymbolType_dbg(item->type), item->name)));
 
-#line 1444 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1477 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return NULL;
             } break;
           default:
             {
 
-#line 1447 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1480 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Should not get %s `%s` as an expression", compiler_ast_scopes_SymbolType_dbg(item->type), item->name)));
 
-#line 1448 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1481 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return NULL;
             } break;
         }
@@ -9364,23 +9461,23 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
     m_27_15:
       {
 
-#line 1452 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1485 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return compiler_passes_typechecker_TypeChecker_check_call(this, node, hint);
       } break;
     case compiler_ast_nodes_ASTType_BinaryOp:
     m_27_16:
       {
 
-#line 1456 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1489 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *lhs_node = node->u.binary.lhs;
 
-#line 1457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1490 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *rhs_node = node->u.binary.rhs;
 
-#line 1458 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_operators_Operator op = node->u.binary.op;
 
-#line 1459 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         switch ((op)) {
           case compiler_ast_operators_Operator_Plus:
           case compiler_ast_operators_Operator_Minus:
@@ -9409,152 +9506,152 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
           m_31_0:
             {
 
-#line 1484 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, lhs_node, NULL);
 
-#line 1485 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, rhs_node, lhs);
 
-#line 1486 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1519 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)lhs) || !((bool)rhs)) {
 
-#line 1486 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1519 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1487 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1520 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return compiler_passes_typechecker_TypeChecker_check_binary_op(this, node, compiler_types_Type_unaliased(lhs), compiler_types_Type_unaliased(rhs));
             } break;
           case compiler_ast_operators_Operator_In:
           m_31_1:
             {
 
-#line 1491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1524 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
 
-#line 1492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, NULL);
 
-#line 1493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)lhs) || !((bool)rhs)) {
 
-#line 1493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
               }
 
-#line 1494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1527 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, compiler_ast_operators_Operator_In, node, node->u.binary.rhs, node->u.binary.lhs, NULL);
 
-#line 1495 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1528 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span);
             } break;
           case compiler_ast_operators_Operator_Index:
           m_31_2:
             {
 
-#line 1497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return compiler_passes_typechecker_TypeChecker_check_index(this, node, hint, false);
             } break;
           case compiler_ast_operators_Operator_Assignment:
           m_31_3:
             {
 
-#line 1499 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1532 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.lhs, NULL);
 
-#line 1500 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1533 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.binary.rhs, lhs);
 
-#line 1501 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1534 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)lhs) || !((bool)rhs)) {
 
-#line 1501 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1534 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return compiler_passes_typechecker_TypeChecker_check_assignment(this, node, lhs, rhs);
             } break;
           case compiler_ast_operators_Operator_IndexAssign:
           m_31_4:
             {
 
-#line 1509 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1542 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_AST *index = node->u.binary.lhs;
 
-#line 1510 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1543 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_AST *arg1 = index->u.binary.lhs;
 
-#line 1511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1544 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_AST *arg2 = index->u.binary.rhs;
 
-#line 1512 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_AST *arg3 = node->u.binary.rhs;
 
-#line 1513 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg1, NULL))) {
 
-#line 1513 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1514 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg2, NULL))) {
 
-#line 1514 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *arg3_hint = NULL;
 
-#line 1518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *arg1_typ = compiler_types_Type_unaliased(arg1->etype);
 
-#line 1519 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1552 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (arg1_typ->base==compiler_types_BaseType_Pointer) {
 
-#line 1520 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1553 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 arg3_hint=arg1_typ->u.ptr;
               }
 
-#line 1523 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)compiler_passes_typechecker_TypeChecker_check_expression(this, arg3, arg3_hint))) {
 
-#line 1523 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1558 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_find_and_replace_overloaded_op(this, compiler_ast_operators_Operator_IndexAssign, node, arg1, arg2, arg3);
 
-#line 1526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1559 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (((bool)res)) {
 
-#line 1526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1559 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return res;
               }
 
-#line 1528 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1561 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_index(this, index, NULL, true);
 
-#line 1529 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1562 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_expression(this, arg3, lhs);
 
-#line 1530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!((bool)lhs) || !((bool)rhs)) {
 
-#line 1530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return NULL;
               }
 
-#line 1531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return compiler_passes_typechecker_TypeChecker_check_assignment(this, node, lhs, rhs);
             } break;
           default:
             {
 
-#line 1533 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1566 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               std_panic(std_format("Internal error: unhandled op in check_expression binary_op: %s", compiler_ast_nodes_ASTType_dbg(node->type)));
             } break;
         }
@@ -9563,152 +9660,152 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_expression_he
     m_27_17:
       {
 
-#line 1538 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1571 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *hint_elem_type = ((compiler_types_Type *)NULL);
 
-#line 1539 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1572 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)hint) && hint->base==compiler_types_BaseType_Array) {
 
-#line 1540 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1573 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           hint_elem_type=hint->u.arr.elem_type;
         }
 
-#line 1543 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1576 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *elem_type = ((compiler_types_Type *)NULL);
 
-#line 1544 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1577 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_span_Span first_span = std_span_Span_default();
 
-#line 1545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1578 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(node->u.array_literal.elements); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 1545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1578 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_AST *elem = std_vector_Iterator__16_cur(&__iter);
 
-#line 1545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1578 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           {
 
-#line 1546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1579 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_expression(this, elem, hint_elem_type);
 
-#line 1547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1580 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (!((bool)typ)) {
 
-#line 1547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1580 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               continue;
             }
 
-#line 1549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1582 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (!((bool)elem_type)) {
 
-#line 1550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1583 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               elem_type=typ;
 
-#line 1552 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1585 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               hint_elem_type=elem_type;
 
-#line 1553 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1586 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               first_span=elem->span;
             } else if (!compiler_types_Type_eq(elem_type, typ, false)) {
 
-#line 1556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1589 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(elem->span, std_format("Expected type %s, but got %s", compiler_types_Type_str(elem_type), compiler_types_Type_str(typ)), first_span, std_format("First element was of type %s", compiler_types_Type_str(elem_type))));
 
-#line 1560 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1593 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return NULL;
             }
           }
         }
 
-#line 1563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1596 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)elem_type)) {
 
-#line 1564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1597 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Array literal must have at least one element"));
 
-#line 1565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1598 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1567 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1600 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *arr = compiler_types_Type_new_resolved(compiler_types_BaseType_Array, node->span);
 
-#line 1568 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1601 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         arr->u.arr.elem_type=elem_type;
 
-#line 1569 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1602 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         arr->u.arr.size_known=true;
 
-#line 1570 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1603 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         arr->u.arr.size=node->u.array_literal.elements->size;
 
-#line 1571 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1604 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return arr;
       } break;
     case compiler_ast_nodes_ASTType_CreateNew:
     m_27_18:
       {
 
-#line 1574 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1607 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *child_typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.child, NULL);
 
-#line 1575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1608 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)child_typ)) {
 
-#line 1575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1608 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         }
 
-#line 1577 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1610 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (child_typ->base==compiler_types_BaseType_Pointer) {
 
-#line 1579 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1612 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot use `@new` on a pointer type"));
         }
 
-#line 1582 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1615 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *typ = compiler_types_Type_new_resolved(compiler_types_BaseType_Pointer, node->span);
 
-#line 1583 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1616 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         typ->u.ptr=child_typ;
 
-#line 1584 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1617 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return typ;
       } break;
     case compiler_ast_nodes_ASTType_Error:
     m_27_19:
       {
 
-#line 1587 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1620 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return hint;
       } break;
     default:
       {
 
-#line 1590 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1623 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Invalid expression in TypeChecker::check_expression: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
 
-#line 1591 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return NULL;
       } break;
   }
 }
 
 
-#line 1598 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1631 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_value(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST **node_ptr) {
 
-#line 1599 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1632 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *node = (*node_ptr);
 
-#line 1601 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1634 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)node->etype)) {
 
-#line 1601 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1634 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 1602 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1635 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((node->etype->base)) {
     case compiler_types_BaseType_Enum:
     m_32_0:
@@ -9717,88 +9814,88 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_call_dbg_on_enum_va
     default:
       {
 
-#line 1604 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1637 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return node->etype;
       } break;
   }
 
-#line 1607 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1640 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *member = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Member, node->span);
 
-#line 1608 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1641 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   member->u.member.lhs=node;
 
-#line 1609 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1642 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   member->u.member.rhs_name="dbg";
 
-#line 1610 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1643 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   member->u.member.rhs_span=node->span;
 
-#line 1612 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1645 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *call = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Call, node->span);
 
-#line 1613 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   call->u.call.callee=member;
 
-#line 1614 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1647 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   call->u.call.args=std_vector_Vector__7_new(16);
 
-#line 1616 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1649 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   (*node_ptr)=call;
 
-#line 1618 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1651 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return compiler_passes_typechecker_TypeChecker_check_expression(this, call, NULL);
 }
 
 
-#line 1621 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1654 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enom, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
 
-#line 1622 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__11 *mapping = std_map_Map__11_new(8);
 
-#line 1623 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1656 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 
-#line 1625 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1658 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__23 *cases = node->u.match_stmt.cases;
 
-#line 1626 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1659 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->returns=(cases->size > 0);
 
-#line 1629 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1662 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__2 *current_args = std_map_Map__2_new(8);
 
-#line 1630 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1663 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__23 __iter = std_vector_Vector__23_iter(cases); std_vector_Iterator__23_has_value(&__iter); std_vector_Iterator__23_next(&__iter)) {
 
-#line 1630 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1663 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_MatchCase _case = std_vector_Iterator__23_cur(&__iter);
 
-#line 1630 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1663 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 1631 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1664 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_vector_Vector__11 *conds = _case.conds;
 
-#line 1633 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1666 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_map_Map__2_clear(current_args);
 
-#line 1634 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1667 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       for (u32 i = 0; i < conds->size; i++) {
 
-#line 1635 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1668 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_MatchCond *cond = std_vector_Vector__11_at(conds, i);
 
-#line 1636 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1669 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         char *name;
 
-#line 1638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *expr = cond->expr;
 
-#line 1639 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1672 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         expr->hint=enom->type;
 
-#line 1640 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1673 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         switch ((expr->type)) {
           case compiler_ast_nodes_ASTType_Identifier:
           case compiler_ast_nodes_ASTType_NSLookup:
@@ -9809,502 +9906,502 @@ void compiler_passes_typechecker_TypeChecker_check_match_for_enum(compiler_passe
           default:
             {
 
-#line 1643 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1676 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, std_format("Expected value enum variant, got %s", compiler_ast_nodes_ASTType_dbg(expr->type))));
 
-#line 1644 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1677 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               continue;
             } break;
         }
 
-#line 1648 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1681 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_scopes_Symbol *resolved_sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, expr, true, enom->type, true);
 
-#line 1649 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1682 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)resolved_sym)) {
 
-#line 1649 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1682 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           continue;
         }
 
-#line 1650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1683 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (resolved_sym->type != compiler_ast_scopes_SymbolType_EnumVariant) {
 
-#line 1651 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, std_format("Expected value enum variant, got %s (%s)", compiler_ast_scopes_SymbolType_dbg(resolved_sym->type), resolved_sym->display)));
 
-#line 1654 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1687 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           continue;
         }
 
-#line 1656 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1689 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_EnumVariant *variant = resolved_sym->u.enum_var;
 
-#line 1658 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1691 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (variant->parent != enom) {
 
-#line 1659 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1692 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, "Condition does not match expression type", node->u.match_stmt.expr->span, std_format("Match expression is of type '%s'", compiler_types_Type_str(enom->type))));
         }
 
-#line 1664 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1697 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         expr->etype=enom->type;
 
-#line 1666 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1699 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_vector_Vector__4 *args = cond->args;
 
-#line 1668 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1701 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_vector_Vector__4 *shared_fields = enom->shared_fields;
 
-#line 1669 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1702 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         u32 num_expected_fields = compiler_ast_nodes_EnumVariant_num_fields(variant);
 
-#line 1671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)args) && (args->size != num_expected_fields)) {
 
-#line 1672 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1705 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (shared_fields->size==0) {
 
-#line 1673 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1706 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, std_format("%s needs %u fields, but got %u", variant->sym->display, num_expected_fields, args->size), variant->sym->span, std_format("Variant specified here")));
           } else {
 
-#line 1678 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1711 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, std_format("%s needs %u fields (%u shared), but got %u", variant->sym->display, num_expected_fields, shared_fields->size, args->size), variant->sym->span, std_format("Variant specified here")));
           }
         }
 
-#line 1686 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1719 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (i==0) {
 
-#line 1687 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1720 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)args)) {
 
-#line 1688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1721 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             for (u32 j = 0; (j < args->size) && (j < num_expected_fields); j+=1) {
 
-#line 1689 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1722 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_Variable *arg = std_vector_Vector__4_at(args, j);
 
-#line 1690 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1723 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_ast_nodes_Variable *field = compiler_ast_nodes_EnumVariant_get_field(variant, j);
 
-#line 1691 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1724 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               arg->type=field->type;
 
-#line 1692 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1725 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (!str_eq(arg->sym->name, "_")) {
 
-#line 1693 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 std_map_Map__2_insert(current_args, arg->sym->name, field->type);
               }
             }
           }
         } else {
 
-#line 1701 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1734 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           u32 found_args = 0;
 
-#line 1702 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1735 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           for (u32 j = 0; (((bool)args) && (j < args->size)) && (j < num_expected_fields); j+=1) {
 
-#line 1703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1736 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_ast_nodes_Variable *arg = std_vector_Vector__4_at(args, j);
 
-#line 1704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1737 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_ast_nodes_Variable *field = compiler_ast_nodes_EnumVariant_get_field(variant, j);
 
-#line 1705 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1738 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             arg->type=field->type;
 
-#line 1707 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1740 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (str_eq(arg->sym->name, "_")) {
 
-#line 1707 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1740 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               continue;
             }
 
-#line 1709 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1742 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             std_map_Item__2 *item = std_map_Map__2_get_item(current_args, arg->sym->name);
 
-#line 1710 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1743 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (!((bool)item)) {
 
-#line 1711 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1744 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->sym->span, "All conditions in this branch must have the same fields"));
 
-#line 1714 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1747 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               continue;
             }
 
-#line 1717 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1750 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             found_args+=1;
 
-#line 1718 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1751 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (!compiler_types_Type_eq(item->value, field->type, false)) {
 
-#line 1719 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1752 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->sym->span, std_format("Field type does not match previous branch: %s", compiler_types_Type_str(item->value))));
 
-#line 1722 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1755 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               continue;
             }
           }
 
-#line 1725 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (found_args != current_args->size) {
 
-#line 1726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1759 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, "All conditions in this branch must have the same fields"));
           }
         }
 
-#line 1732 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1765 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         name=expr->resolved_symbol->name;
 
-#line 1733 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1766 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_MatchCond *prev = std_map_Map__11_get(mapping, name, NULL);
 
-#line 1734 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1767 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)prev)) {
 
-#line 1735 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1768 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(expr->span, "Duplicate condition name in match", prev->expr->span, "This condition was previously used here"));
         }
 
-#line 1740 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1773 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_map_Map__11_insert(mapping, name, cond);
       }
 
-#line 1743 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1776 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)_case.body)) {
 
-#line 1744 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1777 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_generic_pass_GenericPass_push_scope(this->o, compiler_ast_scopes_Scope_new(compiler_passes_generic_pass_GenericPass_scope(this->o)));
 
-#line 1745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         for (std_map_Iterator__2 __iter = std_map_Map__2_iter(current_args); std_map_Iterator__2_has_value(&__iter); std_map_Iterator__2_next(&__iter)) {
 
-#line 1745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           std_map_Item__2 *arg = std_map_Iterator__2_cur(&__iter);
 
-#line 1745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           {
 
-#line 1746 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1779 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(arg->value);
 
-#line 1747 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1780 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             var->sym=compiler_ast_scopes_Symbol_from_local_variable(arg->key, var, arg->value->span);
 
-#line 1748 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1781 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, var->sym, NULL);
           }
         }
 
-#line 1751 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, _case.body, is_expr, hint);
 
-#line 1752 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1785 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
       }
     }
   }
 
-#line 1756 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *defolt = node->u.match_stmt.defolt;
 
-#line 1757 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (mapping->size != enom->variants->size) {
 
-#line 1758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_buffer_Buffer buf = std_buffer_Buffer_make(16);
 
-#line 1759 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1792 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_buffer_Buffer_write_str(&buf, "Remaining fields: ");
 
-#line 1760 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1793 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     bool first = true;
 
-#line 1761 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 1761 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 1761 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       {
 
-#line 1762 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1795 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!std_map_Map__11_contains(mapping, variant->sym->name)) {
 
-#line 1763 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!first) {
 
-#line 1763 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             std_buffer_Buffer_write_str(&buf, " | ");
           }
 
-#line 1764 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1797 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           std_buffer_Buffer_write_str(&buf, variant->sym->name);
 
-#line 1765 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           first=false;
         }
       }
     }
 
-#line 1768 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1801 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)defolt)) {
 
-#line 1769 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1802 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(node->u.match_stmt.expr->span, std_format("Match does not cover all cases (Only %u of %u)", mapping->size, enom->variants->size), std_buffer_Buffer_str(buf)));
     } else {
 
-#line 1774 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1807 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, defolt, is_expr, hint);
     }
   } else {
 
-#line 1777 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1810 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)defolt)) {
 
-#line 1778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1811 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.match_stmt.defolt_span, "`else` case is not needed for this match"));
     }
   }
 
-#line 1782 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1815 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (is_expr && !((bool)node->etype)) {
 
-#line 1783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1816 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.match_stmt.match_span, "Expression-match must yield a value"));
   }
   /* defers */
 
-#line 1623 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1656 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__11_free(mapping);
 }
 
 
-#line 1788 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1821 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_match_for_bool(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
 
-#line 1789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1822 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Match *match_stmt = &node->u.match_stmt;
 
-#line 1790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if ((match_stmt->cases->size != 2) || ((bool)match_stmt->defolt)) {
 
-#line 1791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1824 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Match for bool must have exactly `true` and `false` cases"));
   }
 
-#line 1794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1827 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool seen_true = false;
 
-#line 1795 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1828 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool seen_false = false;
 
-#line 1796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->returns=true;
 
-#line 1798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__23 __iter = std_vector_Vector__23_iter(match_stmt->cases); std_vector_Iterator__23_has_value(&__iter); std_vector_Iterator__23_next(&__iter)) {
 
-#line 1798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_MatchCase _case = std_vector_Iterator__23_cur(&__iter);
 
-#line 1798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 1799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       for (std_vector_Iterator__11 __iter = std_vector_Vector__11_iter(_case.conds); std_vector_Iterator__11_has_value(&__iter); std_vector_Iterator__11_next(&__iter)) {
 
-#line 1799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_MatchCond *cond = std_vector_Iterator__11_cur(&__iter);
 
-#line 1799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         {
 
-#line 1800 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_AST *expr = cond->expr;
 
-#line 1801 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1834 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_check_expression(this, expr, NULL);
 
-#line 1802 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1835 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (expr->type != compiler_ast_nodes_ASTType_BoolLiteral) {
 
-#line 1803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1836 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(expr->span, "Expected either `true` or `false`"));
           } else {
 
-#line 1805 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1838 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (expr->u.bool_literal) {
 
-#line 1806 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1839 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               seen_true=true;
             } else {
 
-#line 1808 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1841 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               seen_false=true;
             }
           }
         }
       }
 
-#line 1812 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)_case.body)) {
 
-#line 1813 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, _case.body, is_expr, hint);
       } else {
 
-#line 1828 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1861 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Case must have a body"));
       }
     }
   }
 
-#line 1832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1865 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!seen_true) {
 
-#line 1832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1865 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Missing `true` case"));
   }
 
-#line 1833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!seen_false) {
 
-#line 1833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Missing `false` case"));
   }
 
-#line 1835 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1868 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (is_expr && !((bool)node->etype)) {
 
-#line 1836 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1869 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Expression-match must yield a value"));
   }
 }
 
 
-#line 1840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_ast_nodes_Function *compiler_passes_typechecker_TypeChecker_check_match_case_and_find_overload(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *expr, compiler_ast_nodes_MatchCond *cond) {
 
-#line 1841 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1874 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *lhs = expr->etype;
 
-#line 1842 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1875 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *rhs = cond->expr->etype;
 
-#line 1844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1877 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_types_Type_eq(lhs, rhs, false)) {
 
-#line 1845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1878 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (compiler_types_Type_is_numeric_or_char(lhs)) {
 
-#line 1845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1878 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return NULL;
     }
 
-#line 1846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (lhs->base==compiler_types_BaseType_Bool) {
 
-#line 1846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return NULL;
     }
   }
 
-#line 1850 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1883 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_operators_OperatorOverload overload = {0};
 
-#line 1851 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1884 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   overload.op=compiler_ast_operators_Operator_Equals;
 
-#line 1852 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1885 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   overload.type1=lhs;
 
-#line 1853 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   overload.type2=rhs;
 
-#line 1854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1887 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Function *func = std_map_Map__5_get(this->o->program->operator_overloads, overload, NULL);
 
-#line 1855 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1888 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)func)) {
 
-#line 1856 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(cond->expr->span, std_format("Cannot match %s with this case: %s", compiler_types_Type_str(lhs), compiler_types_Type_str(rhs)), expr->span, std_format("Match expression is of type %s", compiler_types_Type_str(lhs))));
 
-#line 1860 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1893 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 1863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *ret = compiler_types_Type_unaliased(func->return_type);
 
-#line 1864 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1897 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (ret->base != compiler_types_BaseType_Bool) {
 
-#line 1865 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1898 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(cond->expr->span, std_format("Overload %s must return a boolean", func->sym->display), func->sym->span, std_format("Defined here, return type is %s", compiler_types_Type_str(ret))));
 
-#line 1869 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return NULL;
   }
 
-#line 1872 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   cond->cmp_fn=func;
 
-#line 1873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return func;
 }
 
 
-#line 1877 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1910 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_match(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
 
-#line 1878 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1911 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Match *match_stmt = &node->u.match_stmt;
 
-#line 1879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1912 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *expr = match_stmt->expr;
 
-#line 1880 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1913 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *expr_type = compiler_passes_typechecker_TypeChecker_check_expression(this, expr, NULL);
 
-#line 1881 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1914 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)expr_type)) {
 
-#line 1882 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1915 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(match_stmt->match_span, "Match statement must have a valid expression"));
 
-#line 1883 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1916 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 1886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1919 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((expr_type->base)) {
     case compiler_types_BaseType_Enum:
     m_34_0:
       {
 
-#line 1888 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1921 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_match_for_enum(this, expr_type->u.enom, node, is_expr, hint);
 
-#line 1889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return;
       } break;
     case compiler_types_BaseType_Bool:
     m_34_1:
       {
 
-#line 1892 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1925 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_match_for_bool(this, node, is_expr, hint);
 
-#line 1893 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1926 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return;
       } break;
     default:
@@ -10312,437 +10409,437 @@ void compiler_passes_typechecker_TypeChecker_check_match(compiler_passes_typeche
       } break;
   }
 
-#line 1898 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1931 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__23 *cases = match_stmt->cases;
 
-#line 1899 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1932 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->returns=(cases->size > 0);
 
-#line 1901 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__23 __iter = std_vector_Vector__23_iter(cases); std_vector_Iterator__23_has_value(&__iter); std_vector_Iterator__23_next(&__iter)) {
 
-#line 1901 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_MatchCase _case = std_vector_Iterator__23_cur(&__iter);
 
-#line 1901 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 1902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       for (std_vector_Iterator__11 __iter = std_vector_Vector__11_iter(_case.conds); std_vector_Iterator__11_has_value(&__iter); std_vector_Iterator__11_next(&__iter)) {
 
-#line 1902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_MatchCond *cond = std_vector_Iterator__11_cur(&__iter);
 
-#line 1902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         {
 
-#line 1903 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1936 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_AST *cond_expr = cond->expr;
 
-#line 1904 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1937 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, cond_expr, expr_type);
 
-#line 1905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1938 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!((bool)cond_type)) {
 
-#line 1905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1938 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             continue;
           }
 
-#line 1907 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1940 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_Function *cmp_fn = compiler_passes_typechecker_TypeChecker_check_match_case_and_find_overload(this, expr, cond);
 
-#line 1908 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1941 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)cmp_fn)) {
 
-#line 1909 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1942 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             match_stmt->is_custom_match=true;
           } else {
 
-#line 1912 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1945 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             bool is_constant = (((bool)cond_expr->resolved_symbol) && cond_expr->resolved_symbol->type==compiler_ast_scopes_SymbolType_Constant);
 
-#line 1914 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1947 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (((cond_expr->type != compiler_ast_nodes_ASTType_IntLiteral) && (cond_expr->type != compiler_ast_nodes_ASTType_CharLiteral)) && !is_constant) {
 
-#line 1916 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1949 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(cond_expr->span, "Match condition must use only literals"));
             }
           }
         }
       }
 
-#line 1921 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1954 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)_case.body)) {
 
-#line 1922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1955 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, _case.body, is_expr, hint);
       }
     }
   }
 
-#line 1926 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1959 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *defolt = node->u.match_stmt.defolt;
 
-#line 1928 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1961 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)defolt)) {
 
-#line 1929 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1962 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.match_stmt.match_span, "`else` case is missing"));
   } else {
 
-#line 1931 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1964 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, defolt, is_expr, hint);
   }
 
-#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1967 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if ((is_expr && !((bool)node->etype)) && !node->returns) {
 
-#line 1935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1968 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Expression-match must yield a value"));
   }
 }
 
 
-#line 1939 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1972 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_if(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_expr, compiler_types_Type *hint) {
 
-#line 1941 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1974 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->returns=true;
 
-#line 1943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1976 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__22 __iter = std_vector_Vector__22_iter(node->u.if_stmt.branches); std_vector_Iterator__22_has_value(&__iter); std_vector_Iterator__22_next(&__iter)) {
 
-#line 1943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1976 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_IfBranch branch = std_vector_Iterator__22_cur(&__iter);
 
-#line 1943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1976 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 1944 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1977 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, branch.cond, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
 
-#line 1945 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1978 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)cond_type) && (cond_type->base != compiler_types_BaseType_Bool)) {
 
-#line 1946 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1979 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(branch.cond->span, "Condition must be a boolean", std_format("Got type '%s'", compiler_types_Type_str(cond_type))));
       }
 
-#line 1951 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1984 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, branch.body, is_expr, hint);
     }
   }
 
-#line 1954 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)node->u.if_stmt.els)) {
 
-#line 1955 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1988 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *else_stmt = node->u.if_stmt.els;
 
-#line 1956 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1989 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_expression_statement(this, node, else_stmt, is_expr, hint);
   } else if (is_expr) {
 
-#line 1959 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1992 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->u.if_stmt.if_span, "If expressions must have an else branch"));
   } else {
 
-#line 1965 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 1998 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     node->returns=false;
   }
 }
 
 
-#line 1969 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2002 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_expression_statement(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *body, bool is_expr, compiler_types_Type *hint) {
 
-#line 1970 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2003 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((body->type)) {
     case compiler_ast_nodes_ASTType_Match:
     m_35_0:
       {
 
-#line 1972 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2005 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_match(this, body, is_expr, hint);
       } break;
     case compiler_ast_nodes_ASTType_If:
     m_35_1:
       {
 
-#line 1973 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2006 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_if(this, body, is_expr, hint);
       } break;
     case compiler_ast_nodes_ASTType_Block:
     m_35_2:
       {
 
-#line 1975 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2008 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_block(this, body, is_expr, hint);
       } break;
     default:
       {
 
-#line 1977 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2010 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (is_expr) {
 
-#line 1978 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2011 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_check_expression(this, body, hint);
         } else {
 
-#line 1980 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2013 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_check_statement(this, body);
         }
       } break;
   }
 
-#line 1985 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2018 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->returns=(node->returns && body->returns);
 
-#line 1987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2020 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!is_expr) {
 
-#line 1987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2020 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 1992 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2025 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *ret = body->etype;
 
-#line 1993 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2026 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (body->returns) {
   } else if (!((bool)ret)) {
 
-#line 1996 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2029 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_span_Span start_span = (std_span_Span){.start=body->span.start, .end=body->span.start};
 
-#line 1997 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2030 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(start_span, std_format("Must yield a value in this branch, body type is %s", compiler_ast_nodes_ASTType_dbg(body->type))));
   } else if (!((bool)node->etype)) {
 
-#line 1999 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2032 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     node->etype=ret;
   } else if (!compiler_types_Type_eq(node->etype, ret, false)) {
 
-#line 2001 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2034 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *yield_stmt = (node->type==compiler_ast_nodes_ASTType_Block ? node->u.block.final_stmt : node);
 
-#line 2002 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)yield_stmt)) {
 
-#line 2002 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       yield_stmt=node;
     }
 
-#line 2003 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2036 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(yield_stmt->span, "Yield type of branch doesn't match previous branches", std_format("Expected type '%s', got '%s'", compiler_types_Type_str(node->etype), compiler_types_Type_str(ret))));
   }
 }
 
 
-#line 2011 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2044 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_while(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
 
-#line 2012 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2045 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_scopes_Scope *scope = compiler_ast_scopes_Scope_new(compiler_passes_typechecker_TypeChecker_scope(this));
 
-#line 2013 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2046 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   scope->loop_count+=1;
 
-#line 2015 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2048 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, scope);
 
-#line 2016 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2049 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *cond = node->u.loop.cond;
 
-#line 2017 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2050 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *body = node->u.loop.body;
 
-#line 2019 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2052 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, cond, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
 
-#line 2020 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2053 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)cond_type) && (cond_type->base != compiler_types_BaseType_Bool)) {
 
-#line 2021 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2054 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(cond->span, "Condition must be a boolean", std_format("Got type '%s'", compiler_types_Type_str(cond_type))));
   }
 
-#line 2026 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2059 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_statement(this, body);
 
-#line 2027 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2060 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
 
-#line 2030 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2063 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_for(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
 
-#line 2031 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2064 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_scopes_Scope *scope = compiler_ast_scopes_Scope_new(compiler_passes_typechecker_TypeChecker_scope(this));
 
-#line 2032 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2065 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   scope->loop_count+=1;
 
-#line 2033 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2066 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, scope);
 
-#line 2035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2068 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *init = node->u.loop.init;
 
-#line 2036 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2069 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *cond = node->u.loop.cond;
 
-#line 2037 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2070 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *step = node->u.loop.step;
 
-#line 2038 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2071 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *body = node->u.loop.body;
 
-#line 2040 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2073 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)init)) {
 
-#line 2040 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2073 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_statement(this, init);
   }
 
-#line 2042 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2075 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)cond)) {
 
-#line 2043 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2076 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *cond_type = compiler_passes_typechecker_TypeChecker_check_expression(this, cond, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
 
-#line 2044 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2077 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)cond_type) && (cond_type->base != compiler_types_BaseType_Bool)) {
 
-#line 2045 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2078 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(cond->span, "Condition must be a boolean", std_format("Got type '%s'", compiler_types_Type_str(cond_type))));
     }
   }
 
-#line 2052 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2085 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)step)) {
 
-#line 2052 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2085 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_expression(this, step, NULL);
   }
 
-#line 2053 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2086 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)body)) {
 
-#line 2053 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2086 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_statement(this, body);
   }
 
-#line 2055 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2088 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
 
-#line 2058 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2091 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
 
-#line 2059 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2092 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((node->type)) {
     case compiler_ast_nodes_ASTType_Return:
     m_36_0:
       {
 
-#line 2061 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2094 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Function *cur_func = compiler_passes_typechecker_TypeChecker_scope(this)->cur_func;
 
-#line 2062 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2095 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!((bool)cur_func)) {
 
-#line 2063 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2096 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot return from outside a function"));
 
-#line 2064 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2097 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return;
         }
 
-#line 2067 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2100 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *expected = cur_func->return_type;
 
-#line 2069 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2102 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *res = NULL;
 
-#line 2070 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2103 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *child = node->u.ret.expr;
 
-#line 2071 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2104 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_span_Span ret_span = node->u.ret.return_span;
 
-#line 2072 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2105 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)child)) {
 
-#line 2072 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2105 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           res=compiler_passes_typechecker_TypeChecker_check_expression(this, child, expected);
         }
 
-#line 2074 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2107 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)child) && child->returns) {
         } else if (expected->base==compiler_types_BaseType_Void) {
 
-#line 2079 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2112 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)node->u.child)) {
 
-#line 2080 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2113 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(ret_span, "Cannot return a value from a void function"));
           }
         } else if (((bool)child)) {
 
-#line 2083 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2116 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)res) && !compiler_types_Type_eq(res, expected, false)) {
 
-#line 2084 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2117 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(ret_span, std_format("Return type %s does not match function return type %s", compiler_types_Type_str(res), compiler_types_Type_str(expected))));
           }
         } else {
 
-#line 2087 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2120 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(ret_span, "Expected a return value for non-void function"));
         }
 
-#line 2089 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2122 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         node->returns=true;
       } break;
     case compiler_ast_nodes_ASTType_Assert:
     m_36_1:
       {
 
-#line 2092 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2125 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *expr = node->u.assertion.expr;
 
-#line 2093 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2126 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *expr_typ = compiler_passes_typechecker_TypeChecker_check_expression(this, expr, compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Bool, node->span));
 
-#line 2094 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2127 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)expr_typ) && (expr_typ->base != compiler_types_BaseType_Bool)) {
 
-#line 2095 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2128 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only assert boolean types, got %s", compiler_types_Type_str(expr_typ))));
         }
 
-#line 2098 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2131 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)node->u.assertion.msg)) {
 
-#line 2099 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2132 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *msg_typ = compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.assertion.msg, NULL);
 
-#line 2100 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2133 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)msg_typ) && (msg_typ != compiler_passes_typechecker_TypeChecker_get_type_by_name(this, "str", node->span))) {
 
-#line 2101 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2134 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can only assert strings, got %s", compiler_types_Type_str(msg_typ))));
           }
         }
 
-#line 2105 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2138 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (expr->type==compiler_ast_nodes_ASTType_BoolLiteral && expr->u.bool_literal==false) {
 
-#line 2106 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2139 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           node->returns=true;
         }
       } break;
@@ -10750,28 +10847,28 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
     m_36_2:
       {
 
-#line 2109 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2142 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_statement(this, node->u.child);
       } break;
     case compiler_ast_nodes_ASTType_Yield:
     m_36_3:
       {
 
-#line 2111 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2144 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (!compiler_passes_typechecker_TypeChecker_scope(this)->can_yield) {
 
-#line 2112 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2145 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot yield here"));
         }
 
-#line 2114 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2147 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         node->etype=compiler_passes_typechecker_TypeChecker_check_expression(this, node->u.child, NULL);
       } break;
     case compiler_ast_nodes_ASTType_Import:
     m_36_4:
       {
 
-#line 2117 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2150 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_handle_import_statement(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Break:
@@ -10779,10 +10876,10 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
     m_36_5:
       {
 
-#line 2120 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2153 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (compiler_passes_typechecker_TypeChecker_scope(this)->loop_count==0) {
 
-#line 2121 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2154 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("%s statement outside of loop", compiler_ast_nodes_ASTType_dbg(node->type))));
         }
       } break;
@@ -10790,608 +10887,608 @@ void compiler_passes_typechecker_TypeChecker_check_statement(compiler_passes_typ
     m_36_6:
       {
 
-#line 2124 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2157 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_if(this, node, false, NULL);
       } break;
     case compiler_ast_nodes_ASTType_While:
     m_36_7:
       {
 
-#line 2125 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2158 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_while(this, node);
       } break;
     case compiler_ast_nodes_ASTType_For:
     m_36_8:
       {
 
-#line 2126 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2159 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_for(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Block:
     m_36_9:
       {
 
-#line 2127 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2160 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_block(this, node, false, NULL);
       } break;
     case compiler_ast_nodes_ASTType_Match:
     m_36_10:
       {
 
-#line 2128 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2161 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_match(this, node, false, NULL);
       } break;
     case compiler_ast_nodes_ASTType_VarDeclaration:
     m_36_11:
       {
 
-#line 2130 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2163 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Variable *var = node->u.var_decl.var;
 
-#line 2131 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2164 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_scopes_Symbol *res = compiler_ast_scopes_Scope_lookup_local(compiler_passes_typechecker_TypeChecker_scope(this), var->sym->name);
 
-#line 2132 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2165 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)res)) {
 
-#line 2133 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2166 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Variable %s already exists in this scope", var->sym->name)));
 
-#line 2134 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2167 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return;
         }
 
-#line 2137 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2170 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_scopes_Symbol *sym = var->sym;
 
-#line 2138 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2171 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_scopes_Scope_insert(compiler_passes_typechecker_TypeChecker_scope(this), var->sym->name, sym);
 
-#line 2140 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2173 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         bool is_inferred = var->type==NULL;
 
-#line 2141 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2174 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (is_inferred) {
 
-#line 2142 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2175 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           var->type=compiler_types_Type_new_unresolved("<inferred>", node->span);
         } else {
 
-#line 2145 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2178 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           var->type=compiler_passes_typechecker_TypeChecker_resolve_type(this, var->type, false, true, true);
 
-#line 2146 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2179 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!((bool)var->type)) {
 
-#line 2146 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2179 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return;
           }
         }
 
-#line 2149 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2182 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_AST *init = node->u.var_decl.init;
 
-#line 2150 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2183 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)init)) {
 
-#line 2151 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2184 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_check_expression(this, init, var->type);
 
-#line 2152 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2185 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!((bool)res)) {
 
-#line 2152 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2185 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return;
           }
 
-#line 2154 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2187 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (is_inferred) {
 
-#line 2155 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2188 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             var->type=res;
           } else if (!compiler_types_Type_eq(res, var->type, false)) {
 
-#line 2157 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(init->span, std_format("Variable %s has type %s but initializer has type %s", var->sym->name, compiler_types_Type_str(var->type), compiler_types_Type_str(res))));
           }
         } else if (is_inferred) {
 
-#line 2160 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2193 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Variable %s has no type and no initializer", var->sym->name)));
         }
       } break;
     default:
       {
 
-#line 2164 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2197 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_expression(this, node, NULL);
       } break;
   }
 }
 
 
-#line 2169 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2202 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_function(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *func) {
 
-#line 2170 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2203 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, func->sym);
 
-#line 2172 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2205 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool is_templated = false;
 
-#line 2173 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2206 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (func->is_method && func->parent_type->base==compiler_types_BaseType_Structure) {
 
-#line 2174 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2207 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Structure *struc = func->parent_type->u.struc;
 
-#line 2175 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2208 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (compiler_ast_scopes_Symbol_is_templated(struc->sym)) {
 
-#line 2175 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2208 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       is_templated=true;
     }
   }
 
-#line 2177 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2210 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_ast_scopes_Symbol_is_templated(func->sym)) {
 
-#line 2177 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2210 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     is_templated=true;
   }
 
-#line 2178 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2211 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (func->checked) {
 
-#line 2178 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2211 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2179 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2212 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   func->checked=true;
 
-#line 2181 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2214 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_scopes_Scope *new_scope = compiler_ast_scopes_Scope_new(func->scope);
 
-#line 2182 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2215 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__4 *params = func->params;
 
-#line 2188 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2221 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool was_in_template_instance = this->in_template_instance;
 
-#line 2189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2222 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   this->in_template_instance=(this->in_template_instance || compiler_ast_nodes_Function_is_template_instance(func));
 
-#line 2190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 
-#line 2198 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2231 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   u32 error_count_before = this->o->program->errors->size;
 
-#line 2200 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2233 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 2200 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2233 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
 
-#line 2200 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2233 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2201 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2234 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)param->type)) {
 
-#line 2201 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2234 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         continue;
       }
 
-#line 2202 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2235 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_AST *default_expr = param->default_value;
 
-#line 2203 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2236 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)default_expr)) {
 
-#line 2207 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2240 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_types_Type *default_type = compiler_passes_typechecker_TypeChecker_check_expression(this, default_expr, param->type);
 
-#line 2209 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2242 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (((bool)default_type) && !compiler_types_Type_eq(default_type, param->type, false)) {
 
-#line 2210 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(default_expr->span, std_format("Default argument has type %s but expected %s", compiler_types_Type_str(default_type), compiler_types_Type_str(param->type))));
         }
       }
 
-#line 2214 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2247 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_map_Map__4_insert(new_scope->items, param->sym->name, param->sym);
     }
   }
 
-#line 2216 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2249 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   new_scope->cur_func=func;
 
-#line 2218 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2251 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (func->sym->is_extern) {
 
-#line 2218 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2251 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     /* defers */
 
-#line 2190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     this->in_template_instance=was_in_template_instance;
     return;
   }
 
-#line 2220 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2253 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, new_scope);
 
-#line 2221 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2254 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_statement(this, func->body);
 
-#line 2222 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2255 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if ((!func->body->returns && (func->return_type->base != compiler_types_BaseType_Void)) && !str_eq(func->sym->full_name, "main")) {
 
-#line 2223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2256 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func->sym->span, "Function does not always return"));
   }
 
-#line 2225 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2258 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 
-#line 2228 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2261 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (is_templated) {
 
-#line 2229 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2262 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (this->o->program->errors->size > error_count_before) {
 
-#line 2230 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2263 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       this->o->program->errors->size=error_count_before;
     }
   }
   /* defers */
 
-#line 2190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   this->in_template_instance=was_in_template_instance;
 }
 
 
-#line 2235 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2268 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_handle_imports(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns, bool is_global) {
 
-#line 2236 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2269 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_namespace(this->o, ns);
 
-#line 2237 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2270 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
 
-#line 2239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2272 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 2239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2272 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 2239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2272 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2240 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2273 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_handle_imports(this, child, false);
     }
   }
 
-#line 2243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->imports); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 2243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *import_ = std_vector_Iterator__16_cur(&__iter);
 
-#line 2243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2244 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2277 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_handle_import_statement(this, import_);
     }
   }
 
-#line 2247 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2280 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 
-#line 2248 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2281 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_namespace(this->o);
 }
 
 
-#line 2251 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2284 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_globals(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_const) {
 
-#line 2252 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2285 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Variable *var = node->u.var_decl.var;
 
-#line 2253 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2286 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, var->sym);
 
-#line 2255 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2288 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_AST *init = node->u.var_decl.init;
 
-#line 2256 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2289 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (is_const) {
 
-#line 2257 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2290 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)init)) {
 
-#line 2258 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_const_expression(this, init, NULL);
     } else if (!node->u.var_decl.var->sym->is_extern) {
 
-#line 2260 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2293 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Constant must have an initializer"));
     }
   } else if (((bool)init)) {
 
-#line 2264 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2297 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *init_type = compiler_passes_typechecker_TypeChecker_check_expression(this, init, var->type);
 
-#line 2265 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2298 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)init_type) || !((bool)var->type)) {
 
-#line 2265 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2298 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
 
-#line 2267 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2300 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!compiler_types_Type_eq(init_type, var->type, false)) {
 
-#line 2268 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2301 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(init->span, std_format("Variable %s has type %s but got %s", var->sym->name, compiler_types_Type_str(var->type), compiler_types_Type_str(init_type))));
     }
   }
 }
 
 
-#line 2274 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_namespace(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns) {
 
-#line 2275 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2308 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
 
-#line 2276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2309 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_namespace(this->o, ns);
 
-#line 2277 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2310 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, ns->sym);
 
-#line 2279 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
 
-#line 2279 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
 
-#line 2279 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2280 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2313 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_function(this, func);
     }
   }
 
-#line 2283 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->constants); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 2283 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *node = std_vector_Iterator__16_cur(&__iter);
 
-#line 2283 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2284 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2317 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_globals(this, node, true);
     }
   }
 
-#line 2287 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2320 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->variables); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 2287 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2320 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *node = std_vector_Iterator__16_cur(&__iter);
 
-#line 2287 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2320 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2288 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2321 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_globals(this, node, false);
     }
   }
 
-#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2324 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
 
-#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2324 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
 
-#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2324 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2293 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, enom->sym);
 
-#line 2294 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2327 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 2294 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2327 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 2294 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2327 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         {
 
-#line 2295 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2328 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, variant->sym);
         }
       }
     }
   }
 
-#line 2299 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 2299 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 2299 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2300 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2333 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_namespace(this, child);
     }
   }
 
-#line 2302 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2335 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_namespace(this->o);
 
-#line 2303 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2336 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
 
-#line 2307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_typechecker_TypeChecker *this, compiler_ast_scopes_Symbol *sym) {
 
-#line 2308 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2341 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)sym->comment)) {
 
-#line 2308 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2341 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2310 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2343 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_buffer_Buffer buffer = std_buffer_Buffer_make(16);
 
-#line 2311 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2344 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   u32 prev = 0;
 
-#line 2312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2345 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   char *doc = sym->comment;
 
-#line 2313 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2346 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   u32 doc_len = strlen(doc);
 
-#line 2314 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = 0; i < (doc_len - 1); i++) {
 
-#line 2315 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (doc[i]=='\\') {
 
-#line 2316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2349 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       i++;
     } else if (doc[i]==doc[(i + 1)] && doc[(i + 1)]=='{') {
 
-#line 2318 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2351 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_buffer_Buffer_write_str_f(&buffer, str_substring(doc, prev, (i - prev)));
 
-#line 2319 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2352 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       prev=(i + 2);
 
-#line 2320 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2353 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       i++;
     } else if (doc[i]==doc[(i + 1)] && doc[(i + 1)]=='}') {
 
-#line 2323 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2356 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       char *part = str_substring(doc, prev, (i - prev));
 
-#line 2328 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2361 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!this->o->program->check_doc_links) {
 
-#line 2329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2362 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_buffer_Buffer_write_char(&buffer, '`');
 
-#line 2330 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2363 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_buffer_Buffer_write_str_f(&buffer, part);
 
-#line 2331 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2364 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         std_buffer_Buffer_write_char(&buffer, '`');
 
-#line 2332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2365 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         prev=(i + 2);
 
-#line 2333 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         i++;
 
-#line 2334 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2367 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         continue;
       }
 
-#line 2338 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2371 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_lexer_Lexer lexer = compiler_lexer_Lexer_make(part, sym->span.start.filename);
 
-#line 2339 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2372 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_span_Span span = (std_span_Span){.start=sym->comment_loc, .end=sym->comment_loc};
 
-#line 2340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2373 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_vector_Vector__12 *tokens = compiler_lexer_Lexer_lex(&lexer);
 
-#line 2342 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (lexer.errors->size > 0) {
 
-#line 2343 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2376 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Invalid link: '%s' in this doc", part)));
 
-#line 2344 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2377 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return;
       }
 
-#line 2347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2380 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_parser_Parser parser = compiler_parser_Parser_make(this->o->program, compiler_passes_generic_pass_GenericPass_ns(this->o));
 
-#line 2348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2381 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       parser.tokens=tokens;
 
-#line 2349 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2382 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       parser.curr=0;
 
-#line 2351 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2384 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_nodes_AST *ident = compiler_parser_Parser_parse_scoped_identifier(&parser, true);
 
-#line 2352 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2385 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)ident)) {
 
-#line 2353 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2386 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Invalid link: '%s' in this doc", part)));
 
-#line 2354 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2387 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return;
       }
 
-#line 2357 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_scopes_Symbol *sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, ident, false, NULL, true);
 
-#line 2358 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2391 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)sym)) {
 
-#line 2359 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2392 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Couldn't find symbol '%s' in this doc link", part)));
 
-#line 2360 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2393 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return;
       }
 
-#line 2363 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2396 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       char *linked_part = ({ char *__yield_0;
 
-#line 2363 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2396 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         switch ((sym->type)) {
           case compiler_ast_scopes_SymbolType_Structure:
           m_37_0:
             {
 
-#line 2365 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_types_Type *typ = sym->u.struc->type;
 
-#line 2367 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2400 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               if (((bool)typ->template_instance)) {
 
-#line 2368 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2401 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_note(span, std_format("Cannot link directly to specialezed type '%s'", part), "Try doing `{{A}}<{{B}}>` instead of `{{A<B>}}`"));
 
-#line 2372 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2405 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                 return;
               }
 
-#line 2374 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               __yield_0 = std_format("%x", sym->u.struc->type);
             } break;
           case compiler_ast_scopes_SymbolType_Function:
@@ -11432,78 +11529,78 @@ void compiler_passes_typechecker_TypeChecker_resolve_doc_links(compiler_passes_t
           default:
             {
 
-#line 2384 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2417 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(span, std_format("Cannot link to symbol of type %s", compiler_ast_scopes_SymbolType_dbg(sym->type))));
 
-#line 2385 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2418 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return;
             } break;
         }
 
       __yield_0; });
 
-#line 2389 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_buffer_Buffer_write_str(&buffer, "{{");
 
-#line 2390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_buffer_Buffer_write_str_f(&buffer, linked_part);
 
-#line 2391 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2424 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_buffer_Buffer_write_str(&buffer, "}}");
 
-#line 2392 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_mem_free(part);
 
-#line 2394 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       prev=(i + 2);
 
-#line 2395 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2428 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       i++;
     }
   }
 
-#line 2398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_buffer_Buffer_write_str_f(&buffer, str_substring(doc, prev, (doc_len - prev)));
 
-#line 2399 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2432 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   sym->comment=std_buffer_Buffer_str(buffer);
 }
 
 
-#line 2402 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2435 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_const_expression(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_types_Type *hint) {
 
-#line 2403 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2436 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *typ = ({ compiler_types_Type *__yield_0;
 
-#line 2403 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2436 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((node->type)) {
       case compiler_ast_nodes_ASTType_Identifier:
       case compiler_ast_nodes_ASTType_NSLookup:
       m_38_0:
         {
 
-#line 2405 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_scopes_Symbol *sym = compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, node, true, hint, true);
 
-#line 2406 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!((bool)sym)) {
 
-#line 2406 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return NULL;
           }
 
-#line 2407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (sym->type != compiler_ast_scopes_SymbolType_Constant) {
 
-#line 2408 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2441 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(node->span, "Cannot use a non-constant value in a constant expression", sym->span, "Value was defined here"));
 
-#line 2412 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2445 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return hint;
           }
 
-#line 2414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2447 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           __yield_0 = sym->u.var->type;
         } break;
       case compiler_ast_nodes_ASTType_IntLiteral:
@@ -11535,27 +11632,27 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_const_express
       m_38_6:
         {
 
-#line 2422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2455 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_const_expression(this, node->u.binary.lhs, NULL);
 
-#line 2423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2456 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *rhs = compiler_passes_typechecker_TypeChecker_check_const_expression(this, node->u.binary.rhs, NULL);
 
-#line 2424 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (!((bool)lhs) || !((bool)rhs)) {
 
-#line 2424 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             return NULL;
           }
 
-#line 2426 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2459 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (lhs->base==compiler_types_BaseType_Pointer || rhs->base==compiler_types_BaseType_Pointer) {
 
-#line 2427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot do pointer arithmetic in constant expressions"));
           }
 
-#line 2429 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2462 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           __yield_0 = compiler_passes_typechecker_TypeChecker_check_binary_op(this, node, compiler_types_Type_unaliased(lhs), compiler_types_Type_unaliased(rhs));
         } break;
       case compiler_ast_nodes_ASTType_UnaryOp:
@@ -11563,50 +11660,50 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_const_express
         {
           __yield_0 = ({ compiler_types_Type *__yield_1;
 
-#line 2431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2464 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             switch ((node->u.unary.op)) {
               case compiler_ast_operators_Operator_BitwiseNot:
               case compiler_ast_operators_Operator_Negate:
               m_39_0:
                 {
 
-#line 2433 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2466 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   if (!((bool)hint) || !compiler_types_Type_is_numeric(hint)) {
 
-#line 2434 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2467 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     hint=compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_I32, node->span);
                   }
 
-#line 2436 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2469 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   compiler_types_Type *typ = compiler_passes_typechecker_TypeChecker_check_const_expression(this, node->u.unary.expr, hint);
 
-#line 2437 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2470 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   if (!((bool)typ)) {
 
-#line 2437 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2470 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     return NULL;
                   }
 
-#line 2438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2471 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   if (!compiler_types_Type_is_numeric(typ)) {
 
-#line 2439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2472 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Cannot negate non-numeric type: %s", compiler_types_Type_str(typ))));
 
-#line 2440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2473 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                     return NULL;
                   }
 
-#line 2442 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2475 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   __yield_1 = typ;
                 } break;
               default:
                 {
 
-#line 2445 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2478 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Unsupported operator in constant expression: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
 
-#line 2446 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
                   return NULL;
                 } break;
             }
@@ -11616,63 +11713,63 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_const_express
       default:
         {
 
-#line 2450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2483 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Unsupported operator in constant expression"));
 
-#line 2451 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2484 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return NULL;
         } break;
     }
 
   __yield_0; });
 
-#line 2454 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2487 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->etype=typ;
 
-#line 2455 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2488 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   return typ;
 }
 
 
-#line 2458 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_handle_import_path_base(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_Import *imp, std_vector_Vector__5 *parts, compiler_ast_scopes_Symbol *base, bool search_in_ns_scope, char *alias) {
 
-#line 2466 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2499 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (u32 i = 0; i < parts->size; i+=1) {
 
-#line 2467 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2500 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_ImportPart *part = std_vector_Vector__5_at(parts, i);
 
-#line 2469 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((part->type)) {
       case compiler_ast_nodes_ImportPartType_Wildcard:
       m_40_0:
         {
 
-#line 2471 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2504 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_generic_pass_GenericPass_import_all_from_symbol(this->o, base, imp->export);
 
-#line 2472 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2505 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return;
         } break;
       case compiler_ast_nodes_ImportPartType_Multiple:
       m_40_1:
         {
 
-#line 2475 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2508 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           std_vector_Vector__21 *paths = part->u.multiple.paths;
 
-#line 2476 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2509 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           for (u32 j = 0; j < paths->size; j+=1) {
 
-#line 2477 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2510 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             std_vector_Vector__5 *path = std_vector_Vector__21_at(paths, j);
 
-#line 2478 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_typechecker_TypeChecker_handle_import_path_base(this, node, imp, path, base, search_in_ns_scope, alias);
           }
 
-#line 2480 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2513 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return;
         } break;
       case compiler_ast_nodes_ImportPartType_Single:
@@ -11681,127 +11778,127 @@ void compiler_passes_typechecker_TypeChecker_handle_import_path_base(compiler_pa
         } break;
     }
 
-#line 2485 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     char *name = part->u.single.name;
 
-#line 2486 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2519 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)name)) {
 
-#line 2486 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2519 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
 
-#line 2488 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2521 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (str_eq(name, "this")) {
 
-#line 2489 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2522 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if ((i + 1) != parts->size) {
 
-#line 2490 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2523 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, "`this` can only be used as the last part of an import path"));
 
-#line 2491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2524 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         return;
       }
 
-#line 2493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)part->u.single.alias)) {
 
-#line 2493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         alias=part->u.single.alias;
       }
 
-#line 2494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2527 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       break;
     }
 
-#line 2497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_span_Span err_span = part->u.single.alias_span;
 
-#line 2498 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_scopes_Symbol *new_base = ({ compiler_ast_scopes_Symbol *__yield_0;
 
-#line 2498 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (search_in_ns_scope) {
 
-#line 2500 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2533 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (base->type != compiler_ast_scopes_SymbolType_Namespace) {
 
-#line 2501 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2534 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, "Cannot scope-import from a non-namespace"));
 
-#line 2502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return;
         }
 
-#line 2504 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2537 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_scopes_Symbol *res = compiler_ast_scopes_Scope_lookup_recursive(base->u.ns->scope, name);
 
-#line 2505 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2538 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         search_in_ns_scope=false;
 
-#line 2506 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2539 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         __yield_0 = res;
       } else {
         __yield_0 = compiler_passes_generic_pass_GenericPass_find_in_symbol(this->o, base, name, false);
       }
     __yield_0; });
 
-#line 2511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2544 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)new_base)) {
 
-#line 2512 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(part->span, std_format("Invalid import, %s::%s does not exist", base->name, name)));
 
-#line 2513 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
 
-#line 2516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     base=new_base;
 
-#line 2517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     alias=part->u.single.alias;
 
-#line 2518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)alias)) {
 
-#line 2518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       alias=name;
     }
 
-#line 2520 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2553 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     part->resolved_symbol=base;
 
-#line 2521 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2554 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_scopes_Symbol_add_reference(base, compiler_ast_scopes_ReferenceType_Normal, part->u.single.name_span);
   }
 
-#line 2524 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2557 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, base, alias);
 
-#line 2525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2558 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (imp->export) {
 
-#line 2526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2559 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Map__4_insert(compiler_passes_generic_pass_GenericPass_ns(this->o)->exported_symbols, alias, base);
   }
 }
 
 
-#line 2531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_handle_import_statement(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node) {
 
-#line 2532 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Import path = node->u.import_path;
 
-#line 2534 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2567 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool search_in_ns_scope = false;
 
-#line 2535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2568 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_program_Namespace *base_ns = ({ compiler_ast_program_Namespace *__yield_0;
 
-#line 2535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2568 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((path.type)) {
       case compiler_ast_nodes_ImportType_GlobalNamespace:
       m_41_0:
@@ -11817,109 +11914,109 @@ void compiler_passes_typechecker_TypeChecker_handle_import_statement(compiler_pa
       m_41_2:
         {
 
-#line 2539 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2572 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_program_Namespace *cur = compiler_passes_generic_pass_GenericPass_ns(this->o);
 
-#line 2540 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2573 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           for (u32 i = 0; i < path.parent_count; i+=1) {
 
-#line 2541 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2574 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             if (!((bool)cur->parent)) {
 
-#line 2543 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2576 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               compiler_errors_Error_panic(compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Cannot import from parent of root namespace")));
 
-#line 2544 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2577 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
               return;
             }
 
-#line 2546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2579 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             cur=cur->parent;
           }
 
-#line 2548 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2581 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           __yield_0 = cur;
         } break;
       case compiler_ast_nodes_ImportType_CurrentScope:
       m_41_3:
         {
 
-#line 2551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2584 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           search_in_ns_scope=true;
 
-#line 2552 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2585 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           __yield_0 = compiler_passes_generic_pass_GenericPass_ns(this->o);
         } break;
     }
 
   __yield_0; });
 
-#line 2556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2589 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)base_ns)) {
 
-#line 2557 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2590 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, "Couldn't resolve the search base for the import"));
 
-#line 2558 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2591 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2561 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2594 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   node->u.import_path.root_sym=base_ns->sym;
 
-#line 2562 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2595 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_handle_import_path_base(this, node, &path, path.parts, base_ns->sym, search_in_ns_scope, NULL);
 }
 
 
-#line 2565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2598 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_pre_check_function(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns, compiler_ast_nodes_Function *func) {
 
-#line 2566 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2599 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (func->is_method) {
 
-#line 2567 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2600 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_span_Span parent_span = func->parent_type->span;
 
-#line 2568 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2601 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *parent_type = compiler_passes_typechecker_TypeChecker_resolve_type(this, func->parent_type, true, true, true);
 
-#line 2569 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2602 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!((bool)parent_type)) {
 
-#line 2570 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2603 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(parent_span, "Could not find this type"));
 
-#line 2571 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2604 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
 
-#line 2574 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2607 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (!compiler_types_Type_can_have_methods(parent_type)) {
 
-#line 2575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2608 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(parent_span, "This type cannot have methods"));
 
-#line 2576 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2609 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
 
-#line 2579 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2612 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     switch ((parent_type->base)) {
       case compiler_types_BaseType_Structure:
       m_42_0:
         {
 
-#line 2581 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2614 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_Structure *struc = parent_type->u.struc;
 
-#line 2582 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2615 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_Variable *name = compiler_ast_nodes_Structure_get_field(struc, func->sym->name);
 
-#line 2583 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2616 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)name)) {
 
-#line 2584 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2617 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(func->sym->span, std_format("Field with name `%s` already exists", func->sym->name), name->sym->span, "Previous definition here"));
           }
         } break;
@@ -11927,26 +12024,26 @@ void compiler_passes_typechecker_TypeChecker_pre_check_function(compiler_passes_
       m_42_1:
         {
 
-#line 2591 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_Enum *enom = parent_type->u.enom;
 
-#line 2592 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2625 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_EnumVariant *var = compiler_ast_nodes_Enum_get_variant(enom, func->sym->name);
 
-#line 2593 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2626 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)var)) {
 
-#line 2594 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2627 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(func->sym->span, std_format("Enum variant with name `%s` already exists", func->sym->name), var->sym->span, "Previous definition here"));
           }
 
-#line 2599 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2632 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_ast_nodes_Variable *field = compiler_ast_nodes_Enum_get_shared_field(enom, func->sym->name);
 
-#line 2600 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2633 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)field)) {
 
-#line 2601 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2634 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(func->sym->span, std_format("Field with name `%s` already exists", func->sym->name), field->sym->span, "Previous definition here"));
           }
         } break;
@@ -11955,105 +12052,105 @@ void compiler_passes_typechecker_TypeChecker_pre_check_function(compiler_passes_
         } break;
     }
 
-#line 2611 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2644 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Function *res = std_map_Map__8_get(parent_type->methods, func->sym->name, NULL);
 
-#line 2612 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2645 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (((bool)res)) {
 
-#line 2613 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new_hint(func->sym->span, "Method with this name already exists", res->sym->span, "Previous definition here"));
 
-#line 2617 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
 
-#line 2622 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_scopes_Symbol_update_parent(func->sym, parent_type->sym);
 
-#line 2624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2657 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Map__8_insert(parent_type->methods, func->sym->name, func);
 
-#line 2625 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2658 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     func->parent_type=parent_type;
   } else {
 
-#line 2628 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2661 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_scopes_Symbol *item = func->sym;
 
-#line 2629 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2662 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_generic_pass_GenericPass_insert_into_scope_checked(this->o, item, NULL);
   }
 
-#line 2632 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2665 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   func->scope=compiler_passes_typechecker_TypeChecker_scope(this);
 }
 
 
-#line 2637 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2670 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_loosely_resolve_templated_struct(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Structure *struc) {
 
-#line 2638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 2638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 2638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2640 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2673 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, field->type, true, false, false);
 
-#line 2641 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2674 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       field->type=res;
     }
   }
 }
 
 
-#line 2645 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2678 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_resolve_struct(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Structure *struc) {
 
-#line 2646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2679 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_vector_Vector__4 *fields = struc->fields;
 
-#line 2647 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2680 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, struc->sym);
 
-#line 2650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2683 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_ast_scopes_Symbol_is_templated(struc->sym)) {
 
-#line 2651 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_loosely_resolve_templated_struct(this, struc);
 
-#line 2652 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 2655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 2655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2656 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2689 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, field->type, false, true, true);
 
-#line 2657 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2690 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_resolve_doc_links(this, field->sym);
 
-#line 2658 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2691 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)res)) {
 
-#line 2659 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2692 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_generic_pass_GenericPass_error(this->o, compiler_errors_Error_new(field->sym->span, "Couldn't resolve type"));
       } else {
 
-#line 2661 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2694 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         field->type=res;
       }
     }
@@ -12061,73 +12158,73 @@ void compiler_passes_typechecker_TypeChecker_resolve_struct(compiler_passes_type
 }
 
 
-#line 2666 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2699 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_resolve_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Enum *enom) {
 
-#line 2667 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2700 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__12 *seen_fields = std_map_Map__12_new(8);
 
-#line 2668 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2701 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 
-#line 2670 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enom->shared_fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 2670 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 2670 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, field->type, false, true, true);
 
-#line 2672 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2705 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)res)) {
 
-#line 2673 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2706 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         field->type=res;
       }
 
-#line 2675 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2708 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_map_Item__12 *item = std_map_Map__12_get_item(seen_fields, field->sym->name);
 
-#line 2676 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2709 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (((bool)item)) {
 
-#line 2677 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2710 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(field->sym->span, std_format("Field with name `%s` already exists", field->sym->name), item->value, "Previous definition here"));
       }
 
-#line 2682 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2715 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       std_map_Map__12_insert(seen_fields, field->sym->name, field->sym->span);
     }
   }
 
-#line 2684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2717 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 2684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2717 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 2684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2717 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2718 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(variant->specific_fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 2685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2718 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 2685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2718 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         {
 
-#line 2686 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2719 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, field->type, false, true, true);
 
-#line 2687 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2720 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           if (((bool)res)) {
 
-#line 2688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2721 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
             field->type=res;
           }
         }
@@ -12136,61 +12233,61 @@ void compiler_passes_typechecker_TypeChecker_resolve_enum(compiler_passes_typech
   }
   /* defers */
 
-#line 2668 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2701 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__12_free(seen_fields);
 }
 
 
-#line 2696 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2729 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_operator_overload_function(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *func, compiler_ast_operators_Operator op) {
 
-#line 2697 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2730 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   u32 num_params_needed = compiler_ast_operators_Operator_num_overload_params(op);
 
-#line 2698 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2731 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (num_params_needed != func->params->size) {
 
-#line 2699 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2732 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func->sym->span, std_format("Operator overload for %s must have %u parameters", compiler_ast_operators_Operator_dbg(op), num_params_needed)));
 
-#line 2700 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2733 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2736 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_ast_operators_Operator_needs_lhs_pointer_for_overload(op)) {
 
-#line 2704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2737 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *lhs = std_vector_Vector__4_at(func->params, 0);
 
-#line 2705 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2738 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_types_Type *lhs_type = compiler_types_Type_unaliased(lhs->type);
 
-#line 2706 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2739 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (lhs_type->base != compiler_types_BaseType_Pointer) {
 
-#line 2707 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2740 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(lhs->sym->span, std_format("First parameter of %s operator must be a pointer-type", compiler_ast_operators_Operator_dbg(op))));
 
-#line 2708 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2741 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       return;
     }
   }
 
-#line 2713 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2746 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   switch ((op)) {
     case compiler_ast_operators_Operator_Equals:
     case compiler_ast_operators_Operator_NotEquals:
     case compiler_ast_operators_Operator_IsNotNull:
     m_43_0:
       
-#line 2715 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2748 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         if (func->return_type->base != compiler_types_BaseType_Bool) {
 
-#line 2716 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2749 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(func->sym->span, "`==` operator must return a boolean"));
 
-#line 2717 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2750 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
           return;
         }
        break;
@@ -12199,416 +12296,416 @@ void compiler_passes_typechecker_TypeChecker_check_operator_overload_function(co
       } break;
   }
 
-#line 2722 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2755 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_operators_OperatorOverload overload = {0};
 
-#line 2723 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2756 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   overload.op=op;
 
-#line 2724 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2757 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (num_params_needed > 0) {
 
-#line 2724 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2757 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     overload.type1=std_vector_Vector__4_at(func->params, 0)->type;
   }
 
-#line 2725 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (num_params_needed > 1) {
 
-#line 2725 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     overload.type2=std_vector_Vector__4_at(func->params, 1)->type;
   }
 
-#line 2726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2759 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (num_params_needed > 2) {
 
-#line 2726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2759 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     overload.type3=std_vector_Vector__4_at(func->params, 2)->type;
   }
 
-#line 2728 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2761 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Item__5 *it = std_map_Map__5_get_item(this->o->program->operator_overloads, overload);
 
-#line 2729 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2762 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)it)) {
 
-#line 2730 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2763 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (it->value != func) {
 
-#line 2731 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2764 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new_hint(func->sym->span, std_format("Operator overload for %s already exists (%s)", compiler_ast_operators_Operator_dbg(op), func->sym->display), it->value->sym->span, std_format("Previous definition here (%s)", it->value->sym->display)));
     }
 
-#line 2736 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2769 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2739 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2772 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   std_map_Map__5_insert(this->o->program->operator_overloads, overload, func);
 }
 
 
-#line 2742 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2775 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_function_declaration(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_Function *func) {
 
-#line 2743 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2776 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool allow_incomplete = false;
 
-#line 2744 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2777 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool error = true;
 
-#line 2745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   bool resolve_templates = true;
 
-#line 2747 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2780 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (func->is_method && func->parent_type->base==compiler_types_BaseType_Structure) {
 
-#line 2748 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2781 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Structure *struc = func->parent_type->u.struc;
 
-#line 2749 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2782 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     if (compiler_ast_scopes_Symbol_is_templated(struc->sym)) {
 
-#line 2750 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       allow_incomplete=true;
 
-#line 2751 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       error=false;
 
-#line 2752 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2785 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       resolve_templates=false;
     }
   }
 
-#line 2755 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2788 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (compiler_ast_scopes_Symbol_is_templated(func->sym)) {
 
-#line 2756 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     allow_incomplete=true;
 
-#line 2757 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     error=false;
 
-#line 2758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     resolve_templates=false;
   }
 
-#line 2761 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   func->return_type=compiler_passes_typechecker_TypeChecker_resolve_type(this, func->return_type, allow_incomplete, error, resolve_templates);
 
-#line 2762 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2795 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)func->return_type)) {
 
-#line 2763 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     func->return_type=compiler_passes_typechecker_TypeChecker_get_base_type(this, compiler_types_BaseType_Void, func->sym->span);
   }
 
-#line 2766 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(func->params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 2766 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
 
-#line 2766 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2767 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2800 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       param->type=compiler_passes_typechecker_TypeChecker_resolve_type(this, param->type, allow_incomplete, error, resolve_templates);
     }
   }
 
-#line 2770 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)func->operator_overloads)) {
 
-#line 2771 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2804 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     for (std_vector_Iterator__20 __iter = std_vector_Vector__20_iter(func->operator_overloads); std_vector_Iterator__20_has_value(&__iter); std_vector_Iterator__20_next(&__iter)) {
 
-#line 2771 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2804 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_operators_Operator op = std_vector_Iterator__20_cur(&__iter);
 
-#line 2771 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2804 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       {
 
-#line 2772 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2805 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         compiler_passes_typechecker_TypeChecker_check_operator_overload_function(this, func, op);
       }
     }
   }
 
-#line 2778 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2811 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (((bool)func->name_ast) && func->name_ast->type==compiler_ast_nodes_ASTType_NSLookup) {
 
-#line 2779 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2812 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_resolve_scoped_identifier(this, func->name_ast->u.lookup.lhs, false, NULL, false);
   }
 
-#line 2784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2817 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *typ = compiler_types_Type_new_resolved(compiler_types_BaseType_Function, func->sym->span);
 
-#line 2785 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2818 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   typ->u.func=(compiler_types_FunctionType){.orig=func, .params=func->params, .return_type=func->return_type, .is_variadic=func->is_variadic};
 
-#line 2786 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2819 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   func->type=typ;
 }
 
 
-#line 2789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2822 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns, bool pre_import) {
 
-#line 2790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_map_Iterator__2 __iter = std_map_Map__2_iter(ns->typedefs); std_map_Iterator__2_has_value(&__iter); std_map_Iterator__2_next(&__iter)) {
 
-#line 2790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     std_map_Item__2 *it = std_map_Iterator__2_cur(&__iter);
 
-#line 2790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2824 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (compiler_types_Type_is_resolved(it->value)) {
 
-#line 2791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2824 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         continue;
       }
 
-#line 2793 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2826 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
 
-#line 2794 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2794:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
+#line 2827 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2827:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
 
-#line 2798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
-      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2798:16: Assertion failed: `sym.type == TypeDef`", NULL); }
+#line 2831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2831:16: Assertion failed: `sym.type == TypeDef`", NULL); }
 
-#line 2801 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2834 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !pre_import, true);
 
-#line 2806 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2839 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       if (!((bool)res)) {
 
-#line 2806 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2839 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
         continue;
       }
 
-#line 2807 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       sym->u.type_def->u.ptr=res;
 
-#line 2808 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2841 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       sym->u.type_def=res;
 
-#line 2809 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2842 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       it->value=res;
     }
   }
 }
 
 
-#line 2813 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_post_import(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns) {
 
-#line 2814 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2847 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
 
-#line 2815 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2848 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_namespace(this->o, ns);
 
-#line 2817 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2850 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
 
-#line 2817 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2850 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
 
-#line 2817 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2850 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2818 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2851 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_function_declaration(this, func);
     }
   }
 
-#line 2821 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(ns->structs); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
 
-#line 2821 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Structure *struc = std_vector_Iterator__9_cur(&__iter);
 
-#line 2821 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2822 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2855 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_resolve_struct(this, struc);
     }
   }
 
-#line 2825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2858 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
 
-#line 2825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2858 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
 
-#line 2825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2858 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2826 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2859 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_resolve_enum(this, enom);
     }
   }
 
-#line 2829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2862 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->constants); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 2829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2862 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *node = std_vector_Iterator__16_cur(&__iter);
 
-#line 2829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2862 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2830 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_pre_check_globals(this, node, true);
     }
   }
 
-#line 2833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->variables); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 2833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_AST *node = std_vector_Iterator__16_cur(&__iter);
 
-#line 2833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2834 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2867 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_pre_check_globals(this, node, false);
     }
   }
 
-#line 2838 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2871 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(this, ns, false);
 
-#line 2840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 2840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 2840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2841 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2874 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_post_import(this, child);
     }
   }
 
-#line 2844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2877 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 
-#line 2845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2878 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_namespace(this->o);
 }
 
 
-#line 2848 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2881 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_pre_check_globals(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *node, bool is_const) {
 
-#line 2849 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2882 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_ast_nodes_Variable *var = node->u.var_decl.var;
 
-#line 2850 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2883 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)var->type)) {
 
-#line 2851 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2884 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     char *c = (is_const ? "Constant" : "Global variable");
 
-#line 2852 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2885 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("%s must have a type", c)));
 
-#line 2853 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2855 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2888 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_types_Type *type = compiler_passes_typechecker_TypeChecker_resolve_type(this, var->type, false, true, true);
 
-#line 2856 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   if (!((bool)type)) {
 
-#line 2856 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     return;
   }
 
-#line 2857 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2890 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   var->type=type;
 }
 
 
-#line 2860 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2893 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_check_pre_import(compiler_passes_typechecker_TypeChecker *this, compiler_ast_program_Namespace *ns) {
 
-#line 2861 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2894 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
 
-#line 2863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
 
-#line 2863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
 
-#line 2863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2864 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2897 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_pre_check_function(this, ns, func);
     }
   }
 
-#line 2870 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2903 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(this, ns, true);
 
-#line 2872 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 2872 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 2872 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     {
 
-#line 2873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
       compiler_passes_typechecker_TypeChecker_check_pre_import(this, child);
     }
   }
 
-#line 2876 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2909 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
 
-#line 2879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2912 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
 void compiler_passes_typechecker_TypeChecker_run(compiler_ast_program_Program *program) {
 
-#line 2880 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2913 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker pass = (compiler_passes_typechecker_TypeChecker){.o=compiler_passes_generic_pass_GenericPass_new(program), .unchecked_functions=std_vector_Vector__6_new(16), .in_template_instance=false};
 
-#line 2885 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2918 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_pre_import(&pass, program->global);
 
-#line 2886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2919 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_handle_imports(&pass, program->global, true);
 
-#line 2887 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2920 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_post_import(&pass, program->global);
 
-#line 2889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   compiler_passes_typechecker_TypeChecker_check_namespace(&pass, program->global);
 
-#line 2891 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2924 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
   while (pass.unchecked_functions->size > 0) {
 
-#line 2892 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2925 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_ast_nodes_Function *func = ((compiler_ast_nodes_Function *)std_vector_Vector__6_pop(pass.unchecked_functions));
 
-#line 2893 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
+#line 2926 "/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc"
     compiler_passes_typechecker_TypeChecker_check_function(&pass, func);
   }
 }
@@ -13646,119 +13743,166 @@ void compiler_passes_code_generator_CodeGenerator_gen_constructor(compiler_passe
 #line 396 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_vector_Vector__7 *args = node->u.call.args;
 
-#line 397 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  for (u32 i = 0; i < args->size; i+=1) {
-
 #line 398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    if (i != 0) {
-
-#line 398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      std_buffer_Buffer_write_str(&this->out, ", ");
-    }
+  if (struc->is_union) {
 
 #line 399 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
+    if(!(args->size==1)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:399:16: Assertion failed: `args.size == 1`", "Should have been checked in the type checker"); }
 
 #line 400 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(fields, i);
+    compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, 0);
 
-#line 402 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    std_buffer_Buffer_write_str_f(&this->out, std_format(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
+#line 401 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    if(!(((bool)arg->label))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:401:16: Assertion failed: `arg.label?`", "Should have been checked in the type checker"); }
 
 #line 403 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr, false);
-  }
+    compiler_ast_nodes_Variable *field = NULL;
+
+#line 404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
+
+#line 404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      compiler_ast_nodes_Variable *f = std_vector_Iterator__4_cur(&__iter);
+
+#line 404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      {
 
 #line 405 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+        if (((bool)f->sym) && str_eq(f->sym->name, arg->label)) {
+
+#line 406 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+          field=f;
+
+#line 407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+          break;
+        }
+      }
+    }
+
+#line 410 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    if(!(((bool)field))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:410:16: Assertion failed: `field?`", "Should have been checked in the type checker"); }
+
+#line 411 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    std_buffer_Buffer_write_str_f(&this->out, std_format(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
+
+#line 412 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr, false);
+  } else {
+
+#line 415 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    for (u32 i = 0; i < args->size; i+=1) {
+
+#line 416 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      if (i != 0) {
+
+#line 416 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+        std_buffer_Buffer_write_str(&this->out, ", ");
+      }
+
+#line 417 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
+
+#line 418 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(fields, i);
+
+#line 419 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      std_buffer_Buffer_write_str_f(&this->out, std_format(".%s=", compiler_ast_scopes_Symbol_out_name(field->sym)));
+
+#line 420 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr, false);
+    }
+  }
+
+#line 424 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "}");
 }
 
 
-#line 408 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_create_new(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
-#line 409 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  if(!(node->type==compiler_ast_nodes_ASTType_CreateNew)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:409:12: Assertion failed: `node.type == CreateNew`", std_format("Expected CreateNew, got %s", compiler_ast_nodes_ASTType_dbg(node->type))); }
-
-#line 410 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_ast_nodes_AST *child = node->u.child;
-
-#line 411 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  char *var_name = std_format("_new_%u", this->uid++);
-
-#line 418 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, "({");
-
-#line 419 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, node->etype, var_name);
-
-#line 420 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, " = ");
-
-#line 421 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.mem_alloc_fn));
-
-#line 422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, "(");
-
-#line 423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.mem_allocator));
-
-#line 424 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, ", sizeof(");
-
-#line 425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_passes_code_generator_CodeGenerator_gen_type(this, child->etype);
-
-#line 426 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str_f(&this->out, std_format(")); *%s = ", var_name));
-
-#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_passes_code_generator_CodeGenerator_gen_expression(this, child, false);
-
 #line 428 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str_f(&this->out, std_format("; %s; ", var_name));
+  if(!(node->type==compiler_ast_nodes_ASTType_CreateNew)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:428:12: Assertion failed: `node.type == CreateNew`", std_format("Expected CreateNew, got %s", compiler_ast_nodes_ASTType_dbg(node->type))); }
 
 #line 429 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_ast_nodes_AST *child = node->u.child;
+
+#line 430 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  char *var_name = std_format("_new_%u", this->uid++);
+
+#line 437 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, "({");
+
+#line 438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, node->etype, var_name);
+
+#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, " = ");
+
+#line 440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.mem_alloc_fn));
+
+#line 441 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, "(");
+
+#line 442 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.mem_allocator));
+
+#line 443 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, ", sizeof(");
+
+#line 444 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_passes_code_generator_CodeGenerator_gen_type(this, child->etype);
+
+#line 445 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str_f(&this->out, std_format(")); *%s = ", var_name));
+
+#line 446 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_passes_code_generator_CodeGenerator_gen_expression(this, child, false);
+
+#line 447 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str_f(&this->out, std_format("; %s; ", var_name));
+
+#line 448 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "})");
 
-#line 431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   str_free(&var_name);
 }
 
 
-#line 435 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 454 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, bool is_top_level) {
 
-#line 436 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 455 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   switch ((node->type)) {
     case compiler_ast_nodes_ASTType_IntLiteral:
     m_50_0:
       {
 
-#line 438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_NumLiteral *num_lit = &node->u.num_literal;
 
-#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 458 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if ((node->etype->base != compiler_types_BaseType_I32) && (node->etype->base != compiler_types_BaseType_U32)) {
 
-#line 440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "((");
 
-#line 441 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_type(this, node->etype);
 
-#line 442 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 461 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ")");
 
-#line 443 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 462 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, num_lit->text);
 
-#line 444 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 463 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ")");
         } else {
 
-#line 446 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, num_lit->text);
         }
       } break;
@@ -13766,16 +13910,16 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     m_50_1:
       {
 
-#line 450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 469 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_NumLiteral *num_lit = &node->u.num_literal;
 
-#line 451 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 470 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, num_lit->text);
 
-#line 452 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 471 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (node->etype->base==compiler_types_BaseType_F32) {
 
-#line 453 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 472 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "f");
         }
       } break;
@@ -13783,110 +13927,110 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     m_50_2:
       {
 
-#line 457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 476 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_vector_Vector__16 *elements = node->u.array_literal.elements;
 
-#line 458 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 477 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "{");
 
-#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 478 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (u32 i = 0; i < elements->size; i+=1) {
 
-#line 460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (i != 0) {
 
-#line 460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, ", ");
           }
 
-#line 461 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 480 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_nodes_AST *expr = std_vector_Vector__16_at(elements, i);
 
-#line 462 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 481 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
         }
 
-#line 464 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 483 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "}");
       } break;
     case compiler_ast_nodes_ASTType_FormatStringLiteral:
     m_50_3:
       {
 
-#line 466 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 485 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_format_string(this, node);
       } break;
     case compiler_ast_nodes_ASTType_StringLiteral:
     m_50_4:
       {
 
-#line 468 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 487 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         char *str_lit = node->u.string_literal;
 
-#line 469 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 488 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "\"");
 
-#line 470 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 489 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_string_literal(this, str_lit);
 
-#line 471 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 490 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "\"");
       } break;
     case compiler_ast_nodes_ASTType_CharLiteral:
     m_50_5:
       {
 
-#line 474 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         char *char_lit = node->u.char_literal;
 
-#line 475 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "'");
 
-#line 476 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 495 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, char_lit);
 
-#line 477 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 496 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "'");
       } break;
     case compiler_ast_nodes_ASTType_If:
     m_50_6:
       {
 
-#line 480 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 499 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_vector_Vector__22 *branches = node->u.if_stmt.branches;
 
-#line 481 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 500 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *els = node->u.if_stmt.els;
 
-#line 486 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 505 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((branches->size==1 && (std_vector_Vector__22_at(branches, 0).body->type != compiler_ast_nodes_ASTType_Block)) && ((bool)els)) && (els->type != compiler_ast_nodes_ASTType_Block)) {
 
-#line 491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 510 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_nodes_IfBranch branch = std_vector_Vector__22_at(branches, 0);
 
-#line 492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "(");
 
-#line 493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 512 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, branch.cond, false);
 
-#line 494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 513 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, " ? ");
 
-#line 495 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 514 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, branch.body, false);
 
-#line 496 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 515 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, " : ");
 
-#line 497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, els, false);
 
-#line 498 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ")");
         } else {
 
-#line 502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 521 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
         }
       } break;
@@ -13894,51 +14038,51 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     m_50_7:
       {
 
-#line 505 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 524 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Block:
     m_50_8:
       {
 
-#line 506 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_in_yield_context(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Member:
     m_50_9:
       {
 
-#line 508 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 527 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_scopes_Symbol *sym = node->resolved_symbol;
 
-#line 509 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 528 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)sym) && sym->type==compiler_ast_scopes_SymbolType_Function) {
 
-#line 511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
 
-#line 512 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           return;
         }
 
-#line 515 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 534 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *lhs = node->u.member.lhs;
 
-#line 516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, lhs, false);
 
-#line 517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 536 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (node->u.member.is_pointer) {
 
-#line 518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 537 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "->");
         } else {
 
-#line 520 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 539 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ".");
         }
 
-#line 522 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 541 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, node->u.member.rhs_name);
       } break;
     case compiler_ast_nodes_ASTType_Identifier:
@@ -13948,20 +14092,20 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     m_50_10:
       {
 
-#line 525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 544 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_scopes_Symbol *sym = node->resolved_symbol;
 
-#line 526 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (!((bool)sym)) {
 
-#line 527 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, "Symbol not found in CodeGenerator::gen_expression"));
 
-#line 528 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           return;
         }
 
-#line 530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         switch ((sym->type)) {
           case compiler_ast_scopes_SymbolType_Function:
           case compiler_ast_scopes_SymbolType_Variable:
@@ -13969,21 +14113,21 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           m_51_0:
             {
 
-#line 531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(sym));
             } break;
           case compiler_ast_scopes_SymbolType_EnumVariant:
           m_51_1:
             {
 
-#line 532 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_enum_constructor(this, sym->u.enum_var, NULL);
             } break;
           default:
             {
 
-#line 533 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:533:32: Assertion failed: `false`", std_format("Unhandled symbol type: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
+#line 552 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:552:32: Assertion failed: `false`", std_format("Unhandled symbol type: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
             } break;
         }
       } break;
@@ -13991,51 +14135,51 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     m_50_11:
       {
 
-#line 537 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *callee = node->u.call.callee;
 
-#line 540 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 559 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (callee->type==compiler_ast_nodes_ASTType_Identifier && (str_eq(callee->u.ident.name, "print") || str_eq(callee->u.ident.name, "println"))) {
 
-#line 541 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 560 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_internal_print(this, node);
 
-#line 542 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 561 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           return;
         }
 
-#line 545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_scopes_Symbol *sym = compiler_ast_nodes_AST_symbol(callee);
 
-#line 546 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)sym)) {
 
-#line 547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 566 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           switch ((node->u.call.call_type)) {
             case compiler_ast_nodes_CallType_StructConstructor:
             m_52_0:
               {
 
-#line 549 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-                if(!(sym->type==compiler_ast_scopes_SymbolType_Structure)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:549:32: Assertion failed: `sym.type == Structure`", NULL); }
+#line 568 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+                if(!(sym->type==compiler_ast_scopes_SymbolType_Structure)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:568:32: Assertion failed: `sym.type == Structure`", NULL); }
 
-#line 550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 569 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 compiler_passes_code_generator_CodeGenerator_gen_constructor(this, node, sym->u.struc);
 
-#line 551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 570 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 return;
               } break;
             case compiler_ast_nodes_CallType_EnumConstructor:
             m_52_1:
               {
 
-#line 554 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-                if(!(sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:554:32: Assertion failed: `sym.type == EnumVariant`", NULL); }
+#line 573 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+                if(!(sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:573:32: Assertion failed: `sym.type == EnumVariant`", NULL); }
 
-#line 555 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 574 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 compiler_passes_code_generator_CodeGenerator_gen_enum_constructor(this, sym->u.enum_var, node->u.call.args);
 
-#line 556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 return;
               } break;
             default:
@@ -14044,151 +14188,151 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           }
         }
 
-#line 564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 583 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, callee, false);
 
-#line 566 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 585 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         bool is_variadic_format = (((((bool)sym) && sym->type==compiler_ast_scopes_SymbolType_Function) && ((bool)sym->u.func)) && sym->u.func->is_variadic_format);
 
-#line 573 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 592 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "(");
 
-#line 574 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 593 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_vector_Vector__7 *args = node->u.call.args;
 
-#line 575 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 594 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (u32 i = 0; i < args->size; i+=1) {
 
-#line 576 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 595 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (i != 0) {
 
-#line 576 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 595 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, ", ");
           }
 
-#line 577 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 596 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_nodes_Argument *arg = std_vector_Vector__7_at(args, i);
 
-#line 579 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 598 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if ((i==(args->size - 1) && is_variadic_format) && arg->expr->type==compiler_ast_nodes_ASTType_FormatStringLiteral) {
 
-#line 584 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 603 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_format_string_variadic(this, arg->expr, false);
           } else {
 
-#line 586 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 605 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_expression(this, arg->expr, false);
           }
         }
 
-#line 589 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 608 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ")");
       } break;
     case compiler_ast_nodes_ASTType_BoolLiteral:
     m_50_12:
       {
 
-#line 592 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 611 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         bool bool_lit = node->u.bool_literal;
 
-#line 593 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 612 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, (bool_lit ? "true" : "false"));
       } break;
     case compiler_ast_nodes_ASTType_CreateNew:
     m_50_13:
       {
 
-#line 595 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 614 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_create_new(this, node);
       } break;
     case compiler_ast_nodes_ASTType_UnaryOp:
     m_50_14:
       {
 
-#line 596 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 615 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         switch ((node->u.unary.op)) {
           case compiler_ast_operators_Operator_Address:
           m_53_0:
             {
 
-#line 598 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 617 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *expr = node->u.unary.expr;
 
-#line 599 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 618 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "&");
 
-#line 600 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 619 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
             } break;
           case compiler_ast_operators_Operator_Dereference:
           m_53_1:
             {
 
-#line 603 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 622 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *expr = node->u.unary.expr;
 
-#line 604 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 623 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "(*");
 
-#line 605 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
 
-#line 606 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 625 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, ")");
             } break;
           case compiler_ast_operators_Operator_Negate:
           m_53_2:
             {
 
-#line 609 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 628 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *expr = node->u.unary.expr;
 
-#line 610 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 629 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "-");
 
-#line 611 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 630 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
             } break;
           case compiler_ast_operators_Operator_BitwiseNot:
           m_53_3:
             {
 
-#line 614 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 633 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *expr = node->u.unary.expr;
 
-#line 615 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 634 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "~");
 
-#line 616 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 635 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
             } break;
           case compiler_ast_operators_Operator_Not:
           m_53_4:
             {
 
-#line 619 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *expr = node->u.unary.expr;
 
-#line 620 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 639 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "!");
 
-#line 621 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 640 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
             } break;
           case compiler_ast_operators_Operator_IsNotNull:
           m_53_5:
             {
 
-#line 624 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 643 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *expr = node->u.unary.expr;
 
-#line 625 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 644 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "((bool)");
 
-#line 626 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 645 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
 
-#line 627 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, ")");
             } break;
           case compiler_ast_operators_Operator_PreIncrement:
@@ -14196,10 +14340,10 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           m_53_6:
             {
 
-#line 630 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 649 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
 
-#line 631 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.unary.expr, false);
             } break;
           case compiler_ast_operators_Operator_PostIncrement:
@@ -14207,16 +14351,16 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           m_53_7:
             {
 
-#line 635 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 654 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.unary.expr, false);
 
-#line 636 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
             } break;
           default:
             {
 
-#line 638 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 657 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, std_format("Unhandled unary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.unary.op))));
             } break;
         }
@@ -14225,73 +14369,73 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     m_50_15:
       {
 
-#line 641 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 660 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *expr = node->u.cast.lhs;
 
-#line 642 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 661 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_types_Type *type = node->etype;
 
-#line 643 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 662 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "((");
 
-#line 644 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 663 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, type, "", false));
 
-#line 645 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 664 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ")");
 
-#line 646 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 665 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
 
-#line 647 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 666 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ")");
       } break;
     case compiler_ast_nodes_ASTType_SizeOf:
     m_50_16:
       {
 
-#line 650 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 669 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "((u32)sizeof(");
 
-#line 651 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 670 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_type(this, node->u.size_of_type);
 
-#line 652 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 671 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "))");
       } break;
     case compiler_ast_nodes_ASTType_Null:
     m_50_17:
       {
 
-#line 654 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 673 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "NULL");
       } break;
     case compiler_ast_nodes_ASTType_BinaryOp:
     m_50_18:
       {
 
-#line 655 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 674 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         switch ((node->u.binary.op)) {
           case compiler_ast_operators_Operator_Index:
           m_54_0:
             {
 
-#line 657 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 676 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *lhs = node->u.binary.lhs;
 
-#line 658 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 677 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *rhs = node->u.binary.rhs;
 
-#line 659 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 678 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, lhs, false);
 
-#line 660 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 679 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "[");
 
-#line 661 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 680 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, rhs, false);
 
-#line 662 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 681 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, "]");
             } break;
           case compiler_ast_operators_Operator_And:
@@ -14316,38 +14460,38 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           m_54_1:
             {
 
-#line 683 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 702 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *lhs = node->u.binary.lhs;
 
-#line 684 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 703 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_ast_nodes_AST *rhs = node->u.binary.rhs;
 
-#line 685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               if (!is_top_level) {
 
-#line 685 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 std_buffer_Buffer_write_str(&this->out, "(");
               }
 
-#line 686 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 705 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, lhs, false);
 
-#line 687 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 706 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, " ");
 
-#line 688 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 707 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
 
-#line 689 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 708 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, " ");
 
-#line 690 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 709 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, rhs, false);
 
-#line 691 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 710 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               if (!is_top_level) {
 
-#line 691 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 710 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 std_buffer_Buffer_write_str(&this->out, ")");
               }
             } break;
@@ -14361,19 +14505,19 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
           m_54_2:
             {
 
-#line 700 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 719 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.binary.lhs, false);
 
-#line 701 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 720 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_passes_code_generator_CodeGenerator_get_op(this, node));
 
-#line 702 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 721 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.binary.rhs, false);
             } break;
           default:
             {
 
-#line 704 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 723 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, std_format("Unhandled binary op type in CodeGenerator: %s", compiler_ast_operators_Operator_dbg(node->u.binary.op))));
             } break;
         }
@@ -14381,47 +14525,47 @@ void compiler_passes_code_generator_CodeGenerator_gen_expression(compiler_passes
     default:
       {
 
-#line 707 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(node->span, std_format("Unhandled expression type in CodeGenerator: %s", compiler_ast_nodes_ASTType_dbg(node->type))));
       } break;
   }
 }
 
 
-#line 711 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 730 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_var_declaration(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
-#line 712 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 731 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_Variable *var = node->u.var_decl.var;
 
-#line 714 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 733 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (var->is_atomic) {
 
-#line 715 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 734 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "_Atomic ");
   }
 
-#line 718 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 737 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, var->type, compiler_ast_scopes_Symbol_out_name(var->sym));
 
-#line 719 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 738 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (((bool)node->u.var_decl.init)) {
 
-#line 720 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 739 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " = ");
 
-#line 721 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 740 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.var_decl.init, false);
   } else if (!var->is_atomic) {
 
-#line 725 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 744 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     switch ((var->type->base)) {
       case compiler_types_BaseType_Array:
       case compiler_types_BaseType_Structure:
       m_55_0:
         {
 
-#line 726 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, " = {0}");
         } break;
       default:
@@ -14432,576 +14576,576 @@ void compiler_passes_code_generator_CodeGenerator_gen_var_declaration(compiler_p
 }
 
 
-#line 732 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 751 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_match_case_body(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, compiler_ast_nodes_AST *body) {
 
-#line 733 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 752 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (body->type==compiler_ast_nodes_ASTType_Block) {
 
-#line 734 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 753 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " ");
 
-#line 735 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 754 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
   } else if (body->type==compiler_ast_nodes_ASTType_Call && body->returns) {
 
-#line 739 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " ");
 
-#line 740 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 759 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_expression(this, body, false);
 
-#line 741 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 760 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, ";");
   } else if (((bool)node->etype) && (body->type != compiler_ast_nodes_ASTType_Yield)) {
 
-#line 745 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 764 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " {\n");
 
-#line 746 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 765 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     this->indent+=1;
 
-#line 747 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 766 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_yield_expression(this, body);
 
-#line 748 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 767 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     this->indent-=1;
 
-#line 749 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 768 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 750 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 769 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "}");
   } else {
 
-#line 753 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 772 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " {\n");
 
-#line 754 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 773 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     this->indent+=1;
 
-#line 755 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 774 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_statement(this, body);
 
-#line 756 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 775 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     this->indent-=1;
 
-#line 757 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 776 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 758 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 777 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "}");
   }
 }
 
 
-#line 762 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 781 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_custom_match(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
-#line 763 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 782 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_Match stmt = node->u.match_stmt;
 
-#line 764 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 765 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "{\n");
 
-#line 767 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 786 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *match_var = std_format("__match_var_%u", this->uid++);
 
-#line 769 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 788 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent+=1;
 
-#line 770 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 771 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, stmt.expr->etype, match_var);
 
-#line 772 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, " = ");
 
-#line 773 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 792 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, stmt.expr, false);
 
-#line 774 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 793 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, ";\n");
 
-#line 776 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 795 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_vector_Vector__23 *cases = stmt.cases;
 
-#line 777 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 779 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (u32 i = 0; i < cases->size; i++) {
 
-#line 780 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 799 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_MatchCase _case = std_vector_Vector__23_at(cases, i);
 
-#line 782 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 801 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "if (");
 
-#line 783 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 802 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     bool first = true;
 
-#line 784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     for (std_vector_Iterator__11 __iter = std_vector_Vector__11_iter(_case.conds); std_vector_Iterator__11_has_value(&__iter); std_vector_Iterator__11_next(&__iter)) {
 
-#line 784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_ast_nodes_MatchCond *cond = std_vector_Iterator__11_cur(&__iter);
 
-#line 784 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       {
 
-#line 785 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 804 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (!first) {
 
-#line 785 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 804 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, " || ");
         }
 
-#line 786 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 805 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         first=false;
 
-#line 787 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 806 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)cond->cmp_fn)) {
 
-#line 788 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 807 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(cond->cmp_fn->sym));
 
-#line 789 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 808 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "(");
 
-#line 790 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 809 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, match_var);
 
-#line 791 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 810 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ", ");
 
-#line 792 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 811 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond->expr, false);
 
-#line 793 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 812 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ")");
         } else {
 
-#line 796 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 815 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, std_format("(%s == ", match_var));
 
-#line 797 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 816 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond->expr, false);
 
-#line 798 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 817 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ")");
         }
       }
     }
 
-#line 801 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 820 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, ")");
 
-#line 802 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 821 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, _case.body);
 
-#line 803 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 822 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " else ");
   }
 
-#line 805 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 824 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (((bool)stmt.defolt)) {
 
-#line 806 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, stmt.defolt);
   }
 
-#line 808 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 827 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "\n");
 
-#line 810 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent-=1;
 
-#line 811 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 830 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 812 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 831 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "}\n");
 }
 
 
-#line 815 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 834 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_match_enum(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
-#line 816 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 835 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_Match *match_stmt = &node->u.match_stmt;
 
-#line 817 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 836 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_AST *expr = match_stmt->expr;
 
-#line 818 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  if(!(((bool)expr->etype) && expr->etype->base==compiler_types_BaseType_Enum)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:818:12: Assertion failed: `expr.etype? and expr.etype.base == Enum`", NULL); }
+#line 837 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  if(!(((bool)expr->etype) && expr->etype->base==compiler_types_BaseType_Enum)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:837:12: Assertion failed: `expr.etype? and expr.etype.base == Enum`", NULL); }
 
-#line 820 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 839 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_Enum *enom = expr->etype->u.enom;
 
-#line 821 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_vector_Vector__4 *shared_fields = enom->shared_fields;
 
-#line 823 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 842 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 824 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 843 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "switch ((");
 
-#line 825 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
 
-#line 826 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->has_values) {
 
-#line 827 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, ").tag) {\n");
   } else {
 
-#line 829 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 848 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, ")) {\n");
   }
 
-#line 832 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 851 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   u32 uid = this->uid++;
 
-#line 833 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 852 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent+=1;
 
-#line 834 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 853 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (u32 i = 0; i < match_stmt->cases->size; i+=1) {
 
-#line 835 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_MatchCase _case = std_vector_Vector__23_at(match_stmt->cases, i);
 
-#line 837 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 856 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     bool has_args = ((_case.conds->size > 0) && ((bool)std_vector_Vector__11_at(_case.conds, 0)->args));
 
-#line 839 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 858 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     if (has_args) {
 
-#line 840 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 859 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_vector_Vector__4 *args = std_vector_Vector__11_at(_case.conds, 0)->args;
 
-#line 841 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 860 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 842 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 861 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, "{\n");
 
-#line 843 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 862 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       this->indent+=1;
 
-#line 844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(args); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_Variable *arg = std_vector_Iterator__4_cur(&__iter);
 
-#line 844 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         {
 
-#line 845 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 864 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (!str_eq(arg->sym->name, "_")) {
 
-#line 846 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 865 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 847 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, arg->type, compiler_ast_scopes_Symbol_out_name(arg->sym));
 
-#line 848 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 867 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, ";\n");
           }
         }
       }
     }
 
-#line 853 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 872 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     for (u32 j = 0; j < _case.conds->size; j++) {
 
-#line 854 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_ast_nodes_MatchCond *cond = std_vector_Vector__11_at(_case.conds, j);
 
-#line 856 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 875 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_ast_scopes_Symbol *resolved = cond->expr->resolved_symbol;
 
-#line 857 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      if(!(((bool)resolved) && resolved->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:857:20: Assertion failed: `resolved? and resolved.type == EnumVariant`", NULL); }
-
-#line 858 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      compiler_ast_nodes_EnumVariant *variant = resolved->u.enum_var;
-
-#line 860 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-
-#line 861 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      std_buffer_Buffer_write_str(&this->out, "case ");
-
-#line 862 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
-
-#line 863 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      std_buffer_Buffer_write_str(&this->out, ":\n");
-
-#line 865 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      this->indent+=1;
-
-#line 866 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-      if (((bool)cond->args)) {
-
-#line 867 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-        std_vector_Vector__4 *args = cond->args;
-
-#line 868 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-        for (u32 i = 0; i < args->size; i+=1) {
-
-#line 869 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-          compiler_ast_nodes_Variable *arg = std_vector_Vector__4_at(args, i);
-
-#line 870 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-          if (!str_eq(arg->sym->name, "_")) {
-
-#line 871 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-            if (i < shared_fields->size) {
-
-#line 872 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(shared_fields, i);
-
-#line 873 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-
-#line 874 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(arg->sym));
-
-#line 875 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              std_buffer_Buffer_write_str(&this->out, " = (");
-
 #line 876 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
+      if(!(((bool)resolved) && resolved->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:876:20: Assertion failed: `resolved? and resolved.type == EnumVariant`", NULL); }
 
 #line 877 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              std_buffer_Buffer_write_str(&this->out, ").");
-
-#line 878 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-              std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
+      compiler_ast_nodes_EnumVariant *variant = resolved->u.enum_var;
 
 #line 879 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      compiler_passes_code_generator_CodeGenerator_gen_indent(this);
+
+#line 880 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      std_buffer_Buffer_write_str(&this->out, "case ");
+
+#line 881 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
+
+#line 882 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      std_buffer_Buffer_write_str(&this->out, ":\n");
+
+#line 884 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      this->indent+=1;
+
+#line 885 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+      if (((bool)cond->args)) {
+
+#line 886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+        std_vector_Vector__4 *args = cond->args;
+
+#line 887 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+        for (u32 i = 0; i < args->size; i+=1) {
+
+#line 888 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+          compiler_ast_nodes_Variable *arg = std_vector_Vector__4_at(args, i);
+
+#line 889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+          if (!str_eq(arg->sym->name, "_")) {
+
+#line 890 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+            if (i < shared_fields->size) {
+
+#line 891 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(shared_fields, i);
+
+#line 892 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              compiler_passes_code_generator_CodeGenerator_gen_indent(this);
+
+#line 893 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(arg->sym));
+
+#line 894 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              std_buffer_Buffer_write_str(&this->out, " = (");
+
+#line 895 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
+
+#line 896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              std_buffer_Buffer_write_str(&this->out, ").");
+
+#line 897 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+              std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(field->sym));
+
+#line 898 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, ";\n");
             } else {
 
-#line 882 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 901 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               u32 field_idx = (i - shared_fields->size);
 
-#line 883 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 884 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 903 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(arg->sym));
 
-#line 885 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 904 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, " = (");
 
-#line 886 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, false);
 
-#line 887 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, ").");
 
-#line 888 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 907 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
 
-#line 889 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 908 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str_f(&this->out, std_format(".f%u", field_idx));
 
-#line 890 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 909 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, ";\n");
             }
           }
         }
 
-#line 895 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 914 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 896 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 915 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, std_format("goto m_%u_%u;\n", uid, i));
       }
 
-#line 898 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 917 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       this->indent-=1;
     }
 
-#line 902 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 921 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     if (((bool)_case.body)) {
 
-#line 903 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 904 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 923 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, std_format("m_%u_%u:\n", uid, i));
 
-#line 905 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 924 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       this->indent+=1;
 
-#line 906 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 925 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 907 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 926 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, _case.body);
 
-#line 908 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 927 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, " break;\n");
 
-#line 909 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 928 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       this->indent-=1;
     }
 
-#line 912 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 931 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     if (has_args) {
 
-#line 913 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 932 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       this->indent-=1;
 
-#line 914 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 933 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 915 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 934 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, "}\n");
     }
   }
 
-#line 919 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 938 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (((bool)match_stmt->defolt)) {
 
-#line 920 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 939 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 921 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 940 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "default:\n");
 
-#line 922 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 941 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     this->indent+=1;
 
-#line 923 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 942 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 924 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, match_stmt->defolt);
 
-#line 925 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 944 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " break;\n");
 
-#line 926 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 945 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     this->indent-=1;
   }
 
-#line 929 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 948 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent-=1;
-
-#line 930 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_passes_code_generator_CodeGenerator_gen_indent(this);
-
-#line 931 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, "}\n");
-}
-
-
-#line 935 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-void compiler_passes_code_generator_CodeGenerator_gen_match_bool(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
-
-#line 936 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_ast_nodes_Match stmt = node->u.match_stmt;
-
-#line 938 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_ast_nodes_MatchCase true_case = std_vector_Vector__23_at(stmt.cases, 0);
-
-#line 939 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_ast_nodes_MatchCase false_case = std_vector_Vector__23_at(stmt.cases, 1);
-
-#line 941 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_ast_nodes_AST *true_expr = std_vector_Vector__11_at(true_case.conds, 0)->expr;
-
-#line 942 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  if(!(true_expr->type==compiler_ast_nodes_ASTType_BoolLiteral)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:942:12: Assertion failed: `true_expr.type == BoolLiteral`", "Expected a boolean literal in gen_match_bool"); }
-
-#line 943 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  if (!true_expr->u.bool_literal) {
-
-#line 944 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    compiler_ast_nodes_MatchCase tmp = true_case;
-
-#line 945 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    true_case=false_case;
-
-#line 946 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-    false_case=tmp;
-  }
 
 #line 949 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
 #line 950 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, "if (");
+  std_buffer_Buffer_write_str(&this->out, "}\n");
+}
 
-#line 951 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_passes_code_generator_CodeGenerator_gen_expression(this, stmt.expr, false);
-
-#line 952 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, ") ");
-
-#line 953 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, true_case.body);
 
 #line 954 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  std_buffer_Buffer_write_str(&this->out, " else ");
+void compiler_passes_code_generator_CodeGenerator_gen_match_bool(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
 #line 955 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_ast_nodes_Match stmt = node->u.match_stmt;
+
+#line 957 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_ast_nodes_MatchCase true_case = std_vector_Vector__23_at(stmt.cases, 0);
+
+#line 958 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_ast_nodes_MatchCase false_case = std_vector_Vector__23_at(stmt.cases, 1);
+
+#line 960 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_ast_nodes_AST *true_expr = std_vector_Vector__11_at(true_case.conds, 0)->expr;
+
+#line 961 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  if(!(true_expr->type==compiler_ast_nodes_ASTType_BoolLiteral)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:961:12: Assertion failed: `true_expr.type == BoolLiteral`", "Expected a boolean literal in gen_match_bool"); }
+
+#line 962 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  if (!true_expr->u.bool_literal) {
+
+#line 963 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    compiler_ast_nodes_MatchCase tmp = true_case;
+
+#line 964 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    true_case=false_case;
+
+#line 965 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+    false_case=tmp;
+  }
+
+#line 968 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_passes_code_generator_CodeGenerator_gen_indent(this);
+
+#line 969 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, "if (");
+
+#line 970 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_passes_code_generator_CodeGenerator_gen_expression(this, stmt.expr, false);
+
+#line 971 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, ") ");
+
+#line 972 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, true_case.body);
+
+#line 973 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  std_buffer_Buffer_write_str(&this->out, " else ");
+
+#line 974 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, false_case.body);
 }
 
 
-#line 958 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 977 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_match(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
-#line 959 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 978 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_Match stmt = node->u.match_stmt;
 
-#line 961 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 980 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (stmt.is_custom_match) {
 
-#line 962 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 981 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_custom_match(this, node);
 
-#line 963 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 982 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 967 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 986 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   switch ((stmt.expr->etype->base)) {
     case compiler_types_BaseType_Bool:
     m_56_0:
       {
 
-#line 969 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 988 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_match_bool(this, node);
 
-#line 970 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 989 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         return;
       } break;
     case compiler_types_BaseType_Enum:
     m_56_1:
       {
 
-#line 973 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 992 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_match_enum(this, node);
 
-#line 974 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 993 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         return;
       } break;
     default:
@@ -15009,193 +15153,193 @@ void compiler_passes_code_generator_CodeGenerator_gen_match(compiler_passes_code
       } break;
   }
 
-#line 979 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 998 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 980 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 999 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "switch (");
 
-#line 981 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1000 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_expression(this, stmt.expr, false);
 
-#line 982 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1001 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, ") {\n");
 
-#line 984 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1003 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_vector_Vector__23 *cases = stmt.cases;
 
-#line 985 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1004 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent+=1;
 
-#line 986 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1005 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__23 __iter = std_vector_Vector__23_iter(cases); std_vector_Iterator__23_has_value(&__iter); std_vector_Iterator__23_next(&__iter)) {
 
-#line 986 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1005 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_MatchCase _case = std_vector_Iterator__23_cur(&__iter);
 
-#line 986 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1005 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1006 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       for (std_vector_Iterator__11 __iter = std_vector_Vector__11_iter(_case.conds); std_vector_Iterator__11_has_value(&__iter); std_vector_Iterator__11_next(&__iter)) {
 
-#line 987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1006 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_MatchCond *cond = std_vector_Iterator__11_cur(&__iter);
 
-#line 987 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1006 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         {
 
-#line 988 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1007 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 989 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1008 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "case ");
 
-#line 990 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1009 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond->expr, false);
 
-#line 991 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1010 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ":");
         }
       }
 
-#line 993 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1012 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (((bool)_case.body)) {
 
-#line 994 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1013 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, _case.body);
 
-#line 995 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1014 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, " break;\n");
       } else {
 
-#line 998 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1017 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "\n");
       }
     }
   }
 
-#line 1001 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1020 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (((bool)stmt.defolt)) {
 
-#line 1002 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1021 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1003 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1022 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "default:");
 
-#line 1004 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1023 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_match_case_body(this, node, stmt.defolt);
 
-#line 1005 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1024 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, " break;\n");
   }
 
-#line 1007 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1026 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent-=1;
 
-#line 1008 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1027 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1009 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1028 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "}\n");
 }
 
 
-#line 1012 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1031 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_defers_upto(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Scope *end_scope) {
 
-#line 1013 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1032 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   bool first = true;
 
-#line 1014 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1033 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (compiler_ast_scopes_Scope *cur = compiler_passes_code_generator_CodeGenerator_scope(this); ((bool)cur); cur=cur->parent) {
 
-#line 1015 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1034 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     for (u32 i = 0; i < cur->defers->size; i+=1) {
 
-#line 1016 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (first) {
 
-#line 1017 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1036 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         first=false;
 
-#line 1018 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1037 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1019 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1038 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "/* defers */\n");
       }
 
-#line 1023 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1042 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       u32 idx = ((cur->defers->size - i) - 1);
 
-#line 1024 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1043 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_ast_nodes_AST *stmt = std_vector_Vector__16_at(cur->defers, idx);
 
-#line 1025 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1044 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_statement(this, stmt);
     }
 
-#line 1027 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1046 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     if (cur==end_scope) {
 
-#line 1027 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1046 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       break;
     }
   }
 }
 
 
-#line 1031 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1050 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node) {
 
-#line 1032 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1051 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_debug_info(this, node->span, false);
 
-#line 1033 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1052 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   switch ((node->type)) {
     case compiler_ast_nodes_ASTType_Return:
     m_57_0:
       {
 
-#line 1035 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1054 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_scopes_Scope *upto = compiler_passes_code_generator_CodeGenerator_scope(this);
 
-#line 1036 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1055 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (compiler_ast_scopes_Scope *cur = compiler_passes_code_generator_CodeGenerator_scope(this); ((bool)cur) && ((bool)cur->cur_func); cur=cur->parent) {
 
-#line 1037 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1056 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           upto=cur;
         }
 
-#line 1039 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1058 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_defers_upto(this, upto);
 
-#line 1040 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1059 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1042 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1061 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *expr = node->u.ret.expr;
 
-#line 1043 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1062 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)expr)) {
 
-#line 1044 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1063 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (!expr->returns) {
 
-#line 1045 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1064 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, "return ");
           }
 
-#line 1047 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1066 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, true);
 
-#line 1048 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1067 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ";\n");
         } else {
 
-#line 1050 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1069 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "return;\n");
         }
       } break;
@@ -15203,7 +15347,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
     m_57_1:
       {
 
-#line 1053 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1072 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_yield_expression(this, node->u.child);
       } break;
     case compiler_ast_nodes_ASTType_Import:
@@ -15215,33 +15359,33 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
     m_57_3:
       {
 
-#line 1056 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1075 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         u32 loop_count = compiler_passes_code_generator_CodeGenerator_scope(this)->loop_count;
 
-#line 1057 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1076 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_scopes_Scope *upto = compiler_passes_code_generator_CodeGenerator_scope(this);
 
-#line 1058 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1077 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (compiler_ast_scopes_Scope *cur = compiler_passes_code_generator_CodeGenerator_scope(this); ((bool)cur) && cur->loop_count==loop_count; cur=cur->parent) {
 
-#line 1059 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1078 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           upto=cur;
         }
 
-#line 1061 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1080 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_defers_upto(this, upto);
 
-#line 1063 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1082 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1064 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1083 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (node->type==compiler_ast_nodes_ASTType_Break) {
 
-#line 1065 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1084 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "break;\n");
         } else {
 
-#line 1067 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1086 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "continue;\n");
         }
       } break;
@@ -15249,88 +15393,88 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
     m_57_4:
       {
 
-#line 1071 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1090 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1072 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1091 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_var_declaration(this, node);
 
-#line 1073 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1092 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ";\n");
       } break;
     case compiler_ast_nodes_ASTType_Block:
     m_57_5:
       {
 
-#line 1076 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1095 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1077 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1096 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_block(this, node, true);
 
-#line 1078 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1097 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "\n");
       } break;
     case compiler_ast_nodes_ASTType_Defer:
     m_57_6:
       {
 
-#line 1081 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1100 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_vector_Vector__16_push(compiler_passes_code_generator_CodeGenerator_scope(this)->defers, node->u.child);
       } break;
     case compiler_ast_nodes_ASTType_If:
     m_57_7:
       {
 
-#line 1084 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1103 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1086 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1105 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_vector_Vector__22 *branches = node->u.if_stmt.branches;
 
-#line 1087 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1106 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (u32 i = 0; i < branches->size; i+=1) {
 
-#line 1088 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1107 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_nodes_IfBranch branch = std_vector_Vector__22_at(branches, i);
 
-#line 1089 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1108 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (i > 0) {
 
-#line 1089 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1108 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, " else ");
           }
 
-#line 1090 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1109 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "if (");
 
-#line 1091 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1110 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, branch.cond, true);
 
-#line 1092 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1111 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ") ");
 
-#line 1093 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1112 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, branch.body);
         }
 
-#line 1096 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1115 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *else_body = node->u.if_stmt.els;
 
-#line 1098 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1117 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)else_body)) {
 
-#line 1099 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1118 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, " else ");
 
-#line 1100 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1119 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_control_body(this, node, else_body);
 
-#line 1101 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1120 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "\n");
         } else {
 
-#line 1103 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1122 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "\n");
         }
       } break;
@@ -15338,270 +15482,270 @@ void compiler_passes_code_generator_CodeGenerator_gen_statement(compiler_passes_
     m_57_8:
       {
 
-#line 1106 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1125 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_match(this, node);
       } break;
     case compiler_ast_nodes_ASTType_While:
     m_57_9:
       {
 
-#line 1108 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1127 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *cond = node->u.loop.cond;
 
-#line 1109 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1128 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *body = node->u.loop.body;
 
-#line 1110 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1129 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1111 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1130 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "while (");
 
-#line 1112 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1131 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond, true);
 
-#line 1113 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1132 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ") ");
 
-#line 1114 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1133 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
 
-#line 1115 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1134 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "\n");
       } break;
     case compiler_ast_nodes_ASTType_For:
     m_57_10:
       {
 
-#line 1118 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1137 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *init = node->u.loop.init;
 
-#line 1119 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1138 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *cond = node->u.loop.cond;
 
-#line 1120 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1139 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *step = node->u.loop.step;
 
-#line 1121 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1140 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *body = node->u.loop.body;
 
-#line 1122 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1141 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1123 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1142 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "for (");
 
-#line 1124 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1143 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)init)) {
 
-#line 1125 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1144 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (init->type==compiler_ast_nodes_ASTType_VarDeclaration) {
 
-#line 1126 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1145 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_var_declaration(this, init);
           } else {
 
-#line 1128 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1147 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_expression(this, init, true);
           }
         }
 
-#line 1131 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1150 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "; ");
 
-#line 1132 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1151 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)cond)) {
 
-#line 1132 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1151 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, cond, true);
         }
 
-#line 1133 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1152 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "; ");
 
-#line 1134 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1153 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)step)) {
 
-#line 1134 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1153 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, step, true);
         }
 
-#line 1135 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1154 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ") ");
 
-#line 1136 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1155 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_block(this, body, true);
 
-#line 1137 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1156 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "\n");
       } break;
     case compiler_ast_nodes_ASTType_Assert:
     m_57_11:
       {
 
-#line 1140 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1159 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_AST *expr = node->u.assertion.expr;
 
-#line 1141 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1160 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1142 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1161 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "if(!(");
 
-#line 1143 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1162 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, expr, true);
 
-#line 1144 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1163 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ")) { ae_assert_fail(");
 
-#line 1145 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1164 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         {
 
-#line 1146 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1165 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "\"");
 
-#line 1147 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1166 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str_f(&this->out, std_span_Location_str(&expr->span.start));
 
-#line 1148 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1167 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           char *expr_str = compiler_ast_program_Program_get_source_text(this->o->program, expr->span);
 
-#line 1149 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1168 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, ": Assertion failed: `");
 
-#line 1150 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1169 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           u32 len = strlen(expr_str);
 
-#line 1151 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1170 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           for (u32 i = 0; i < len; i+=1) {
 
-#line 1152 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1171 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             switch (expr_str[i]) {
               case '"': {
 
-#line 1153 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1172 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 std_buffer_Buffer_write_str(&this->out, "\\\"");
               } break;
               default: {
 
-#line 1154 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1173 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
                 std_buffer_Buffer_write_char(&this->out, expr_str[i]);
               } break;
             }
           }
 
-#line 1157 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1176 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "`\"");
         }
 
-#line 1159 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1178 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ", ");
 
-#line 1160 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1179 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)node->u.assertion.msg)) {
 
-#line 1161 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1180 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, node->u.assertion.msg, false);
         } else {
 
-#line 1163 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1182 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "NULL");
         }
 
-#line 1165 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1184 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ");");
 
-#line 1169 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1188 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (expr->type==compiler_ast_nodes_ASTType_BoolLiteral && expr->u.bool_literal==false) {
 
-#line 1170 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, " exit(1);");
         }
 
-#line 1172 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1191 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, " }\n");
       } break;
     default:
       {
 
-#line 1175 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1194 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1176 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1195 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_expression(this, node, true);
 
-#line 1177 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1196 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ";\n");
       } break;
   }
 }
 
 
-#line 1182 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1201 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_block(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_AST *node, bool with_braces) {
 
-#line 1183 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1202 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (with_braces) {
 
-#line 1183 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1202 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "{\n");
   }
 
-#line 1184 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1203 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_scopes_Scope *scope = node->u.block.scope;
 
-#line 1185 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1204 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, node->u.block.scope);
 
-#line 1187 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1206 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_vector_Vector__16 *statements = node->u.block.statements;
 
-#line 1188 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1207 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent+=1;
 
-#line 1189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1208 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(statements); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 1189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1208 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_AST *statement = std_vector_Iterator__16_cur(&__iter);
 
-#line 1189 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1208 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1190 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1209 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_statement(this, statement);
     }
   }
 
-#line 1193 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1212 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (!node->returns) {
 
-#line 1194 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1213 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_defers_upto(this, scope);
   }
 
-#line 1197 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1216 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent-=1;
 
-#line 1198 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1217 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1200 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1219 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (with_braces) {
 
-#line 1200 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1219 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "}");
   }
 
-#line 1201 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1220 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
 
-#line 1204 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *top, compiler_types_Type *cur, char *acc, bool is_func_def) {
 
-#line 1205 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1224 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   switch ((cur->base)) {
     case compiler_types_BaseType_Void:
     case compiler_types_BaseType_Bool:
@@ -15619,967 +15763,967 @@ char *compiler_passes_code_generator_CodeGenerator_helper_gen_type(compiler_pass
     m_58_0:
       {
 
-#line 1210 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1229 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         str_replace(&acc, std_format("%s %s", compiler_types_BaseType_str(cur->base), acc));
       } break;
     case compiler_types_BaseType_Structure:
     m_58_1:
       {
 
-#line 1211 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1230 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.struc->sym), acc));
       } break;
     case compiler_types_BaseType_Enum:
     m_58_2:
       {
 
-#line 1212 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1231 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         str_replace(&acc, std_format("%s %s", compiler_ast_scopes_Symbol_out_name(cur->u.enom->sym), acc));
       } break;
     case compiler_types_BaseType_Alias:
     m_58_3:
       {
 
-#line 1214 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1233 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.ptr, acc, false);
       } break;
     case compiler_types_BaseType_Function:
     m_58_4:
       {
 
-#line 1217 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1236 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer args_str = std_buffer_Buffer_make(16);
 
-#line 1218 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1237 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_vector_Vector__4 *params = cur->u.func.params;
 
-#line 1220 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (params->size==0) {
 
-#line 1220 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1239 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&args_str, "void");
         }
 
-#line 1222 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1241 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (u32 i = 0; i < params->size; i+=1) {
 
-#line 1223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1242 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           if (i != 0) {
 
-#line 1223 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1242 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&args_str, ", ");
           }
 
-#line 1224 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1243 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_nodes_Variable *var = std_vector_Vector__4_at(params, i);
 
-#line 1225 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1244 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           char *arg_str = compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, var->type, compiler_ast_scopes_Symbol_out_name(var->sym), false);
 
-#line 1226 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1245 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str_f(&args_str, arg_str);
         }
 
-#line 1228 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1247 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (cur->u.func.is_variadic) {
 
-#line 1228 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1247 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&args_str, ", ...");
         }
 
-#line 1230 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1249 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (is_func_def && cur==top) {
 
-#line 1232 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1251 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           str_replace(&acc, std_format("%s(%s)", acc, std_buffer_Buffer_str(args_str)));
         } else {
 
-#line 1234 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1253 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           str_replace(&acc, std_format("(*%s)(%s)", acc, std_buffer_Buffer_str(args_str)));
         }
 
-#line 1236 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1255 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_mem_free(args_str.data);
 
-#line 1237 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1256 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.func.return_type, acc, false);
       } break;
     case compiler_types_BaseType_Pointer:
     m_58_5:
       {
 
-#line 1246 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1265 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         bool needs_parens = (((bool)cur->u.ptr) && cur->u.ptr->base==compiler_types_BaseType_Array);
 
-#line 1247 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1266 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (cur->u.ptr->base==compiler_types_BaseType_Function) {
         } else if (needs_parens) {
 
-#line 1250 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1269 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           str_replace(&acc, std_format("(*%s)", acc));
         } else {
 
-#line 1252 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1271 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           str_replace(&acc, std_format("*%s", acc));
         }
 
-#line 1254 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1273 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.ptr, acc, false);
       } break;
     case compiler_types_BaseType_Array:
     m_58_6:
       {
 
-#line 1259 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1278 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer prev_buffer = this->out;
 
-#line 1261 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1280 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         this->out=std_buffer_Buffer_make(16);
 
-#line 1263 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1282 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_types_ArrayType *arr_typ = &cur->u.arr;
 
-#line 1264 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1283 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (((bool)arr_typ->size_expr)) {
 
-#line 1265 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1284 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_gen_expression(this, arr_typ->size_expr, false);
         } else if (arr_typ->size_known) {
 
-#line 1267 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1286 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str_f(&this->out, std_format("%u", arr_typ->size));
         } else {
 
-#line 1269 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1288 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(cur->span, "Array size not known at compile time"));
         }
 
-#line 1272 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1291 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         str_replace(&acc, std_format("%s[%s]", acc, std_buffer_Buffer_str(this->out)));
 
-#line 1273 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1292 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_mem_free(this->out.data);
 
-#line 1275 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1294 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         this->out=prev_buffer;
 
-#line 1276 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1295 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         acc=compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, top, cur->u.arr.elem_type, acc, false);
       } break;
     default:
       {
 
-#line 1278 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1297 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_error(this, compiler_errors_Error_new(cur->span, std_format("Unhandled type found in CodeGenerator::helper_gen_type: %s: %s", compiler_types_BaseType_dbg(cur->base), compiler_types_Type_str(cur))));
       } break;
   }
 
-#line 1280 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1299 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   return acc;
 }
 
 
-#line 1284 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1303 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 char *compiler_passes_code_generator_CodeGenerator_get_type_name_string(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type, char *name, bool is_func_def) {
 
-#line 1285 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-  if(!(type != NULL)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1285:12: Assertion failed: `type != null`", NULL); }
+#line 1304 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+  if(!(type != NULL)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1304:12: Assertion failed: `type != null`", NULL); }
 
-#line 1286 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1305 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *final = compiler_passes_code_generator_CodeGenerator_helper_gen_type(this, type, type, strdup(name), is_func_def);
 
-#line 1287 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1306 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   str_strip_trailing_whitespace(final);
 
-#line 1288 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   return final;
 }
 
 
-#line 1292 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1311 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_type_and_name(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type, char *name) {
 
-#line 1293 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str_f(&this->out, compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, type, name, false));
 }
 
 
-#line 1296 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1315 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_type(compiler_passes_code_generator_CodeGenerator *this, compiler_types_Type *type) {
 
-#line 1298 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1317 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, type, "");
 }
 
 
-#line 1301 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1320 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_function(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Function *func) {
 
-#line 1302 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1321 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (func->is_method && func->parent_type->base==compiler_types_BaseType_Structure) {
 
-#line 1303 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1322 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_Structure *struc = func->parent_type->u.struc;
 
-#line 1304 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1323 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     if (compiler_ast_scopes_Symbol_is_templated(struc->sym)) {
 
-#line 1304 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1323 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       return;
     }
   }
 
-#line 1306 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1325 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (compiler_ast_scopes_Symbol_is_templated(func->sym)) {
 
-#line 1306 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1325 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (func->is_dead) {
 
-#line 1307 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1309 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1328 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_debug_info(this, func->sym->span, false);
 
-#line 1310 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, func);
 
-#line 1311 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1330 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, " ");
 
-#line 1312 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1331 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_block(this, func->body, true);
 
-#line 1313 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "\n\n");
 }
 
 
-#line 1316 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1335 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_function_decl(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Function *func) {
 
-#line 1317 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1336 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *funfull_name = compiler_ast_scopes_Symbol_out_name(func->sym);
 
-#line 1318 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1337 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *s = compiler_passes_code_generator_CodeGenerator_get_type_name_string(this, func->type, funfull_name, true);
 
-#line 1319 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1338 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str_f(&this->out, s);
 }
 
 
-#line 1322 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1341 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_functions(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_program_Namespace *ns) {
 
-#line 1323 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1342 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_vector_Vector__6 *functions = ns->functions;
 
-#line 1324 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1343 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_generic_pass_GenericPass_push_scope(this->o, ns->scope);
 
-#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1345 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
 
-#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1345 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
 
-#line 1326 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1345 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1327 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1346 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (func->sym->is_extern) {
 
-#line 1327 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1346 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         continue;
       }
 
-#line 1328 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (compiler_ast_scopes_Symbol_is_templated(func->sym)) {
 
-#line 1329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (std_vector_Iterator__3 __iter = std_vector_Vector__3_iter(func->sym->template->instances); std_vector_Iterator__3_has_value(&__iter); std_vector_Iterator__3_next(&__iter)) {
 
-#line 1329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_scopes_TemplateInstance *instance = std_vector_Iterator__3_cur(&__iter);
 
-#line 1329 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           {
 
-#line 1330 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1349 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_ast_scopes_Symbol *sym = instance->resolved;
 
-#line 1331 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-            if(!(sym->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1331:24: Assertion failed: `sym.type == Function`", NULL); }
+#line 1350 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+            if(!(sym->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1350:24: Assertion failed: `sym.type == Function`", NULL); }
 
-#line 1332 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1351 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_ast_nodes_Function *func = sym->u.func;
 
-#line 1333 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1352 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_function(this, func);
           }
         }
       } else {
 
-#line 1336 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1355 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_function(this, func);
       }
     }
   }
 
-#line 1340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1359 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 1340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1359 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 1340 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1359 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1341 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1360 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_functions(this, child);
     }
   }
 
-#line 1343 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1362 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_generic_pass_GenericPass_pop_scope(this->o);
 }
 
 
-#line 1346 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1365 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_function_decls(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_program_Namespace *ns) {
 
-#line 1347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
 
-#line 1347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
 
-#line 1347 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1367 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (func->sym->is_extern) {
 
-#line 1348 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1367 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         continue;
       }
 
-#line 1350 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1369 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (func->is_method && func->parent_type->base==compiler_types_BaseType_Structure) {
 
-#line 1351 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1370 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_ast_nodes_Structure *struc = func->parent_type->u.struc;
 
-#line 1352 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1371 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (compiler_ast_scopes_Symbol_is_templated(struc->sym)) {
 
-#line 1352 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1371 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           continue;
         }
       }
 
-#line 1355 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1374 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (compiler_ast_scopes_Symbol_is_templated(func->sym)) {
 
-#line 1356 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         for (std_vector_Iterator__3 __iter = std_vector_Vector__3_iter(func->sym->template->instances); std_vector_Iterator__3_has_value(&__iter); std_vector_Iterator__3_next(&__iter)) {
 
-#line 1356 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           compiler_ast_scopes_TemplateInstance *instance = std_vector_Iterator__3_cur(&__iter);
 
-#line 1356 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           {
 
-#line 1357 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1376 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_ast_scopes_Symbol *sym = instance->resolved;
 
-#line 1358 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-            if(!(sym->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1358:24: Assertion failed: `sym.type == Function`", NULL); }
+#line 1377 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+            if(!(sym->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1377:24: Assertion failed: `sym.type == Function`", NULL); }
 
-#line 1359 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1378 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_ast_nodes_Function *func = sym->u.func;
 
-#line 1360 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1379 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             if (func->is_dead) {
 
-#line 1360 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1379 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               continue;
             }
 
-#line 1362 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1381 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, func);
 
-#line 1363 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1382 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             if (func->exits) {
 
-#line 1363 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1382 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
               std_buffer_Buffer_write_str(&this->out, " __attribute__((noreturn))");
             }
 
-#line 1364 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1383 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, ";\n");
           }
         }
 
-#line 1366 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1385 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         continue;
       }
 
-#line 1369 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1388 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (func->is_dead) {
 
-#line 1369 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1388 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         continue;
       }
 
-#line 1370 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1389 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, func);
 
-#line 1371 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (func->exits) {
 
-#line 1371 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1390 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, " __attribute__((noreturn))");
       }
 
-#line 1372 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1391 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, ";\n");
     }
   }
 
-#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1394 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1394 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 1375 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1394 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1376 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1395 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_function_decls(this, child);
     }
   }
 }
 
 
-#line 1381 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1400 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom) {
 
-#line 1382 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1401 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_ast_nodes_Function *dbg = std_map_Map__8_at(enom->type->methods, "dbg");
 
-#line 1383 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1402 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_function_decl(this, dbg);
 
-#line 1384 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1403 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, " {\n");
 
-#line 1385 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent+=1;
 
-#line 1386 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1405 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1388 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->has_values) {
 
-#line 1389 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1408 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "switch (this.tag) {\n");
   } else {
 
-#line 1391 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1410 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "switch (this) {\n");
   }
 
-#line 1394 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1413 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent+=1;
 
-#line 1395 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 1395 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 1395 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1396 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1415 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1397 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1416 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, "case ");
 
-#line 1398 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1417 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
 
-#line 1399 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1418 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str_f(&this->out, std_format(": return \"%s\";\n", variant->sym->name));
     }
   }
 
-#line 1403 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1422 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1404 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1423 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str_f(&this->out, std_format("default: return \"<unknown>\";\n"));
 
-#line 1406 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent-=1;
 
-#line 1407 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1426 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
 
-#line 1408 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "}\n");
 
-#line 1409 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1428 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   this->indent-=1;
 
-#line 1410 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1429 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "}\n\n");
 }
 
 
-#line 1413 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1432 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_struct_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Structure *struc) {
 
-#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1433 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (struc->sym->is_extern) {
 
-#line 1414 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1433 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1415 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1434 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (struc->is_dead) {
 
-#line 1415 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1434 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1417 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1436 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *strufull_name = compiler_ast_scopes_Symbol_out_name(struc->sym);
 
-#line 1418 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1437 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (struc->is_union) {
 
-#line 1419 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef union %s %s;\n", strufull_name, strufull_name));
   } else {
 
-#line 1421 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef struct %s %s;\n", strufull_name, strufull_name));
   }
 }
 
 
-#line 1425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1444 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_sym_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Symbol *sym) {
 
-#line 1425 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1444 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   switch ((sym->type)) {
     case compiler_ast_scopes_SymbolType_Structure:
     m_59_0:
       {
 
-#line 1426 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1445 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_struct_typedef(this, sym->u.struc);
       } break;
     case compiler_ast_scopes_SymbolType_Enum:
     m_59_1:
       {
 
-#line 1427 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1446 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_enum_typedef(this, sym->u.enom);
       } break;
     default:
       {
 
-#line 1428 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1428:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_typedef: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
+#line 1447 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1447:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_typedef: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
       } break;
   }
 }
 
 
-#line 1431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_sym_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_scopes_Symbol *sym) {
 
-#line 1431 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   switch ((sym->type)) {
     case compiler_ast_scopes_SymbolType_Structure:
     m_60_0:
       {
 
-#line 1432 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1451 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_struct_def(this, sym->u.struc);
       } break;
     case compiler_ast_scopes_SymbolType_Enum:
     m_60_1:
       {
 
-#line 1433 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1452 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_enum_def(this, sym->u.enom);
       } break;
     default:
       {
 
-#line 1434 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
-        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1434:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_def: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
+#line 1453 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1453:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_def: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
       } break;
   }
 }
 
 
-#line 1437 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1456 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_enum_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom) {
 
-#line 1438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->sym->is_extern) {
 
-#line 1438 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1440 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1459 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *name = compiler_ast_scopes_Symbol_out_name(enom->sym);
 
-#line 1441 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->has_values) {
 
-#line 1442 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1461 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef enum %s__kind %s__kind;\n", name, name));
 
-#line 1443 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1462 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef struct %s %s;\n", name, name));
   } else {
 
-#line 1445 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1464 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("typedef enum %s %s;\n", name, name));
   }
 }
 
 
-#line 1449 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1468 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_struct_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Structure *struc) {
 
-#line 1450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1469 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (struc->sym->is_extern) {
 
-#line 1450 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1469 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1451 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1470 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (struc->is_dead) {
 
-#line 1451 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1470 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     return;
   }
 
-#line 1453 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1472 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *strufull_name = compiler_ast_scopes_Symbol_out_name(struc->sym);
 
-#line 1454 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1473 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (struc->is_union) {
 
-#line 1455 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1474 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("union %s {\n", strufull_name));
   } else {
 
-#line 1457 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1476 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("struct %s {\n", strufull_name));
   }
 
-#line 1460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 1460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 1460 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1461 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1480 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, "  ");
 
-#line 1462 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1481 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       if (field->is_atomic) {
 
-#line 1463 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1482 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "_Atomic ");
       }
 
-#line 1465 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1484 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, field->type, compiler_ast_scopes_Symbol_out_name(field->sym));
 
-#line 1466 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1485 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, ";\n");
     }
   }
 
-#line 1468 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1487 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "};\n\n");
 }
 
 
-#line 1471 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1490 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 void compiler_passes_code_generator_CodeGenerator_gen_enum_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom) {
 
-#line 1472 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   char *name = compiler_ast_scopes_Symbol_out_name(enom->sym);
 
-#line 1473 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 
-#line 1475 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->sym->is_extern) {
 
-#line 1475 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     /* defers */
 
-#line 1473 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enom);
     return;
   }
 
-#line 1478 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->has_values) {
 
-#line 1479 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1498 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("enum %s__kind {\n", name));
   } else {
 
-#line 1481 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1500 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("enum %s {\n", name));
   }
 
-#line 1483 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 1483 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 1483 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1484 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1503 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str_f(&this->out, std_format("  %s,\n", compiler_ast_scopes_Symbol_out_name(variant->sym)));
     }
   }
 
-#line 1486 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1505 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "};\n\n");
 
-#line 1488 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1507 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   if (enom->has_values) {
 
-#line 1489 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1508 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("struct %s {\n", name));
 
-#line 1490 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1509 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str_f(&this->out, std_format("  %s__kind tag;\n", name));
 
-#line 1491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1510 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enom->shared_fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 1491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1510 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 1491 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1510 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       {
 
-#line 1492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, "  ");
 
-#line 1493 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1512 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, field->type, compiler_ast_scopes_Symbol_out_name(field->sym));
 
-#line 1494 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1513 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         std_buffer_Buffer_write_str(&this->out, ";\n");
       }
     }
 
-#line 1496 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1515 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "  union {\n");
 
-#line 1497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 1497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 1497 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       {
 
-#line 1498 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
         if (variant->specific_fields->size > 0) {
 
-#line 1499 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str(&this->out, "    struct {\n");
 
-#line 1500 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1519 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           for (u32 i = 0; i < variant->specific_fields->size; i+=1) {
 
-#line 1502 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1521 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             char *name = std_format("f%u", i);
 
-#line 1503 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1522 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_ast_nodes_Variable *field = std_vector_Vector__4_at(variant->specific_fields, i);
 
-#line 1504 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1523 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, "      ");
 
-#line 1505 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1524 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             compiler_passes_code_generator_CodeGenerator_gen_type_and_name(this, field->type, name);
 
-#line 1506 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
             std_buffer_Buffer_write_str(&this->out, ";\n");
           }
 
-#line 1508 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1527 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
           std_buffer_Buffer_write_str_f(&this->out, std_format("    } %s;\n", compiler_ast_scopes_Symbol_out_name(variant->sym)));
         }
       }
     }
 
-#line 1511 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1530 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "  };\n");
 
-#line 1512 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_buffer_Buffer_write_str(&this->out, "};\n\n");
   }
   /* defers */
 
-#line 1473 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1492 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enom);
 }
 
 
-#line 1516 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code_generator_CodeGenerator *this) {
 
-#line 1517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1536 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__8 __iter = std_vector_Vector__8_iter(this->o->program->c_includes); std_vector_Iterator__8_has_value(&__iter); std_vector_Iterator__8_next(&__iter)) {
 
-#line 1517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1536 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     char *include = std_vector_Iterator__8_cur(&__iter);
 
-#line 1517 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1536 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1518 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1537 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str_f(&this->out, std_format("#include \"%s\"\n", include));
     }
   }
 
-#line 1520 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1539 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "\n");
 
-#line 1522 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1541 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_map_Iterator__6 __iter = std_map_Map__6_iter(this->o->program->c_embeds); std_map_Iterator__6_has_value(&__iter); std_map_Iterator__6_next(&__iter)) {
 
-#line 1522 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1541 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     std_map_Item__6 *it = std_map_Iterator__6_cur(&__iter);
 
-#line 1522 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1541 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1523 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1542 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str_f(&this->out, std_format("/* Embed: %s */\n", it->key));
 
-#line 1524 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1543 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, it->value);
 
-#line 1525 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1544 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       std_buffer_Buffer_write_str(&this->out, "\n\n");
     }
   }
 
-#line 1528 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "/* Constants */\n");
 
-#line 1529 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1548 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_constants(this, this->o->program->global);
 
-#line 1531 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "/* Typedefs */\n");
 
-#line 1532 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(this->o->program->ordered_symbols); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
 
-#line 1532 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_scopes_Symbol *sym = std_vector_Iterator__10_cur(&__iter);
 
-#line 1532 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1551 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1533 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1552 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_sym_typedef(this, sym);
     }
   }
 
-#line 1535 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1554 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "\n");
 
-#line 1537 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1556 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "/* Structs */\n");
 
-#line 1538 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1557 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   for (std_vector_Iterator__10 __iter = std_vector_Vector__10_iter(this->o->program->ordered_symbols); std_vector_Iterator__10_has_value(&__iter); std_vector_Iterator__10_next(&__iter)) {
 
-#line 1538 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1557 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     compiler_ast_scopes_Symbol *sym = std_vector_Iterator__10_cur(&__iter);
 
-#line 1538 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1557 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
     {
 
-#line 1539 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1558 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
       compiler_passes_code_generator_CodeGenerator_gen_sym_def(this, sym);
     }
   }
 
-#line 1542 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1561 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "/* function declarations */\n");
 
-#line 1543 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1562 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_function_decls(this, this->o->program->global);
 
-#line 1545 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_global_variables(this, this->o->program->global);
 
-#line 1547 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1566 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   std_buffer_Buffer_write_str(&this->out, "/* function implementations */\n");
 
-#line 1548 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1567 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator_gen_functions(this, this->o->program->global);
 
-#line 1550 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1569 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   return std_buffer_Buffer_str(this->out);
 }
 
 
-#line 1553 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1572 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 compiler_passes_code_generator_CodeGenerator compiler_passes_code_generator_CodeGenerator_make(compiler_ast_program_Program *program) {
 
-#line 1554 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1573 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   return (compiler_passes_code_generator_CodeGenerator){.o=compiler_passes_generic_pass_GenericPass_new(program), .out=std_buffer_Buffer_make(16), .indent=0, .yield_vars=std_vector_Vector__8_new(16), .uid=0};
 }
 
 
-#line 1563 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1582 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
 char *compiler_passes_code_generator_CodeGenerator_run(compiler_ast_program_Program *program) {
 
-#line 1564 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1583 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   compiler_passes_code_generator_CodeGenerator pass = compiler_passes_code_generator_CodeGenerator_make(program);
 
-#line 1565 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
+#line 1584 "/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc"
   return compiler_passes_code_generator_CodeGenerator_generate(&pass);
 }
 
@@ -21207,1612 +21351,1676 @@ bool compiler_parser_Parser_parse_struct_field(compiler_parser_Parser *this, com
   compiler_types_Type *type = compiler_parser_Parser_parse_type(this);
 
 #line 1922 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-  for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
-
-#line 1922 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-    compiler_ast_nodes_Variable *var = std_vector_Iterator__4_cur(&__iter);
-
-#line 1922 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-    {
+  compiler_ast_nodes_AST *default_value = NULL;
 
 #line 1923 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-      var->type=type;
+  if (compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Equals)) {
 
 #line 1924 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+    default_value=compiler_parser_Parser_parse_expression(this, compiler_tokens_TokenType_Comma);
+  }
+
+#line 1927 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+  for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
+
+#line 1927 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+    compiler_ast_nodes_Variable *var = std_vector_Iterator__4_cur(&__iter);
+
+#line 1927 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+    {
+
+#line 1928 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+      var->type=type;
+
+#line 1929 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       var->parsed_type=type;
 
-#line 1925 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1930 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+      var->default_value=default_value;
+
+#line 1931 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_vector_Vector__4_push(struc->fields, var);
     }
   }
 
-#line 1928 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_vector_Vector__4_free(fields);
 
-#line 1929 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1935 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return true;
 }
 
 
-#line 1932 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1938 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 compiler_ast_nodes_Structure *compiler_parser_Parser_parse_struct(compiler_parser_Parser *this) {
 
-#line 1933 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1939 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *start = compiler_parser_Parser_token(this);
 
-#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1940 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   bool is_union = ({ bool __yield_0;
 
-#line 1934 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1940 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Union)) {
 
-#line 1935 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1941 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Union);
 
-#line 1936 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1942 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       __yield_0 = true;
     } else {
 
-#line 1938 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1944 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Struct);
 
-#line 1939 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1945 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       __yield_0 = false;
     }
 
   __yield_0; });
 
-#line 1942 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1948 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 1943 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1949 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_nodes_Structure *struc = compiler_ast_nodes_Structure_new();
 
-#line 1944 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1950 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   struc->is_union=is_union;
 
-#line 1945 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1951 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   struc->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Structure, this->ns, this->ns->sym, name->text, name->span);
 
-#line 1946 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1952 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   struc->sym->u.struc=struc;
 
-#line 1947 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1953 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_add_doc_comment(this, struc->sym, start);
 
-#line 1949 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1955 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_LessThan)) {
 
-#line 1950 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1956 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_parse_template_params(this, struc->sym, NULL);
   }
 
-#line 1954 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1960 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_parse_extern_into_symbol(this, struc->sym);
 
-#line 1956 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1962 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(this->attrs); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
 
-#line 1956 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1962 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_attributes_Attribute *attr = std_vector_Iterator__13_cur(&__iter);
 
-#line 1956 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1962 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     {
 
-#line 1957 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1963 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       switch ((attr->type)) {
         case compiler_attributes_AttributeType_Extern:
         m_80_0:
           {
 
-#line 1958 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1964 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_parser_Parser_get_extern_from_attr(this, struc->sym, attr);
           } break;
         case compiler_attributes_AttributeType_Formatting:
         m_80_1:
           {
 
-#line 1960 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1966 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             struc->format_spec=std_vector_Vector__8_at(attr->args, 0);
 
-#line 1961 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1967 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             struc->format_args=std_vector_Vector__8_at(attr->args, 1);
           } break;
         default:
           {
 
-#line 1963 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1969 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_parser_Parser_error(this, compiler_errors_Error_new(attr->span, "Invalid attribute for struct"));
           } break;
       }
     }
   }
 
-#line 1968 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1974 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!struc->sym->is_extern || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_OpenCurly)) {
 
-#line 1969 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1975 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
 
-#line 1970 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1976 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseCurly)) {
 
-#line 1971 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1977 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (!compiler_parser_Parser_parse_struct_field(this, struc)) {
 
-#line 1971 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1977 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         break;
       }
 
-#line 1972 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1978 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_CloseCurly)) {
 
-#line 1973 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1979 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         compiler_parser_Parser_consume_newline_or(this, compiler_tokens_TokenType_Comma);
       }
     }
 
-#line 1976 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1982 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_tokens_Token *end = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseCurly);
 
-#line 1977 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1983 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     struc->span=std_span_Span_join(start->span, end->span);
   }
 
-#line 1980 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1986 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return struc;
 }
 
 
-#line 1983 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1989 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 compiler_ast_nodes_Enum *compiler_parser_Parser_parse_enum(compiler_parser_Parser *this) {
 
-#line 1984 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1990 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
 
-#line 1987 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1993 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 1989 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1995 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_nodes_Enum *enom = compiler_ast_nodes_Enum_new(start->span);
 
-#line 1990 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1996 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Enum, this->ns, this->ns->sym, name->text, name->span);
 
-#line 1991 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1997 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   sym->u.enom=enom;
 
-#line 1992 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1998 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   enom->sym=sym;
 
-#line 1993 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 1999 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_add_doc_comment(this, sym, start);
 
-#line 1994 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2000 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   enom->has_values=false;
 
-#line 1996 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2002 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   bool is_extern = false;
 
-#line 1997 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2003 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(this->attrs); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
 
-#line 1997 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2003 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_attributes_Attribute *attr = std_vector_Iterator__13_cur(&__iter);
 
-#line 1997 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2003 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     {
 
-#line 1998 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2004 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       switch ((attr->type)) {
         case compiler_attributes_AttributeType_Extern:
         m_81_0:
           {
 
-#line 2000 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2006 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_parser_Parser_get_extern_from_attr(this, enom->sym, attr);
 
-#line 2001 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2007 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             is_extern=true;
           } break;
         default:
           {
 
-#line 2003 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2009 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_parser_Parser_error(this, compiler_errors_Error_new(attr->span, "Invalid attribute for value enum"));
           } break;
       }
     }
   }
 
-#line 2007 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2013 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Extern)) {
 
-#line 2008 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2014 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_parse_extern_into_symbol(this, enom->sym);
   }
 
-#line 2011 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2017 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
 
-#line 2012 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2018 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseCurly)) {
 
-#line 2014 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2020 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_parse_attributes_if_any(this);
 
-#line 2016 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2022 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 2019 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2025 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Colon)) {
 
-#line 2020 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2026 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_types_Type *type = compiler_parser_Parser_parse_type(this);
 
-#line 2021 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2027 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(type);
 
-#line 2022 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2028 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       var->sym=compiler_ast_scopes_Symbol_from_local_variable(name->text, var, name->span);
 
-#line 2023 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2029 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_add_doc_comment(this, var->sym, name);
 
-#line 2024 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2030 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_vector_Vector__4_push(enom->shared_fields, var);
 
-#line 2025 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2032 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+      if (compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Equals)) {
+
+#line 2033 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+        var->default_value=compiler_parser_Parser_parse_expression(this, compiler_tokens_TokenType_Comma);
+      }
+
+#line 2036 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Comma);
 
-#line 2026 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2037 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       enom->has_values=true;
 
-#line 2027 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2038 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       continue;
     }
 
-#line 2031 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2042 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_ast_nodes_EnumVariant *variant = compiler_ast_nodes_EnumVariant_new(name->span);
 
-#line 2032 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2043 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_ast_scopes_Symbol *vsym = compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_EnumVariant, this->ns, sym, name->text, name->span);
 
-#line 2033 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2044 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     vsym->u.enum_var=variant;
 
-#line 2034 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2045 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     variant->sym=vsym;
 
-#line 2035 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2046 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     variant->parent=enom;
 
-#line 2036 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2047 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_add_doc_comment(this, vsym, name);
 
-#line 2038 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2049 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_OpenParen)) {
 
-#line 2039 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2050 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenParen);
 
-#line 2040 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2051 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseParen)) {
 
-#line 2041 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-        compiler_types_Type *typ = compiler_parser_Parser_parse_type(this);
+#line 2052 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+        compiler_ast_nodes_Variable *var = ({ compiler_ast_nodes_Variable *__yield_0;
 
-#line 2042 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2052 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+          switch ((compiler_parser_Parser_peek(this, 1)->type)) {
+            case compiler_tokens_TokenType_Colon:
+            m_82_0:
+              {
+
+#line 2054 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                compiler_tokens_Token *ident = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
+
+#line 2055 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Colon);
+
+#line 2056 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                compiler_types_Type *type = compiler_parser_Parser_parse_type(this);
+
+#line 2057 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(type);
+
+#line 2058 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                var->sym=compiler_ast_scopes_Symbol_from_local_variable(ident->text, var, ident->span);
+
+#line 2060 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                if (compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Equals)) {
+
+#line 2061 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                  var->default_value=compiler_parser_Parser_parse_expression(this, compiler_tokens_TokenType_Comma);
+                }
+
+#line 2064 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                __yield_0 = var;
+              } break;
+            default:
+              {
+
+#line 2068 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                compiler_types_Type *type = compiler_parser_Parser_parse_type(this);
+
+#line 2069 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(type);
+
+#line 2070 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+                __yield_0 = var;
+              } break;
+          }
+
+        __yield_0; });
+
+#line 2073 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         enom->has_values=true;
 
-#line 2043 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-        compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(typ);
-
-#line 2044 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2074 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         std_vector_Vector__4_push(variant->specific_fields, var);
 
-#line 2045 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2075 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Comma);
       }
 
-#line 2047 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2077 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_tokens_Token *end = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseParen);
 
-#line 2048 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2078 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (is_extern && (compiler_ast_nodes_EnumVariant_num_fields(variant) > 0)) {
 
-#line 2049 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2079 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         compiler_parser_Parser_error(this, compiler_errors_Error_new(std_span_Span_join(start->span, end->span), "Extern value enum variants cannot have fields"));
       }
     }
 
-#line 2054 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2084 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Equals)) {
 
-#line 2055 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2085 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_parse_extern_into_symbol(this, variant->sym);
 
-#line 2056 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2086 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (enom->has_values) {
 
-#line 2057 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2087 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         compiler_parser_Parser_error(this, compiler_errors_Error_new(variant->sym->span, "Non-trivial value enums can't be extern"));
       }
     }
 
-#line 2060 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2090 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     for (std_vector_Iterator__13 __iter = std_vector_Vector__13_iter(this->attrs); std_vector_Iterator__13_has_value(&__iter); std_vector_Iterator__13_next(&__iter)) {
 
-#line 2060 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2090 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_attributes_Attribute *attr = std_vector_Iterator__13_cur(&__iter);
 
-#line 2060 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2090 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       {
 
-#line 2061 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2091 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         switch ((attr->type)) {
           case compiler_attributes_AttributeType_Extern:
-          m_82_0:
+          m_83_0:
             {
 
-#line 2063 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2093 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               compiler_parser_Parser_get_extern_from_attr(this, variant->sym, attr);
 
-#line 2064 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2094 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               if (enom->has_values) {
 
-#line 2065 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2095 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
                 compiler_parser_Parser_error(this, compiler_errors_Error_new(variant->sym->span, "Non-trivial value enums can't be extern"));
               }
             } break;
           default:
             {
 
-#line 2068 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2098 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               compiler_parser_Parser_error(this, compiler_errors_Error_new(attr->span, "Invalid attribute for value enum variant"));
             } break;
         }
       }
     }
 
-#line 2072 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2102 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_vector_Vector__19_push(enom->variants, variant);
 
-#line 2073 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2103 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_consume_if(this, compiler_tokens_TokenType_Comma);
   }
 
-#line 2075 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2105 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseCurly);
 
-#line 2076 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2106 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return enom;
 }
 
 
-#line 2079 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2109 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_parse_attribute(compiler_parser_Parser *this) {
 
-#line 2080 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2110 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenSquare);
 
-#line 2081 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2111 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (this->attrs->size==0) {
 
-#line 2082 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2112 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     this->attrs_span=start->span;
 
-#line 2083 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2113 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     this->attrs_start_tok=start;
   }
 
-#line 2087 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2117 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!(compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Identifier) || compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_Extern))) {
 
-#line 2088 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2118 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Expected attribute name here"));
 
-#line 2089 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2119 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2092 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2122 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_parser_Parser_token(this)->type);
 
-#line 2093 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2123 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_attributes_AttributeType attr_type = compiler_attributes_AttributeType_from_str(name->text);
 
-#line 2094 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2124 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (attr_type==compiler_attributes_AttributeType_Invalid) {
 
-#line 2095 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2125 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_error(this, compiler_errors_Error_new(name->span, "Unknown attribute type"));
 
-#line 2096 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2126 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2098 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2128 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_attributes_Attribute *attr = compiler_attributes_Attribute_new(attr_type, name->span);
 
-#line 2100 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2130 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   while (!compiler_parser_Parser_token_is_eof_or(this, compiler_tokens_TokenType_CloseSquare)) {
 
-#line 2101 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2131 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (!compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_StringLiteral)) {
 
-#line 2102 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2132 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Only string literals supported in attribute arguments"));
 
-#line 2103 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2133 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       this->curr+=1;
 
-#line 2104 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2134 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       continue;
     }
 
-#line 2107 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2137 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_tokens_Token *arg = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_StringLiteral);
 
-#line 2108 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2138 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_vector_Vector__8_push(attr->args, arg->text);
   }
 
-#line 2110 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2140 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *close = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseSquare);
 
-#line 2111 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2141 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->attrs_span=std_span_Span_join(this->attrs_span, close->span);
 
-#line 2114 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2144 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!compiler_attributes_Attribute_validate(attr, this)) {
 
-#line 2114 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2144 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2116 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2146 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_vector_Vector__13_push(this->attrs, attr);
 }
 
 
-#line 2120 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2150 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_parse_attributes_if_any(compiler_parser_Parser *this) {
 
-#line 2121 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2151 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_clear_attributes(this);
 
-#line 2122 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2152 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   while (compiler_parser_Parser_token_is(this, compiler_tokens_TokenType_OpenSquare)) {
 
-#line 2123 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2153 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_parse_attribute(this);
   }
 }
 
 
-#line 2127 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2157 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_parse_namespace_until(compiler_parser_Parser *this, compiler_tokens_TokenType end_type) {
 
-#line 2128 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2158 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_add_doc_comment(this, this->ns->sym, compiler_parser_Parser_token(this));
 
-#line 2130 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2160 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   jmp_buf *ctx = compiler_ast_program_Program_add_error_context(this->program);
 
-#line 2131 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2161 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (setjmp((*ctx)) > 0) {
 
-#line 2134 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2164 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_sync_toplevel(this);
   }
 
-#line 2137 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2167 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   while (!compiler_parser_Parser_token_is_eof_or(this, end_type)) {
 
-#line 2139 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2169 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_parse_attributes_if_any(this);
 
-#line 2140 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2170 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     switch ((compiler_parser_Parser_token(this)->type)) {
       case compiler_tokens_TokenType_Def:
-      m_83_0:
+      m_84_0:
         {
 
-#line 2142 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2172 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_Function *func = compiler_parser_Parser_parse_function(this);
 
-#line 2143 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2173 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)func)) {
 
-#line 2143 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2173 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__6_push(this->ns->functions, func);
           }
         } break;
       case compiler_tokens_TokenType_Import:
-      m_83_1:
+      m_84_1:
         {
 
-#line 2146 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2176 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_AST *import_ = compiler_parser_Parser_parse_import(this);
 
-#line 2147 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2177 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)import_)) {
 
-#line 2147 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2177 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__16_push(this->ns->imports, import_);
           }
         } break;
       case compiler_tokens_TokenType_Namespace:
-      m_83_2:
+      m_84_2:
         {
 
-#line 2150 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2180 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (this->attrs->size > 0) {
 
-#line 2151 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2181 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Attributes are not allowed on namespaces"));
           }
 
-#line 2154 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2184 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           std_span_Span start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Namespace)->span;
 
-#line 2155 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2185 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 2157 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2187 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_program_Namespace *old_ns = this->ns;
 
-#line 2158 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2188 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_program_Namespace *new_ns = compiler_ast_program_Namespace_new(this->ns, this->ns->path);
 
-#line 2159 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2189 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           new_ns->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Namespace, old_ns, old_ns->sym, name->text, name->span);
 
-#line 2160 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2190 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           new_ns->sym->u.ns=new_ns;
 
-#line 2162 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2192 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           new_ns->always_add_to_scope=true;
 
-#line 2163 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2193 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           std_map_Map__3_insert(old_ns->namespaces, name->text, new_ns);
 
-#line 2165 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2195 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           this->ns=new_ns;
 
-#line 2166 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2196 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_consume(this, compiler_tokens_TokenType_OpenCurly);
 
-#line 2167 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2197 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_parse_namespace_until(this, compiler_tokens_TokenType_CloseCurly);
 
-#line 2168 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2198 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           std_span_Span end = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_CloseCurly)->span;
 
-#line 2169 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2199 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           new_ns->span=std_span_Span_join(start, end);
 
-#line 2171 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2201 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           this->ns=old_ns;
         } break;
       case compiler_tokens_TokenType_Struct:
       case compiler_tokens_TokenType_Union:
-      m_83_3:
+      m_84_3:
         {
 
-#line 2174 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2204 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_Structure *struc = compiler_parser_Parser_parse_struct(this);
 
-#line 2175 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2205 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)struc)) {
 
-#line 2175 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2205 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__9_push(this->ns->structs, struc);
           }
         } break;
       case compiler_tokens_TokenType_TypeDef:
-      m_83_4:
+      m_84_4:
         {
 
-#line 2178 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2208 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (this->attrs->size > 0) {
 
-#line 2179 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2209 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Attributes are not allowed on typedefs"));
           }
 
-#line 2182 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2212 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           std_span_Span start = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_TypeDef)->span;
 
-#line 2183 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2213 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 2184 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2214 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Equals);
 
-#line 2185 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2215 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_types_Type *type = compiler_parser_Parser_parse_type(this);
 
-#line 2186 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2216 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_consume_end_of_statement(this);
 
-#line 2188 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2218 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Symbol_new(compiler_ast_scopes_SymbolType_TypeDef, this->ns, name->text, name->text, name->text, name->span);
 
-#line 2189 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2219 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           sym->u.type_def=type;
 
-#line 2190 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2220 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           type->sym=sym;
 
-#line 2192 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2222 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)type)) {
 
-#line 2193 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2223 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_map_Map__2_insert(this->ns->typedefs, name->text, type);
           }
         } break;
       case compiler_tokens_TokenType_Enum:
-      m_83_5:
+      m_84_5:
         {
 
-#line 2197 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2227 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_Enum *enom = compiler_parser_Parser_parse_enum(this);
 
-#line 2198 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2228 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)enom)) {
 
-#line 2198 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2228 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__15_push(this->ns->enums, enom);
           }
         } break;
       case compiler_tokens_TokenType_Let:
-      m_83_6:
+      m_84_6:
         {
 
-#line 2201 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2231 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_AST *var = compiler_parser_Parser_parse_global_value(this, false);
 
-#line 2202 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2232 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)var)) {
 
-#line 2202 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2232 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__16_push(this->ns->variables, var);
           }
         } break;
       case compiler_tokens_TokenType_Const:
-      m_83_7:
+      m_84_7:
         {
 
-#line 2205 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2235 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_AST *con = compiler_parser_Parser_parse_global_value(this, true);
 
-#line 2206 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2236 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (((bool)con)) {
 
-#line 2206 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2236 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__16_push(this->ns->constants, con);
           }
         } break;
       case compiler_tokens_TokenType_AtSign:
-      m_83_8:
+      m_84_8:
         {
 
-#line 2208 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2238 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_parse_compiler_option(this);
         } break;
       default:
         {
 
-#line 2210 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2240 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, std_format("Unexpected token in Parser: %s", compiler_tokens_TokenType_dbg(compiler_parser_Parser_token(this)->type))));
 
-#line 2211 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2241 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           this->curr+=1;
         } break;
     }
   }
 
-#line 2216 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2246 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Program_pop_error_context(this->program);
 
-#line 2219 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2249 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   while (this->ns->unhandled_imports->size > 0) {
 
-#line 2220 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2250 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_ast_nodes_AST *imp = std_vector_Vector__16_pop(this->ns->unhandled_imports);
 
-#line 2221 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2251 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_load_import_path(this, imp);
   }
 }
 
 
-#line 2225 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2255 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_parse_compiler_option(compiler_parser_Parser *this) {
 
-#line 2226 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2256 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (this->attrs->size > 0) {
 
-#line 2227 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2257 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler_parser_Parser_token(this)->span, "Attributes are not allowed on compiler options"));
   }
 
-#line 2230 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2260 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_consume(this, compiler_tokens_TokenType_AtSign);
 
-#line 2231 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2261 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *compiler = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 2232 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2262 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!str_eq(compiler->text, "compiler")) {
 
-#line 2233 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2263 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_error(this, compiler_errors_Error_new(compiler->span, "Expected 'compiler'"));
   }
 
-#line 2236 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2266 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_tokens_Token *name = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier);
 
-#line 2237 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2267 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   {
-    char *__match_var_84 = name->text;
-    if (str_eq(__match_var_84, "c_include")) {
+    char *__match_var_85 = name->text;
+    if (str_eq(__match_var_85, "c_include")) {
 
-#line 2239 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2269 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_tokens_Token *filename = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_StringLiteral);
 
-#line 2240 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2270 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_vector_Vector__8_push(this->program->c_includes, filename->text);
-    } else if (str_eq(__match_var_84, "c_flag")) {
+    } else if (str_eq(__match_var_85, "c_flag")) {
 
-#line 2243 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2273 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_tokens_Token *flag = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_StringLiteral);
 
-#line 2244 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2274 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_vector_Vector__8_push(this->program->c_flags, flag->text);
-    } else if (str_eq(__match_var_84, "c_embed")) {
+    } else if (str_eq(__match_var_85, "c_embed")) {
 
-#line 2247 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2277 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_tokens_Token *path = compiler_parser_Parser_consume(this, compiler_tokens_TokenType_StringLiteral);
 
-#line 2249 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2279 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       char *cur_dir = ({ char *__yield_0;
 
-#line 2249 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2279 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         if (this->ns->is_dir_with_mod) {
 
-#line 2250 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2280 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           __yield_0 = this->ns->path;
         } else {
 
-#line 2252 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2282 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           __yield_0 = this->ns->parent->path;
         }
 
       __yield_0; });
 
-#line 2255 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2285 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       char *full_path = std_format("%s/%s", cur_dir, path->text);
 
-#line 2256 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2286 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (!std_fs_file_exists(full_path)) {
 
-#line 2257 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2287 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         compiler_parser_Parser_error(this, compiler_errors_Error_new(path->span, std_format("File '%s' does not exist", full_path)));
 
-#line 2258 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2288 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         return;
       }
 
-#line 2261 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_buffer_Buffer contents = std_fs_read_file(full_path);
 
-#line 2262 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2292 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_map_Map__6_insert(this->program->c_embeds, full_path, std_buffer_Buffer_str(contents));
     } else  {
 
-#line 2264 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2294 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_error(this, compiler_errors_Error_new(name->span, "Unknown compiler option"));
     }
   }
 }
 
 
-#line 2268 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2298 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_try_load_mod_for_namespace(compiler_parser_Parser *this, compiler_ast_program_Namespace *ns) {
 
-#line 2269 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2299 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   char *mod_path = std_format("%s/mod.oc", ns->path);
 
-#line 2272 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2302 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (std_fs_file_exists(mod_path) && !ns->is_dir_with_mod) {
 
-#line 2273 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2303 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     ns->is_dir_with_mod=true;
 
-#line 2274 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2304 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser parser = compiler_parser_Parser_make(this->program, ns);
 
-#line 2275 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2305 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_load_file(&parser, mod_path, NULL);
   } else {
 
-#line 2277 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2307 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_mem_free(mod_path);
   }
 }
 
 
-#line 2281 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2311 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 compiler_ast_program_Namespace *compiler_parser_Parser_load_single_import_part(compiler_parser_Parser *this, compiler_ast_program_Namespace *base, char *name, std_span_Span span) {
 
-#line 2282 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2312 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_try_load_mod_for_namespace(this, base);
 
-#line 2284 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2314 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)name)) {
 
-#line 2284 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2314 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return NULL;
   }
 
-#line 2285 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2315 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_scopes_Symbol *sym = compiler_ast_program_Namespace_find_importable_symbol(base, name);
 
-#line 2289 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2319 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (str_eq(name, "this")) {
 
-#line 2289 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2319 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return base;
   }
 
-#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2321 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (((bool)sym) && (sym->type != compiler_ast_scopes_SymbolType_Namespace)) {
 
-#line 2291 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2321 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return base;
   }
 
-#line 2292 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2322 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *next = (((bool)sym) ? sym->u.ns : NULL);
 
-#line 2294 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2324 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   char *part_path = std_format("%s/%s", base->path, name);
 
-#line 2295 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2325 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)next)) {
 
-#line 2296 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2326 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     bool dir_exists = compiler_utils_directory_exists(part_path);
 
-#line 2297 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2327 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *path = std_format("%s/%s.oc", base->path, name);
 
-#line 2298 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2328 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     bool file_exists = std_fs_file_exists(path);
 
-#line 2300 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2330 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (!dir_exists && !file_exists) {
 
-#line 2301 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2331 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_error(this, compiler_errors_Error_new(span, std_format("Could not find import path %s(.oc)", part_path)));
 
-#line 2302 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2332 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       return NULL;
     }
 
-#line 2305 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2335 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     next=compiler_ast_program_Namespace_new(base, part_path);
 
-#line 2306 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2336 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     next->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Namespace, base, base->sym, name, span);
 
-#line 2313 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2343 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     next->sym->u.ns=next;
 
-#line 2315 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2345 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_map_Map__3_insert(base->namespaces, name, next);
 
-#line 2317 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2347 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (file_exists) {
 
-#line 2318 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2348 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser parser = compiler_parser_Parser_make(this->program, next);
 
-#line 2319 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2349 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_load_file(&parser, strdup(path), NULL);
     } else {
 
-#line 2322 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2352 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_try_load_mod_for_namespace(this, next);
     }
 
-#line 2324 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2354 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_mem_free(path);
   }
 
-#line 2327 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2357 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return next;
 }
 
 
-#line 2330 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2360 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 bool compiler_parser_Parser_load_import_path_from_base(compiler_parser_Parser *this, std_vector_Vector__5 *parts, compiler_ast_program_Namespace *base) {
 
-#line 2331 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2361 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   for (u32 i = 0; (i < parts->size) && (!base->is_a_file || base->is_dir_with_mod); i+=1) {
 
-#line 2332 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2362 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_ast_nodes_ImportPart *part = std_vector_Vector__5_at(parts, i);
 
-#line 2334 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2364 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     switch ((part->type)) {
       case compiler_ast_nodes_ImportPartType_Wildcard:
-      m_85_0:
+      m_86_0:
         {
 
-#line 2336 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2366 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_parser_Parser_error(this, compiler_errors_Error_new(part->span, std_format("Wildcard import is not allowed from non-module")));
 
-#line 2337 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2367 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           return false;
         } break;
       case compiler_ast_nodes_ImportPartType_Multiple:
-      m_85_1:
+      m_86_1:
         {
 
-#line 2340 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2370 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           std_vector_Vector__21 *paths = part->u.multiple.paths;
 
-#line 2341 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2371 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           bool success = true;
 
-#line 2342 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2372 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           for (std_vector_Iterator__21 __iter = std_vector_Vector__21_iter(paths); std_vector_Iterator__21_has_value(&__iter); std_vector_Iterator__21_next(&__iter)) {
 
-#line 2342 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2372 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_vector_Vector__5 *path = std_vector_Iterator__21_cur(&__iter);
 
-#line 2342 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2372 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             {
 
-#line 2343 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2373 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               success=(compiler_parser_Parser_load_import_path_from_base(this, path, base) && success);
             }
           }
 
-#line 2345 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2375 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           return success;
         } break;
       case compiler_ast_nodes_ImportPartType_Single:
-      m_85_2:
+      m_86_2:
         {
 
-#line 2348 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2378 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           base=compiler_parser_Parser_load_single_import_part(this, base, part->u.single.name, part->span);
 
-#line 2349 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2379 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (!((bool)base)) {
 
-#line 2349 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2379 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             return false;
           }
         } break;
     }
   }
 
-#line 2353 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2383 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return true;
 }
 
 
-#line 2361 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2391 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 compiler_parser_LibraryInfo compiler_parser_Parser_find_external_library(compiler_parser_Parser *this, char *name) {
 
-#line 2362 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2392 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   for (std_vector_Iterator__8 __iter = std_vector_Vector__8_iter(this->program->library_paths); std_vector_Iterator__8_has_value(&__iter); std_vector_Iterator__8_next(&__iter)) {
 
-#line 2362 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2392 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *lib_path = std_vector_Iterator__8_cur(&__iter);
 
-#line 2362 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2392 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     {
 
-#line 2363 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2393 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       char *dir_path = ((strlen(lib_path) > 0) ? std_format("%s/%s", lib_path, name) : strdup(name));
 
-#line 2364 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2394 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (compiler_utils_directory_exists(dir_path)) {
 
-#line 2365 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2395 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         return (compiler_parser_LibraryInfo){.parent_dir=std_fs_realpath(lib_path), .path=std_fs_realpath(dir_path)};
       }
 
-#line 2370 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2400 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_mem_free(dir_path);
 
-#line 2372 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2402 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       char *file_path = ((strlen(lib_path) > 0) ? std_format("%s/%s.oc", lib_path, name) : std_format("%s.oc", name));
 
-#line 2373 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2403 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (std_fs_file_exists(file_path)) {
 
-#line 2374 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2404 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         return (compiler_parser_LibraryInfo){.parent_dir=std_fs_realpath(lib_path), .path=std_fs_realpath(file_path)};
       }
 
-#line 2379 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2409 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       std_mem_free(file_path);
     }
   }
 
-#line 2381 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2411 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return (compiler_parser_LibraryInfo){.parent_dir=NULL, .path=NULL};
 }
 
 
-#line 2385 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2415 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 compiler_ast_program_Namespace *compiler_parser_Parser_import_external_lib(compiler_parser_Parser *this, char *name) {
 
-#line 2386 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2416 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_LibraryInfo lib = compiler_parser_Parser_find_external_library(this, name);
 
-#line 2387 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2417 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)lib.path)) {
 
-#line 2387 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2417 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return NULL;
   }
 
-#line 2389 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2419 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *ns = compiler_ast_program_Namespace_new(this->program->global, lib.path);
 
-#line 2390 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2420 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   ns->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Namespace, this->program->global, this->program->global->sym, name, std_span_Span_default());
 
-#line 2397 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2427 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   ns->sym->u.ns=ns;
 
-#line 2398 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2428 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   ns->always_add_to_scope=true;
 
-#line 2399 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2429 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   ns->internal_project_root=ns;
 
-#line 2401 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2431 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (std_fs_directory_exists(lib.path)) {
 
-#line 2402 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2432 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_try_load_mod_for_namespace(this, ns);
   } else {
 
-#line 2405 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2435 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser parser = compiler_parser_Parser_make(this->program, ns);
 
-#line 2406 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2436 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_load_file(&parser, lib.path, NULL);
 
-#line 2407 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2437 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_free(&parser);
   }
 
-#line 2409 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2439 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return ns;
 }
 
 
-#line 2412 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2442 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 bool compiler_parser_Parser_load_import_path(compiler_parser_Parser *this, compiler_ast_nodes_AST *import_stmt) {
 
-#line 2413 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2443 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_nodes_Import *path = &import_stmt->u.import_path;
 
-#line 2415 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2445 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *base = ({ compiler_ast_program_Namespace *__yield_0;
 
-#line 2415 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2445 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     switch ((path->type)) {
       case compiler_ast_nodes_ImportType_GlobalNamespace:
-      m_86_0:
+      m_87_0:
         {
 
-#line 2417 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2447 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           std_vector_Vector__5 *parts = path->parts;
 
-#line 2418 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-          if(!(parts->size > 0)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2418:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path"); }
+#line 2448 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+          if(!(parts->size > 0)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2448:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path"); }
 
-#line 2419 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
-          if(!(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2419:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import"); }
+#line 2449 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+          if(!(std_vector_Vector__5_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/parser.oc:2449:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import"); }
 
-#line 2421 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2451 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__5_at(parts, 0)->u.single;
 
-#line 2422 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2452 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           char *lib_name = first_part.name;
 
-#line 2424 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2454 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           if (!std_map_Map__3_contains(this->program->global->namespaces, lib_name)) {
 
-#line 2425 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2455 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             compiler_ast_program_Namespace *lib = compiler_parser_Parser_import_external_lib(this, lib_name);
 
-#line 2426 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2456 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             if (!((bool)lib)) {
 
-#line 2427 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2457 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               compiler_parser_Parser_error(this, compiler_errors_Error_new(import_stmt->span, std_format("Could not find library '%s'", lib_name)));
 
-#line 2428 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2458 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               return false;
             }
 
-#line 2431 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2461 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             std_map_Map__3_insert(this->program->global->namespaces, lib_name, lib);
           }
 
-#line 2434 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2464 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           __yield_0 = this->program->global;
         } break;
       case compiler_ast_nodes_ImportType_ProjectNamespace:
-      m_86_1:
+      m_87_1:
         {
           __yield_0 = compiler_ast_program_Namespace_get_project_root(this->ns, import_stmt->span, this->program);
         } break;
       case compiler_ast_nodes_ImportType_ParentNamespace:
-      m_86_2:
+      m_87_2:
         {
 
-#line 2438 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2468 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           compiler_ast_program_Namespace *cur = this->ns;
 
-#line 2439 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2469 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           for (u32 i = 0; i < path->parent_count; i+=1) {
 
-#line 2440 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2470 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             if (!((bool)cur->parent)) {
 
-#line 2441 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2471 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               compiler_ast_nodes_ImportPart *first_part = std_vector_Vector__5_at(path->parts, 0);
 
-#line 2442 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2472 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               compiler_parser_Parser_error(this, compiler_errors_Error_new(first_part->span, "Cannot import from parent of root namespace"));
 
-#line 2443 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2473 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
               longjmp((*compiler_ast_program_Program_get_error_context(this->program)), 1);
             }
 
-#line 2445 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2475 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
             cur=cur->parent;
           }
 
-#line 2447 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2477 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           __yield_0 = cur;
         } break;
       case compiler_ast_nodes_ImportType_CurrentScope:
-      m_86_3:
+      m_87_3:
         {
 
-#line 2452 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2482 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
           return true;
         } break;
     }
 
   __yield_0; });
 
-#line 2456 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2486 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)base)) {
 
-#line 2456 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2486 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return false;
   }
 
-#line 2457 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2487 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_load_import_path_from_base(this, path->parts, base);
 
-#line 2458 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2488 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   return true;
 }
 
 
-#line 2461 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2491 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_load_file(compiler_parser_Parser *this, char *filename, char *contents) {
 
-#line 2462 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2492 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (std_map_Map__6_contains(this->program->sources, filename)) {
 
-#line 2462 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2492 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2463 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2493 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_span_Location loc = (std_span_Location){.filename=strdup(filename), .line=0, .col=0, .index=0};
 
-#line 2464 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2494 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_span_Span span = (std_span_Span){.start=loc, .end=loc};
 
-#line 2465 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2495 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->ns->span=span;
 
-#line 2466 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2496 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->ns->sym->span=span;
 
-#line 2468 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2498 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)contents)) {
 
-#line 2469 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2499 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     contents=std_buffer_Buffer_str(std_fs_read_file(filename));
   }
 
-#line 2471 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2501 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_map_Map__6_insert(this->program->sources, filename, contents);
 
-#line 2473 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2503 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_lexer_Lexer lexer = compiler_lexer_Lexer_make(contents, filename);
 
-#line 2474 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2504 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->tokens=compiler_lexer_Lexer_lex(&lexer);
 
-#line 2475 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2505 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->curr=0;
 
-#line 2477 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2507 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->ns->is_a_file=true;
 
-#line 2479 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2509 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_span_Span start = compiler_parser_Parser_token(this)->span;
 
-#line 2480 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2510 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_parse_namespace_until(this, compiler_tokens_TokenType_EOF);
 
-#line 2481 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2511 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_span_Span end = compiler_parser_Parser_token(this)->span;
 
-#line 2482 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2512 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->ns->span=std_span_Span_join(start, end);
 }
 
 
-#line 2485 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2515 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_couldnt_find_stdlib(compiler_parser_Parser *this) {
 
-#line 2486 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2516 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   printf("--------------------------------------------------------------------------------""\n");
 
-#line 2487 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2517 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   printf("    Could not find standard library. Set OCEN_ROOT environment variable.""\n");
 
-#line 2488 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2518 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   printf("      Alternatively, compile from the root of `ocen` repository.""\n");
 
-#line 2489 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2519 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   printf("--------------------------------------------------------------------------------""\n");
 
-#line 2490 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2520 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   longjmp((*compiler_ast_program_Program_get_error_context(this->program)), 1);
 }
 
 
-#line 2493 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2523 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_find_and_import_stdlib(compiler_parser_Parser *this) {
 
-#line 2494 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2524 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *std_ns = compiler_parser_Parser_import_external_lib(this, "std");
 
-#line 2495 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2525 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_map_Map__3_insert(this->program->global->namespaces, "std", std_ns);
 }
 
 
-#line 2498 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2528 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_include_prelude_only(compiler_parser_Parser *this) {
 
-#line 2500 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2530 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_LibraryInfo stdlib = compiler_parser_Parser_find_external_library(this, "std");
 
-#line 2501 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2531 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)stdlib.path)) {
 
-#line 2502 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2532 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_couldnt_find_stdlib(this);
   }
 
-#line 2504 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2534 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   char *prelude_path = std_format("%s/prelude.h", stdlib.path);
 
-#line 2505 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2535 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!std_fs_file_exists(prelude_path)) {
 
-#line 2506 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2536 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_couldnt_find_stdlib(this);
   }
 
-#line 2508 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2538 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_buffer_Buffer content = std_fs_read_file(prelude_path);
 
-#line 2509 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2539 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_map_Map__6_insert(this->program->c_embeds, prelude_path, std_buffer_Buffer_str(content));
 }
 
 
-#line 2530 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2560 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_create_namespaces_for_initial_file(compiler_parser_Parser *this, char *filename, bool single_file) {
 
-#line 2535 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2565 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *std_lib_ns = compiler_parser_Parser_import_external_lib(this, "std");
 
-#line 2536 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2566 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)std_lib_ns)) {
 
-#line 2536 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2566 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_couldnt_find_stdlib(this);
   }
 
-#line 2537 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2567 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   char *std_lib_ns_path = std_fs_realpath(std_lib_ns->path);
 
-#line 2539 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2569 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   char *cur = std_fs_realpath(filename);
 
-#line 2540 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2570 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (!((bool)cur)) {
 
-#line 2541 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2571 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_error(this, compiler_errors_Error_new(std_span_Span_default(), std_format("Could not find file: %s", filename)));
 
-#line 2542 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2572 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     longjmp((*compiler_ast_program_Program_get_error_context(this->program)), 1);
   }
 
-#line 2544 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2574 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_vector_Vector__8 *namespace_paths = std_vector_Vector__8_new(16);
 
-#line 2545 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2575 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   bool found_root = false;
 
-#line 2546 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2576 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   while (true) {
 
-#line 2547 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2577 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *base = strdup(dirname(strdup(cur)));
 
-#line 2549 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2579 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_vector_Vector__8_push(namespace_paths, base);
 
-#line 2550 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2580 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (str_eq(base, "/")) {
 
-#line 2550 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2580 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       break;
     }
 
-#line 2552 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2582 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (single_file) {
 
-#line 2552 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2582 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       break;
     }
 
-#line 2553 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2583 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *potential_main_path = std_format("%s/main.oc", base);
 
-#line 2554 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2584 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     bool main_exists = std_fs_file_exists(potential_main_path);
 
-#line 2555 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2585 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     str_free(&potential_main_path);
 
-#line 2558 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2588 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (str_eq(base, std_lib_ns_path) || main_exists) {
 
-#line 2559 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2589 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       found_root=true;
 
-#line 2560 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2590 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       break;
     }
 
-#line 2562 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2592 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     cur=base;
   }
 
-#line 2567 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2597 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   i32 start = (found_root ? ((i32)namespace_paths->size) : 0);
 
-#line 2570 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2600 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *cur_ns = this->program->global;
 
-#line 2571 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2601 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   for (i32 i = (start - 1); i >= 0; i-=1) {
 
-#line 2572 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2602 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *path = namespace_paths->data[i];
 
-#line 2573 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2603 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *t1 = strdup(path);
 
-#line 2574 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2604 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *base = strdup(basename(t1));
 
-#line 2575 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2605 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     str_free(&t1);
 
-#line 2579 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2609 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (std_map_Map__3_contains(cur_ns->namespaces, base)) {
 
-#line 2580 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2610 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       cur_ns=std_map_Map__3_at(cur_ns->namespaces, base);
 
-#line 2581 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2611 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       continue;
     }
 
-#line 2584 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2614 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_ast_program_Namespace *new_ns = compiler_ast_program_Namespace_new(cur_ns, path);
 
-#line 2585 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2615 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_span_Location loc = (std_span_Location){.filename=path, .line=0, .col=0, .index=0};
 
-#line 2586 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2616 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     new_ns->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Namespace, cur_ns, cur_ns->sym, base, (std_span_Span){.start=loc, .end=loc});
 
-#line 2587 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2617 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     new_ns->sym->u.ns=new_ns;
 
-#line 2589 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2619 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (i==(start - 1)) {
 
-#line 2590 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2620 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       new_ns->internal_project_root=new_ns;
     }
 
-#line 2593 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2623 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     std_map_Map__3_insert(cur_ns->namespaces, base, new_ns);
 
-#line 2594 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2624 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     cur_ns=new_ns;
   }
 
-#line 2598 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2628 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   char *file_base = strdup(basename(filename));
 
-#line 2599 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2629 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (str_ends_with(file_base, ".oc")) {
 
-#line 2600 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2630 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     file_base[(strlen(file_base) - 3)]='\0';
   }
 
-#line 2604 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2634 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (str_eq(file_base, "mod")) {
 
-#line 2605 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2635 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     cur_ns->is_dir_with_mod=true;
 
-#line 2606 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2636 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     this->ns=cur_ns;
 
-#line 2607 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2637 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2613 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2643 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (std_map_Map__3_contains(cur_ns->namespaces, file_base)) {
 
-#line 2614 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2644 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     this->ns=std_map_Map__3_at(cur_ns->namespaces, file_base);
 
-#line 2615 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2645 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2619 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2649 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *child_ns = compiler_ast_program_Namespace_new(cur_ns, filename);
 
-#line 2620 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2650 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   child_ns->sym=compiler_ast_scopes_Symbol_new(compiler_ast_scopes_SymbolType_Namespace, cur_ns, file_base, "", "", std_span_Span_default());
 
-#line 2627 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2657 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   child_ns->sym->u.ns=child_ns;
 
-#line 2628 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2658 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   std_map_Map__3_insert(cur_ns->namespaces, file_base, child_ns);
 
-#line 2632 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2662 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   child_ns->sym->full_name="";
 
-#line 2633 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2663 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   this->ns=child_ns;
 }
 
 
-#line 2636 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2666 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
 void compiler_parser_Parser_parse_toplevel(compiler_ast_program_Program *program, char *filename, bool include_stdlib, char *file_contents, bool include_workspace_main) {
 
-#line 2638 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2668 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   jmp_buf *ctx = compiler_ast_program_Program_add_error_context(program);
 
-#line 2639 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2669 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (setjmp((*ctx)) > 0) {
 
-#line 2640 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2670 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     printf("Error in parse_toplevel context""\n");
 
-#line 2641 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2671 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     return;
   }
 
-#line 2644 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2674 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser parser = compiler_parser_Parser_make(program, program->global);
 
-#line 2645 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2675 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (include_stdlib) {
 
-#line 2646 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2676 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_find_and_import_stdlib(&parser);
   } else {
 
-#line 2648 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2678 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     compiler_parser_Parser_include_prelude_only(&parser);
   }
 
-#line 2650 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2680 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_create_namespaces_for_initial_file(&parser, filename, false);
 
-#line 2651 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2681 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_parser_Parser_load_file(&parser, filename, file_contents);
 
-#line 2654 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2684 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   compiler_ast_program_Namespace *file_ns = parser.ns;
 
-#line 2655 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2685 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
   if (include_workspace_main && ((bool)file_ns->internal_project_root)) {
 
-#line 2656 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2686 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     char *potential_main = std_format("%s/main.oc", file_ns->internal_project_root->path);
 
-#line 2657 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2687 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
     if (std_fs_file_exists(potential_main)) {
 
-#line 2658 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2688 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_ast_program_Namespace *main_ns = std_map_Map__3_get(file_ns->internal_project_root->namespaces, "main", NULL);
 
-#line 2659 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2689 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (main_ns==file_ns) {
 
-#line 2659 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2689 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         return;
       }
 
-#line 2661 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2691 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       if (!((bool)main_ns)) {
 
-#line 2663 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2693 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         compiler_ast_program_Namespace *root = file_ns->internal_project_root;
 
-#line 2664 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2694 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         main_ns=compiler_ast_program_Namespace_new(root, "main");
 
-#line 2665 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2695 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         main_ns->sym=compiler_ast_scopes_Symbol_new_with_parent(compiler_ast_scopes_SymbolType_Namespace, root, root->sym, "main", std_span_Span_default());
 
-#line 2666 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2696 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         main_ns->sym->u.ns=main_ns;
 
-#line 2667 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2697 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
         std_map_Map__3_insert(root->namespaces, "main", main_ns);
       }
 
-#line 2670 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2700 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       parser.ns=main_ns;
 
-#line 2671 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2701 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       compiler_parser_Parser_load_file(&parser, potential_main, NULL);
     } else {
 
-#line 2673 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
+#line 2703 "/Users/mustafa/ocen-lang/ocen/compiler/parser.oc"
       str_free(&potential_main);
     }
   }
@@ -24449,7 +24657,7 @@ compiler_ast_scopes_Symbol *compiler_ast_scopes_Symbol_remove_alias(compiler_ast
 #line 179 "/Users/mustafa/ocen-lang/ocen/compiler/ast/scopes.oc"
     switch ((this->type)) {
       case compiler_ast_scopes_SymbolType_TypeDef:
-      m_87_0:
+      m_88_0:
         {
 
 #line 181 "/Users/mustafa/ocen-lang/ocen/compiler/ast/scopes.oc"
@@ -24501,12 +24709,12 @@ void compiler_ast_scopes_Symbol_add_reference(compiler_ast_scopes_Symbol *this, 
 #line 199 "/Users/mustafa/ocen-lang/ocen/compiler/ast/scopes.oc"
     switch ((this->type)) {
       case compiler_ast_scopes_SymbolType_Structure:
-      m_88_0:
+      m_89_0:
         {
           __yield_0 = this->u.struc->type;
         } break;
       case compiler_ast_scopes_SymbolType_Function:
-      m_88_1:
+      m_89_1:
         {
           __yield_0 = this->u.func->type;
         } break;
@@ -24622,10 +24830,10 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_ov
 
 #line 63 "/Users/mustafa/ocen-lang/ocen/compiler/ast/operators.oc"
     {
-      char *__match_var_89 = s;
-      if (str_eq(__match_var_89, "+")) {
+      char *__match_var_90 = s;
+      if (str_eq(__match_var_90, "+")) {
         __yield_0 = compiler_ast_operators_Operator_Plus;
-      } else if (str_eq(__match_var_89, "-")) {
+      } else if (str_eq(__match_var_90, "-")) {
         __yield_0 = ({ compiler_ast_operators_Operator __yield_1;
 
 #line 65 "/Users/mustafa/ocen-lang/ocen/compiler/ast/operators.oc"
@@ -24639,21 +24847,21 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_ov
           }
 
         __yield_1; });
-      } else if (str_eq(__match_var_89, "*")) {
+      } else if (str_eq(__match_var_90, "*")) {
         __yield_0 = compiler_ast_operators_Operator_Multiply;
-      } else if (str_eq(__match_var_89, "/")) {
+      } else if (str_eq(__match_var_90, "/")) {
         __yield_0 = compiler_ast_operators_Operator_Divide;
-      } else if (str_eq(__match_var_89, "==")) {
+      } else if (str_eq(__match_var_90, "==")) {
         __yield_0 = compiler_ast_operators_Operator_Equals;
-      } else if (str_eq(__match_var_89, "!=")) {
+      } else if (str_eq(__match_var_90, "!=")) {
         __yield_0 = compiler_ast_operators_Operator_NotEquals;
-      } else if (str_eq(__match_var_89, "[]")) {
+      } else if (str_eq(__match_var_90, "[]")) {
         __yield_0 = compiler_ast_operators_Operator_Index;
-      } else if (str_eq(__match_var_89, "<<")) {
+      } else if (str_eq(__match_var_90, "<<")) {
         __yield_0 = compiler_ast_operators_Operator_LeftShift;
-      } else if (str_eq(__match_var_89, ">>")) {
+      } else if (str_eq(__match_var_90, ">>")) {
         __yield_0 = compiler_ast_operators_Operator_RightShift;
-      } else if (str_eq(__match_var_89, "&")) {
+      } else if (str_eq(__match_var_90, "&")) {
         __yield_0 = ({ compiler_ast_operators_Operator __yield_1;
 
 #line 76 "/Users/mustafa/ocen-lang/ocen/compiler/ast/operators.oc"
@@ -24667,29 +24875,29 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_operator_ov
           }
 
         __yield_1; });
-      } else if (str_eq(__match_var_89, "|")) {
+      } else if (str_eq(__match_var_90, "|")) {
         __yield_0 = compiler_ast_operators_Operator_BitwiseOr;
-      } else if (str_eq(__match_var_89, "+=")) {
+      } else if (str_eq(__match_var_90, "+=")) {
         __yield_0 = compiler_ast_operators_Operator_PlusEquals;
-      } else if (str_eq(__match_var_89, "-=")) {
+      } else if (str_eq(__match_var_90, "-=")) {
         __yield_0 = compiler_ast_operators_Operator_MinusEquals;
-      } else if (str_eq(__match_var_89, "*=")) {
+      } else if (str_eq(__match_var_90, "*=")) {
         __yield_0 = compiler_ast_operators_Operator_MultiplyEquals;
-      } else if (str_eq(__match_var_89, "/=")) {
+      } else if (str_eq(__match_var_90, "/=")) {
         __yield_0 = compiler_ast_operators_Operator_DivideEquals;
-      } else if (str_eq(__match_var_89, "[]=")) {
+      } else if (str_eq(__match_var_90, "[]=")) {
         __yield_0 = compiler_ast_operators_Operator_IndexAssign;
-      } else if (str_eq(__match_var_89, "<<=")) {
+      } else if (str_eq(__match_var_90, "<<=")) {
         __yield_0 = compiler_ast_operators_Operator_LeftShiftEquals;
-      } else if (str_eq(__match_var_89, ">>=")) {
+      } else if (str_eq(__match_var_90, ">>=")) {
         __yield_0 = compiler_ast_operators_Operator_RightShiftEquals;
-      } else if (str_eq(__match_var_89, "%")) {
+      } else if (str_eq(__match_var_90, "%")) {
         __yield_0 = compiler_ast_operators_Operator_Modulus;
-      } else if (str_eq(__match_var_89, "in")) {
+      } else if (str_eq(__match_var_90, "in")) {
         __yield_0 = compiler_ast_operators_Operator_In;
-      } else if (str_eq(__match_var_89, "not")) {
+      } else if (str_eq(__match_var_90, "not")) {
         __yield_0 = compiler_ast_operators_Operator_Not;
-      } else if (str_eq(__match_var_89, "?")) {
+      } else if (str_eq(__match_var_90, "?")) {
         __yield_0 = compiler_ast_operators_Operator_IsNotNull;
       } else  {
         __yield_0 = compiler_ast_operators_Operator_Error;
@@ -24709,119 +24917,119 @@ compiler_ast_operators_Operator compiler_ast_operators_Operator_from_token(compi
 #line 95 "/Users/mustafa/ocen-lang/ocen/compiler/ast/operators.oc"
     switch ((tok->type)) {
       case compiler_tokens_TokenType_Ampersand:
-      m_90_0:
+      m_91_0:
         {
           __yield_0 = compiler_ast_operators_Operator_BitwiseAnd;
         } break;
       case compiler_tokens_TokenType_And:
-      m_90_1:
+      m_91_1:
         {
           __yield_0 = compiler_ast_operators_Operator_And;
         } break;
       case compiler_tokens_TokenType_Caret:
-      m_90_2:
+      m_91_2:
         {
           __yield_0 = compiler_ast_operators_Operator_BitwiseXor;
         } break;
       case compiler_tokens_TokenType_EqualEquals:
-      m_90_3:
+      m_91_3:
         {
           __yield_0 = compiler_ast_operators_Operator_Equals;
         } break;
       case compiler_tokens_TokenType_Equals:
-      m_90_4:
+      m_91_4:
         {
           __yield_0 = compiler_ast_operators_Operator_Assignment;
         } break;
       case compiler_tokens_TokenType_GreaterThan:
-      m_90_5:
+      m_91_5:
         {
           __yield_0 = compiler_ast_operators_Operator_GreaterThan;
         } break;
       case compiler_tokens_TokenType_GreaterThanEquals:
-      m_90_6:
+      m_91_6:
         {
           __yield_0 = compiler_ast_operators_Operator_GreaterThanEquals;
         } break;
       case compiler_tokens_TokenType_LessThan:
-      m_90_7:
+      m_91_7:
         {
           __yield_0 = compiler_ast_operators_Operator_LessThan;
         } break;
       case compiler_tokens_TokenType_LessThanEquals:
-      m_90_8:
+      m_91_8:
         {
           __yield_0 = compiler_ast_operators_Operator_LessThanEquals;
         } break;
       case compiler_tokens_TokenType_Line:
-      m_90_9:
+      m_91_9:
         {
           __yield_0 = compiler_ast_operators_Operator_BitwiseOr;
         } break;
       case compiler_tokens_TokenType_Minus:
-      m_90_10:
+      m_91_10:
         {
           __yield_0 = compiler_ast_operators_Operator_Minus;
         } break;
       case compiler_tokens_TokenType_MinusEquals:
-      m_90_11:
+      m_91_11:
         {
           __yield_0 = compiler_ast_operators_Operator_MinusEquals;
         } break;
       case compiler_tokens_TokenType_NotEquals:
-      m_90_12:
+      m_91_12:
         {
           __yield_0 = compiler_ast_operators_Operator_NotEquals;
         } break;
       case compiler_tokens_TokenType_Or:
-      m_90_13:
+      m_91_13:
         {
           __yield_0 = compiler_ast_operators_Operator_Or;
         } break;
       case compiler_tokens_TokenType_Percent:
-      m_90_14:
+      m_91_14:
         {
           __yield_0 = compiler_ast_operators_Operator_Modulus;
         } break;
       case compiler_tokens_TokenType_Plus:
-      m_90_15:
+      m_91_15:
         {
           __yield_0 = compiler_ast_operators_Operator_Plus;
         } break;
       case compiler_tokens_TokenType_PlusEquals:
-      m_90_16:
+      m_91_16:
         {
           __yield_0 = compiler_ast_operators_Operator_PlusEquals;
         } break;
       case compiler_tokens_TokenType_Slash:
-      m_90_17:
+      m_91_17:
         {
           __yield_0 = compiler_ast_operators_Operator_Divide;
         } break;
       case compiler_tokens_TokenType_SlashEquals:
-      m_90_18:
+      m_91_18:
         {
           __yield_0 = compiler_ast_operators_Operator_DivideEquals;
         } break;
       case compiler_tokens_TokenType_Star:
-      m_90_19:
+      m_91_19:
         {
           __yield_0 = compiler_ast_operators_Operator_Multiply;
         } break;
       case compiler_tokens_TokenType_StarEquals:
-      m_90_20:
+      m_91_20:
         {
           __yield_0 = compiler_ast_operators_Operator_MultiplyEquals;
         } break;
       case compiler_tokens_TokenType_Identifier:
-      m_90_21:
+      m_91_21:
         {
           __yield_0 = ({ compiler_ast_operators_Operator __yield_1;
 
 #line 117 "/Users/mustafa/ocen-lang/ocen/compiler/ast/operators.oc"
             {
-              char *__match_var_91 = tok->text;
-              if (str_eq(__match_var_91, "in")) {
+              char *__match_var_92 = tok->text;
+              if (str_eq(__match_var_92, "in")) {
                 __yield_1 = compiler_ast_operators_Operator_In;
               } else  std_panic(std_format("Unhandled identifier in Operator::from_token: %s", tok->text));
             }
@@ -24856,7 +25064,7 @@ u32 compiler_ast_operators_Operator_num_overload_params(compiler_ast_operators_O
       case compiler_ast_operators_Operator_PreDecrement:
       case compiler_ast_operators_Operator_PostIncrement:
       case compiler_ast_operators_Operator_PostDecrement:
-      m_92_0:
+      m_93_0:
         {
           __yield_0 = 1;
         } break;
@@ -24887,17 +25095,17 @@ u32 compiler_ast_operators_Operator_num_overload_params(compiler_ast_operators_O
       case compiler_ast_operators_Operator_PlusEquals:
       case compiler_ast_operators_Operator_RightShift:
       case compiler_ast_operators_Operator_In:
-      m_92_1:
+      m_93_1:
         {
           __yield_0 = 2;
         } break;
       case compiler_ast_operators_Operator_IndexAssign:
-      m_92_2:
+      m_93_2:
         {
           __yield_0 = 3;
         } break;
       case compiler_ast_operators_Operator_Error:
-      m_92_3:
+      m_93_3:
         {
           __yield_0 = 0;
         } break;
@@ -24916,37 +25124,37 @@ bool compiler_ast_operators_Operator_needs_lhs_pointer_for_overload(compiler_ast
 #line 139 "/Users/mustafa/ocen-lang/ocen/compiler/ast/operators.oc"
     switch ((this)) {
       case compiler_ast_operators_Operator_MultiplyEquals:
-      m_93_0:
+      m_94_0:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_operators_Operator_DivideEquals:
-      m_93_1:
+      m_94_1:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_operators_Operator_PlusEquals:
-      m_93_2:
+      m_94_2:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_operators_Operator_MinusEquals:
-      m_93_3:
+      m_94_3:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_operators_Operator_IndexAssign:
-      m_93_4:
+      m_94_4:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_operators_Operator_LeftShiftEquals:
-      m_93_5:
+      m_94_5:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_operators_Operator_RightShiftEquals:
-      m_93_6:
+      m_94_6:
         {
           __yield_0 = true;
         } break;
@@ -25347,27 +25555,27 @@ bool compiler_ast_nodes_AST_is_lvalue(compiler_ast_nodes_AST *this) {
 #line 526 "/Users/mustafa/ocen-lang/ocen/compiler/ast/nodes.oc"
     switch ((this->type)) {
       case compiler_ast_nodes_ASTType_Identifier:
-      m_94_0:
+      m_95_0:
         {
           __yield_0 = !this->u.ident.is_function;
         } break;
       case compiler_ast_nodes_ASTType_Member:
-      m_94_1:
+      m_95_1:
         {
           __yield_0 = true;
         } break;
       case compiler_ast_nodes_ASTType_UnaryOp:
-      m_94_2:
+      m_95_2:
         {
           __yield_0 = this->u.unary.op==compiler_ast_operators_Operator_Dereference;
         } break;
       case compiler_ast_nodes_ASTType_BinaryOp:
-      m_94_3:
+      m_95_3:
         {
           __yield_0 = this->u.binary.op==compiler_ast_operators_Operator_Index;
         } break;
       case compiler_ast_nodes_ASTType_NSLookup:
-      m_94_4:
+      m_95_4:
         {
 
 #line 532 "/Users/mustafa/ocen-lang/ocen/compiler/ast/nodes.oc"
@@ -25394,20 +25602,20 @@ compiler_attributes_AttributeType compiler_attributes_AttributeType_from_str(cha
 
 #line 27 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
     {
-      char *__match_var_95 = s;
-      if (str_eq(__match_var_95, "extern")) {
+      char *__match_var_96 = s;
+      if (str_eq(__match_var_96, "extern")) {
         __yield_0 = compiler_attributes_AttributeType_Extern;
-      } else if (str_eq(__match_var_95, "exits")) {
+      } else if (str_eq(__match_var_96, "exits")) {
         __yield_0 = compiler_attributes_AttributeType_Exits;
-      } else if (str_eq(__match_var_95, "variadic_format")) {
+      } else if (str_eq(__match_var_96, "variadic_format")) {
         __yield_0 = compiler_attributes_AttributeType_VariadicFormat;
-      } else if (str_eq(__match_var_95, "export")) {
+      } else if (str_eq(__match_var_96, "export")) {
         __yield_0 = compiler_attributes_AttributeType_Export;
-      } else if (str_eq(__match_var_95, "formatting")) {
+      } else if (str_eq(__match_var_96, "formatting")) {
         __yield_0 = compiler_attributes_AttributeType_Formatting;
-      } else if (str_eq(__match_var_95, "operator")) {
+      } else if (str_eq(__match_var_96, "operator")) {
         __yield_0 = compiler_attributes_AttributeType_Operator;
-      } else if (str_eq(__match_var_95, "atomic")) {
+      } else if (str_eq(__match_var_96, "atomic")) {
         __yield_0 = compiler_attributes_AttributeType_Atomic;
       } else  {
         __yield_0 = compiler_attributes_AttributeType_Invalid;
@@ -25444,7 +25652,7 @@ bool compiler_attributes_Attribute_validate(compiler_attributes_Attribute *this,
 #line 58 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
   switch ((this->type)) {
     case compiler_attributes_AttributeType_Extern:
-    m_96_0:
+    m_97_0:
       {
 
 #line 60 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
@@ -25458,7 +25666,7 @@ bool compiler_attributes_Attribute_validate(compiler_attributes_Attribute *this,
         }
       } break;
     case compiler_attributes_AttributeType_Formatting:
-    m_96_1:
+    m_97_1:
       {
 
 #line 69 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
@@ -25514,7 +25722,7 @@ bool compiler_attributes_Attribute_validate(compiler_attributes_Attribute *this,
     case compiler_attributes_AttributeType_VariadicFormat:
     case compiler_attributes_AttributeType_Export:
     case compiler_attributes_AttributeType_Atomic:
-    m_96_2:
+    m_97_2:
       {
 
 #line 99 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
@@ -25528,7 +25736,7 @@ bool compiler_attributes_Attribute_validate(compiler_attributes_Attribute *this,
         }
       } break;
     case compiler_attributes_AttributeType_Invalid:
-    m_96_3:
+    m_97_3:
       {
 
 #line 108 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
@@ -25538,7 +25746,7 @@ bool compiler_attributes_Attribute_validate(compiler_attributes_Attribute *this,
         return false;
       } break;
     case compiler_attributes_AttributeType_Operator:
-    m_96_4:
+    m_97_4:
       {
 
 #line 115 "/Users/mustafa/ocen-lang/ocen/compiler/attributes.oc"
@@ -25679,12 +25887,12 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
 #line 75 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
     switch ((type)) {
       case compiler_lsp_CommandType_Hover:
-      m_97_0:
+      m_98_0:
         {
           __yield_0 = compiler_lsp_utils_gen_hover_string_with_docs(finder.found_sym);
         } break;
       case compiler_lsp_CommandType_GoToDefinition:
-      m_97_1:
+      m_98_1:
         {
 
 #line 78 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
@@ -25696,7 +25904,7 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
 #line 79 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
             switch ((usage->type)) {
               case compiler_ast_scopes_SymbolType_Namespace:
-              m_98_0:
+              m_99_0:
                 {
                   __yield_1 = usage->u.ns->span;
                 } break;
@@ -25712,7 +25920,7 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
           __yield_0 = compiler_lsp_utils_gen_span_json_with_filename(jump_span, loc);
         } break;
       case compiler_lsp_CommandType_GoToType:
-      m_97_2:
+      m_98_2:
         {
 
 #line 86 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
@@ -25736,22 +25944,22 @@ void compiler_lsp_handle_location_command(compiler_ast_program_Program *program,
           __yield_0 = compiler_lsp_utils_gen_span_json_with_filename(typ->span, loc);
         } break;
       case compiler_lsp_CommandType_Completions:
-      m_97_3:
+      m_98_3:
         {
           __yield_0 = compiler_lsp_utils_gen_completions_json(&finder);
         } break;
       case compiler_lsp_CommandType_References:
-      m_97_4:
+      m_98_4:
         {
           __yield_0 = compiler_lsp_utils_gen_references_json(finder.found_sym, loc);
         } break;
       case compiler_lsp_CommandType_Renames:
-      m_97_5:
+      m_98_5:
         {
           __yield_0 = compiler_lsp_utils_gen_renames_json(finder.found_sym, loc);
         } break;
       case compiler_lsp_CommandType_SignatureHelp:
-      m_97_6:
+      m_98_6:
         {
           __yield_0 = compiler_lsp_utils_gen_signature_help(finder.call, finder.active_param);
         } break;
@@ -25975,32 +26183,32 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
 
 #line 177 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
     {
-      char *__match_var_99 = arg;
-      if (str_eq(__match_var_99, "--help")) {
+      char *__match_var_100 = arg;
+      if (str_eq(__match_var_100, "--help")) {
 
 #line 178 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         compiler_lsp_lsp_usage(0, true);
-      } else if (str_eq(__match_var_99, "-h") || str_eq(__match_var_99, "-d") || str_eq(__match_var_99, "-t") || str_eq(__match_var_99, "-c") || str_eq(__match_var_99, "-r") || str_eq(__match_var_99, "-s") || str_eq(__match_var_99, "--refs") || str_eq(__match_var_99, "--renames")) {
+      } else if (str_eq(__match_var_100, "-h") || str_eq(__match_var_100, "-d") || str_eq(__match_var_100, "-t") || str_eq(__match_var_100, "-c") || str_eq(__match_var_100, "-r") || str_eq(__match_var_100, "-s") || str_eq(__match_var_100, "--refs") || str_eq(__match_var_100, "--renames")) {
 
 #line 180 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         cmd_type=({ compiler_lsp_CommandType __yield_0;
 
 #line 180 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
           {
-            char *__match_var_100 = arg;
-            if (str_eq(__match_var_100, "-h")) {
+            char *__match_var_101 = arg;
+            if (str_eq(__match_var_101, "-h")) {
               __yield_0 = compiler_lsp_CommandType_Hover;
-            } else if (str_eq(__match_var_100, "-d")) {
+            } else if (str_eq(__match_var_101, "-d")) {
               __yield_0 = compiler_lsp_CommandType_GoToDefinition;
-            } else if (str_eq(__match_var_100, "-t")) {
+            } else if (str_eq(__match_var_101, "-t")) {
               __yield_0 = compiler_lsp_CommandType_GoToType;
-            } else if (str_eq(__match_var_100, "-c")) {
+            } else if (str_eq(__match_var_101, "-c")) {
               __yield_0 = compiler_lsp_CommandType_Completions;
-            } else if (str_eq(__match_var_100, "-s")) {
+            } else if (str_eq(__match_var_101, "-s")) {
               __yield_0 = compiler_lsp_CommandType_SignatureHelp;
-            } else if (str_eq(__match_var_100, "-r") || str_eq(__match_var_100, "--refs")) {
+            } else if (str_eq(__match_var_101, "-r") || str_eq(__match_var_101, "--refs")) {
               __yield_0 = compiler_lsp_CommandType_References;
-            } else if (str_eq(__match_var_100, "--renames")) {
+            } else if (str_eq(__match_var_101, "--renames")) {
               __yield_0 = compiler_lsp_CommandType_Renames;
             } else  std_panic("Invalid command type");
           }
@@ -26012,19 +26220,19 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
 
 #line 191 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         col=str_to_u32(compiler_lsp_shift_args(&argc, &argv));
-      } else if (str_eq(__match_var_99, "--validate")) {
+      } else if (str_eq(__match_var_100, "--validate")) {
 
 #line 193 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         cmd_type=compiler_lsp_CommandType_Validate;
-      } else if (str_eq(__match_var_99, "--doc-symbols")) {
+      } else if (str_eq(__match_var_100, "--doc-symbols")) {
 
 #line 194 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         cmd_type=compiler_lsp_CommandType_DocumentSymbols;
-      } else if (str_eq(__match_var_99, "-v")) {
+      } else if (str_eq(__match_var_100, "-v")) {
 
 #line 195 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         compiler_lsp_utils_verbose=true;
-      } else if (str_eq(__match_var_99, "--show-path")) {
+      } else if (str_eq(__match_var_100, "--show-path")) {
 
 #line 196 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         show_path=compiler_lsp_shift_args(&argc, &argv);
@@ -26096,7 +26304,7 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
     switch ((cmd_type)) {
       case compiler_lsp_CommandType_References:
       case compiler_lsp_CommandType_Renames:
-      m_101_0:
+      m_102_0:
         {
           __yield_0 = true;
         } break;
@@ -26114,14 +26322,14 @@ void compiler_lsp_lsp_main(i32 argc, char **argv) {
 #line 235 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
   switch ((cmd_type)) {
     case compiler_lsp_CommandType_DocumentSymbols:
-    m_102_0:
+    m_103_0:
       {
 
 #line 236 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
         compiler_lsp_handle_document_symbols(program, show_path);
       } break;
     case compiler_lsp_CommandType_Validate:
-    m_102_1:
+    m_103_1:
       {
 
 #line 237 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/mod.oc"
@@ -26248,24 +26456,24 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
       case compiler_types_BaseType_U64:
       case compiler_types_BaseType_F32:
       case compiler_types_BaseType_F64:
-      m_103_0:
+      m_104_0:
         {
           __yield_0 = compiler_types_BaseType_str(type->base);
         } break;
       case compiler_types_BaseType_Pointer:
-      m_103_1:
+      m_104_1:
         {
           __yield_0 = ({ char *__yield_1;
 
 #line 61 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
             switch ((type->u.ptr->base)) {
               case compiler_types_BaseType_Void:
-              m_104_0:
+              m_105_0:
                 {
                   __yield_1 = "untyped_ptr";
                 } break;
               case compiler_types_BaseType_Char:
-              m_104_1:
+              m_105_1:
                 {
                   __yield_1 = "str";
                 } break;
@@ -26278,14 +26486,14 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
           __yield_1; });
         } break;
       case compiler_types_BaseType_Array:
-      m_103_2:
+      m_104_2:
         {
           __yield_0 = std_format("&%s", compiler_lsp_utils_gen_type_string(type->u.arr.elem_type, full));
         } break;
       case compiler_types_BaseType_Structure:
       case compiler_types_BaseType_Alias:
       case compiler_types_BaseType_Enum:
-      m_103_3:
+      m_104_3:
         {
 
 #line 68 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26319,7 +26527,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
           __yield_0 = std_buffer_Buffer_str(sb);
         } break;
       case compiler_types_BaseType_Function:
-      m_103_4:
+      m_104_4:
         {
 
 #line 80 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26447,7 +26655,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
           __yield_0 = std_buffer_Buffer_str(sb);
         } break;
       case compiler_types_BaseType_Unresolved:
-      m_103_5:
+      m_104_5:
         {
 
 #line 137 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26459,7 +26667,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
 #line 138 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
             switch ((unres->type)) {
               case compiler_ast_nodes_ASTType_Identifier:
-              m_105_0:
+              m_106_0:
                 {
                   __yield_1 = unres->u.ident.name;
                 } break;
@@ -26472,7 +26680,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
           __yield_1; });
         } break;
       case compiler_types_BaseType_UnresolvedTemplate:
-      m_103_6:
+      m_104_6:
         {
 
 #line 144 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26492,7 +26700,7 @@ char *compiler_lsp_utils_gen_type_string(compiler_types_Type *type, bool full) {
         } break;
       case compiler_types_BaseType_Error:
       case compiler_types_BaseType_NUM_BASE_TYPES:
-      m_103_7:
+      m_104_7:
         {
           __yield_0 = "ERROR";
         } break;
@@ -26511,12 +26719,12 @@ char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr) {
 #line 153 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
     switch ((expr->type)) {
       case compiler_ast_nodes_ASTType_BoolLiteral:
-      m_106_0:
+      m_107_0:
                   __yield_0 = (expr->u.bool_literal ? "true" : "false");
          break;
       case compiler_ast_nodes_ASTType_IntLiteral:
       case compiler_ast_nodes_ASTType_FloatLiteral:
-      m_106_1:
+      m_107_1:
         {
 
 #line 156 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26534,27 +26742,27 @@ char *compiler_lsp_utils_try_gen_expr_string(compiler_ast_nodes_AST *expr) {
           __yield_1; });
         } break;
       case compiler_ast_nodes_ASTType_StringLiteral:
-      m_106_2:
+      m_107_2:
         {
           __yield_0 = std_format("\"%s\"", expr->u.string_literal);
         } break;
       case compiler_ast_nodes_ASTType_CharLiteral:
-      m_106_3:
+      m_107_3:
         {
           __yield_0 = std_format("'%s'", expr->u.char_literal);
         } break;
       case compiler_ast_nodes_ASTType_Null:
-      m_106_4:
+      m_107_4:
         {
           __yield_0 = "null";
         } break;
       case compiler_ast_nodes_ASTType_Identifier:
-      m_106_5:
+      m_107_5:
         {
           __yield_0 = expr->u.ident.name;
         } break;
       case compiler_ast_nodes_ASTType_NSLookup:
-      m_106_6:
+      m_107_6:
         {
 
 #line 167 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26589,17 +26797,17 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
 #line 174 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
     switch ((sym->type)) {
       case compiler_ast_scopes_SymbolType_TypeDef:
-      m_107_0:
+      m_108_0:
         {
           __yield_0 = compiler_lsp_utils_gen_type_string(sym->u.type_def, true);
         } break;
       case compiler_ast_scopes_SymbolType_Function:
-      m_107_1:
+      m_108_1:
         {
           __yield_0 = compiler_lsp_utils_gen_type_string(sym->u.func->type, true);
         } break;
       case compiler_ast_scopes_SymbolType_Variable:
-      m_107_2:
+      m_108_2:
         {
 
 #line 178 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26618,7 +26826,7 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
           __yield_0 = std_buffer_Buffer_str(sb);
         } break;
       case compiler_ast_scopes_SymbolType_Constant:
-      m_107_3:
+      m_108_3:
         {
 
 #line 185 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26640,22 +26848,22 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
           __yield_0 = std_buffer_Buffer_str(sb);
         } break;
       case compiler_ast_scopes_SymbolType_Structure:
-      m_107_4:
+      m_108_4:
         {
           __yield_0 = std_format("struct %s", sym->display);
         } break;
       case compiler_ast_scopes_SymbolType_Namespace:
-      m_107_5:
+      m_108_5:
         {
           __yield_0 = std_format("namespace %s", sym->display);
         } break;
       case compiler_ast_scopes_SymbolType_Enum:
-      m_107_6:
+      m_108_6:
         {
           __yield_0 = std_format("enum %s", sym->display);
         } break;
       case compiler_ast_scopes_SymbolType_EnumVariant:
-      m_107_7:
+      m_108_7:
         {
 
 #line 196 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26711,7 +26919,7 @@ char *compiler_lsp_utils_gen_hover_string(compiler_ast_scopes_Symbol *sym) {
           __yield_0 = std_buffer_Buffer_str(buf);
         } break;
       case compiler_ast_scopes_SymbolType_EnumField:
-      m_107_8:
+      m_108_8:
         {
 
 #line 216 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26735,47 +26943,47 @@ compiler_types_Type *compiler_lsp_utils_get_symbol_typedef(compiler_ast_scopes_S
 #line 221 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
     switch ((sym->type)) {
       case compiler_ast_scopes_SymbolType_TypeDef:
-      m_108_0:
+      m_109_0:
         {
           __yield_0 = sym->u.type_def;
         } break;
       case compiler_ast_scopes_SymbolType_Function:
-      m_108_1:
+      m_109_1:
         {
           __yield_0 = sym->u.func->type;
         } break;
       case compiler_ast_scopes_SymbolType_Variable:
-      m_108_2:
+      m_109_2:
         {
           __yield_0 = sym->u.var->type;
         } break;
       case compiler_ast_scopes_SymbolType_Constant:
-      m_108_3:
+      m_109_3:
         {
           __yield_0 = sym->u.var->type;
         } break;
       case compiler_ast_scopes_SymbolType_Structure:
-      m_108_4:
+      m_109_4:
         {
           __yield_0 = sym->u.struc->type;
         } break;
       case compiler_ast_scopes_SymbolType_Namespace:
-      m_108_5:
+      m_109_5:
         {
           __yield_0 = NULL;
         } break;
       case compiler_ast_scopes_SymbolType_Enum:
-      m_108_6:
+      m_109_6:
         {
           __yield_0 = sym->u.enom->type;
         } break;
       case compiler_ast_scopes_SymbolType_EnumVariant:
-      m_108_7:
+      m_109_7:
         {
           __yield_0 = sym->u.enum_var->parent->type;
         } break;
       case compiler_ast_scopes_SymbolType_EnumField:
-      m_108_8:
+      m_109_8:
         {
           __yield_0 = sym->u.enum_field.variant->parent->type;
         } break;
@@ -26804,7 +27012,7 @@ std_value_Value *compiler_lsp_utils_gen_error_json(compiler_errors_Error *err) {
   switch ((err->type)) {
     case compiler_errors_ErrorType_WithHint:
     case compiler_errors_ErrorType_WithNote:
-    m_109_0:
+    m_110_0:
       {
 
 #line 241 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -26816,7 +27024,7 @@ std_value_Value *compiler_lsp_utils_gen_error_json(compiler_errors_Error *err) {
 #line 242 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
           switch ((err->type)) {
             case compiler_errors_ErrorType_WithHint:
-            m_110_0:
+            m_111_0:
                               __yield_0 = (std_span_Span_is_valid(err->span2) ? err->span2 : err->span1);
                break;
             default:
@@ -26837,7 +27045,7 @@ std_value_Value *compiler_lsp_utils_gen_error_json(compiler_errors_Error *err) {
         std_value_Value_insert(obj, "extra_info", extra_info);
       } break;
     case compiler_errors_ErrorType_Standard:
-    m_109_1:
+    m_110_1:
       {
       } break;
   }
@@ -27199,7 +27407,7 @@ void compiler_lsp_utils_insert_completion_item(std_value_Value *completions, com
 #line 413 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
   switch ((sym->type)) {
     case compiler_ast_scopes_SymbolType_Function:
-    m_111_0:
+    m_112_0:
       {
 
 #line 415 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27219,7 +27427,7 @@ void compiler_lsp_utils_insert_completion_item(std_value_Value *completions, com
         }
       } break;
     case compiler_ast_scopes_SymbolType_Variable:
-    m_111_1:
+    m_112_1:
       {
 
 #line 423 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27368,7 +27576,7 @@ std_value_Value *compiler_lsp_utils_gen_signature_help(compiler_ast_nodes_AST *n
 #line 473 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
     switch ((callee_sym->type)) {
       case compiler_ast_scopes_SymbolType_Function:
-      m_112_0:
+      m_113_0:
         {
 
 #line 475 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27384,7 +27592,7 @@ std_value_Value *compiler_lsp_utils_gen_signature_help(compiler_ast_nodes_AST *n
           __yield_0 = func->params;
         } break;
       case compiler_ast_scopes_SymbolType_Structure:
-      m_112_1:
+      m_113_1:
         {
 
 #line 481 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27572,7 +27780,7 @@ void compiler_lsp_utils_gen_completions_from_scope(compiler_ast_scopes_Scope *sc
       compiler_types_Type *item_type = compiler_lsp_utils_get_symbol_typedef(item);
 
 #line 557 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
-      if (!compiler_types_Type_eq(item_type, hint_type, false)) {
+      if (((bool)hint_type) && !compiler_types_Type_eq(item_type, hint_type, false)) {
 
 #line 557 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
         continue;
@@ -27791,7 +27999,7 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
 #line 628 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
   switch ((sym->type)) {
     case compiler_ast_scopes_SymbolType_Structure:
-    m_113_0:
+    m_114_0:
       {
 
 #line 630 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27827,7 +28035,7 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
         }
       } break;
     case compiler_ast_scopes_SymbolType_TypeDef:
-    m_113_1:
+    m_114_1:
       {
 
 #line 640 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27845,7 +28053,7 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
         }
       } break;
     case compiler_ast_scopes_SymbolType_Enum:
-    m_113_2:
+    m_114_2:
       {
 
 #line 645 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27881,7 +28089,7 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
         }
       } break;
     case compiler_ast_scopes_SymbolType_Variable:
-    m_113_3:
+    m_114_3:
       {
 
 #line 655 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27902,7 +28110,7 @@ void compiler_lsp_utils_gen_completions_from_symbol(compiler_ast_scopes_Symbol *
         }
       } break;
     case compiler_ast_scopes_SymbolType_Namespace:
-    m_113_4:
+    m_114_4:
       {
 
 #line 663 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
@@ -27947,17 +28155,17 @@ std_value_Value *compiler_lsp_utils_gen_completions_json(compiler_lsp_finder_Fin
 #line 677 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/utils.oc"
     switch ((node->type)) {
       case compiler_ast_nodes_ASTType_Member:
-      m_114_0:
+      m_115_0:
         {
           __yield_0 = node->u.member.lhs->resolved_symbol;
         } break;
       case compiler_ast_nodes_ASTType_NSLookup:
-      m_114_1:
+      m_115_1:
         {
           __yield_0 = node->u.lookup.lhs->resolved_symbol;
         } break;
       case compiler_ast_nodes_ASTType_Import:
-      m_114_2:
+      m_115_2:
         {
           __yield_0 = finder->found_import_ns->sym;
         } break;
@@ -28138,12 +28346,12 @@ bool compiler_lsp_finder_Finder_find_signature_help(compiler_lsp_finder_Finder *
 #line 100 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     switch ((func->type)) {
       case compiler_ast_scopes_SymbolType_Function:
-      m_115_0:
+      m_116_0:
         {
           __yield_0 = func->u.func->sym;
         } break;
       case compiler_ast_scopes_SymbolType_Structure:
-      m_115_1:
+      m_116_1:
         {
           __yield_0 = func->u.struc->sym;
         } break;
@@ -28163,12 +28371,12 @@ bool compiler_lsp_finder_Finder_find_signature_help(compiler_lsp_finder_Finder *
 #line 107 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     switch ((func->type)) {
       case compiler_ast_scopes_SymbolType_Function:
-      m_116_0:
+      m_117_0:
         {
           __yield_0 = func->u.func->params;
         } break;
       case compiler_ast_scopes_SymbolType_Structure:
-      m_116_1:
+      m_117_1:
         {
           __yield_0 = func->u.struc->fields;
         } break;
@@ -28337,21 +28545,21 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
     case compiler_ast_nodes_ASTType_StringLiteral:
     case compiler_ast_nodes_ASTType_CharLiteral:
     case compiler_ast_nodes_ASTType_Null:
-    m_117_0:
+    m_118_0:
       {
 
 #line 180 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_literal(this, node);
       } break;
     case compiler_ast_nodes_ASTType_CreateNew:
-    m_117_1:
+    m_118_1:
       {
 
 #line 181 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_expression(this, node->u.child);
       } break;
     case compiler_ast_nodes_ASTType_FormatStringLiteral:
-    m_117_2:
+    m_118_2:
       {
 
 #line 184 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28372,14 +28580,14 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         return compiler_lsp_finder_Finder_find_in_literal(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Identifier:
-    m_117_3:
+    m_118_3:
       {
 
 #line 191 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_identifier(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Member:
-    m_117_4:
+    m_118_4:
       {
 
 #line 193 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28407,7 +28615,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         }
       } break;
     case compiler_ast_nodes_ASTType_NSLookup:
-    m_117_5:
+    m_118_5:
       {
 
 #line 206 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28438,7 +28646,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         }
       } break;
     case compiler_ast_nodes_ASTType_BinaryOp:
-    m_117_6:
+    m_118_6:
       {
 
 #line 220 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28451,7 +28659,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         return compiler_lsp_finder_Finder_find_in_expression(this, lhs) || compiler_lsp_finder_Finder_find_in_expression(this, rhs);
       } break;
     case compiler_ast_nodes_ASTType_UnaryOp:
-    m_117_7:
+    m_118_7:
       {
 
 #line 224 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28459,14 +28667,14 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
       } break;
     case compiler_ast_nodes_ASTType_Defer:
     case compiler_ast_nodes_ASTType_Yield:
-    m_117_8:
+    m_118_8:
       {
 
 #line 225 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_expression(this, node->u.child);
       } break;
     case compiler_ast_nodes_ASTType_Call:
-    m_117_9:
+    m_118_9:
       {
 
 #line 227 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28487,7 +28695,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         }
       } break;
     case compiler_ast_nodes_ASTType_Cast:
-    m_117_10:
+    m_118_10:
       {
 
 #line 232 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28501,14 +28709,14 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         return compiler_lsp_finder_Finder_find_in_type(this, node->u.cast.parsed_to);
       } break;
     case compiler_ast_nodes_ASTType_SizeOf:
-    m_117_11:
+    m_118_11:
       {
 
 #line 235 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_type(this, node->u.size_of_type);
       } break;
     case compiler_ast_nodes_ASTType_If:
-    m_117_12:
+    m_118_12:
       {
 
 #line 237 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28547,7 +28755,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         }
       } break;
     case compiler_ast_nodes_ASTType_Match:
-    m_117_13:
+    m_118_13:
       {
 
 #line 245 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28627,18 +28835,18 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
       } break;
     case compiler_ast_nodes_ASTType_Break:
     case compiler_ast_nodes_ASTType_Continue:
-    m_117_14:
+    m_118_14:
       {
       } break;
     case compiler_ast_nodes_ASTType_Assert:
-    m_117_15:
+    m_118_15:
       {
 
 #line 261 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_expression(this, node->u.assertion.expr);
       } break;
     case compiler_ast_nodes_ASTType_Specialization:
-    m_117_16:
+    m_118_16:
       {
 
 #line 263 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28670,14 +28878,14 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         }
       } break;
     case compiler_ast_nodes_ASTType_Block:
-    m_117_17:
+    m_118_17:
       {
 
 #line 269 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_block(this, node);
       } break;
     case compiler_ast_nodes_ASTType_OverloadedOperator:
-    m_117_18:
+    m_118_18:
       {
 
 #line 271 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28691,7 +28899,7 @@ bool compiler_lsp_finder_Finder_find_in_expression(compiler_lsp_finder_Finder *t
         }
       } break;
     case compiler_ast_nodes_ASTType_Error:
-    m_117_19:
+    m_118_19:
       {
 
 #line 277 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28727,7 +28935,7 @@ bool compiler_lsp_finder_Finder_find_in_import_part(compiler_lsp_finder_Finder *
 #line 288 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     switch ((part->type)) {
       case compiler_ast_nodes_ImportPartType_Single:
-      m_118_0:
+      m_119_0:
         {
 
 #line 290 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28741,7 +28949,7 @@ bool compiler_lsp_finder_Finder_find_in_import_part(compiler_lsp_finder_Finder *
           return false;
         } break;
       case compiler_ast_nodes_ImportPartType_Multiple:
-      m_118_1:
+      m_119_1:
         {
 
 #line 296 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28813,7 +29021,7 @@ bool compiler_lsp_finder_Finder_find_in_import_part(compiler_lsp_finder_Finder *
           return false;
         } break;
       case compiler_ast_nodes_ImportPartType_Wildcard:
-      m_118_2:
+      m_119_2:
         {
           __yield_0 = false;
         } break;
@@ -28830,7 +29038,7 @@ bool compiler_lsp_finder_Finder_find_in_statement(compiler_lsp_finder_Finder *th
   switch ((node->type)) {
     case compiler_ast_nodes_ASTType_While:
     case compiler_ast_nodes_ASTType_For:
-    m_119_0:
+    m_120_0:
       {
 
 #line 325 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28865,7 +29073,7 @@ bool compiler_lsp_finder_Finder_find_in_statement(compiler_lsp_finder_Finder *th
         }
       } break;
     case compiler_ast_nodes_ASTType_VarDeclaration:
-    m_119_1:
+    m_120_1:
       {
 
 #line 332 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28886,21 +29094,21 @@ bool compiler_lsp_finder_Finder_find_in_statement(compiler_lsp_finder_Finder *th
         }
       } break;
     case compiler_ast_nodes_ASTType_Block:
-    m_119_2:
+    m_120_2:
       {
 
 #line 336 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_block(this, node);
       } break;
     case compiler_ast_nodes_ASTType_Return:
-    m_119_3:
+    m_120_3:
       {
 
 #line 337 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return ((bool)node->u.ret.expr) && compiler_lsp_finder_Finder_find_in_expression(this, node->u.ret.expr);
       } break;
     case compiler_ast_nodes_ASTType_Import:
-    m_119_4:
+    m_120_4:
       {
 
 #line 339 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
@@ -28970,74 +29178,81 @@ bool compiler_lsp_finder_Finder_find_in_block(compiler_lsp_finder_Finder *this, 
     }
   }
 
-#line 362 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 366 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  if (this->cmd==compiler_lsp_CommandType_Completions && std_span_Span_contains_loc(node->span, this->loc)) {
+
+#line 367 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    return compiler_lsp_finder_Finder_set_usage(this, NULL, node);
+  }
+
+#line 370 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   std_vector_Vector__1_pop(this->scopes);
 
-#line 363 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 371 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return false;
 }
 
 
-#line 366 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 374 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
 bool compiler_lsp_finder_Finder_find_in_type(compiler_lsp_finder_Finder *this, compiler_types_Type *type) {
 
-#line 367 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 375 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   switch ((type->base)) {
     case compiler_types_BaseType_Pointer:
-    m_120_0:
+    m_121_0:
       {
 
-#line 368 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 376 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_type(this, type->u.ptr);
       } break;
     case compiler_types_BaseType_Array:
-    m_120_1:
+    m_121_1:
       {
 
-#line 370 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 378 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         if (((bool)type->u.arr.size_expr) && compiler_lsp_finder_Finder_find_in_expression(this, type->u.arr.size_expr)) {
 
-#line 370 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 378 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           return true;
         }
 
-#line 371 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 379 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_type(this, type->u.arr.elem_type);
       } break;
     case compiler_types_BaseType_Unresolved:
-    m_120_2:
+    m_121_2:
       {
 
-#line 373 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 381 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_find_in_expression(this, type->u.unresolved);
       } break;
     case compiler_types_BaseType_UnresolvedTemplate:
-    m_120_3:
+    m_121_3:
       {
 
-#line 375 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 383 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         compiler_types_UnresolvedTemplate spec = type->u.unresolved_spec;
 
-#line 376 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 384 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         if (compiler_lsp_finder_Finder_find_in_type(this, spec.base)) {
 
-#line 376 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 384 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           return true;
         }
 
-#line 377 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 385 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         for (std_vector_Iterator__0 __iter = std_vector_Vector__0_iter(spec.args); std_vector_Iterator__0_has_value(&__iter); std_vector_Iterator__0_next(&__iter)) {
 
-#line 377 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 385 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           compiler_types_Type *ty = std_vector_Iterator__0_cur(&__iter);
 
-#line 377 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 385 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           {
 
-#line 378 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 386 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
             if (compiler_lsp_finder_Finder_find_in_type(this, ty)) {
 
-#line 378 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 386 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
               return true;
             }
           }
@@ -29046,128 +29261,128 @@ bool compiler_lsp_finder_Finder_find_in_type(compiler_lsp_finder_Finder *this, c
     default:
       {
 
-#line 383 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 391 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         if (std_span_Span_contains_loc(type->span, this->loc)) {
 
-#line 384 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 392 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           return compiler_lsp_finder_Finder_set_usage(this, type->sym, NULL);
         }
       } break;
   }
 
-#line 388 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 396 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return false;
 }
 
 
-#line 391 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 399 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
 bool compiler_lsp_finder_Finder_find_in_function(compiler_lsp_finder_Finder *this, compiler_ast_nodes_Function *func) {
 
-#line 395 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 403 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   if (compiler_ast_nodes_Function_is_template_instance(func)) {
 
-#line 395 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 403 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     return false;
   }
 
-#line 397 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 405 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   if (std_span_Span_contains_loc(func->sym->span, this->loc)) {
 
-#line 398 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 406 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     return compiler_lsp_finder_Finder_set_usage(this, func->sym, NULL);
   }
 
-#line 400 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  if (compiler_lsp_finder_Finder_find_in_expression(this, func->name_ast)) {
-
-#line 400 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-    return true;
-  }
-
-#line 402 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  std_vector_Vector__1_push(this->scopes, func->scope);
-
-#line 403 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(func->params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
-
-#line 403 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-    compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
-
-#line 403 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-    {
-
-#line 404 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-      if (compiler_lsp_finder_Finder_find_in_var(this, param, NULL)) {
-
-#line 404 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-        return true;
-      }
-    }
-  }
-
-#line 407 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  compiler_types_Type *ret_type = func->parsed_return_type;
-
 #line 408 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  if (((bool)ret_type) && compiler_lsp_finder_Finder_find_in_type(this, ret_type)) {
+  if (compiler_lsp_finder_Finder_find_in_expression(this, func->name_ast)) {
 
 #line 408 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     return true;
   }
 
 #line 410 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
-  bool res = (((bool)func->body) && compiler_lsp_finder_Finder_find_in_statement(this, func->body));
+  std_vector_Vector__1_push(this->scopes, func->scope);
 
 #line 411 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(func->params); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
+
+#line 411 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    compiler_ast_nodes_Variable *param = std_vector_Iterator__4_cur(&__iter);
+
+#line 411 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    {
+
+#line 412 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+      if (compiler_lsp_finder_Finder_find_in_var(this, param, NULL)) {
+
+#line 412 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+        return true;
+      }
+    }
+  }
+
+#line 415 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  compiler_types_Type *ret_type = func->parsed_return_type;
+
+#line 416 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  if (((bool)ret_type) && compiler_lsp_finder_Finder_find_in_type(this, ret_type)) {
+
+#line 416 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+    return true;
+  }
+
+#line 418 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+  bool res = (((bool)func->body) && compiler_lsp_finder_Finder_find_in_statement(this, func->body));
+
+#line 419 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   std_vector_Vector__1_pop(this->scopes);
 
-#line 413 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 421 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return res;
 }
 
 
-#line 416 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 424 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
 bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this, compiler_ast_program_Namespace *ns) {
 
-#line 417 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 425 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   std_vector_Vector__1_push(this->scopes, ns->scope);
 
-#line 419 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   for (std_vector_Iterator__9 __iter = std_vector_Vector__9_iter(ns->structs); std_vector_Iterator__9_has_value(&__iter); std_vector_Iterator__9_next(&__iter)) {
 
-#line 419 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     compiler_ast_nodes_Structure *struc = std_vector_Iterator__9_cur(&__iter);
 
-#line 419 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     {
 
-#line 423 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 431 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (((bool)struc->type) && ((bool)struc->type->template_instance)) {
 
-#line 423 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 431 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         continue;
       }
 
-#line 425 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 433 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (std_span_Span_contains_loc(struc->sym->span, this->loc)) {
 
-#line 425 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 433 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_set_usage(this, struc->sym, NULL);
       }
 
-#line 426 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 434 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(struc->fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 426 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 434 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 426 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 434 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         {
 
-#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 435 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           if (compiler_lsp_finder_Finder_find_in_var(this, field, NULL)) {
 
-#line 427 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 435 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
             return true;
           }
         }
@@ -29175,72 +29390,72 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
     }
   }
 
-#line 431 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   for (std_vector_Iterator__15 __iter = std_vector_Vector__15_iter(ns->enums); std_vector_Iterator__15_has_value(&__iter); std_vector_Iterator__15_next(&__iter)) {
 
-#line 431 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     compiler_ast_nodes_Enum *enom = std_vector_Iterator__15_cur(&__iter);
 
-#line 431 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     {
 
-#line 432 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 440 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (std_span_Span_contains_loc(enom->sym->span, this->loc)) {
 
-#line 432 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 440 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_set_usage(this, enom->sym, NULL);
       }
 
-#line 433 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 441 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(enom->shared_fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 433 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 441 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 433 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 441 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         {
 
-#line 434 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 442 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           if (compiler_lsp_finder_Finder_find_in_var(this, field, NULL)) {
 
-#line 434 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 442 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
             return true;
           }
         }
       }
 
-#line 436 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 444 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       for (std_vector_Iterator__19 __iter = std_vector_Vector__19_iter(enom->variants); std_vector_Iterator__19_has_value(&__iter); std_vector_Iterator__19_next(&__iter)) {
 
-#line 436 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 444 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         compiler_ast_nodes_EnumVariant *variant = std_vector_Iterator__19_cur(&__iter);
 
-#line 436 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 444 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         {
 
-#line 437 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 445 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           if (std_span_Span_contains_loc(variant->sym->span, this->loc)) {
 
-#line 437 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 445 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
             return compiler_lsp_finder_Finder_set_usage(this, variant->sym, NULL);
           }
 
-#line 438 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 446 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
           if (((bool)variant->specific_fields)) {
 
-#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 447 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
             for (std_vector_Iterator__4 __iter = std_vector_Vector__4_iter(variant->specific_fields); std_vector_Iterator__4_has_value(&__iter); std_vector_Iterator__4_next(&__iter)) {
 
-#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 447 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
               compiler_ast_nodes_Variable *field = std_vector_Iterator__4_cur(&__iter);
 
-#line 439 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 447 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
               {
 
-#line 440 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 448 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
                 if (compiler_lsp_finder_Finder_find_in_var(this, field, NULL)) {
 
-#line 440 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 448 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
                   return true;
                 }
               }
@@ -29251,89 +29466,89 @@ bool compiler_lsp_finder_Finder_find_in_program(compiler_lsp_finder_Finder *this
     }
   }
 
-#line 446 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 454 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   for (std_vector_Iterator__6 __iter = std_vector_Vector__6_iter(ns->functions); std_vector_Iterator__6_has_value(&__iter); std_vector_Iterator__6_next(&__iter)) {
 
-#line 446 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 454 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     compiler_ast_nodes_Function *func = std_vector_Iterator__6_cur(&__iter);
 
-#line 446 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 454 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     {
 
-#line 447 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 455 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (std_span_Span_contains_loc(func->sym->span, this->loc)) {
 
-#line 447 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 455 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_set_usage(this, func->sym, NULL);
       }
 
-#line 448 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 456 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (compiler_lsp_finder_Finder_find_in_function(this, func)) {
 
-#line 448 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 456 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return true;
       }
     }
   }
 
-#line 451 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   for (std_vector_Iterator__16 __iter = std_vector_Vector__16_iter(ns->imports); std_vector_Iterator__16_has_value(&__iter); std_vector_Iterator__16_next(&__iter)) {
 
-#line 451 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     compiler_ast_nodes_AST *import_ = std_vector_Iterator__16_cur(&__iter);
 
-#line 451 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     {
 
-#line 452 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 460 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (compiler_lsp_finder_Finder_find_in_statement(this, import_)) {
 
-#line 452 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 460 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return true;
       }
     }
   }
 
-#line 455 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 463 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   std_vector_Vector__1_pop(this->scopes);
 
-#line 457 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   for (std_map_ValueIterator__3 __iter = std_map_Map__3_iter_values(ns->namespaces); std_map_ValueIterator__3_has_value(&__iter); std_map_ValueIterator__3_next(&__iter)) {
 
-#line 457 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     compiler_ast_program_Namespace *child = std_map_ValueIterator__3_cur(&__iter);
 
-#line 457 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
     {
 
-#line 458 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 466 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (std_span_Span_contains_loc(child->sym->span, this->loc)) {
 
-#line 458 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 466 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return compiler_lsp_finder_Finder_set_usage(this, child->sym, NULL);
       }
 
-#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 467 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
       if (compiler_lsp_finder_Finder_find_in_program(this, child)) {
 
-#line 459 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 467 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
         return true;
       }
     }
   }
 
-#line 462 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 470 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return false;
 }
 
 
-#line 465 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 473 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
 bool compiler_lsp_finder_Finder_find(compiler_lsp_finder_Finder *this, compiler_ast_program_Program *program) {
 
-#line 466 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 474 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   std_vector_Vector__1_push(this->scopes, program->global->scope);
 
-#line 467 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
+#line 475 "/Users/mustafa/ocen-lang/ocen/compiler/lsp/finder.oc"
   return compiler_lsp_finder_Finder_find_in_program(this, program->global);
 }
 
@@ -29380,7 +29595,7 @@ bool compiler_tokens_Token_is_word(compiler_tokens_Token this) {
 #line 41 "/Users/mustafa/ocen-lang/ocen/compiler/tokens.oc"
     switch ((this.type)) {
       case compiler_tokens_TokenType_Identifier:
-      m_121_0:
+      m_122_0:
         {
           __yield_0 = true;
         } break;
@@ -29403,7 +29618,7 @@ bool compiler_tokens_Token_is_identifier(compiler_tokens_Token this, char *name)
 #line 46 "/Users/mustafa/ocen-lang/ocen/compiler/tokens.oc"
     switch ((this.type)) {
       case compiler_tokens_TokenType_Identifier:
-      m_122_0:
+      m_123_0:
         {
           __yield_0 = str_eq(name, this.text);
         } break;
@@ -29425,70 +29640,70 @@ compiler_tokens_TokenType compiler_tokens_TokenType_from_text(char *text) {
 
 #line 140 "/Users/mustafa/ocen-lang/ocen/compiler/tokens.oc"
     {
-      char *__match_var_123 = text;
-      if (str_eq(__match_var_123, "and")) {
+      char *__match_var_124 = text;
+      if (str_eq(__match_var_124, "and")) {
         __yield_0 = compiler_tokens_TokenType_And;
-      } else if (str_eq(__match_var_123, "as")) {
+      } else if (str_eq(__match_var_124, "as")) {
         __yield_0 = compiler_tokens_TokenType_As;
-      } else if (str_eq(__match_var_123, "assert")) {
+      } else if (str_eq(__match_var_124, "assert")) {
         __yield_0 = compiler_tokens_TokenType_Assert;
-      } else if (str_eq(__match_var_123, "break")) {
+      } else if (str_eq(__match_var_124, "break")) {
         __yield_0 = compiler_tokens_TokenType_Break;
-      } else if (str_eq(__match_var_123, "const")) {
+      } else if (str_eq(__match_var_124, "const")) {
         __yield_0 = compiler_tokens_TokenType_Const;
-      } else if (str_eq(__match_var_123, "continue")) {
+      } else if (str_eq(__match_var_124, "continue")) {
         __yield_0 = compiler_tokens_TokenType_Continue;
-      } else if (str_eq(__match_var_123, "def")) {
+      } else if (str_eq(__match_var_124, "def")) {
         __yield_0 = compiler_tokens_TokenType_Def;
-      } else if (str_eq(__match_var_123, "defer")) {
+      } else if (str_eq(__match_var_124, "defer")) {
         __yield_0 = compiler_tokens_TokenType_Defer;
-      } else if (str_eq(__match_var_123, "else")) {
+      } else if (str_eq(__match_var_124, "else")) {
         __yield_0 = compiler_tokens_TokenType_Else;
-      } else if (str_eq(__match_var_123, "enum")) {
+      } else if (str_eq(__match_var_124, "enum")) {
         __yield_0 = compiler_tokens_TokenType_Enum;
-      } else if (str_eq(__match_var_123, "extern")) {
+      } else if (str_eq(__match_var_124, "extern")) {
         __yield_0 = compiler_tokens_TokenType_Extern;
-      } else if (str_eq(__match_var_123, "false")) {
+      } else if (str_eq(__match_var_124, "false")) {
         __yield_0 = compiler_tokens_TokenType_False;
-      } else if (str_eq(__match_var_123, "for")) {
+      } else if (str_eq(__match_var_124, "for")) {
         __yield_0 = compiler_tokens_TokenType_For;
-      } else if (str_eq(__match_var_123, "fn")) {
+      } else if (str_eq(__match_var_124, "fn")) {
         __yield_0 = compiler_tokens_TokenType_Fn;
-      } else if (str_eq(__match_var_123, "if")) {
+      } else if (str_eq(__match_var_124, "if")) {
         __yield_0 = compiler_tokens_TokenType_If;
-      } else if (str_eq(__match_var_123, "let")) {
+      } else if (str_eq(__match_var_124, "let")) {
         __yield_0 = compiler_tokens_TokenType_Let;
-      } else if (str_eq(__match_var_123, "match")) {
+      } else if (str_eq(__match_var_124, "match")) {
         __yield_0 = compiler_tokens_TokenType_Match;
-      } else if (str_eq(__match_var_123, "namespace")) {
+      } else if (str_eq(__match_var_124, "namespace")) {
         __yield_0 = compiler_tokens_TokenType_Namespace;
-      } else if (str_eq(__match_var_123, "not")) {
+      } else if (str_eq(__match_var_124, "not")) {
         __yield_0 = compiler_tokens_TokenType_Not;
-      } else if (str_eq(__match_var_123, "null")) {
+      } else if (str_eq(__match_var_124, "null")) {
         __yield_0 = compiler_tokens_TokenType_Null;
-      } else if (str_eq(__match_var_123, "or")) {
+      } else if (str_eq(__match_var_124, "or")) {
         __yield_0 = compiler_tokens_TokenType_Or;
-      } else if (str_eq(__match_var_123, "return")) {
+      } else if (str_eq(__match_var_124, "return")) {
         __yield_0 = compiler_tokens_TokenType_Return;
-      } else if (str_eq(__match_var_123, "sizeof")) {
+      } else if (str_eq(__match_var_124, "sizeof")) {
         __yield_0 = compiler_tokens_TokenType_SizeOf;
-      } else if (str_eq(__match_var_123, "struct")) {
+      } else if (str_eq(__match_var_124, "struct")) {
         __yield_0 = compiler_tokens_TokenType_Struct;
-      } else if (str_eq(__match_var_123, "true")) {
+      } else if (str_eq(__match_var_124, "true")) {
         __yield_0 = compiler_tokens_TokenType_True;
-      } else if (str_eq(__match_var_123, "then")) {
+      } else if (str_eq(__match_var_124, "then")) {
         __yield_0 = compiler_tokens_TokenType_Then;
-      } else if (str_eq(__match_var_123, "typedef")) {
+      } else if (str_eq(__match_var_124, "typedef")) {
         __yield_0 = compiler_tokens_TokenType_TypeDef;
-      } else if (str_eq(__match_var_123, "union")) {
+      } else if (str_eq(__match_var_124, "union")) {
         __yield_0 = compiler_tokens_TokenType_Union;
-      } else if (str_eq(__match_var_123, "import")) {
+      } else if (str_eq(__match_var_124, "import")) {
         __yield_0 = compiler_tokens_TokenType_Import;
-      } else if (str_eq(__match_var_123, "void")) {
+      } else if (str_eq(__match_var_124, "void")) {
         __yield_0 = compiler_tokens_TokenType_Void;
-      } else if (str_eq(__match_var_123, "yield")) {
+      } else if (str_eq(__match_var_124, "yield")) {
         __yield_0 = compiler_tokens_TokenType_Yield;
-      } else if (str_eq(__match_var_123, "while")) {
+      } else if (str_eq(__match_var_124, "while")) {
         __yield_0 = compiler_tokens_TokenType_While;
       } else  {
         __yield_0 = compiler_tokens_TokenType_Identifier;
@@ -29508,162 +29723,162 @@ char *compiler_tokens_TokenType_str(compiler_tokens_TokenType this) {
 #line 176 "/Users/mustafa/ocen-lang/ocen/compiler/tokens.oc"
     switch ((this)) {
       case compiler_tokens_TokenType_And:
-      m_124_0:
+      m_125_0:
         {
           __yield_0 = "and";
         } break;
       case compiler_tokens_TokenType_As:
-      m_124_1:
+      m_125_1:
         {
           __yield_0 = "as";
         } break;
       case compiler_tokens_TokenType_Assert:
-      m_124_2:
+      m_125_2:
         {
           __yield_0 = "assert";
         } break;
       case compiler_tokens_TokenType_Break:
-      m_124_3:
+      m_125_3:
         {
           __yield_0 = "break";
         } break;
       case compiler_tokens_TokenType_Const:
-      m_124_4:
+      m_125_4:
         {
           __yield_0 = "const";
         } break;
       case compiler_tokens_TokenType_Continue:
-      m_124_5:
+      m_125_5:
         {
           __yield_0 = "continue";
         } break;
       case compiler_tokens_TokenType_Def:
-      m_124_6:
+      m_125_6:
         {
           __yield_0 = "def";
         } break;
       case compiler_tokens_TokenType_Defer:
-      m_124_7:
+      m_125_7:
         {
           __yield_0 = "defer";
         } break;
       case compiler_tokens_TokenType_Else:
-      m_124_8:
+      m_125_8:
         {
           __yield_0 = "else";
         } break;
       case compiler_tokens_TokenType_Enum:
-      m_124_9:
+      m_125_9:
         {
           __yield_0 = "enum";
         } break;
       case compiler_tokens_TokenType_Extern:
-      m_124_10:
+      m_125_10:
         {
           __yield_0 = "extern";
         } break;
       case compiler_tokens_TokenType_False:
-      m_124_11:
+      m_125_11:
         {
           __yield_0 = "false";
         } break;
       case compiler_tokens_TokenType_For:
-      m_124_12:
+      m_125_12:
         {
           __yield_0 = "for";
         } break;
       case compiler_tokens_TokenType_Fn:
-      m_124_13:
+      m_125_13:
         {
           __yield_0 = "fn";
         } break;
       case compiler_tokens_TokenType_If:
-      m_124_14:
+      m_125_14:
         {
           __yield_0 = "if";
         } break;
       case compiler_tokens_TokenType_Let:
-      m_124_15:
+      m_125_15:
         {
           __yield_0 = "let";
         } break;
       case compiler_tokens_TokenType_Match:
-      m_124_16:
+      m_125_16:
         {
           __yield_0 = "match";
         } break;
       case compiler_tokens_TokenType_Namespace:
-      m_124_17:
+      m_125_17:
         {
           __yield_0 = "namespace";
         } break;
       case compiler_tokens_TokenType_Not:
-      m_124_18:
+      m_125_18:
         {
           __yield_0 = "not";
         } break;
       case compiler_tokens_TokenType_Null:
-      m_124_19:
+      m_125_19:
         {
           __yield_0 = "null";
         } break;
       case compiler_tokens_TokenType_Or:
-      m_124_20:
+      m_125_20:
         {
           __yield_0 = "or";
         } break;
       case compiler_tokens_TokenType_Return:
-      m_124_21:
+      m_125_21:
         {
           __yield_0 = "return";
         } break;
       case compiler_tokens_TokenType_SizeOf:
-      m_124_22:
+      m_125_22:
         {
           __yield_0 = "sizeof";
         } break;
       case compiler_tokens_TokenType_Struct:
-      m_124_23:
+      m_125_23:
         {
           __yield_0 = "struct";
         } break;
       case compiler_tokens_TokenType_True:
-      m_124_24:
+      m_125_24:
         {
           __yield_0 = "true";
         } break;
       case compiler_tokens_TokenType_Then:
-      m_124_25:
+      m_125_25:
         {
           __yield_0 = "then";
         } break;
       case compiler_tokens_TokenType_TypeDef:
-      m_124_26:
+      m_125_26:
         {
           __yield_0 = "typedef";
         } break;
       case compiler_tokens_TokenType_Union:
-      m_124_27:
+      m_125_27:
         {
           __yield_0 = "union";
         } break;
       case compiler_tokens_TokenType_Import:
-      m_124_28:
+      m_125_28:
         {
           __yield_0 = "import";
         } break;
       case compiler_tokens_TokenType_Void:
-      m_124_29:
+      m_125_29:
         {
           __yield_0 = "void";
         } break;
       case compiler_tokens_TokenType_Yield:
-      m_124_30:
+      m_125_30:
         {
           __yield_0 = "yield";
         } break;
       case compiler_tokens_TokenType_While:
-      m_124_31:
+      m_125_31:
         {
           __yield_0 = "while";
         } break;
@@ -29894,70 +30109,70 @@ void parse_args(i32 *argc, char ***argv, compiler_ast_program_Program *program) 
 
 #line 106 "compiler/main.oc"
     {
-      char *__match_var_125 = arg;
-      if (str_eq(__match_var_125, "--help")) {
+      char *__match_var_126 = arg;
+      if (str_eq(__match_var_126, "--help")) {
 
 #line 107 "compiler/main.oc"
         usage(0, true);
-      } else if (str_eq(__match_var_125, "-s")) {
+      } else if (str_eq(__match_var_126, "-s")) {
 
 #line 108 "compiler/main.oc"
         silent=true;
-      } else if (str_eq(__match_var_125, "-d")) {
+      } else if (str_eq(__match_var_126, "-d")) {
 
 #line 109 "compiler/main.oc"
         debug=true;
-      } else if (str_eq(__match_var_125, "-n")) {
+      } else if (str_eq(__match_var_126, "-n")) {
 
 #line 111 "compiler/main.oc"
         compile_c=false;
 
 #line 112 "compiler/main.oc"
         program->keep_all_code=true;
-      } else if (str_eq(__match_var_125, "--no-dce")) {
+      } else if (str_eq(__match_var_126, "--no-dce")) {
 
 #line 114 "compiler/main.oc"
         program->keep_all_code=true;
-      } else if (str_eq(__match_var_125, "-o")) {
+      } else if (str_eq(__match_var_126, "-o")) {
 
 #line 115 "compiler/main.oc"
         exec_path=std_shift_args(argc, argv, "here");
-      } else if (str_eq(__match_var_125, "-c")) {
+      } else if (str_eq(__match_var_126, "-c")) {
 
 #line 116 "compiler/main.oc"
         c_path=std_shift_args(argc, argv, "here");
-      } else if (str_eq(__match_var_125, "-l")) {
+      } else if (str_eq(__match_var_126, "-l")) {
 
 #line 117 "compiler/main.oc"
         std_vector_Vector__8_push(program->library_paths, std_shift_args(argc, argv, "here"));
-      } else if (str_eq(__match_var_125, "-e0")) {
+      } else if (str_eq(__match_var_126, "-e0")) {
 
 #line 118 "compiler/main.oc"
         error_level=0;
-      } else if (str_eq(__match_var_125, "-e1")) {
+      } else if (str_eq(__match_var_126, "-e1")) {
 
 #line 119 "compiler/main.oc"
         error_level=1;
-      } else if (str_eq(__match_var_125, "-e2")) {
+      } else if (str_eq(__match_var_126, "-e2")) {
 
 #line 120 "compiler/main.oc"
         error_level=2;
-      } else if (str_eq(__match_var_125, "--docs")) {
+      } else if (str_eq(__match_var_126, "--docs")) {
 
 #line 122 "compiler/main.oc"
         docs_path=std_shift_args(argc, argv, "here");
 
 #line 123 "compiler/main.oc"
         program->check_doc_links=true;
-      } else if (str_eq(__match_var_125, "--no-stdlib")) {
+      } else if (str_eq(__match_var_126, "--no-stdlib")) {
 
 #line 125 "compiler/main.oc"
         include_stdlib=false;
-      } else if (str_eq(__match_var_125, "--cflags") || str_eq(__match_var_125, "-cf")) {
+      } else if (str_eq(__match_var_126, "--cflags") || str_eq(__match_var_126, "-cf")) {
 
 #line 126 "compiler/main.oc"
         std_vector_Vector__8_push(extra_c_flags, std_shift_args(argc, argv, "here"));
-      } else if (str_eq(__match_var_125, "-r") || str_eq(__match_var_125, "--run")) {
+      } else if (str_eq(__match_var_126, "-r") || str_eq(__match_var_126, "--run")) {
 
 #line 128 "compiler/main.oc"
         run_after_compile=true;
@@ -30101,67 +30316,67 @@ char *compiler_types_BaseType_str(compiler_types_BaseType this) {
 #line 44 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
     switch ((this)) {
       case compiler_types_BaseType_Char:
-      m_126_0:
+      m_127_0:
         {
           __yield_0 = "char";
         } break;
       case compiler_types_BaseType_Bool:
-      m_126_1:
+      m_127_1:
         {
           __yield_0 = "bool";
         } break;
       case compiler_types_BaseType_Void:
-      m_126_2:
+      m_127_2:
         {
           __yield_0 = "void";
         } break;
       case compiler_types_BaseType_I8:
-      m_126_3:
+      m_127_3:
         {
           __yield_0 = "i8";
         } break;
       case compiler_types_BaseType_I16:
-      m_126_4:
+      m_127_4:
         {
           __yield_0 = "i16";
         } break;
       case compiler_types_BaseType_I32:
-      m_126_5:
+      m_127_5:
         {
           __yield_0 = "i32";
         } break;
       case compiler_types_BaseType_I64:
-      m_126_6:
+      m_127_6:
         {
           __yield_0 = "i64";
         } break;
       case compiler_types_BaseType_U8:
-      m_126_7:
+      m_127_7:
         {
           __yield_0 = "u8";
         } break;
       case compiler_types_BaseType_U16:
-      m_126_8:
+      m_127_8:
         {
           __yield_0 = "u16";
         } break;
       case compiler_types_BaseType_U32:
-      m_126_9:
+      m_127_9:
         {
           __yield_0 = "u32";
         } break;
       case compiler_types_BaseType_U64:
-      m_126_10:
+      m_127_10:
         {
           __yield_0 = "u64";
         } break;
       case compiler_types_BaseType_F32:
-      m_126_11:
+      m_127_11:
         {
           __yield_0 = "f32";
         } break;
       case compiler_types_BaseType_F64:
-      m_126_12:
+      m_127_12:
         {
           __yield_0 = "f64";
         } break;
@@ -30262,7 +30477,7 @@ bool compiler_types_Type_is_integer(compiler_types_Type *this) {
       case compiler_types_BaseType_U16:
       case compiler_types_BaseType_U32:
       case compiler_types_BaseType_U64:
-      m_127_0:
+      m_128_0:
         {
           __yield_0 = true;
         } break;
@@ -30302,7 +30517,7 @@ bool compiler_types_Type_is_numeric(compiler_types_Type *this) {
       case compiler_types_BaseType_U64:
       case compiler_types_BaseType_F32:
       case compiler_types_BaseType_F64:
-      m_128_0:
+      m_129_0:
         {
           __yield_0 = true;
         } break;
@@ -30348,7 +30563,7 @@ bool compiler_types_Type_can_have_methods(compiler_types_Type *this) {
       case compiler_types_BaseType_Structure:
       case compiler_types_BaseType_Alias:
       case compiler_types_BaseType_Enum:
-      m_129_0:
+      m_130_0:
         {
           __yield_0 = true;
         } break;
@@ -30371,22 +30586,22 @@ bool compiler_types_Type_is_resolved(compiler_types_Type *this) {
 #line 166 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
     switch ((this->base)) {
       case compiler_types_BaseType_Unresolved:
-      m_130_0:
+      m_131_0:
         {
           __yield_0 = false;
         } break;
       case compiler_types_BaseType_Alias:
-      m_130_1:
+      m_131_1:
         {
           __yield_0 = compiler_types_Type_is_resolved(this->u.ptr);
         } break;
       case compiler_types_BaseType_Pointer:
-      m_130_2:
+      m_131_2:
         {
           __yield_0 = compiler_types_Type_is_resolved(this->u.ptr);
         } break;
       case compiler_types_BaseType_Function:
-      m_130_3:
+      m_131_3:
         {
 
 #line 171 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
@@ -30462,14 +30677,14 @@ bool compiler_types_Type_eq(compiler_types_Type *this, compiler_types_Type *othe
     case compiler_types_BaseType_Error:
     case compiler_types_BaseType_Unresolved:
     case compiler_types_BaseType_UnresolvedTemplate:
-    m_131_0:
+    m_132_0:
       {
 
 #line 191 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
         return false;
       } break;
     case compiler_types_BaseType_Function:
-    m_131_1:
+    m_132_1:
       {
 
 #line 193 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
@@ -30513,7 +30728,7 @@ bool compiler_types_Type_eq(compiler_types_Type *this, compiler_types_Type *othe
         return true;
       } break;
     case compiler_types_BaseType_Pointer:
-    m_131_2:
+    m_132_2:
       {
 
 #line 205 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
@@ -30531,21 +30746,21 @@ bool compiler_types_Type_eq(compiler_types_Type *this, compiler_types_Type *othe
         return compiler_types_Type_eq(this->u.ptr, other->u.ptr, true);
       } break;
     case compiler_types_BaseType_Structure:
-    m_131_3:
+    m_132_3:
       {
 
 #line 212 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
         return this->u.struc==other->u.struc;
       } break;
     case compiler_types_BaseType_Enum:
-    m_131_4:
+    m_132_4:
       {
 
 #line 213 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
         return this->u.enom==other->u.enom;
       } break;
     case compiler_types_BaseType_Array:
-    m_131_5:
+    m_132_5:
       {
 
 #line 215 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
@@ -30635,12 +30850,12 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
 #line 249 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
     switch ((this->base)) {
       case compiler_types_BaseType_Pointer:
-      m_132_0:
+      m_133_0:
         {
           __yield_0 = std_format("&%s", compiler_types_Type_str(this->u.ptr));
         } break;
       case compiler_types_BaseType_Function:
-      m_132_1:
+      m_133_1:
         {
 
 #line 252 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
@@ -30684,7 +30899,7 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
           return std_buffer_Buffer_str(buf);
         } break;
       case compiler_types_BaseType_Array:
-      m_132_2:
+      m_133_2:
         {
 
 #line 270 "/Users/mustafa/ocen-lang/ocen/compiler/types.oc"
@@ -30714,17 +30929,17 @@ char *compiler_types_Type_str(compiler_types_Type *this) {
           return std_buffer_Buffer_str(buf);
         } break;
       case compiler_types_BaseType_Structure:
-      m_132_3:
+      m_133_3:
         {
           __yield_0 = this->u.struc->sym->display;
         } break;
       case compiler_types_BaseType_Enum:
-      m_132_4:
+      m_133_4:
         {
           __yield_0 = this->u.enom->sym->display;
         } break;
       case compiler_types_BaseType_Alias:
-      m_132_5:
+      m_133_5:
         {
           __yield_0 = this->name;
         } break;
@@ -30747,17 +30962,17 @@ char *compiler_errors_MessageType_to_color(compiler_errors_MessageType this) {
 #line 34 "/Users/mustafa/ocen-lang/ocen/compiler/errors.oc"
     switch ((this)) {
       case compiler_errors_MessageType_Error:
-      m_133_0:
+      m_134_0:
         {
           __yield_0 = "\x1b[31m";
         } break;
       case compiler_errors_MessageType_Warning:
-      m_133_1:
+      m_134_1:
         {
           __yield_0 = "\x1b[33m";
         } break;
       case compiler_errors_MessageType_Note:
-      m_133_2:
+      m_134_2:
         {
           __yield_0 = "\x1b[32m";
         } break;
@@ -30776,17 +30991,17 @@ char *compiler_errors_MessageType_str(compiler_errors_MessageType this) {
 #line 40 "/Users/mustafa/ocen-lang/ocen/compiler/errors.oc"
     switch ((this)) {
       case compiler_errors_MessageType_Error:
-      m_134_0:
+      m_135_0:
         {
           __yield_0 = "Error";
         } break;
       case compiler_errors_MessageType_Warning:
-      m_134_1:
+      m_135_1:
         {
           __yield_0 = "Warning";
         } break;
       case compiler_errors_MessageType_Note:
-      m_134_2:
+      m_135_2:
         {
           __yield_0 = "Note";
         } break;
@@ -30965,14 +31180,14 @@ void compiler_errors_Error_display(compiler_errors_Error *this) {
 #line 112 "/Users/mustafa/ocen-lang/ocen/compiler/errors.oc"
   switch ((this->type)) {
     case compiler_errors_ErrorType_Standard:
-    m_135_0:
+    m_136_0:
       {
 
 #line 114 "/Users/mustafa/ocen-lang/ocen/compiler/errors.oc"
         compiler_errors_display_message_span(compiler_errors_MessageType_Error, this->span1, this->msg1, true);
       } break;
     case compiler_errors_ErrorType_WithNote:
-    m_135_1:
+    m_136_1:
       {
 
 #line 117 "/Users/mustafa/ocen-lang/ocen/compiler/errors.oc"
@@ -30982,7 +31197,7 @@ void compiler_errors_Error_display(compiler_errors_Error *this) {
         compiler_errors_display_message(compiler_errors_MessageType_Note, this->span1, this->msg2);
       } break;
     case compiler_errors_ErrorType_WithHint:
-    m_135_2:
+    m_136_2:
       {
 
 #line 121 "/Users/mustafa/ocen-lang/ocen/compiler/errors.oc"
@@ -34416,20 +34631,20 @@ void std_logging_init_logging(std_logging_LogLevel level, char *time_format) {
 
 #line 22 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
   {
-    char *__match_var_136 = s;
-    if (str_eq(__match_var_136, "debug") || str_eq(__match_var_136, "DEBUG")) {
+    char *__match_var_137 = s;
+    if (str_eq(__match_var_137, "debug") || str_eq(__match_var_137, "DEBUG")) {
 
 #line 23 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
       std_logging_log_level=std_logging_LogLevel_Debug;
-    } else if (str_eq(__match_var_136, "info") || str_eq(__match_var_136, "INFO")) {
+    } else if (str_eq(__match_var_137, "info") || str_eq(__match_var_137, "INFO")) {
 
 #line 24 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
       std_logging_log_level=std_logging_LogLevel_Info;
-    } else if (str_eq(__match_var_136, "warn") || str_eq(__match_var_136, "WARN")) {
+    } else if (str_eq(__match_var_137, "warn") || str_eq(__match_var_137, "WARN")) {
 
 #line 25 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
       std_logging_log_level=std_logging_LogLevel_Warn;
-    } else if (str_eq(__match_var_136, "error") || str_eq(__match_var_136, "ERROR")) {
+    } else if (str_eq(__match_var_137, "error") || str_eq(__match_var_137, "ERROR")) {
 
 #line 26 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
       std_logging_log_level=std_logging_LogLevel_Error;
@@ -34471,28 +34686,28 @@ void std_logging_vlog(std_logging_LogLevel level, char *fmt, va_list vargs) {
 #line 42 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
   switch ((level)) {
     case std_logging_LogLevel_Debug:
-    m_137_0:
+    m_138_0:
       {
 
 #line 43 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
         printf("[DEBUG] ");
       } break;
     case std_logging_LogLevel_Info:
-    m_137_1:
+    m_138_1:
       {
 
 #line 44 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
         printf("[INFO] ");
       } break;
     case std_logging_LogLevel_Warn:
-    m_137_2:
+    m_138_2:
       {
 
 #line 45 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
         printf("[WARN] ");
       } break;
     case std_logging_LogLevel_Error:
-    m_137_3:
+    m_138_3:
       {
 
 #line 46 "/Users/mustafa/ocen-lang/ocen/std/logging.oc"
@@ -35006,14 +35221,14 @@ std_value_Value *std_value_Value_new(std_value_ValueType type) {
 #line 40 "/Users/mustafa/ocen-lang/ocen/std/value.oc"
   switch ((type)) {
     case std_value_ValueType_Dictionary:
-    m_138_0:
+    m_139_0:
       {
 
 #line 41 "/Users/mustafa/ocen-lang/ocen/std/value.oc"
         val->u.as_dict=std_compact_map_Map__0_new(16);
       } break;
     case std_value_ValueType_List:
-    m_138_1:
+    m_139_1:
       {
 
 #line 42 "/Users/mustafa/ocen-lang/ocen/std/value.oc"
@@ -35373,8 +35588,8 @@ void std_fs_DirectoryIterator_next(std_fs_DirectoryIterator *this) {
 
 #line 263 "/Users/mustafa/ocen-lang/ocen/std/fs.oc"
     {
-      char *__match_var_139 = this->dp->d_name;
-      if (str_eq(__match_var_139, ".") || str_eq(__match_var_139, "..")) {
+      char *__match_var_140 = this->dp->d_name;
+      if (str_eq(__match_var_140, ".") || str_eq(__match_var_140, "..")) {
 
 #line 264 "/Users/mustafa/ocen-lang/ocen/std/fs.oc"
         this->dp=readdir(this->dir);
@@ -42649,35 +42864,35 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
 #line 161 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
   switch ((val->type)) {
     case std_value_ValueType_Null:
-    m_140_0:
+    m_141_0:
       {
 
 #line 162 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
         std_buffer_Buffer_write_str(sb, "null");
       } break;
     case std_value_ValueType_Bool:
-    m_140_1:
+    m_141_1:
       {
 
 #line 163 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
         std_buffer_Buffer_write_str(sb, (val->u.as_bool ? "true" : "false"));
       } break;
     case std_value_ValueType_Integer:
-    m_140_2:
+    m_141_2:
       {
 
 #line 164 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
         std_buffer_Buffer_write_str_f(sb, std_format("%" PRId64 "", val->u.as_int));
       } break;
     case std_value_ValueType_Float:
-    m_140_3:
+    m_141_3:
       {
 
 #line 165 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
         std_buffer_Buffer_write_str_f(sb, std_format("%f", val->u.as_float));
       } break;
     case std_value_ValueType_String:
-    m_140_4:
+    m_141_4:
       {
 
 #line 167 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
@@ -42749,7 +42964,7 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
         std_buffer_Buffer_write_str(sb, "\"");
       } break;
     case std_value_ValueType_List:
-    m_140_5:
+    m_141_5:
       {
 
 #line 191 "/Users/mustafa/ocen-lang/ocen/std/json.oc"
@@ -42779,7 +42994,7 @@ void std_json_serialize_into(std_value_Value *val, std_buffer_Buffer *sb) {
         std_buffer_Buffer_write_str(sb, "]");
       } break;
     case std_value_ValueType_Dictionary:
-    m_140_6:
+    m_141_6:
       {
 
 #line 203 "/Users/mustafa/ocen-lang/ocen/std/json.oc"

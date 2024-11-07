@@ -554,7 +554,7 @@ def gen_completions_from_scope(scope: &Scope, completions: &Value, hint_type: &T
     }
     for item in scope.items.iter_values() {
         let item_type = get_symbol_typedef(item)
-        if not item_type.eq(hint_type) continue
+        if hint_type? and not item_type.eq(hint_type) continue
 
         insert_completion_item(completions, item, seen)
     }
