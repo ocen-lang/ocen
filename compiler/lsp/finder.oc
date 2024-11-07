@@ -460,6 +460,22 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         if .find_in_statement(import_) return true
     }
 
+    for vardecl in ns.variables.iter() {
+        let var = vardecl.u.var_decl.var
+        if var.sym.span.contains_loc(.loc) return .set_usage(var.sym, node: null)
+
+        let init = vardecl.u.var_decl.init
+        if init? and .find_in_expression(init) return true
+    }
+
+    for vardecl in ns.constants.iter() {
+        let var = vardecl.u.var_decl.var
+        if var.sym.span.contains_loc(.loc) return .set_usage(var.sym, node: null)
+
+        let init = vardecl.u.var_decl.init
+        if init? and .find_in_expression(init) return true
+    }
+
     .scopes.pop()
 
     for child : ns.namespaces.iter_values() {
