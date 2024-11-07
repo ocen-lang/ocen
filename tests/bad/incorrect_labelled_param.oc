@@ -1,4 +1,4 @@
-/// fail: Expected positional argument `does_exist`, but got label `incorrect`
+/// fail: Unknown labelled argument `incorrect`
 
 def foo(val: i32, does_exist: bool): i32 {
     return val

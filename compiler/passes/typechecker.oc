@@ -542,6 +542,45 @@ def TypeChecker::check_internal_print(&this, node: &AST): &Type {
     return .get_base_type(Void, node.span)
 }
 
+def TypeChecker::check_union_constructor(&this, node: &AST, params: &Vector<&Variable>) {
+    let args = node.u.call.args
+    if args.size != 1 {
+        .error(Error::new(node.span, `Union constructors must have exactly one field`))
+        for arg : args.iter() {
+            .check_expression(arg.expr)
+        }
+        return
+    }
+
+    let arg = args[0]
+    if not arg.label? {
+        .error(Error::new(arg.expr.span, `Union constructors must have a label for the field`))
+        .check_expression(arg.expr)
+        return
+    }
+
+    let param: &Variable = null
+    for p in params.iter() {
+        if p.sym? and p.sym.name.eq(arg.label) {
+            param = p
+            break
+        }
+    }
+    if not param? {
+        .error(Error::new(arg.expr.span, `Unknown field {arg.label} in union constructor`))
+        .check_expression(arg.expr)
+        return
+    }
+
+    let arg_type = .check_expression(arg.expr, hint: param.type)
+    if arg_type? and not arg_type.eq(param.type) {
+        .error(Error::new_hint(
+            arg.expr.span, f"Expected `{arg.label}` with type {param.type.str()}, but got {arg_type.str()}",
+            param.sym.span, "Parameter defined here"
+        ))
+    }
+}
+
 def TypeChecker::check_constructor(&this, node: &AST): &Type {
     node.u.call.call_type = StructConstructor
 
@@ -552,8 +591,11 @@ def TypeChecker::check_constructor(&this, node: &AST): &Type {
     let struc = type_sym.u.struc
 
     let params = struc.fields
+    if {
+        struc.is_union => .check_union_constructor(node, params)
+        else => .check_call_args(node, params)
+    }
 
-    .check_call_args(node, params)
 
     return struc.type
 }
@@ -703,27 +745,18 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
                 not param.sym? => .error(Error::new(
                     arg.label_span, "Cannot use a labelled argument for a non-labeled parameter"
                 ))
-                not arg.label.eq(param.sym.name) => if {
+                not arg.label.eq(param.sym.name) =>{
                     // If we have started looking at the default arguments, we can start allowing
                     // unordered arguments when they are labelled
-                    param.default_value? => {
-                        if is_variadic {
-                            .error(Error::new(
-                                arg.label_span, `Variadic functions not allowed with default arguments`,
-                            ))
-                        }
-
-                        .check_call_args_labelled(node, params, i)
-                        break
-                    }
-                    // If this parameter doesn't have a default value, then we should error
-                    else => {
-                        .error(Error::new_hint(
-                            arg.label_span, f"Expected positional argument `{param.sym.name}`, but got label `{arg.label}`",
-                            param.sym.span, "Parameter defined here"
+                    // param.default_value? => {
+                    if is_variadic {
+                        .error(Error::new(
+                            arg.label_span, `Variadic functions not allowed with default arguments`,
                         ))
                     }
-                    // Fallthrough, and check the argument as if it were positional anyway
+
+                    .check_call_args_labelled(node, params, i)
+                    break
                 }
                 // Fallthrough
                 else => {}

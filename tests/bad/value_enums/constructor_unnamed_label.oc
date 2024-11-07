@@ -2,8 +2,8 @@
 
 enum Foo {
     Case0(u32)
-    Case1(str, i32)
-    Case2(str)
+    Case1(y: str, x: i32)
+    Case2(y: str)
     Case3
 }
 

@@ -1,10 +1,10 @@
 /// lsp: -h 7 12
-/// {"hover": "str"}
+/// {"hover": "y: str"}
 
 enum Foo {
-    Case0(i32)
-    Case1(str, i32)
-    Case2(str)
+    Case0(x: i32)
+    Case1(y: str, x: i32)
+    Case2(y: str)
     Case3
 }
 

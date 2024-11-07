@@ -1,12 +1,12 @@
 /// lsp: -h 14 22
-/// {"hover": "enum Foo::Case2(str)\nDoc on Case2\n"}
+/// {"hover": "enum Foo::Case2(y: str)\nDoc on Case2\n"}
 
 //! Doc on foo
 enum Foo {
-    Case0(i32)
-    Case1(str, i32)
+    Case0(x: i32)
+    Case1(y: str, x: i32)
     //! Doc on Case2
-    Case2(str)
+    Case2(y: str)
     Case3
 }
 

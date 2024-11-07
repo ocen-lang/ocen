@@ -1,9 +1,9 @@
 /// out: "0|1 [42] => 42\n0|1 [43] => 43\n2 [5] => world\n3 [0] => ()"
 
 enum Foo {
-    Case0(i32)
-    Case1(str, i32)
-    Case2(str)
+    Case0(x: i32)
+    Case1(z: str, x: i32)
+    Case2(z: str)
     Case3
 }
 
