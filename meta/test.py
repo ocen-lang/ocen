@@ -3,6 +3,7 @@ from collections import namedtuple
 import shutil
 from subprocess import run, PIPE
 import argparse
+import re
 from ast import literal_eval
 from dataclasses import dataclass
 from enum import Enum
@@ -97,6 +98,33 @@ def get_expected(filename) -> Optional[Expected]:
 
     return Expected(Result.SKIP_REPORT, None)
 
+def check_lsp_output(smol, big):
+    if not type(smol) == type(big):
+        return False
+    if isinstance(smol, (int, float, str)):
+        return smol == big
+
+    if isinstance(smol, list):
+        for i, val in enumerate(smol):
+            if not any(check_lsp_output(val, big_val) for big_val in big):
+                return False
+        return True
+
+    if isinstance(smol, dict):
+        for key, value in smol.items():
+            if key not in big:
+                return False
+
+            # For file key, we want assume the smol value is a regex
+            if key == "file":
+                if not re.match(value, big[key]):
+                    return False
+
+            if not check_lsp_output(value, big[key]):
+                return False
+        return True
+    return smol == big
+
 def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     cmd = f'{compiler} lsp {expected.value.flags} {path}'
     process = run(shlex.split(cmd), stdout=PIPE, stderr=PIPE)
@@ -109,25 +137,11 @@ def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, deb
     except json.JSONDecodeError:
         return False, f"Failed to parse JSON output: {output}", path
 
-    def normalize_paths(data):
-        if isinstance(data, dict):
-            for key, value in data.items():
-                if key == "file":
-                    data[key] = Path(value).basename()
-                else:
-                    normalize_paths(value)
-        elif isinstance(data, list):
-            for value in data:
-                normalize_paths(value)
-
     wanted = expected.value.value
-    normalize_paths(output)
-    normalize_paths(wanted)
-
-    if output == wanted:
+    if check_lsp_output(wanted, output):
         return True, "(Success)", path
 
-    return False, f"Expected LSP output does not match\n  expected: {json.dumps(wanted)}\n       got: {json.dumps(output)}", path
+    return False, f"Expected LSP output does not match\n  expected: {wanted}\n       got: {output}", path
 
 def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
