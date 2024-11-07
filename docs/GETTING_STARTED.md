@@ -70,7 +70,7 @@
     - [Method Bindings](#method-bindings)
     - [Enum Bindings](#enum-bindings)
     - [Miscellaneous Binding Tips](#miscellaneous-binding-tips)
-
+- [Undocumented](#undocumented)
 
 ## Installation
 
@@ -1427,3 +1427,12 @@ def main() {
    println(f"Key Pressed: {GetKeyPressed()}")
 }
 ```
+
+## Undocumented
+
+These features exist in the ocean compiler, but are not documented here yet due to lack of time.
+These sections should be updated in the future, but in the meantime you can look in the `tests/`
+folder for examples of how to use these features.
+
+- [Value Enums](../tests/value_enum.oc)
+- [Unordered Default Arguments](../tests/default_args.oc)
