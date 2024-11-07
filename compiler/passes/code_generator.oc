@@ -405,6 +405,32 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
     .out += "}"
 }
 
+def CodeGenerator::gen_create_new(&this, node: &AST) {
+    assert node.type == CreateNew, `Expected CreateNew, got {node.type}`
+    let child = node.u.child
+    let var_name = `_new_{.uid++}`
+
+    // @new XYZ =>  {
+    //     let a = alloc_fn(allocator, sizeof(typeof(XYZ)))
+    //     *a = XYZ
+    //     yield a
+    // }
+    .out += "({"
+    .gen_type_and_name(node.etype, var_name)
+    .out += " = "
+    .out += .o.program.cached_symbols.mem_alloc_fn.out_name()
+    .out += "("
+    .out += .o.program.cached_symbols.mem_allocator.out_name()
+    .out += ", sizeof("
+    .gen_type(child.etype)
+    .out <<= `)); *{var_name} = `
+    .gen_expression(child)
+    .out <<= `; {var_name}; `
+    .out += "})"
+
+    var_name.free()
+}
+
 //! Generate an expression. If `is_top_level` is true, don't put parens around it.
 def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false) {
     match node.type {
@@ -566,6 +592,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             let bool_lit = node.u.bool_literal
             .out += if bool_lit then "true" else "false"
         }
+        CreateNew => .gen_create_new(node)
         UnaryOp => match node.u.unary.op {
             Address => {
                 let expr = node.u.unary.expr

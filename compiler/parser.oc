@@ -887,6 +887,27 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
             node.u.size_of_type = type
             return node
         }
+        // Special compiler operations
+        TokenType::AtSign => {
+            let atsign = .consume(TokenType::AtSign)
+            if not .token_is(TokenType::Identifier) {
+                .error(Error::new(.token().span, "Expected compiler operation after @"))
+                return AST::new(Error, atsign.span)
+            }
+            let ident = .consume(TokenType::Identifier)
+            match ident.text {
+                "new" => {
+                    let expr = .parse_prefix(end_type)
+                    let node = AST::new(CreateNew, atsign.span.join(expr.span))
+                    node.u.child = expr
+                    return node
+                }
+                else => {
+                    .error(Error::new(ident.span, "Unknown compiler operation"))
+                    return AST::new(Error, atsign.span)
+                }
+            }
+        }
         TokenType::Star => {
             let star = .consume(TokenType::Star)
             let expr = .parse_prefix(end_type)

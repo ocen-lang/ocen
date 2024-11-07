@@ -178,6 +178,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         IntLiteral | FloatLiteral | BoolLiteral |
         StringLiteral | CharLiteral |
         Null => return .find_in_literal(node)
+        CreateNew => return .find_in_expression(node.u.child)
 
         FormatStringLiteral => {
             let fmt = &node.u.fmt_str

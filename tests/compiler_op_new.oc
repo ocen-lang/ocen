@@ -1,0 +1,29 @@
+/// out: "5 10 12 15 20"
+
+struct BST {
+    x: u32
+    l: &BST
+    r: &BST
+}
+
+def BST::print(&this) {
+    if not this? {
+        return
+    }
+    .l.print()
+    print(`{.x} `)
+    .r.print()
+}
+
+def main() {
+    let tree = @new BST(
+        10,
+        l: @new BST(5, null, null),
+        r: @new BST(
+            15,
+            l: @new BST(12, null, null),
+            r: @new BST(20, null, null)
+        )
+    )
+    tree.print()
+}
