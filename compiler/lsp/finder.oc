@@ -359,6 +359,14 @@ def Finder::find_in_block(&this, node: &AST): bool {
     for let i = 0; i < stmts.size; i += 1 {
         if .find_in_statement(stmts.at(i)) return true
     }
+
+    // If we got here, we didn't find the symbol in the block. However,
+    // if we are looking for completions, we should still return true
+    // if the block itself contains the location.
+    if .cmd == Completions and node.span.contains_loc(.loc) {
+        return .set_usage(null, node)
+    }
+
     .scopes.pop()
     return false
 }

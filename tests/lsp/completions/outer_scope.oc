@@ -1,0 +1,10 @@
+/// lsp: -c 9 5
+/// {"completions":[{"label":"foo"},{"label":"FooBar1"},{"label":"FooBar0"}]}
+
+struct FooBar0 {}
+struct FooBar1 {}
+const foo: i32 = 4
+
+def main() {
+    
+}

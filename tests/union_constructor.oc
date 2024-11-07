@@ -1,4 +1,4 @@
-
+/// out: "42\n(42 + 42)"
 
 enum NodeType {
     Number
