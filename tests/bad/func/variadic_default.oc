@@ -1,0 +1,3 @@
+/// fail: Cannot have variadic parameters and default parameters
+
+def foo(a: i32, b: i32 = 5, ...): i32 => 0

@@ -1,0 +1,12 @@
+/// fail: Cannot use a labelled argument for a non-labeled parameter
+
+enum Foo {
+    Case0(u32)
+    Case1(str, i32)
+    Case2(str)
+    Case3
+}
+
+def main() {
+    let foo: Foo = Case0(foo: 5)
+}
