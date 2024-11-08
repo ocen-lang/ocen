@@ -5,6 +5,7 @@
 @compiler c_include "sys/stat.h"
 @compiler c_include "sys/types.h"
 
+import std::libc::errno::{ get_err}
 import std::sv::{ SV }
 import std::buffer::{ Buffer }
 
@@ -81,7 +82,7 @@ def realpath(path: str): str => bindings::realpath(path, null)
 def File::open(path: str, mode: str = "r"): &File {
     let file = bindings::fopen(path, mode)
     if not file? {
-        std::panic(`failed to open file: '{path}': {std::libc::get_err()}`)
+        std::panic(`failed to open file: '{path}': {get_err()}`)
     }
     return file
 }
@@ -112,14 +113,14 @@ def File::truncate(&this, size: i64) {
     let fd = bindings::fileno(this)
     let res = bindings::ftruncate(fd, size)
     if res != 0 {
-        std::panic(`Failed to truncate file: {std::libc::get_err()}`)
+        std::panic(`Failed to truncate file: {get_err()}`)
     }
 }
 
 def File::seek(&this, offset: i64, mode: SeekMode) {
     let res = bindings::fseek(this, offset, mode)
     if res != 0 {
-        std::panic(`Failed to seek in file: {std::libc::get_err()}`)
+        std::panic(`Failed to seek in file: {get_err()}`)
     }
 }
 
@@ -127,7 +128,7 @@ def file_info(path: str): FileMetadata {
     let s: bindings::FileStat
     let res = bindings::stat(path, &s)
     if res != 0 {
-        std::panic(`failed to get file info: '{path}': {std::libc::get_err()}`)
+        std::panic(`failed to get file info: '{path}': {get_err()}`)
     }
     return FileMetadata(
         size: s.st_size,
@@ -168,7 +169,7 @@ def write_file(path: str, data: Buffer) {
 
 def read_file(path: str): Buffer {
     let file = bindings::fopen(path)
-    if not file? std::panic(`[-] Failed to open file: {path}: {std::libc::get_err()}`)
+    if not file? std::panic(`[-] Failed to open file: {path}: {get_err()}`)
     bindings::fseek(file, 0, End)
     let size = bindings::ftell(file) as u32
     bindings::fseek(file, 0, Set)
@@ -188,7 +189,7 @@ def read_file(path: str): Buffer {
 def read_file_inc(path: str): Buffer {
     let file = bindings::fopen(path)
     if not file? {
-        std::panic(`[-] Failed to open file: {path}: {std::libc::get_err()}`)
+        std::panic(`[-] Failed to open file: {path}: {get_err()}`)
     }
 
     let buf = Buffer::make(capacity: 1025)

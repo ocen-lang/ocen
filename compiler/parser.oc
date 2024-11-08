@@ -637,9 +637,9 @@ def Parser::parse_var_declaration(&this): &AST {
 
     let var = Variable::new(type)
     var.sym = Symbol::from_local_variable(name.text, var, name.span)
+    var.default_value = init
 
-    node.u.var_decl.var = var
-    node.u.var_decl.init = init
+    node.u.var_decl = var
     return node
 }
 
@@ -679,13 +679,12 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
         }
     }
 
-    node.u.var_decl.var = var
-
+    node.u.var_decl = var
     if .consume_if(TokenType::Equals) {
         if is_const {
-            node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
+            var.default_value = .parse_expression(end_type: TokenType::Newline)
         } else {
-            node.u.var_decl.init = .parse_var_initializer()
+            var.default_value = .parse_var_initializer()
         }
     }
     .consume_newline_or(TokenType::Semicolon)
@@ -1256,10 +1255,9 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         let node = AST::new(VarDeclaration, start_span)
         let var = Variable::new(null)
         var.sym = Symbol::from_local_variable(iter_var_name, var, start_span)
+        var.default_value = expr
 
-        node.u.var_decl.var = var
-        node.u.var_decl.init = expr
-
+        node.u.var_decl = var
         yield node
     }
 
@@ -1317,9 +1315,8 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
         call.u.call.close_paren_span = name.span
 
         let node = AST::new(VarDeclaration, start_span)
-        node.u.var_decl.var = var
-        node.u.var_decl.init = call
-
+        var.default_value = call
+        node.u.var_decl = var
         yield node
     }
 
@@ -1669,6 +1666,7 @@ def Parser::parse_function(&this): &Function {
                 }
                 func.operator_overloads.push(op)
             }
+            Alive => .program.explicit_alive_symbols.push(func.sym)
             else => .error(Error::new(attr.span, f"Invalid attribute for function: {attr.type}"))
         }
     }
@@ -2545,6 +2543,10 @@ def Parser::include_prelude_only(&this) {
 //!           consider it a project, and load the file as such. If we don't, we consider it a standalone file.
 //!           In the future, we need to add flags to the compiler to be able to specify this.
 def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file: bool) {
+    if not .program.include_stdlib {
+        .include_prelude_only()
+        return
+    }
 
     // NOTE: We currently special-case the standard library path, since it's also a "project root"
     // for the standard library. We want to do this for all external libraries in the future, and have
@@ -2650,7 +2652,7 @@ def Parser::create_namespaces_for_initial_file(&this, filename: str, single_file
     .ns = child_ns
 }
 
-def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: bool, file_contents: str = null, include_workspace_main: bool = true) {
+def Parser::parse_toplevel(program: &Program, filename: str, file_contents: str = null, include_workspace_main: bool = true) {
     // Fallback for any unhandled errors...
     let ctx = program.add_error_context()
     if ctx.set_jump_point() > 0 {
@@ -2659,7 +2661,7 @@ def Parser::parse_toplevel(program: &Program, filename: str, include_stdlib: boo
     }
 
     let parser = Parser::make(program, program.global)
-    if include_stdlib {
+    if program.include_stdlib {
         parser.find_and_import_stdlib()
     } else {
         parser.include_prelude_only()

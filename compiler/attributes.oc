@@ -17,6 +17,7 @@ enum AttributeType {
     Formatting      // [formatting <specifiers> <args>]         to specify formatting for an object
     Operator        // [operator <op>]                          to specify an operator overload
     Atomic          // [atomic]                                 to mark a type as Atomic
+    Alive           // [alive]                                  to explicitly mark a function as not dead
 
     Invalid         // used for error reporting
 }
@@ -32,6 +33,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "formatting" => Formatting
     "operator" => Operator
     "atomic" => Atomic
+    "alive" => Alive
     else => Invalid
 }
 
@@ -95,11 +97,11 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 .args.push("$")
             }
         }
-        Exits | VariadicFormat | Export | Atomic => {
+        Exits | VariadicFormat | Export | Atomic | Alive => {
             if .args.size > 0 {
                 parser_for_errors.error(Error::new(
                     this.span,
-                    "Exits attribute takes no arguments"
+                    f"{.type} attribute takes no arguments"
                 ))
                 return false
             }

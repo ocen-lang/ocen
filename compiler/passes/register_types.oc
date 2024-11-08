@@ -50,7 +50,7 @@ def RegisterTypes::register_enum(&this, ns: &Namespace, enum_: &Enum) {
 }
 
 def RegisterTypes::register_globals(&this, node: &AST) {
-    let var = node.u.var_decl.var
+    let var = node.u.var_decl
     .o.insert_into_scope_checked(var.sym)
 }
 
@@ -223,5 +223,8 @@ def RegisterTypes::run(program: &Program) {
     pass.create_namespace_scopes(program.global, parent: null)
     pass.register_builtin_types()
     pass.register_namespace(program.global)
-    pass.register_cached_types()
+    if program.include_stdlib {
+        pass.register_cached_types()
+        program.did_cache_symbols = true
+    }
 }

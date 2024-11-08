@@ -1604,6 +1604,10 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return arr
         }
         ASTType::CreateNew => {
+            if not .o.program.did_cache_symbols {
+                .error(Error::new(node.span, "Cannot use `@new` without using stdlib"))
+            }
+
             let child_typ = .check_expression(node.u.child)
             if not child_typ? return null
 
@@ -2180,7 +2184,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         ASTType::Block => .check_block(node, is_expr: false)
         ASTType::Match => .check_match(node, is_expr: false)
         ASTType::VarDeclaration => {
-            let var = node.u.var_decl.var
+            let var = node.u.var_decl
             let res = .scope().lookup_local(var.sym.name)
             if res? {
                 .error(Error::new(node.span, `Variable {var.sym.name} already exists in this scope`))
@@ -2199,7 +2203,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 if not var.type? return
             }
 
-            let init = node.u.var_decl.init
+            let init = node.u.var_decl.default_value
             if init? {
                 let res = .check_expression(init, hint: var.type)
                 if not res? return
@@ -2302,14 +2306,14 @@ def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) 
 }
 
 def TypeChecker::check_globals(&this, node: &AST, is_const: bool) {
-    let var = node.u.var_decl.var
+    let var = node.u.var_decl
     .resolve_doc_links(var.sym)
 
-    let init = node.u.var_decl.init
+    let init = node.u.var_decl.default_value
     if is_const {
         if init? {
             .check_const_expression(init)
-        } else if not node.u.var_decl.var.sym.is_extern {
+        } else if not node.u.var_decl.sym.is_extern {
             .error(Error::new(node.span, "Constant must have an initializer"))
         }
 
@@ -2905,7 +2909,7 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
 }
 
 def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
-    let var = node.u.var_decl.var
+    let var = node.u.var_decl
     if not var.type? {
         let c = if is_const "Constant" else "Global variable"
         .error(Error::new(node.span, f"{c} must have a type"))

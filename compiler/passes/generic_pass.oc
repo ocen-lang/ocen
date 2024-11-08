@@ -169,12 +169,12 @@ def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) 
     }
 
     for node : ns.variables.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
         .insert_into_scope_checked_and_export(export, var.sym)
     }
 
     for node : ns.constants.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
         .insert_into_scope_checked_and_export(export, var.sym)
     }
 

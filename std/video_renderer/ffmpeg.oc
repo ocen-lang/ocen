@@ -3,10 +3,11 @@
 import std::vector::Vector
 import std::image::{ Image, Color }
 import std::mem
-import std::libc:: {
-    pipe, fork, dup2, close, execvp, waitpid, write, exit,
-    WEXITSTATUS, WTERMSIG, WIFEXITED, WIFSIGNALED, STDIN_FILENO
+import std::libc::unistd::{
+    pipe, fork, dup2, close, execvp, waitpid, write,
+    WEXITSTATUS, WTERMSIG, WIFEXITED, WIFSIGNALED
 }
+import std::libc::{ exit, STDIN_FILENO }
 
 const READ_END: u32 = 0
 const WRITE_END: u32 = 1

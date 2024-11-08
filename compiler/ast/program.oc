@@ -93,11 +93,11 @@ def Namespace::dump(&this) {
     }
     println(f"   Constants:")
     for c in .constants.iter() {
-        println(f"     - {c.u.var_decl.var.sym.display}")
+        println(f"     - {c.u.var_decl.sym.display}")
     }
     println(f"   Variables:")
     for v in .variables.iter() {
-        println(f"     - {v.u.var_decl.var.sym.display}")
+        println(f"     - {v.u.var_decl.sym.display}")
     }
     println(f"   Typedefs:")
     for td in .typedefs.iter() {
@@ -111,12 +111,12 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     if item? then return item.sym
 
     for node : .constants.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
         if var.sym.name.eq(name) return var.sym
     }
 
     for node : .variables.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
         if var.sym.name.eq(name) return var.sym
     }
 
@@ -176,12 +176,16 @@ struct Program {
     error_level: u32
 
     cached_symbols: CachedSymbols
+    did_cache_symbols: bool
     err_jmp_stack: &Vector<ErrorContext>
+
+    explicit_alive_symbols: &Vector<&Symbol>
 
     // Configs
     check_doc_links: bool
     gen_debug_info: bool
     keep_all_code: bool
+    include_stdlib: bool
 }
 
 def Program::new(): &Program {
@@ -207,6 +211,7 @@ def Program::new(): &Program {
     prog.library_paths = Vector<str>::new()
     prog.operator_overloads = Map<OperatorOverload, &Function>::new()
     prog.err_jmp_stack = Vector<ErrorContext>::new()
+    prog.explicit_alive_symbols = Vector<&Symbol>::new()
     return prog
 }
 

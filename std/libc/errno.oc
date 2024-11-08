@@ -1,0 +1,7 @@
+// errno
+@compiler c_include "errno.h"
+
+import .strerror
+
+[extern] const errno: i32
+def get_err(): str => strerror(errno) as str
