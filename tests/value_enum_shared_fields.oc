@@ -4,8 +4,8 @@ enum Foo {
     x: i32
     y: i32
 
-    FooA(str)
-    FooB(untyped_ptr)
+    FooA(s: str)
+    FooB(ptr: untyped_ptr)
     FooC
 }
 

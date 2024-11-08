@@ -201,7 +201,7 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
             buf += "("
             for let i = 0; i < num_fields; i += 1 {
                 if i > 0 then buf += ", "
-                let field = variant.get_field(i)
+                let field = variant.get_field_by_idx(i)
                 if field.sym? and field.sym.name.len() > 0 {
                     buf += field.sym.name
                     buf += ": "

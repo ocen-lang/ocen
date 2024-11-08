@@ -2,7 +2,7 @@
 
 enum Foo {
     Case0(x: i32)
-    Case1(y: str, x: i32)
+    Case1(y: str, x: u32)
     Case2(y: str)
     Case3
 }
@@ -10,7 +10,7 @@ enum Foo {
 def main() {
     let foo: Foo = Case1("hello", 42)
     match foo {
-        Case0(x) | Case1(x, _) => println(`0|1 => {x}`)
+        Case0(x) | Case1(x) => println(`0|1 => {x}`)
         Case2(y) => println(`2 => {y}`)
         Case3 => println(`3 => ()`)
     }

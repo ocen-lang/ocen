@@ -472,14 +472,14 @@ def Parser::parse_match_case_conds(&this, end_type: TokenType): &Vector<&MatchCo
     while not .token_is_eof_or(end_type) {
         let expr = .parse_atom(TokenType::Line)
 
-        let args: &Vector<&Variable> = null
+        let args: &Vector<&MatchCondArg> = null
         if .consume_if(OpenParen) {
-            args = Vector<&Variable>::new()
+            args = Vector<&MatchCondArg>::new()
             while not .token_is_eof_or(CloseParen) {
                 let name = .consume(Identifier)
                 let var = Variable::new(null)
                 var.sym = Symbol::from_local_variable(name.text, var, name.span)
-                args.push(var)
+                args.push(@new MatchCondArg(var))
 
                 if not .consume_if(Comma) {
                     break
@@ -1987,9 +1987,7 @@ def Parser::parse_struct(&this): &Structure {
 }
 
 def Parser::parse_enum(&this): &Enum {
-    let start = .consume(.token().type) // FIXME: Should be TokenType::Enum
-    // assert start.text == "enum"
-
+    let start = .consume(Enum)
     let name = .consume(Identifier)
 
     let enom = Enum::new(start.span)
@@ -2049,27 +2047,16 @@ def Parser::parse_enum(&this): &Enum {
         if .token_is(OpenParen) {
             let start = .consume(OpenParen)
             while not .token_is_eof_or(CloseParen) {
-                let var = match .peek(1).type {
-                    Colon => {
-                        let ident = .consume(Identifier)
-                        .consume(Colon)
-                        let type = .parse_type()
-                        let var = Variable::new(type)
-                        var.sym = Symbol::from_local_variable(ident.text, var, ident.span)
+                let ident = .consume(Identifier)
+                .consume(Colon)
+                let type = .parse_type()
+                let var = Variable::new(type)
+                var.sym = Symbol::from_local_variable(ident.text, var, ident.span)
 
-                        if .consume_if(Equals) {
-                            var.default_value = .parse_expression(end_type: TokenType::Comma)
-                        }
-
-                        yield var
-                    }
-                    // FIXME: Possibly remove un-named fields
-                    else => {
-                        let type = .parse_type()
-                        let var = Variable::new(type)
-                        yield var
-                    }
+                if .consume_if(Equals) {
+                    var.default_value = .parse_expression(end_type: TokenType::Comma)
                 }
+
                 enom.has_values = true
                 variant.specific_fields.push(var)
                 .consume_if(Comma)

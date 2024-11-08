@@ -249,7 +249,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
                     if .find_in_expression(cond.expr) return true
                     if cond.args? {
                         for arg in cond.args.iter() {
-                            if .find_in_var(arg, node) return true
+                            if .find_in_var(arg.var, node) return true
                         }
                     }
                 }

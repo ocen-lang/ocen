@@ -132,7 +132,7 @@ def Enum::get_variant(&this, name: str): &EnumVariant {
 }
 
 def Enum::get_shared_field(&this, name: str): &Variable {
-    for field : .shared_fields.iter() {
+    for field in .shared_fields.iter() {
         if field.sym.name.eq(name) return field
     }
     return null
@@ -160,12 +160,20 @@ struct EnumVariant {
 def EnumVariant::num_fields(&this): u32 => .parent.shared_fields.size + .specific_fields.size
 
 //! Returns the field at the given index, (including shared fields)
-def EnumVariant::get_field(&this, idx: u32): &Variable {
+def EnumVariant::get_field_by_idx(&this, idx: u32): &Variable {
     if idx < .parent.shared_fields.size {
         return .parent.shared_fields[idx]
     } else {
         return .specific_fields[idx - .parent.shared_fields.size]
     }
+}
+
+//! Returns the field by name
+def EnumVariant::get_specific_field(&this, name: str): &Variable {
+    for field in .specific_fields.iter() {
+        if field.sym.name.eq(name) return field
+    }
+    return null
 }
 
 def EnumVariant::new(span: Span): &EnumVariant {
@@ -397,14 +405,19 @@ struct FormatString {
     exprs: &Vector<&AST>
 }
 
+struct MatchCondArg {
+    var: &Variable
+    is_shared: bool = false
+}
+
 struct MatchCond {
     expr: &AST
     cmp_fn: &Function
     // For value enums
-    args: &Vector<&Variable>
+    args: &Vector<&MatchCondArg>
 }
 
-def MatchCond::new(cond: &AST, args: &Vector<&Variable>, cmp_fn: &Function = null): &MatchCond {
+def MatchCond::new(cond: &AST, args: &Vector<&MatchCondArg>, cmp_fn: &Function = null): &MatchCond {
     let mcond = mem::alloc<MatchCond>()
     mcond.expr = cond
     mcond.args = args

@@ -1,7 +1,7 @@
-/// fail: Cannot use a labelled argument for a non-labeled parameter
+/// fail: Unknown labelled argument `foo`
 
 enum Foo {
-    Case0(u32)
+    Case0(num: u32)
     Case1(y: str, x: i32)
     Case2(y: str)
     Case3

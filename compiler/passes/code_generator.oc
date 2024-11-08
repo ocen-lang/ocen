@@ -861,9 +861,9 @@ def CodeGenerator::gen_match_enum(&this, node: &AST) {
             .out += "{\n"
             .indent += 1
             for arg in args.iter() {
-                if not arg.sym.name.eq("_") {
+                if not arg.var.sym.name.eq("_") {
                     .gen_indent()
-                    .gen_type_and_name(arg.type, arg.sym.out_name())
+                    .gen_type_and_name(arg.var.type, arg.var.sym.out_name())
                     .out += ";\n"
                 }
             }
@@ -886,29 +886,27 @@ def CodeGenerator::gen_match_enum(&this, node: &AST) {
                 let args = cond.args
                 for let i = 0; i < args.size; i += 1 {
                     let arg = args.at(i)
-                    if not arg.sym.name.eq("_") {
-                        if i < shared_fields.size {
-                            let field = shared_fields.at(i)
-                            .gen_indent()
-                            .out += arg.sym.out_name()
-                            .out += " = ("
-                            .gen_expression(expr)
-                            .out += ")."
-                            .out += field.sym.out_name()
-                            .out += ";\n"
+                    if arg.is_shared {
+                        .gen_indent()
+                        // TODO: Allow different variable name here
+                        .out += arg.var.sym.out_name()
+                        .out += " = ("
+                        .gen_expression(expr)
+                        .out += ")."
+                        // TODO: It's possible the shared field might be called something else?
+                        //       We should have MatchCondArg store the &Variable pointing to shared field
+                        //       and use the name from it.
+                        .out += arg.var.sym.out_name()
+                        .out += ";\n"
 
-                        } else {
-                            let field_idx = i - shared_fields.size
-                            .gen_indent()
-                            .out += arg.sym.out_name()
-                            .out += " = ("
-                            .gen_expression(expr)
-                            .out += ")."
-                            .out += variant.sym.out_name()
-                            .out <<= f".f{field_idx}"
-                            .out += ";\n"
-                        }
-
+                    } else {
+                        .gen_indent()
+                        .out += arg.var.sym.out_name()
+                        .out += " = ("
+                        .gen_expression(expr)
+                        .out += ")."
+                        .out += variant.sym.out_name()
+                        .out <<= f".{arg.var.sym.out_name()};\n"
                     }
                 }
                 .gen_indent()
@@ -1518,8 +1516,8 @@ def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
                 .out += "    struct {\n"
                 for let i = 0; i < variant.specific_fields.size; i += 1 {
                     // TODO: Move this to a resuable method later...
-                    let name = `f{i}`
                     let field = variant.specific_fields[i]
+                    let name = field.sym.out_name()
                     .out += "      "
                     .gen_type_and_name(field.type, name)
                     .out += ";\n"
