@@ -39,13 +39,13 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
     }
 
     for node : ns.variables.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
         .print_indent()
         println(`(var) {var.sym.display}`)
     }
 
     for node : ns.constants.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
         .print_indent()
         println(`(const) {var.sym.display}`)
     }

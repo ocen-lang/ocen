@@ -97,16 +97,14 @@ def Finder::find_signature_help(&this, node: &AST, args: &Vector<&Argument>, par
     let func = node.u.call.callee.resolved_symbol
     if not func? return false
 
-    let func_sym = match func.type {
-        Function => func.u.func.sym
-        Structure => func.u.struc.sym
-        else => {
-            return false
-        }
-    }
     let params = match func.type {
         Function => func.u.func.params
         Structure => func.u.struc.fields
+        Variable => {
+            let var_type = func.u.var.type
+            if not var_type? or var_type.base != Function return false
+            yield func.u.var.type.u.func.params
+        }
         else => {
             return false
         }
@@ -114,6 +112,7 @@ def Finder::find_signature_help(&this, node: &AST, args: &Vector<&Argument>, par
 
     if param_idx > params.size return false
 
+    // TODO: Highlight correct arg based on label? We now allow unordered arguments
     if {
         (param_idx == 0) => {
             let open_paren_span = node.u.call.open_paren_span
@@ -329,9 +328,9 @@ def Finder::find_in_statement(&this, node: &AST): bool {
             if loop.body? and .find_in_statement(loop.body) return true
         }
         VarDeclaration => {
-            let decl = &node.u.var_decl
-            if decl.var? and .find_in_var(decl.var, node) return true
-            if decl.init? and .find_in_expression(decl.init) return true
+            let decl = node.u.var_decl
+            if decl? and .find_in_var(decl, node) return true
+            if decl.default_value? and .find_in_expression(decl.default_value) return true
         }
         Block => return .find_in_block(node)
         Return => return node.u.ret.expr? and .find_in_expression(node.u.ret.expr)
@@ -461,18 +460,18 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
     }
 
     for vardecl in ns.variables.iter() {
-        let var = vardecl.u.var_decl.var
+        let var = vardecl.u.var_decl
         if var.sym.span.contains_loc(.loc) return .set_usage(var.sym, node: null)
 
-        let init = vardecl.u.var_decl.init
+        let init = vardecl.u.var_decl.default_value
         if init? and .find_in_expression(init) return true
     }
 
     for vardecl in ns.constants.iter() {
-        let var = vardecl.u.var_decl.var
+        let var = vardecl.u.var_decl
         if var.sym.span.contains_loc(.loc) return .set_usage(var.sym, node: null)
 
-        let init = vardecl.u.var_decl.init
+        let init = vardecl.u.var_decl.default_value
         if init? and .find_in_expression(init) return true
     }
 

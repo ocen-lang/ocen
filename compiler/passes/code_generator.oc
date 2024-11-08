@@ -253,7 +253,12 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
 }
 
 def CodeGenerator::gen_format_string(&this, node: &AST) {
-    .out += .o.program.cached_symbols.fmt_string_fn.full_name
+    if .o.program.did_cache_symbols {
+        .out += .o.program.cached_symbols.fmt_string_fn.full_name
+    } else {
+        .error(Error::new(node.span, "Can't use format string without using stdlib"))
+        .out += "unknown"
+    }
     .out += "("
     .gen_format_string_variadic(node, newline_after: false)
     .out += ")"
@@ -271,14 +276,15 @@ def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
 }
 
 def CodeGenerator::gen_constant(&this, node: &AST) {
-    let const_ = node.u.var_decl.var
+    let const_ = node.u.var_decl
+    if const_.is_dead return
 
     if not const_.sym.is_extern {
         .gen_indent()
         .out += "#define "
         .out += const_.sym.out_name()
         .out += " ("
-        .gen_expression(node.u.var_decl.init)
+        .gen_expression(node.u.var_decl.default_value)
         .out += ")\n"
     }
 }
@@ -295,7 +301,8 @@ def CodeGenerator::gen_constants(&this, ns: &Namespace) {
 
 def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
     for node : ns.variables.iter() {
-        let var = node.u.var_decl.var
+        let var = node.u.var_decl
+        if var.is_dead continue
         if not var.sym.is_extern {
             .gen_var_declaration(node)
             .out += ";\n"
@@ -728,17 +735,17 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
 }
 
 def CodeGenerator::gen_var_declaration(&this, node: &AST) {
-    let var = node.u.var_decl.var
+    let var = node.u.var_decl
 
     if var.is_atomic {
         .out += "_Atomic "
     }
 
     .gen_type_and_name(var.type, var.sym.out_name())
-    if node.u.var_decl.init? {
+    if node.u.var_decl.default_value? {
         .out += " = "
-        .gen_expression(node.u.var_decl.init)
-    
+        .gen_expression(node.u.var_decl.default_value)
+
     // Can't do {0} for atomic types...
     } else if not var.is_atomic {
         match var.type.base {
@@ -1453,6 +1460,7 @@ def CodeGenerator::gen_sym_def(&this, sym: &Symbol) => match sym.type {
 
 def CodeGenerator::gen_enum_typedef(&this, enom: &Enum) {
     if enom.sym.is_extern return
+    if enom.is_dead return
 
     let name = enom.sym.out_name()
     if enom.has_values {
@@ -1486,6 +1494,8 @@ def CodeGenerator::gen_struct_def(&this, struc: &Structure) {
 }
 
 def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
+    if enom.is_dead then return
+
     let name = enom.sym.out_name()
     defer .gen_enum_dbg_method(enom)
 

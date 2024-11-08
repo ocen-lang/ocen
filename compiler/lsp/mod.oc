@@ -223,6 +223,8 @@ def lsp_main(argc: i32, argv: &str) {
     // Load the program
     let program = Program::new()
     program.setup_library_paths()
+    // Always try to load stdlib for LSP
+    program.include_stdlib = true
 
     let contents = fs::read_file(file_path).str()
     // For references and renames we want to look at all files in the workspace
@@ -230,7 +232,7 @@ def lsp_main(argc: i32, argv: &str) {
         References | Renames => true
         else => false
     }
-    Parser::parse_toplevel(program, show_path, true, contents, include_workspace_main)
+    Parser::parse_toplevel(program, show_path, contents, include_workspace_main)
 
     match cmd_type {
         DocumentSymbols => handle_document_symbols(program, show_path)

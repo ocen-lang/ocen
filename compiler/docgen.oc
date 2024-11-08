@@ -334,7 +334,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     if not ns.variables.is_empty() {
         let vars_doc = Value::new(Dictionary)
         for node : ns.variables.iter() {
-            let var = node.u.var_decl.var
+            let var = node.u.var_decl
             let var_doc = Value::new(Dictionary)
             var_doc["id"] = `{var:x}`
             if var.sym.comment? {
@@ -355,7 +355,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     if not ns.constants.is_empty() {
         let consts_doc = Value::new(Dictionary)
         for node : ns.constants.iter() {
-            let var = node.u.var_decl.var
+            let var = node.u.var_decl
             let const_doc = Value::new(Dictionary)
             const_doc["id"] = `{var:x}`
             if var.sym.comment? {

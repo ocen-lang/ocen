@@ -10,7 +10,7 @@ import std::set::{ Set }
 
 import @passes::generic_pass::GenericPass
 import @ast::program::{ Program, Namespace }
-import @ast::nodes::{ Structure, Variable, Function, AST }
+import @ast::nodes::{ Structure, Variable, Function, AST, Enum }
 import @ast::scopes::{ TemplateInstance, Symbol }
 import @types::{ Type }
 import @errors::{ Error }
@@ -37,19 +37,23 @@ def MarkDeadCode::free(&this) {
 
 def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
     if not sym? return
-
     match sym.type {
         Function => .mark_function(sym.u.func)
         Structure => .mark_struct(sym.u.struc)
-        Constant | Variable => .mark_type(sym.u.var.type)
+        Enum => .mark_enum(sym.u.enom)
+        Constant | Variable => {
+            .mark_type(sym.u.var.type)
+            .mark(sym.u.var.default_value)
+            sym.u.var.is_dead = false
+        }
         else => {}
     }
 }
 
 def MarkDeadCode::mark_function(&this, f: &Function) {
     if not f? or .done.contains(f as u64) return
-
     .done.add(f as u64)
+
     f.is_dead = false
     .mark(f.body)
 
@@ -91,6 +95,27 @@ def MarkDeadCode::mark_struct(&this, s: &Structure) {
     }
 }
 
+def MarkDeadCode::mark_enum(&this, e: &Enum) {
+    if not e? or .done.contains(e as u64) return
+    .done.add(e as u64)
+
+    e.is_dead = false
+    for var in e.variants.iter() {
+        .mark_sym(var.sym)
+        for field in var.specific_fields.iter() {
+            .mark_sym(field.sym)
+            .mark_type(field.type)
+            .mark(field.default_value)
+        }
+    }
+
+    for var in e.shared_fields.iter() {
+        .mark_sym(var.sym)
+        .mark_type(var.type)
+        .mark(var.default_value)
+    }
+}
+
 def MarkDeadCode::mark(&this, node: &AST) {
     if not node? return
     .mark_sym(node.resolved_symbol)
@@ -99,15 +124,19 @@ def MarkDeadCode::mark(&this, node: &AST) {
         Import | Break | Continue | IntLiteral | FloatLiteral |
         BoolLiteral | StringLiteral | CharLiteral | Null => {}
 
-        Yield | Defer | CreateNew => .mark(node.u.child)
+        Yield | Defer => .mark(node.u.child)
+        CreateNew => {
+            .mark(node.u.child)
+            if .o.program.did_cache_symbols {
+                .mark_sym(.o.program.cached_symbols.mem_alloc_fn)
+                .mark_sym(.o.program.cached_symbols.mem_allocator)
+            }
+        }
         Return => .mark(node.u.ret.expr)
         UnaryOp => .mark(node.u.unary.expr)
 
         SizeOf => .mark_type(node.u.size_of_type)
-        VarDeclaration => {
-            .mark(node.u.var_decl.init)
-            .mark_type(node.u.var_decl.var.type)
-        }
+        VarDeclaration => .mark_sym(node.u.var_decl.sym)
         Block => {
             for statement : node.u.block.statements.iter() {
                 .mark(statement)
@@ -144,7 +173,9 @@ def MarkDeadCode::mark(&this, node: &AST) {
             .mark(node.u.assertion.msg)
         }
         FormatStringLiteral => {
-            .mark_sym(.o.program.cached_symbols.fmt_string_fn)
+            if .o.program.did_cache_symbols {
+                .mark_sym(.o.program.cached_symbols.fmt_string_fn)
+            }
             for expr : node.u.fmt_str.exprs.iter() {
                 .mark(expr)
             }
@@ -168,13 +199,11 @@ def MarkDeadCode::mark(&this, node: &AST) {
             .mark(node.u.cast.lhs)
             .mark_type(node.u.cast.to)
         }
-
         ArrayLiteral => {
             for expr : node.u.array_literal.elements.iter() {
                 .mark(expr)
             }
         }
-
         else => .o.error(Error::new(node.span, `Unhandled expression type in MarkDeadCode: {node.type}`))
     }
 }
@@ -197,6 +226,7 @@ def MarkDeadCode::mark_sym_as_dead_by_default(&this, sym: &Symbol) {
         Function => sym.u.func.is_dead = true
         Structure => sym.u.struc.is_dead = true
         Enum => sym.u.enom.is_dead = true
+        Constant | Variable => sym.u.var.is_dead = true
         else => {}
     }
 
@@ -212,8 +242,8 @@ def MarkDeadCode::run(program: &Program) {
     defer pass.free()
 
     let main = pass.find_main_function(program)
-    if not main? {
-        println("[+] No main function found, not marking any functions as dead.")
+    if not main? and program.explicit_alive_symbols.is_empty() {
+        println("[+] No alive functions found, not marking any functions as dead.")
         return
     }
 
@@ -232,25 +262,19 @@ def MarkDeadCode::run(program: &Program) {
         for e : ns.enums.iter() {
             pass.mark_sym_as_dead_by_default(e.sym)
         }
+        for v : ns.variables.iter() {
+            pass.mark_sym_as_dead_by_default(v.u.var_decl.sym)
+        }
+        for c : ns.constants.iter() {
+            pass.mark_sym_as_dead_by_default(c.u.var_decl.sym)
+        }
     }
 
     // For constants and variables, mark their types as used
-    for ns : program.iter_namespaces() {
-        for node : ns.constants.iter() {
-            let var = node.u.var_decl.var
-            pass.mark_type(var.type)
-            if node.u.var_decl.init? {
-                pass.mark(node.u.var_decl.init)
-            }
-        }
-        for node : ns.variables.iter() {
-            let var = node.u.var_decl.var
-            pass.mark_type(var.type)
-            if node.u.var_decl.init? {
-                pass.mark(node.u.var_decl.init)
-            }
-        }
+    if main? {
+        pass.mark_function(main)
     }
-
-    pass.mark_function(main)
+    for sym in program.explicit_alive_symbols.iter() {
+        pass.mark_sym(sym)
+    }
 }

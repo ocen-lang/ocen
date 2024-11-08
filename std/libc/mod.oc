@@ -1,4 +1,7 @@
 //! Bindings to libc functions
+@compiler c_include "string.h"
+@compiler c_include "ctype.h"
+
 
 // stdlib
 [extern] def free(ptr: untyped_ptr)
@@ -25,7 +28,6 @@
 [extern] def sprintf(buf: str, fmt: str, ...): i32
 
 // ctype
-@compiler c_include "ctype.h"
 [extern] def isdigit(c: char): bool
 [extern] def isxdigit(c: char): bool
 [extern] def isalpha(c: char): bool
@@ -43,30 +45,8 @@
 [extern] def strtof(s: str, endptr: &str): f32
 [extern] def strtod(s: str, endptr: &str): f64
 
-// unistd.h
-@compiler c_include "sys/types.h"
-@compiler c_include "sys/wait.h"
-@compiler c_include "unistd.h"
-
-[extern] def pipe(fds: &i32): i32
-[extern] def fork(): i32
-[extern] def dup2(a: i32, b: i32): i32
-[extern] def close(a: i32): i32
-[extern] def execvp(a: str, b: &str): i32
-[extern] def waitpid(a: i32, b: &i32, c: i32): i32
-[extern] def write(a: i32, b: &u32, c: u32): i32
-
 // macros
 [extern] const STDIN_FILENO: i32
-[extern] const EXIT_FAILURE:i32 
+[extern] const EXIT_FAILURE:i32
 [extern] const EXIT_SUCCESS:i32
-[extern] def WEXITSTATUS(a: i32): i32
-[extern] def WTERMSIG(a: i32): i32
-[extern] def WIFEXITED(a: i32): bool
-[extern] def WIFSIGNALED(a: i32): bool
 
-// errno
-@compiler c_include "errno.h"
-
-[extern] const errno: i32
-def get_err(): str => strerror(errno) as str

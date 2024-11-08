@@ -379,11 +379,11 @@ def gen_namespace_json(ns: &Namespace): &Value {
     }
 
     for var : ns.variables.iter() {
-        children += gen_variable_json(var.u.var_decl.var)
+        children += gen_variable_json(var.u.var_decl)
     }
 
     for var : ns.constants.iter() {
-        children += gen_variable_json(var.u.var_decl.var)
+        children += gen_variable_json(var.u.var_decl)
     }
 
     for func : ns.functions.iter() {
@@ -476,6 +476,15 @@ def gen_signature_help(node: &AST, active_param: u32): &Value {
             obj["label"] = gen_type_string(func.type)
             is_non_static_method = func.is_method and not func.is_static
             yield func.params
+        }
+        Variable => {
+            let var = callee_sym.u.var
+            if var.type.base != Function {
+                if verbose then println(f"gen_signature_help: variable is not a function: {var.type}")
+                return obj
+            }
+            obj["label"] = gen_type_string(var.type)
+            yield var.type.u.func.params
         }
         Structure => {
             let struc = callee_sym.u.struc

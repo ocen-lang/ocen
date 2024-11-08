@@ -1,13 +1,10 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdarg.h>
-#include <string.h>
-#include <signal.h>
 #include <inttypes.h>
 
 #ifndef OC_NO_BACKTRACE
+#include <stdlib.h>
 #include <execinfo.h>
 #endif
 

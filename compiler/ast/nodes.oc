@@ -66,6 +66,8 @@ struct Variable {
 
     //* Original parsed type, for keeping track of locations
     parsed_type: &Type
+
+    is_dead: bool
 }
 
 def Variable::new(type: &Type): &Variable {
@@ -73,11 +75,6 @@ def Variable::new(type: &Type): &Variable {
     var.type = type
     var.parsed_type = type
     return var
-}
-
-struct VarDeclaration {
-    var: &Variable
-    init: &AST
 }
 
 struct Structure {
@@ -475,7 +472,7 @@ union ASTUnion {
     char_literal: str
     unary: Unary
     operator_span: Span
-    var_decl: VarDeclaration
+    var_decl: &Variable
     fmt_str: FormatString
     size_of_type: &Type
     match_stmt: Match
