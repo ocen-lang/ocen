@@ -1,0 +1,39 @@
+/// out: "val: 7\n"
+
+enum Node {
+    done: bool = false
+    resolved: i32 = 0
+
+    Number(val: i32)
+    Add(lhs: &Node, rhs: &Node)
+    Sub(lhs: &Node, rhs: &Node)
+    Mul(lhs: &Node, rhs: &Node)
+    Div(lhs: &Node, rhs: &Node)
+}
+
+def Node::resolve_help(&this): i32 => match *this {
+    Add(lhs, rhs) => lhs.resolve() + rhs.resolve()
+    Sub(lhs, rhs) => lhs.resolve() - rhs.resolve()
+    Mul(lhs, rhs) => lhs.resolve() * rhs.resolve()
+    Div(lhs, rhs) => lhs.resolve() / rhs.resolve()
+    Number(val) => val
+}
+
+def Node::resolve(&this): i32 {
+    if .done return .resolved
+    .done = true
+    .resolved = .resolve_help()
+    return .resolved
+}
+
+def main() {
+    let node = @new Node::Add(false,
+        lhs: @new Node::Number(val: 1),
+        rhs: @new Node::Mul(
+            lhs: @new Node::Number(val: 2),
+            rhs: @new Node::Number(val: 3)
+        )
+    )
+    println(`val: {node.resolve()}`)
+}
+

@@ -8,15 +8,15 @@ enum Foo {
 }
 
 def Foo::bar(this): i32 => match this {
-    Case0(x) | Case1(_, x) => x
-    Case2(y) => y.len() as i32
+    Case0(x) | Case1(x) => x
+    Case2(z) => z.len() as i32
     Case3 => 0
 }
 
 def run(foo: Foo) {
     match foo {
-        Case0(x) | Case1(_, x) => println(`0|1 [{foo.bar()}] => {x}`)
-        Case2(y) => println(`2 [{foo.bar()}] => {y}`)
+        Case0(x) | Case1(x) => println(`0|1 [{foo.bar()}] => {x}`)
+        Case2(z) => println(`2 [{foo.bar()}] => {z}`)
         Case3 => println(`3 [{foo.bar()}] => ()`)
     }
 }

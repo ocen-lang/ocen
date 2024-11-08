@@ -613,7 +613,7 @@ def TypeChecker::check_enum_constructor(&this, node: &AST): &Type {
     let num_expected_fields = variant.num_fields()
     let params = Vector<&Variable>::new()
     for let i = 0; i < num_expected_fields; i += 1 {
-        let field = variant.get_field(i)
+        let field = variant.get_field_by_idx(i)
         params.push(field)
     }
 
@@ -675,7 +675,7 @@ def TypeChecker::check_call_args_labelled(&this, node: &AST, params: &Vector<&Va
                 expected_type = param_item.value.type
             }
         }
-        let arg_type = .check_expression(arg.expr)
+        let arg_type = .check_expression(arg.expr, hint: expected_type)
         if arg_type? and expected_type? and not arg_type.eq(expected_type) {
             .error(Error::new_hint(
                 arg.expr.span, f"Expected `{arg.label}` with type {expected_type.str()}, but got {arg_type.str()}",
@@ -1698,32 +1698,34 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
 
             let args = cond.args
 
-            let shared_fields = enom.shared_fields
-            let num_expected_fields = variant.num_fields()
-
-            if args? and args.size != num_expected_fields {
-                if shared_fields.size == 0 {
-                    .error(Error::new_hint(
-                        expr.span, f"{variant.sym.display} needs {num_expected_fields} fields, but got {args.size}",
-                        variant.sym.span, f"Variant specified here"
-                    ))
-                } else {
-                    .error(Error::new_hint(
-                        expr.span, f"{variant.sym.display} needs {num_expected_fields} fields ({shared_fields.size} shared), but got {args.size}",
-                        variant.sym.span, f"Variant specified here"
-                    ))
-                }
-            }
-
             // Populate the current_args map with the fields of the first variant
             if i == 0 {
                 if args? {
-                    for let j = 0; j < args.size and j < num_expected_fields; j += 1 {
+                    for let j = 0; j < args.size; j += 1 {
                         let arg = args[j]
-                        let field = variant.get_field(j)
-                        arg.type = field.type
-                        if not arg.sym.name.eq("_") {
-                            current_args[arg.sym.name] = field.type
+
+
+                        // TODO: Allow binding name to be different from variable name in scope
+                        // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
+
+                        let sp_field = variant.get_specific_field(arg.var.sym.name)
+                        let sh_field = enom.get_shared_field(arg.var.sym.name)
+                        let field = if {
+                            sp_field? => sp_field
+                            sh_field? => {
+                                arg.is_shared = true
+                                yield sh_field
+                            }
+                            else => {
+                                .error(Error::new(
+                                    arg.var.sym.span, f"Field `{arg.var.sym.name}` does not exist in enum variant {variant.sym.display}"
+                                ))
+                                yield null
+                            }
+                        }
+                        if field? {
+                            arg.var.type = field.type
+                            current_args[arg.var.sym.name] = field.type
                         }
                     }
                 }
@@ -1732,25 +1734,43 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
             } else {
 
                 let found_args = 0
-                for let j = 0; args? and j < args.size and j < num_expected_fields; j += 1 {
+                for let j = 0; args? and j < args.size; j += 1 {
                     let arg = args[j]
-                    let field = variant.get_field(j)
-                    arg.type = field.type
 
-                    if arg.sym.name.eq("_") then continue
+                    // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
+                    let sp_field = variant.get_specific_field(arg.var.sym.name)
+                    let sh_field = enom.get_shared_field(arg.var.sym.name)
+                    let field = if {
+                        sp_field? => sp_field
+                        sh_field? => {
+                            arg.is_shared = true
+                            yield sh_field
+                        }
+                        else => {
+                            .error(Error::new(
+                                arg.var.sym.span, "Field does not exist in enum variant"
+                            ))
+                            yield null
+                        }
+                    }
 
-                    let item = current_args.get_item(arg.sym.name)
+
+                    if field? {
+                        arg.var.type = field.type
+                    }
+
+                    let item = current_args.get_item(arg.var.sym.name)
                     if not item? {
                         .error(Error::new(
-                            arg.sym.span, "All conditions in this branch must have the same fields"
+                            arg.var.sym.span, "All conditions in this branch must have the same fields"
                         ))
                         continue
                     }
 
                     found_args += 1
-                    if not item.value.eq(field.type) {
+                    if field? and not item.value.eq(field.type) {
                         .error(Error::new(
-                            arg.sym.span, f"Field type does not match previous branch: {item.value.str()}"
+                            arg.var.sym.span, f"Field type does not match previous branch: {item.value.str()}"
                         ))
                         continue
                     }
@@ -2031,10 +2051,10 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
     } else if not node.etype? {
         node.etype = ret
     } else if not node.etype.eq(ret) {
-        let yield_stmt = if node.type == Block then node.u.block.final_stmt else node
-        if not yield_stmt? yield_stmt = node
+        let yield_stmt = if node.type == Block then node.u.block.final_stmt else body
+        if not yield_stmt? yield_stmt = body
         .error(Error::new_note(
-            yield_stmt.span, "Yield type of branch doesn't match previous branches",
+            yield_stmt.display_span(), "Yield type of branch doesn't match previous branches",
             `Expected type '{node.etype.str()}', got '{ret.str()}'`
         ))
     }
@@ -2693,6 +2713,9 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
         } else {
             field.type = res
         }
+        if field.default_value? {
+            .check_expression(field.default_value, hint: field.type)
+        }
     }
 }
 
@@ -2713,6 +2736,9 @@ def TypeChecker::resolve_enum(&this, enom: &Enum) {
             ))
         }
         seen_fields[field.sym.name] = field.sym.span
+        if field.default_value? {
+            .check_expression(field.default_value, hint: field.type)
+        }
     }
     for variant in enom.variants.iter() {
         for field in variant.specific_fields.iter() {

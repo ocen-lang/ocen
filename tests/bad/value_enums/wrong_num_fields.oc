@@ -1,4 +1,4 @@
-/// fail: Foo::Case1 needs 2 fields, but got 1
+/// fail: All conditions in this branch must have the same fields
 
 enum Foo {
     Case0(x: i32)
@@ -10,7 +10,7 @@ enum Foo {
 def main() {
     let foo: Foo = Case1("hello", 42)
     match foo {
-        Case0(x) | Case1(_) => println(`0|1 => {x}`)
+        Case0(x) | Case1() => println(`0|1 => {x}`)
         Case2(y) => println(`2 => {y}`)
         Case3 => println(`3 => ()`)
     }

@@ -1,8 +1,8 @@
 /// fail: Couldn't find this identifier: Baz
 
 enum Foo {
-    Foo(i32)
-    Bar(Baz)
+    Foo(num: i32)
+    Bar(baz: Baz)
 }
 
 def main() {
