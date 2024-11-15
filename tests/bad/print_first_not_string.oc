@@ -1,4 +1,4 @@
-/// fail: First argument must be a string literal
+/// fail: Expected `fmt` with type str, but got u32
 
 def main() {
     print(5)

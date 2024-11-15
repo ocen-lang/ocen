@@ -82,18 +82,22 @@ def CodeGenerator::get_op(&this, node: &AST): str => match node.type {
     else => std::panic(`Unknown op type in get_op: {node.type}`)
 }
 
-def CodeGenerator::gen_internal_print(&this, node: &AST) {
+// NOTE: This function doesn't actually "need" to return a boolean, this is just to make the call in
+//       gen_call a little nicer so we can match on the callee name.
+def CodeGenerator::gen_internal_print(&this, node: &AST, newline_after: bool, is_stderr: bool): bool {
     let callee = node.u.call.callee
-    let newline_after = callee.u.ident.name.eq("println")
-
-    .out += "printf("
+    if is_stderr {
+        .out += "fprintf(stderr, "
+    } else {
+        .out += "printf("
+    }
 
     let args = node.u.call.args
     let first = args.at(0)
     if first.expr.type == FormatStringLiteral {
         .gen_format_string_variadic(first.expr, newline_after)
         .out += ")"
-        return
+        return true
     }
 
     for let i = 0; i < args.size; i += 1 {
@@ -103,6 +107,8 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
         if i == 0 and newline_after then .out += "\"\\n\""
     }
     .out += ")"
+
+    return true
 }
 
 //* Generate all the escape sequences in format string part
@@ -563,9 +569,15 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             let callee = node.u.call.callee
 
             // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
-            if callee.type == Identifier and (callee.u.ident.name.eq("print") or callee.u.ident.name.eq("println")) {
-                .gen_internal_print(node)
-                return
+            if callee.type == Identifier {
+                let matched = match callee.u.ident.name {
+                    "print" => .gen_internal_print(node, newline_after: false, is_stderr: false)
+                    "println" => .gen_internal_print(node, newline_after: true, is_stderr: false)
+                    "eprint" => .gen_internal_print(node, newline_after: false, is_stderr: true)
+                    "eprintln" => .gen_internal_print(node, newline_after: true, is_stderr: true)
+                    else => false
+                }
+                if matched then return
             }
 
             let sym = callee.symbol()

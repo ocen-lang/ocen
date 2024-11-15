@@ -516,32 +516,6 @@ def TypeChecker::check_method_call(&this, method: &Function, node: &AST) {
     node.u.call.args.push_front(Argument::new(first_arg))
 }
 
-def TypeChecker::check_internal_print(&this, node: &AST): &Type {
-    let call = &node.u.call
-    let args = call.args
-    if args.size < 1 {
-        let span = call.open_paren_span.join(call.close_paren_span)
-        .o.error(Error::new(
-            span, "Function requires at least one argument"
-        ))
-        return .get_base_type(Void, node.span)
-    }
-    let first = args.at(0)
-    let first_type = .check_expression(first.expr)
-    if first_type? and not first_type.is_str() {
-        .o.error(Error::new(
-            first.expr.span, `First argument must be a string literal, got {first_type.str()}`
-        ))
-    }
-
-    for arg : args.iter() {
-        .check_expression(arg.expr)
-        .call_dbg_on_enum_value(&arg.expr)
-    }
-
-    return .get_base_type(Void, node.span)
-}
-
 def TypeChecker::check_union_constructor(&this, node: &AST, params: &Vector<&Variable>) {
     let args = node.u.call.args
     if args.size != 1 {
@@ -803,16 +777,6 @@ def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
     let callee = node.u.call.callee
     let args = node.u.call.args
 
-    // FIXME: this is a fucking abonimation
-    if callee.type == ASTType::Identifier {
-        callee.u.ident.is_function = false
-        let name = callee.u.ident.name
-
-        if name.eq("print") or name.eq("println") {
-            return .check_internal_print(node)
-        }
-    }
-
     let res = match callee.type {
         Member => .check_member(callee, is_being_called: true)
         Identifier | NSLookup | Specialization => {
@@ -890,11 +854,21 @@ def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
         }
         match arg.type {
             StringLiteral | FormatStringLiteral => {}
-            else => {
+
+            // If the type is NOT a string, we should have errored already (variadic-format functions
+            // check for this). However, if it IS a string, but not a string literal, then we want to
+            // complain since printf-like functions require a string literal.
+            else => if arg.etype == .get_type_by_name("str", arg.span) {
                 .error(Error::new(
                     arg.span, "Expected a string literal for variadic-format function"
                 ))
             }
+        }
+
+        // For variadic arguments, if they are enums we should call the dbg function on them
+        for let i = params.size; i < args.size; i++ {
+            let arg = args[i]
+            .call_dbg_on_enum_value(&arg.expr)
         }
     }
 

@@ -193,7 +193,9 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
             return False, f"Expected exit code {expected.value}, but got {process.returncode}", path
 
     if expected.type == Result.EXIT_WITH_OUTPUT:
-        output = process.stdout.decode('utf-8').strip()
+        stdout_output = process.stdout.decode('utf-8').strip()
+        stderr_output = process.stderr.decode('utf-8').strip()
+        output = (stdout_output + '\n' + stderr_output).strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
             return False, f'Incorrect output produced\n  expected: {repr(expected_out)}\n       got: {repr(output)}', path
