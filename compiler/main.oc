@@ -93,7 +93,8 @@ def run_executable(argc: i32, argv: &str) {
     }
 
     log(Info, f"{cmd}")
-    let exit_code = system(cmd.str())
+    let ret = system(cmd.str())
+    let exit_code = (ret >> 8) & 0xFF  // Effectively WEXITSTATUS(ret)
     log(Info, f"Exited with code: {exit_code}")
     std::exit(exit_code)
 }
@@ -109,7 +110,6 @@ def parse_args(argc: &i32, argv: &&str, program: &Program) {
             "-d" => debug = true
             "-n" => {
                 compile_c = false
-                program.keep_all_code = true
             }
             "--no-dce" => program.keep_all_code = true
             "-o" => exec_path = shift_args(argc, argv)

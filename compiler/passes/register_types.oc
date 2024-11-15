@@ -3,6 +3,7 @@
 
 import std::span::{ Span }
 import std::compact_map::{ Map }
+import std::vector::{ Vector }
 import @passes::generic_pass::GenericPass
 import @ast::scopes::{ Symbol, SymbolType, Scope }
 import @ast::program::{ Program, Namespace, CachedSymbols }
@@ -131,6 +132,28 @@ def RegisterTypes::register_alias(&this, name: str, orig: &Type) {
 }
 
 
+def RegisterTypes::register_print_function(&this, name: str) {
+    let sym = Symbol::new(Function, ns: null, name, name, name, Span::default())
+    let func = Function::new()
+    func.sym = sym
+    func.sym.u.func = func
+
+    let params = Vector<&Variable>::new()
+    let param = Variable::new(.o.program.get_type_by_name("str", Span::default()))
+    param.sym = Symbol::from_local_variable("fmt", param, Span::default())
+    params.push(param)
+
+    func.params = params
+    func.is_variadic = true
+    func.is_variadic_format = true
+
+    let typ = Type::new_resolved(Function, Span::default())
+    typ.u.func = FunctionType(func, params, .o.program.get_type_by_name("void", Span::default()), true)
+    func.type = typ
+
+    .o.insert_into_scope_checked(sym, name)
+}
+
 def RegisterTypes::register_builtin_types(&this) {
     for let i = 0; i < BaseType::NUM_BASE_TYPES as u32; i += 1 {
         .register_base_type(i as BaseType)
@@ -153,6 +176,12 @@ def RegisterTypes::register_builtin_types(&this) {
         typ.u.ptr = base
         .register_alias("str", typ)
     }
+
+    // Register built in print-functions
+    .register_print_function("print")
+    .register_print_function("println")
+    .register_print_function("eprint")
+    .register_print_function("eprintln")
 
     .o.pop_scope()
 }

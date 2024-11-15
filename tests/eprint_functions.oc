@@ -1,0 +1,7 @@
+/// out: "foo=bar\nbaz"
+
+def main() {
+    eprint("foo=")
+    eprintln("bar")
+    eprintln("baz")
+}
