@@ -17,8 +17,10 @@ enum SymbolType {
     Namespace
     Variable
     Constant
-    Closure
-    ClosedVariable
+
+    ClosureType     // Represents the closure type, eg: @fn(i32, i32): str
+    Closure         // Represents an actual closure function, eg: |a: 32, b: 32|: str { ... }
+    ClosedVariable  // Represents a variable captured by a closure
 
     Enum
     EnumVariant
@@ -125,6 +127,7 @@ struct Symbol {
     extern_name: str
 
     template: &Template
+    is_dead: bool = false
 }
 
 def Symbol::out_name(&this): str {

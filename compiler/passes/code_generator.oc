@@ -289,7 +289,7 @@ def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
 
 def CodeGenerator::gen_constant(&this, node: &AST) {
     let const_ = node.u.var_decl
-    if const_.is_dead return
+    if const_.sym.is_dead return
 
     if not const_.sym.is_extern {
         .gen_indent()
@@ -314,7 +314,7 @@ def CodeGenerator::gen_constants(&this, ns: &Namespace) {
 def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
     for node : ns.variables.iter() {
         let var = node.u.var_decl
-        if var.is_dead continue
+        if var.sym.is_dead continue
         if not var.sym.is_extern {
             .gen_var_declaration(node)
             .out += ";\n"
@@ -1411,7 +1411,7 @@ def CodeGenerator::gen_function(&this, func: &Function) {
         if struc.sym.is_templated() then return
     }
     if func.sym.is_templated() then return
-    if func.is_dead then return
+    if func.sym.is_dead then return
 
     .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
@@ -1464,7 +1464,7 @@ def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
             let sym = instance.resolved
             assert sym.type == Function
             let func = sym.u.func
-            if func.is_dead then continue
+            if func.sym.is_dead then continue
 
             .gen_function_decl(func)
             if func.exits then .out += " __attribute__((noreturn))"
@@ -1473,7 +1473,7 @@ def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
         return
     }
 
-    if func.is_dead then return
+    if func.sym.is_dead then return
     .gen_function_decl(func)
     if func.exits then .out += " __attribute__((noreturn))"
     .out += ";\n"
@@ -1524,7 +1524,7 @@ def CodeGenerator::gen_enum_dbg_method(&this, enom: &Enum) {
 
 def CodeGenerator::gen_struct_typedef(&this, struc: &Structure) {
     if struc.sym.is_extern return
-    if struc.is_dead return
+    if struc.sym.is_dead return
 
     let strufull_name = struc.sym.out_name()
     if struc.is_union {
@@ -1535,11 +1535,13 @@ def CodeGenerator::gen_struct_typedef(&this, struc: &Structure) {
 }
 
 def CodeGenerator::gen_closure_type_typedef(&this, sym: &Symbol) {
+    if sym.is_dead return
     let name = sym.out_name()
     .out <<= `typedef struct {name} {name};\n`
 }
 
 def CodeGenerator::gen_closure_type_def(&this, sym: &Symbol) {
+    if sym.is_dead return
     let name = sym.out_name()
     let type = sym.u.type_def
     .out <<= `struct {name} \{\n`
@@ -1558,12 +1560,14 @@ def CodeGenerator::gen_closure_type_def(&this, sym: &Symbol) {
 }
 
 def CodeGenerator::gen_closure_typedef(&this, clos: &Function) {
+    if clos.sym.is_dead return
     let name = clos.sym.out_name()
     let type_name = cls::ctx_type(clos)
     .out <<= `typedef struct {type_name} {type_name};\n`
 }
 
 def CodeGenerator::gen_closure_def(&this, clos: &Function) {
+    if clos.sym.is_dead return
     let name = clos.sym.out_name()
 
     let type_name = cls::ctx_type(clos)
@@ -1586,6 +1590,7 @@ def CodeGenerator::gen_closure_def(&this, clos: &Function) {
 }
 
 def CodeGenerator::gen_closure_func_decl(&this, clos: &Function) {
+    if clos.sym.is_dead return
     let name = clos.sym.out_name()
     let type = clos.type
 
@@ -1602,6 +1607,7 @@ def CodeGenerator::gen_closure_func_decl(&this, clos: &Function) {
 }
 
 def CodeGenerator::gen_closure_func(&this, clos: &Function) {
+    if clos.sym.is_dead return
     let name = clos.sym.out_name()
     let type = clos.type
 
@@ -1627,18 +1633,22 @@ def CodeGenerator::gen_closure_func(&this, clos: &Function) {
 def CodeGenerator::gen_sym_typedef(&this, sym: &Symbol) => match sym.type {
     Structure => .gen_struct_typedef(sym.u.struc)
     Enum => .gen_enum_typedef(sym.u.enom)
+    Closure => .gen_closure_typedef(sym.u.func)
+    ClosureType => .gen_closure_type_typedef(sym)
     else => assert false, `Unhandled symbol type in CodeGenerator::gen_typedef: {sym.type}`
 }
 
 def CodeGenerator::gen_sym_def(&this, sym: &Symbol) => match sym.type {
     Structure => .gen_struct_def(sym.u.struc)
     Enum => .gen_enum_def(sym.u.enom)
+    Closure => .gen_closure_def(sym.u.func)
+    ClosureType => .gen_closure_type_def(sym)
     else => assert false, `Unhandled symbol type in CodeGenerator::gen_def: {sym.type}`
 }
 
 def CodeGenerator::gen_enum_typedef(&this, enom: &Enum) {
     if enom.sym.is_extern return
-    if enom.is_dead return
+    if enom.sym.is_dead return
 
     let name = enom.sym.out_name()
     if enom.has_values {
@@ -1651,7 +1661,7 @@ def CodeGenerator::gen_enum_typedef(&this, enom: &Enum) {
 
 def CodeGenerator::gen_struct_def(&this, struc: &Structure) {
     if struc.sym.is_extern return
-    if struc.is_dead then return
+    if struc.sym.is_dead then return
 
     let strufull_name = struc.sym.out_name()
     if struc.is_union {
@@ -1672,7 +1682,7 @@ def CodeGenerator::gen_struct_def(&this, struc: &Structure) {
 }
 
 def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
-    if enom.is_dead then return
+    if enom.sym.is_dead then return
 
     let name = enom.sym.out_name()
     defer .gen_enum_dbg_method(enom)
@@ -1737,23 +1747,11 @@ def CodeGenerator::generate(&this): str {
     for sym in .o.program.ordered_symbols.iter() {
         .gen_sym_typedef(sym)
     }
-    for cty in .o.program.closure_types.iter() {
-        .gen_closure_type_typedef(cty.sym)
-    }
-    for clos in .o.program.closures.iter() {
-        .gen_closure_typedef(clos)
-    }
     .out += "\n"
 
     .out += "/* Structs */\n"
     for sym in .o.program.ordered_symbols.iter() {
         .gen_sym_def(sym)
-    }
-    for cty in .o.program.closure_types.iter() {
-        .gen_closure_type_def(cty.sym)
-    }
-    for clos in .o.program.closures.iter() {
-        .gen_closure_def(clos)
     }
 
     .out += "/* function declarations */\n"

@@ -173,7 +173,7 @@ def try_gen_expr_string(expr: &AST): str => match expr.type {
 }
 
 def gen_hover_string(sym: &Symbol): str => match sym.type {
-    TypeDef => gen_type_string(sym.u.type_def)
+    ClosureType | TypeDef => gen_type_string(sym.u.type_def)
     Function => gen_type_string(sym.u.func.type)
     Variable => {
         let sb = Buffer::make()
@@ -238,6 +238,7 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
     Enum => sym.u.enom.type
     EnumVariant => sym.u.enum_var.parent.type
     EnumField => sym.u.enum_field.variant.parent.type
+    ClosureType => sym.u.type_def
     Closure => sym.u.func.type
     ClosedVariable => sym.u.closed_var.orig.type
     // else => std::panic(f"get_symbol_typedef: unhandled symbol type: {sym.type}")

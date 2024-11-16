@@ -67,8 +67,6 @@ struct Variable {
 
     //* Original parsed type, for keeping track of locations
     parsed_type: &Type
-
-    is_dead: bool
 }
 
 def Variable::new(type: &Type): &Variable {
@@ -84,7 +82,6 @@ struct Structure {
     type: &Type
     is_union: bool
     span: Span
-    is_dead: bool
 
     format_spec: str
     format_args: str
@@ -116,7 +113,6 @@ struct Enum {
     shared_fields: &Vector<&Variable>
     variants: &Vector<&EnumVariant>
     type: &Type
-    is_dead: bool
 
     // To quickly check if this is a "normal" enum with no values stored
     has_values: bool
@@ -229,8 +225,6 @@ struct Function {
     exits: bool
     is_static: bool
     parent_type: &Type
-
-    is_dead: bool
 }
 
 def Function::new(): &Function {
