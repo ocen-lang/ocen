@@ -73,20 +73,23 @@ def TypeChecker::set_resolved_symbol(&this, node: &AST, sym: &Symbol) {
 def TypeChecker::get_closure_type(&this, params: &Vector<&Variable>, return_type: &Type, old: &Type): &Type {
     let canon = .o.program.find_closure_type(params, return_type)
     if not canon? {
+        // FIXME: Use a better span that's passed in
+        let span = if old? then old.span else Span::default()
+
         if old? {
             let func_ty = old.u.func
             canon = Type::shallow_copy(old)
             canon.u.func = FunctionType(func_ty.orig, params, return_type, func_ty.is_variadic)
 
         } else {
-            canon = Type::new_resolved(Closure, old.span)
+            canon = Type::new_resolved(Closure, span)
             canon.u.func = FunctionType(null, params, return_type, false)
         }
 
         let closure_name = `_ClosureTy_{.o.program.closure_types.size}`
         .o.program.closure_types.push(canon)
 
-        let sym = Symbol::new(TypeDef, ns: null, closure_name, closure_name, closure_name, old.span)
+        let sym = Symbol::new(TypeDef, ns: null, closure_name, closure_name, closure_name, span)
         sym.u.type_def = canon
         canon.sym = sym
     }
@@ -452,24 +455,24 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                     let cur_func = scope.cur_func
                     if cur_func.kind == Closure {
                         let tmp = scope.cur_func.closure_scope.lookup_recursive(name)
-
-                        if tmp.type == Variable {
-                            let it = cur_func.closed_vars.get_item(name)
-                            if it? {
-                                res = it.value
-
-                            } else {
-                                let closed_sym = Symbol::new(ClosedVariable, ns: null, name, name, name, node.span)
-                                closed_sym.u.closed_var = ClosedVariable(tmp.u.var, cur_func)
-                                cur_func.closed_vars.insert(name, closed_sym)
-                                res = closed_sym
+                        if {
+                            not tmp? => {}
+                            tmp.type != Variable => {
+                                // FIXME: Functions/globals?
+                                .error(Error::new(node.span, f"Can't close over non-variable {name}"))
                             }
-
-                        // FIXME: Functions/globals?
-                        } else {
-                            .error(Error::new(node.span, f"Can't close over non-variable {name}"))
+                            else => {
+                                let it = cur_func.closed_vars.get_item(name)
+                                if it? {
+                                    res = it.value
+                                } else {
+                                    let closed_sym = Symbol::new(ClosedVariable, ns: null, name, name, name, node.span)
+                                    closed_sym.u.closed_var = ClosedVariable(tmp.u.var, cur_func)
+                                    cur_func.closed_vars.insert(name, closed_sym)
+                                    res = closed_sym
+                                }
+                            }
                         }
-
                     }
                 }
             }
