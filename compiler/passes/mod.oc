@@ -16,8 +16,8 @@ def run_typecheck_passes(program: &Program) {
 
 //* Generates code for the program and returns it
 def run_codegen_passes(program: &Program): str {
-    ReorderSymbols::run(program)
     MarkDeadCode::run(program)
+    ReorderSymbols::run(program)
     let code = CodeGenerator::run(program)
     return code
 }
