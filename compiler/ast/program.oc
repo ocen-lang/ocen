@@ -157,8 +157,7 @@ def Namespace::get_project_root(&this, span: Span, program_for_errors: &Program)
 struct Program {
     global: &Namespace
 
-    //* Structs in topologically sorted order. Filled by {{passes::reorder_structs}}
-    ordered_structs: &Vector<&Structure>
+    //* Symbols in topologically sorted order. Filled by {{passes::reorder_symbols}}
     ordered_symbols: &Vector<&Symbol>
 
     c_includes: &Vector<str>
@@ -197,7 +196,6 @@ struct Program {
 def Program::new(): &Program {
     let prog = mem::alloc<Program>()
     prog.global = Namespace::new(null, "")
-    prog.ordered_structs = Vector<&Structure>::new()
     prog.ordered_symbols = Vector<&Symbol>::new()
     prog.global.sym = Symbol::new(
         Namespace,

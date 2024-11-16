@@ -2,7 +2,7 @@ import @ast::program::Program
 import @passes::register_types::RegisterTypes
 import @passes::namespace_dump::NamespaceDump
 import @passes::typechecker::TypeChecker
-import @passes::reorder_structs::ReorderStructs
+import @passes::reorder_symbols::ReorderSymbols
 import @passes::code_generator::CodeGenerator
 import @passes::mark_dead_code::MarkDeadCode
 
@@ -16,7 +16,7 @@ def run_typecheck_passes(program: &Program) {
 
 //* Generates code for the program and returns it
 def run_codegen_passes(program: &Program): str {
-    ReorderStructs::run(program)
+    ReorderSymbols::run(program)
     MarkDeadCode::run(program)
     let code = CodeGenerator::run(program)
     return code
