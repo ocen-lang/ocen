@@ -7,7 +7,7 @@ import std::mem
 import std::setjmp::{ ErrorContext }
 import std::sv::{ SV }
 import @ast::scopes::{ Symbol, Scope }
-import @ast::nodes::{ AST, Function, Structure, Enum }
+import @ast::nodes::{ AST, Function, Structure, Enum, Variable }
 import @ast::operators::{ OperatorOverload }
 import @errors::Error
 import @types::{ Type, BaseType }
@@ -121,7 +121,7 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     }
 
     for func : .functions.iter() {
-        if func.is_method then continue
+        if func.kind == Method then continue
         if func.sym.name.eq(name) return func.sym
     }
 
@@ -181,11 +181,17 @@ struct Program {
 
     explicit_alive_symbols: &Vector<&Symbol>
 
+    closure_types: &Vector<&Type>
+    closures: &Vector<&Function> // FIXME: what about closed args?
+
     // Configs
     check_doc_links: bool
     gen_debug_info: bool
     keep_all_code: bool
     include_stdlib: bool
+
+    // State
+    uid: u32  // For generating unique IDs
 }
 
 def Program::new(): &Program {
@@ -212,6 +218,9 @@ def Program::new(): &Program {
     prog.operator_overloads = Map<OperatorOverload, &Function>::new()
     prog.err_jmp_stack = Vector<ErrorContext>::new()
     prog.explicit_alive_symbols = Vector<&Symbol>::new()
+    prog.closure_types = Vector<&Type>::new()
+    prog.closures = Vector<&Function>::new()
+    prog.uid = 0
     return prog
 }
 
@@ -266,6 +275,30 @@ def Program::get_source_text(&this, span: Span): str {
 def Program::error(&this, err: &Error): &Error {
     .errors.push(err)
     return err
+}
+
+// FIXME: This logic looks too similar to Type::eq() for 2 functions, however we want to
+//        try not to create a new dummy Type object before we call this function to avoid
+//        memory allocations. There is probably a way to refactor this to avoid the duplication.
+def Program::find_closure_type(&this, params: &Vector<&Variable>, ret: &Type): &Type {
+
+    // FIXME: Can we do a non-linear search here?
+    for c in .closure_types.iter() {
+        let clos = c.u.func
+        if clos.params.size != params.size then continue
+        if not clos.return_type.eq(ret) then continue
+        let all_match = true
+        for let i = 0; i < params.size; i += 1 {
+            if not clos.params.at(i).type.eq(params.at(i).type) {
+                all_match = false
+                break
+            }
+        }
+        if not all_match then continue
+        // FIXME: Variadic? Other attributes?
+        return c
+    }
+    return null
 }
 
 def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Function {

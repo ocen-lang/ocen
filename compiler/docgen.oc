@@ -140,7 +140,7 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
             sub.replace_with(`[{sub}]`)
             return sub
         }
-        Function => {
+        FunctionPtr => {
             let buf = Buffer::make()
             buf += "fn("
             let first = true
@@ -203,7 +203,7 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
     if func.sym.comment? {
         func_doc["description"] = func.sym.comment
     }
-    if func.is_method {
+    if func.kind == Method {
         func_doc["kind"] = "method"
         func_doc["parent"] = .gen_typename(func.parent_type)
     } else {
@@ -376,7 +376,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     if not ns.functions.is_empty() {
         let funcs_doc = Value::new(Dictionary)
         for func : ns.functions.iter() {
-            if func.is_method {
+            if func.kind == Method {
                 continue
             }
             let func_doc = .gen_function(func)

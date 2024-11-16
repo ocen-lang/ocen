@@ -155,7 +155,7 @@ def GenericPass::find_in_symbol_or_error(&this, sym: &Symbol, name: str, span: S
 
 def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) {
     for func : ns.functions.iter() {
-        if not func.is_method {
+        if func.kind != Method {
             .insert_into_scope_checked_and_export(export, func.sym)
         }
     }

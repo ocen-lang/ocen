@@ -102,7 +102,7 @@ def Finder::find_signature_help(&this, node: &AST, args: &Vector<&Argument>, par
         Structure => func.u.struc.fields
         Variable => {
             let var_type = func.u.var.type
-            if not var_type? or var_type.base != Function return false
+            if not var_type? or var_type.base != FunctionPtr return false
             yield func.u.var.type.u.func.params
         }
         else => {

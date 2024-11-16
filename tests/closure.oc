@@ -1,0 +1,27 @@
+/// out: "Total: 145\n"
+
+def test(callback: @fn(i32), x: i32) {
+    callback(x)
+}
+
+// def bar(x: i32): i32 => x
+
+def main() {
+    let x: i32 = 100
+    // let cb = |a: i32| => x += bar(a)
+    let cb = |a: i32| => x += a
+
+    for let i = 0i32; i < 5; i++ {
+        test(cb, i)
+    }
+
+    for let i = 5i32; i < 10; i++ {
+        test(
+            |a: i32| {
+                x += a
+            },
+            i
+        )
+    }
+    println(`Total: {x}`)
+}

@@ -76,13 +76,13 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         sb <<= gen_template_params(instance.args)
         yield sb.str()
     }
-    Function => {
+    Closure | FunctionPtr => {
         let sb = Buffer::make()
         let func_type = type.u.func
         let is_non_static_method = false
 
         if func_type.orig? {
-            if func_type.orig.is_method {
+            if func_type.orig.kind == Method {
                 is_non_static_method = not func_type.orig.is_static
             }
             sb += "def "
@@ -110,6 +110,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
             }
 
         } else {
+            if type.base == Closure then sb += "@"
             sb += "fn"
         }
         sb += "("
@@ -216,6 +217,15 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
         let field = sym.u.enum_field
         yield `enum {field.variant.sym.display}.{field.idx}`
     }
+    Closure => `closure {sym.display}`
+    ClosedVariable => {
+        let var = sym.u.closed_var.orig
+        let buf = Buffer::make()
+        buf += var.sym.display
+        buf += ": "
+        buf += gen_type_string(var.type)
+        yield buf.str()
+    }
 }
 
 def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
@@ -228,6 +238,8 @@ def get_symbol_typedef(sym: &Symbol): &Type => match sym.type {
     Enum => sym.u.enom.type
     EnumVariant => sym.u.enum_var.parent.type
     EnumField => sym.u.enum_field.variant.parent.type
+    Closure => sym.u.func.type
+    ClosedVariable => sym.u.closed_var.orig.type
     // else => std::panic(f"get_symbol_typedef: unhandled symbol type: {sym.type}")
 }
 
@@ -387,7 +399,7 @@ def gen_namespace_json(ns: &Namespace): &Value {
     }
 
     for func : ns.functions.iter() {
-        if func.is_method continue
+        if func.kind == Method continue
         children += gen_function_json(func)
     }
 
@@ -474,12 +486,12 @@ def gen_signature_help(node: &AST, active_param: u32): &Value {
         Function => {
             let func = callee_sym.u.func
             obj["label"] = gen_type_string(func.type)
-            is_non_static_method = func.is_method and not func.is_static
+            is_non_static_method = func.kind == Method and not func.is_static
             yield func.params
         }
         Variable => {
             let var = callee_sym.u.var
-            if var.type.base != Function {
+            if var.type.base != FunctionPtr {
                 if verbose then println(f"gen_signature_help: variable is not a function: {var.type}")
                 return obj
             }
@@ -592,7 +604,7 @@ def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set
         }
     }
     for it : ns.functions.iter() {
-        if not it.is_method {
+        if it.kind != Method {
             seen += it.sym.name
             insert_completion_item(completions, it.sym, seen)
         }
