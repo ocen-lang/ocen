@@ -15,9 +15,8 @@ import @passes::generic_pass::GenericPass
 struct CodeGenerator {
     o: &GenericPass
     out: Buffer
-    indent: u32
     yield_vars: &Vector<str>
-    uid: u32
+    indent: u32 = 0
 }
 
 def CodeGenerator::gen_indent(&this) {
@@ -80,6 +79,13 @@ def CodeGenerator::get_op(&this, node: &AST): str => match node.type {
         else => std::panic(`Unknown unary op type in get_op: {node.u.unary.op}`)
     }
     else => std::panic(`Unknown op type in get_op: {node.type}`)
+}
+
+namespace cls {
+    // FIXME: We currently assign some symbol names based on uid in Typechecker, that should be done here
+    def ctx_type(func: &Function): str => `{func.sym.out_name()}Ctx`
+    const ctx_name: str = "_C"
+    const fn_field_name: str = "fn"
 }
 
 // NOTE: This function doesn't actually "need" to return a boolean, this is just to make the call in
@@ -440,7 +446,7 @@ def CodeGenerator::gen_constructor(&this, node: &AST, struc: &Structure) {
 def CodeGenerator::gen_create_new(&this, node: &AST) {
     assert node.type == CreateNew, `Expected CreateNew, got {node.type}`
     let child = node.u.child
-    let var_name = `_new_{.uid++}`
+    let var_name = `_new_{.o.program.uid++}`
 
     // @new XYZ =>  {
     //     let a = alloc_fn(allocator, sizeof(typeof(XYZ)))
@@ -463,6 +469,38 @@ def CodeGenerator::gen_create_new(&this, node: &AST) {
     var_name.free()
 }
 
+def CodeGenerator::gen_call_args(&this, args: &Vector<&Argument>, is_variadic_format: bool) {
+    for let i = 0; i < args.size; i += 1 {
+        if i != 0 then .out += ", "
+        let arg = args.at(i)
+
+        if (
+            i == args.size - 1 and
+            is_variadic_format and
+            arg.expr.type == FormatStringLiteral
+        ) {
+            .gen_format_string_variadic(arg.expr, newline_after: false)
+        } else {
+            .gen_expression(arg.expr)
+        }
+    }
+}
+
+def CodeGenerator::gen_closure_call(&this, node: &AST, sym: &Symbol) {
+    let callee = node.u.call.callee
+
+    .gen_expression(callee)
+    .out <<= f".{cls::fn_field_name}("
+    .gen_expression(callee)
+    .out += "."
+    .out += cls::ctx_name
+    if node.u.call.args.size > 0 {
+        .out += ", "
+        .gen_call_args(node.u.call.args, is_variadic_format: false)
+    }
+    .out += ")"
+}
+
 //! Generate an expression. If `is_top_level` is true, don't put parens around it.
 def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false) {
     match node.type {
@@ -477,6 +515,29 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             } else {
                 .out += num_lit.text
             }
+        }
+        CreateClosure => {
+            let func = node.u.closure
+            .out += "({"
+            let ctx_name = `{cls::ctx_name}{.o.program.uid++}`
+            let ctx_typ = cls::ctx_type(func)
+
+            .out <<= `{ctx_typ} *{ctx_name} = alloca(sizeof({ctx_typ}));`
+            for it in func.closed_vars.iter() {
+                let var = it.value.u.closed_var.orig
+                .out += ctx_name
+                .out += "->"
+                .out += var.sym.out_name()
+                .out += " = &"
+                .out += var.sym.out_name()
+                .out += ";"
+            }
+
+            let cls_name = `_ci{.o.program.uid++}`
+            .out <<= `{func.type.sym.out_name()} {cls_name} = \{`
+            .out <<= `.{cls::ctx_name}={ctx_name}, .{cls::fn_field_name}=&{func.sym.out_name()}\};`
+            .out += cls_name
+            .out += "; })"
         }
         FloatLiteral => {
             let num_lit = &node.u.num_literal
@@ -562,6 +623,12 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             match sym.type {
                 Function | Variable | Constant => .out += sym.out_name()
                 EnumVariant => .gen_enum_constructor(sym.u.enum_var)
+                ClosedVariable => {
+                    let var = sym.u.closed_var.orig
+                    .out <<= f"(*{cls::ctx_name}->"
+                    .out += var.sym.out_name()
+                    .out += ")"
+                }
                 else => assert false, `Unhandled symbol type: {sym.type}`
             }
         }
@@ -593,6 +660,10 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
                         .gen_enum_constructor(sym.u.enum_var, node.u.call.args)
                         return
                     }
+                    Closure => {
+                        .gen_closure_call(node, sym)
+                        return
+                    }
 
                     // Fallthrough
                     else => {}
@@ -609,21 +680,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             )
 
             .out += "("
-            let args = node.u.call.args
-            for let i = 0; i < args.size; i += 1 {
-                if i != 0 then .out += ", "
-                let arg = args.at(i)
-
-                if (
-                    i == args.size - 1 and
-                    is_variadic_format and
-                    arg.expr.type == FormatStringLiteral
-                ) {
-                    .gen_format_string_variadic(arg.expr, newline_after: false)
-                } else {
-                    .gen_expression(arg.expr)
-                }
-            }
+            .gen_call_args(node.u.call.args, is_variadic_format)
             .out += ")"
         }
         BoolLiteral => {
@@ -655,8 +712,9 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             }
             Not => {
                 let expr = node.u.unary.expr
-                .out += "!"
+                .out += "!("
                 .gen_expression(expr)
+                .out += ")"
             }
             IsNotNull => {
                 let expr = node.u.unary.expr
@@ -802,7 +860,7 @@ def CodeGenerator::gen_custom_match(&this, node: &AST) {
     .gen_indent()
     .out += "{\n"
 
-    let match_var = `__match_var_{.uid++}`
+    let match_var = `__match_var_{.o.program.uid++}`
 
     .indent += 1
     .gen_indent()
@@ -867,7 +925,7 @@ def CodeGenerator::gen_match_enum(&this, node: &AST) {
         .out += ")) {\n"
     }
 
-    let uid = .uid++
+    let uid = .o.program.uid++
     .indent += 1
     for let i = 0; i < match_stmt.cases.size; i += 1 {
         let _case = match_stmt.cases[i]
@@ -1237,6 +1295,45 @@ def CodeGenerator::gen_block(&this, node: &AST, with_braces: bool = true) {
     .o.pop_scope()
 }
 
+def CodeGenerator::helper_gen_function_type(
+    &this,
+    top: &Type,
+    cur: &Type,
+    acc: str,
+    is_func_def: bool,
+    param_prefix: str = null,           // To add extra dummy parameters (for closures)
+    params: &Vector<&Variable> = null,  // To override the function's parameters
+): str {
+    let args_str = Buffer::make()
+    if not params? {
+        params = cur.u.func.params
+    }
+
+    if params.size == 0 then args_str += "void"
+    if param_prefix? then args_str <<= param_prefix
+    for let i = 0; i < params.size; i += 1 {
+        if i != 0 then args_str += ", "
+        let var = params.at(i)
+        let arg_str = .get_type_name_string(var.type, var.sym.out_name(), is_func_def: false)
+        args_str <<= arg_str
+    }
+    if cur.u.func.is_variadic then args_str += ", ..."
+
+    if is_func_def and cur == top {
+        // This allows us to also create function declarations
+        acc.replace(`{acc}({args_str.str()})`)
+    } else {
+        acc.replace(`(*{acc})({args_str.str()})`)
+    }
+    mem::free(args_str.data)
+    return .helper_gen_type(
+        top,
+        cur.u.func.return_type,
+        acc,
+        is_func_def: false
+    )
+}
+
 def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_func_def: bool): str {
     match cur.base {
         // These should all be terminal types
@@ -1249,38 +1346,12 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
 
         Alias => acc = .helper_gen_type(top, cur.u.ptr, acc, is_func_def: false)
 
-        Function => {
-            let args_str = Buffer::make()
-            let params = cur.u.func.params
-
-            if params.size == 0 then args_str += "void"
-
-            for let i = 0; i < params.size; i += 1 {
-                if i != 0 then args_str += ", "
-                let var = params.at(i)
-                let arg_str = .get_type_name_string(var.type, var.sym.out_name(), is_func_def: false)
-                args_str <<= arg_str
-            }
-            if cur.u.func.is_variadic then args_str += ", ..."
-
-            if is_func_def and cur == top {
-                // This allows us to also create function declarations
-                acc.replace(`{acc}({args_str.str()})`)
-            } else {
-                acc.replace(`(*{acc})({args_str.str()})`)
-            }
-            mem::free(args_str.data)
-            acc = .helper_gen_type(
-                top,
-                cur.u.func.return_type,
-                acc,
-                is_func_def: false
-            )
-        }
+        Closure => acc.replace(`{cur.sym.out_name()} {acc}`)
+        FunctionPtr => acc = .helper_gen_function_type(top, cur, acc, is_func_def)
 
         Pointer => {
             let needs_parens = (cur.u.ptr? and cur.u.ptr.base == BaseType::Array)
-            if cur.u.ptr.base == BaseType::Function {
+            if cur.u.ptr.base == BaseType::FunctionPtr {
                 // No need to add extra * for function pointers
             } else if needs_parens {
                 acc.replace(`(*{acc})`)
@@ -1335,7 +1406,7 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
-    if func.is_method and func.parent_type.base == Structure {
+    if func.kind == Method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.sym.is_templated() then return
     }
@@ -1379,33 +1450,38 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     .o.pop_scope()
 }
 
+// FIXME: How does this workn with gen_function_decl?
+def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
+    if func.sym.is_extern return
+
+    if func.kind == Method and func.parent_type.base == Structure {
+        let struc = func.parent_type.u.struc
+        if struc.sym.is_templated() then return
+    }
+
+    if func.sym.is_templated() then {
+        for instance : func.sym.template.instances.iter() {
+            let sym = instance.resolved
+            assert sym.type == Function
+            let func = sym.u.func
+            if func.is_dead then continue
+
+            .gen_function_decl(func)
+            if func.exits then .out += " __attribute__((noreturn))"
+            .out += ";\n"
+        }
+        return
+    }
+
+    if func.is_dead then return
+    .gen_function_decl(func)
+    if func.exits then .out += " __attribute__((noreturn))"
+    .out += ";\n"
+}
+
 def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
     for func : ns.functions.iter() {
-        if func.sym.is_extern continue
-
-        if func.is_method and func.parent_type.base == Structure {
-            let struc = func.parent_type.u.struc
-            if struc.sym.is_templated() then continue
-        }
-
-        if func.sym.is_templated() then {
-            for instance : func.sym.template.instances.iter() {
-                let sym = instance.resolved
-                assert sym.type == Function
-                let func = sym.u.func
-                if func.is_dead then continue
-
-                .gen_function_decl(func)
-                if func.exits then .out += " __attribute__((noreturn))"
-                .out += ";\n"
-            }
-            continue
-        }
-
-        if func.is_dead then continue
-        .gen_function_decl(func)
-        if func.exits then .out += " __attribute__((noreturn))"
-        .out += ";\n"
+        .gen_function_decl_toplevel(func)
     }
 
     for child : ns.namespaces.iter_values() {
@@ -1457,6 +1533,96 @@ def CodeGenerator::gen_struct_typedef(&this, struc: &Structure) {
         .out <<= `typedef struct {strufull_name} {strufull_name};\n`
     }
 }
+
+def CodeGenerator::gen_closure_type_typedef(&this, sym: &Symbol) {
+    let name = sym.out_name()
+    .out <<= `typedef struct {name} {name};\n`
+}
+
+def CodeGenerator::gen_closure_type_def(&this, sym: &Symbol) {
+    let name = sym.out_name()
+    let type = sym.u.type_def
+    .out <<= `struct {name} \{\n`
+    .out <<= `  void *{cls::ctx_name};\n`
+    .out += "  "
+
+    let acc = cls::fn_field_name.copy()
+    .out <<= .helper_gen_function_type(
+        type,
+        type,
+        acc,
+        is_func_def: false,
+        param_prefix: `void *_{cls::ctx_name}, `
+    )
+    .out += ";\n};\n"
+}
+
+def CodeGenerator::gen_closure_typedef(&this, clos: &Function) {
+    let name = clos.sym.out_name()
+    let type_name = cls::ctx_type(clos)
+    .out <<= `typedef struct {type_name} {type_name};\n`
+}
+
+def CodeGenerator::gen_closure_def(&this, clos: &Function) {
+    let name = clos.sym.out_name()
+
+    let type_name = cls::ctx_type(clos)
+    .out <<= `struct {type_name} \{\n`
+
+    let dummy_ptr_type: Type
+    dummy_ptr_type.base = Pointer
+
+    for it in clos.closed_vars.iter() {
+        let sym = it.value
+        assert sym.type == ClosedVariable
+        .out += "  "
+        let var = sym.u.closed_var.orig
+
+        dummy_ptr_type.u.ptr = var.type
+        .gen_type_and_name(&dummy_ptr_type, var.sym.out_name())
+        .out += ";\n"
+    }
+    .out += "};\n"
+}
+
+def CodeGenerator::gen_closure_func_decl(&this, clos: &Function) {
+    let name = clos.sym.out_name()
+    let type = clos.type
+
+    let acc = name.copy()
+    .out += .helper_gen_function_type(
+        type,
+        type,
+        acc,
+        is_func_def: true,
+        param_prefix: `void *_{cls::ctx_name}, `,
+        params: clos.params
+    )
+    .out += ";\n"
+}
+
+def CodeGenerator::gen_closure_func(&this, clos: &Function) {
+    let name = clos.sym.out_name()
+    let type = clos.type
+
+    let ctx = cls::ctx_name
+    let ctx_type = cls::ctx_type(clos)
+
+    let acc = name.copy()
+    .out += .helper_gen_function_type(
+        type,
+        type,
+        acc,
+        is_func_def: true,
+        param_prefix: `void *_{ctx}, `,
+        params: clos.params
+    )
+    .out += " {\n"
+    .out <<= `  {ctx_type} *{ctx} = ({ctx_type} *)_{ctx};\n`
+    .gen_block(clos.body)
+    .out += "\n}\n\n"
+}
+
 
 def CodeGenerator::gen_sym_typedef(&this, sym: &Symbol) => match sym.type {
     Structure => .gen_struct_typedef(sym.u.struc)
@@ -1571,20 +1737,38 @@ def CodeGenerator::generate(&this): str {
     for sym in .o.program.ordered_symbols.iter() {
         .gen_sym_typedef(sym)
     }
+    for cty in .o.program.closure_types.iter() {
+        .gen_closure_type_typedef(cty.sym)
+    }
+    for clos in .o.program.closures.iter() {
+        .gen_closure_typedef(clos)
+    }
     .out += "\n"
 
     .out += "/* Structs */\n"
     for sym in .o.program.ordered_symbols.iter() {
         .gen_sym_def(sym)
     }
+    for cty in .o.program.closure_types.iter() {
+        .gen_closure_type_def(cty.sym)
+    }
+    for clos in .o.program.closures.iter() {
+        .gen_closure_def(clos)
+    }
 
     .out += "/* function declarations */\n"
     .gen_function_decls(.o.program.global)
+    for clos in .o.program.closures.iter() {
+        .gen_closure_func_decl(clos)
+    }
 
     .gen_global_variables(.o.program.global)
 
     .out += "/* function implementations */\n"
     .gen_functions(.o.program.global)
+    for clos in .o.program.closures.iter() {
+        .gen_closure_func(clos)
+    }
 
     return .out.str()
 }
@@ -1593,9 +1777,7 @@ def CodeGenerator::make(program: &Program): CodeGenerator {
     return CodeGenerator(
         o: GenericPass::new(program),
         out: Buffer::make(),
-        indent: 0,
-        yield_vars: Vector<str>::new(),
-        uid: 0
+        yield_vars: Vector<str>::new()
     )
 }
 

@@ -208,9 +208,24 @@ def Parser::parse_type(&this): &Type => match .token().type {
         yield typ
     }
 
-    Fn => {
+    AtSign | Fn => {
         let start_span = .token().span
-        .consume(TokenType::Fn)
+        let base_type = match .token().type {
+            AtSign => {
+                // FIXME: Currently we don't have a way to "branch" to anything else
+                //        if we decide to use @ as shorthand for more types. This needs
+                //        to be refactored, possibly by moving logic in top-level match
+                //        branches into separate functions.
+                .consume(TokenType::AtSign)
+                .consume(TokenType::Fn)
+                yield BaseType::Closure
+            }
+            Fn => {
+                .consume(TokenType::Fn)
+                yield BaseType::FunctionPtr
+            }
+            else => std::panic("unreachable")
+        }
         .consume(TokenType::OpenParen)
         let params = Vector<&Variable>::new()
         let is_variadic = false
@@ -239,7 +254,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
         } else {
             return_type = Type::new_unresolved_base(BaseType::Void, start_span)
         }
-        let type = Type::new_resolved(BaseType::Function, start_span.join(close.span))
+        let type = Type::new_resolved(base_type, start_span.join(close.span))
         type.u.func = FunctionType(null, params, return_type, is_variadic)
         yield type
     }
@@ -742,7 +757,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         }
         TokenType::Dot => {
             let tok = .consume(TokenType::Dot)
-            if not .curr_func? or not .curr_func.is_method or .curr_func.is_static {
+            if not .curr_func? or not .curr_func.kind == Method or .curr_func.is_static {
                 .error(Error::new(tok.span, "Cannot use dot shorthand outside of a method"))
                 return AST::new(Error, tok.span)
             }
@@ -767,6 +782,23 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
         TokenType::EOF => {
             .error(Error::new(.token().span, "Unexpected end of file"))
             return AST::new(Error, .token().span)
+        }
+        TokenType::Line => {
+            let closure_func = .parse_closure()
+            let node = AST::new(CreateClosure, closure_func.span)
+            node.u.closure = closure_func
+
+            let closure_name = `_Closure_{.program.closures.size}`
+            .program.closures.push(closure_func)
+
+            let parent_sym = if {
+                .curr_func? => .curr_func.sym
+                else => .ns.sym
+            }
+            let sym = Symbol::new_with_parent(Closure, .ns, parent_sym, closure_name, closure_func.span)
+            sym.u.func = closure_func
+            closure_func.sym = sym
+            return node
         }
         else => {
             let prev_span = .tokens[.curr - 1].span
@@ -1521,46 +1553,9 @@ def Parser::add_doc_comment(&this, sym: &Symbol, token: &Token) {
     }
 }
 
-def Parser::parse_function(&this): &Function {
-    let start = .consume(TokenType::Def)
-
-    let parent_type = null as &Type
-    let is_method = false
-    let is_static = true
-
-    let ident = .parse_scoped_identifier(consume_template: false)
-    if not ident? return null
-
-    let name_span = ident.span
-
-    let func = Function::new()
-    func.name_ast = ident
-    let name = match ident.type {
-        ASTType::Identifier => ident.u.ident.name
-        ASTType::NSLookup => {
-            parent_type = Type::new_unresolved("<unresolved>", ident.span)
-            parent_type.u.unresolved = ident.u.lookup.lhs
-            is_method = true
-            name_span = ident.u.lookup.rhs_span
-            yield ident.u.lookup.rhs_name
-        }
-        else => {
-            .error(Error::new(ident.span, "Expected identifier"))
-            yield "<error>"
-        }
-    }
-
-    func.sym = Symbol::new_with_parent(Function, .ns, .ns.sym, name, name_span)
-    func.sym.u.func = func
-    .add_doc_comment(func.sym, start)
-
-    if .token_is(TokenType::LessThan) {
-        .parse_template_params(func.sym)
-    }
-
-    .consume(TokenType::OpenParen)
+def Parser::parse_function_args(&this, func: &Function, end: TokenType) {
     let seen_default = false
-    while not .token_is_eof_or(TokenType::CloseParen) {
+    while not .token_is_eof_or(end) {
 
         // Ellipses are only allowed as the last parameter, so we break early if we see one
         if .token_is(Ellipsis) {
@@ -1575,14 +1570,14 @@ def Parser::parse_function(&this): &Function {
         let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
         let type = null as &Type
-        if func.params.is_empty() and is_method {
+        if func.params.is_empty() and func.kind == Method {
             if var_name.text.eq("this") {
-                type = parent_type
+                type = func.parent_type
                 if found_amp {
-                    type = Type::new_resolved(BaseType::Pointer, parent_type.span)
-                    type.u.ptr = parent_type
+                    type = Type::new_resolved(BaseType::Pointer, func.parent_type.span)
+                    type.u.ptr = func.parent_type
                 }
-                is_static = false
+                func.is_static = false
             } else if found_amp {
                 .error(Error::new(var_name.span, "Expected 'this' over here"))
             }
@@ -1608,11 +1603,107 @@ def Parser::parse_function(&this): &Function {
 
         .add_doc_comment(var.sym, var_name)
 
-        if not .token_is(TokenType::CloseParen) {
+        if not .token_is(end) {
             .consume(TokenType::Comma)
         }
     }
-    let end_span = .consume(TokenType::CloseParen).span
+}
+
+def Parser::parse_function_body(&this, returns: bool): &AST {
+    if .token().type != FatArrow {
+        return .parse_block()
+    }
+
+    let arrow = .consume(TokenType::FatArrow)
+    if .token_is(TokenType::OpenCurly) {
+        .error(Error::new(.token().span, "Expected an expression for an arrow function"))
+        return null
+    }
+
+    let stmt = .parse_expression(end_type: TokenType::Newline)
+    if returns {
+        let ret = AST::new(Return, stmt.span)
+        ret.u.ret.expr = stmt
+        ret.u.ret.return_span = arrow.span
+        stmt = ret
+    }
+
+    let body = AST::new(Block, stmt.span)
+
+    let statements = Vector<&AST>::new()
+    statements.push(stmt)
+    body.u.block.statements = statements
+
+    return body
+}
+
+def Parser::parse_closure(&this): &Function {
+    let start = .consume(Line)
+    let func = Function::new()
+    func.name_ast = null
+    func.kind = Closure
+
+    .parse_function_args(func, Line)
+    let end_span = .consume(Line).span
+
+    let returns = false
+    if .consume_if(TokenType::Colon) {
+        func.return_type = .parse_type()
+        end_span = func.return_type.span
+        returns = true
+    } else {
+        func.return_type = Type::new_unresolved_base(BaseType::Void, start.span)
+    }
+
+    func.parsed_return_type = func.return_type
+    func.body = .parse_function_body(returns)
+    func.span = start.span.join(func.body.span)
+    return func
+}
+
+def Parser::parse_function(&this): &Function {
+    let start = .consume(TokenType::Def)
+
+    let parent_type = null as &Type
+    let kind = FunctionKind::Normal
+
+    let ident = .parse_scoped_identifier(consume_template: false)
+    if not ident? return null
+
+    let name_span = ident.span
+
+    let func = Function::new()
+    func.name_ast = ident
+    func.is_static = true
+    func.kind = Normal
+    let name = match ident.type {
+        ASTType::Identifier => ident.u.ident.name
+        ASTType::NSLookup => {
+            parent_type = Type::new_unresolved("<unresolved>", ident.span)
+            parent_type.u.unresolved = ident.u.lookup.lhs
+            kind = Method
+            name_span = ident.u.lookup.rhs_span
+            func.parent_type = parent_type
+            func.kind = Method
+            yield ident.u.lookup.rhs_name
+        }
+        else => {
+            .error(Error::new(ident.span, "Expected identifier"))
+            yield "<error>"
+        }
+    }
+
+    func.sym = Symbol::new_with_parent(Function, .ns, .ns.sym, name, name_span)
+    func.sym.u.func = func
+    .add_doc_comment(func.sym, start)
+
+    if .token_is(TokenType::LessThan) {
+        .parse_template_params(func.sym)
+    }
+
+    .consume(TokenType::OpenParen)
+    .parse_function_args(func, CloseParen)
+    let end_span = .consume(CloseParen).span
 
     let returns = false
     if .consume_if(TokenType::Colon) {
@@ -1634,10 +1725,6 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    func.is_method = is_method
-
-    func.is_static = is_static
-    func.parent_type = parent_type
     func.parsed_return_type = func.return_type
 
     // TODO: Deprecate this once we've fully moved to attributes
@@ -1679,33 +1766,7 @@ def Parser::parse_function(&this): &Function {
 
     .curr_func = func
 
-    if .token_is(TokenType::FatArrow) {
-        let arrow = .consume(TokenType::FatArrow)
-
-        if .token_is(TokenType::OpenCurly) {
-            .error(Error::new(.token().span, "Expected an expression for an arrow function"))
-            return null
-        }
-
-        let stmt = .parse_expression(end_type: TokenType::Newline)
-        if returns {
-            let ret = AST::new(Return, stmt.span)
-            ret.u.ret.expr = stmt
-            ret.u.ret.return_span = arrow.span
-            stmt = ret
-        }
-
-        let body = AST::new(Block, stmt.span)
-
-        let statements = Vector<&AST>::new()
-        statements.push(stmt)
-        body.u.block.statements = statements
-
-        func.body = body
-
-    } else {
-        func.body = .parse_block()
-    }
+    func.body = .parse_function_body(returns)
 
     .curr_func = null
     func.span = start.span.join(func.body.span)
