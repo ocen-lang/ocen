@@ -41,12 +41,14 @@ def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
         Function => .mark_function(sym.u.func)
         Structure => .mark_struct(sym.u.struc)
         Enum => .mark_enum(sym.u.enom)
-
         Constant | Variable => {
             .mark_type(sym.u.var.type)
             .mark(sym.u.var.default_value)
-            sym.u.var.is_dead = false
+            sym.u.var.sym.is_dead = false
         }
+        Closure => .mark_function(sym.u.closure)
+        ClosureType => .mark_type(sym.u.type_def)
+        ClosedVariable => .mark_sym(sym.u.closed_var.orig.sym)
         else => {}
     }
 }
@@ -55,7 +57,7 @@ def MarkDeadCode::mark_function(&this, f: &Function) {
     if not f? or .done.contains(f as u64) return
     .done.add(f as u64)
 
-    f.is_dead = false
+    f.sym.is_dead = false
     .mark(f.body)
 
     for param : f.params.iter() {
@@ -68,7 +70,7 @@ def MarkDeadCode::mark_type(&this, typ: &Type) {
     match typ.base {
         Pointer | Alias => .mark_type(typ.u.ptr)
         Array => .mark_type(typ.u.arr.elem_type)
-        FunctionPtr => {
+        FunctionPtr | Closure => {
             let ft = typ.u.func
             .mark_type(ft.return_type)
             for param : ft.params.iter() {
@@ -90,7 +92,7 @@ def MarkDeadCode::mark_struct(&this, s: &Structure) {
     if not s? or .done.contains(s as u64) return
     .done.add(s as u64)
 
-    s.is_dead = false
+    s.sym.is_dead = false
     for field : s.fields.iter() {
         .mark_type(field.type)
     }
@@ -100,7 +102,7 @@ def MarkDeadCode::mark_enum(&this, e: &Enum) {
     if not e? or .done.contains(e as u64) return
     .done.add(e as u64)
 
-    e.is_dead = false
+    e.sym.is_dead = false
     for var in e.variants.iter() {
         .mark_sym(var.sym)
         for field in var.specific_fields.iter() {
@@ -223,14 +225,7 @@ def MarkDeadCode::find_main_function(&this, program: &Program): &Function {
 
 def MarkDeadCode::mark_sym_as_dead_by_default(&this, sym: &Symbol) {
     if not sym? return
-
-    match sym.type {
-        Function => sym.u.func.is_dead = true
-        Structure => sym.u.struc.is_dead = true
-        Enum => sym.u.enom.is_dead = true
-        Constant | Variable => sym.u.var.is_dead = true
-        else => {}
-    }
+    sym.is_dead = true
 
     if sym.template? {
         for instance : sym.template.instances.iter() {
@@ -270,6 +265,12 @@ def MarkDeadCode::run(program: &Program) {
         for c : ns.constants.iter() {
             pass.mark_sym_as_dead_by_default(c.u.var_decl.sym)
         }
+    }
+    for cty in program.closure_types.iter() {
+        pass.mark_sym_as_dead_by_default(cty.sym)
+    }
+    for clos in program.closures.iter() {
+        pass.mark_sym_as_dead_by_default(clos.sym)
     }
 
     // For constants and variables, mark their types as used
