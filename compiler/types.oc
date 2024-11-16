@@ -29,8 +29,10 @@ enum BaseType {
     //* For convenience, to iterate over all the base types
     NUM_BASE_TYPES
 
+    FunctionPtr  // C-style function pointer
+    Closure
+
     Pointer
-    Function
     Structure
     Unresolved
     Array
@@ -58,6 +60,9 @@ def BaseType::str(this): str => match this {
     else => .dbg()
 }
 
+def BaseType::is_callable(this): bool => this == FunctionPtr or this == Closure
+
+// This is used for both Function and Closure types.
 struct FunctionType {
     //* `null` if this is a function pointer
     orig: &Function
@@ -167,7 +172,7 @@ def Type::is_resolved(&this): bool => match .base {
     Unresolved => false
     Alias => .u.ptr.is_resolved()
     Pointer => .u.ptr.is_resolved()
-    Function => {
+    FunctionPtr => {
         let resolved = .u.func.return_type.is_resolved()
         for param in .u.func.params.iter() {
             resolved = resolved and param.type.is_resolved()
@@ -189,7 +194,9 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
 
     match .base {
         Error | Unresolved | UnresolvedTemplate => return false
-        Function => {
+        // Closures should already be canonicalized
+        Closure => return .sym.full_name.eq(other.sym.full_name)
+        FunctionPtr => {
             let af = .u.func
             let bf = other.u.func
             if not af.return_type.eq(bf.return_type, strict: true) return false
@@ -199,6 +206,7 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
                 let b = bf.params.at(i)
                 if not a.type.eq(b.type, strict: true) return false
             }
+            // FIXME: What about variadic functions?
             return true
         }
         Pointer => {
@@ -248,7 +256,7 @@ def Type::decay_array(&this): &Type {
 
 def Type::str(&this): str => match .base {
     Pointer => `&{.u.ptr.str()}`
-    Function => {
+    FunctionPtr => {
         let buf = Buffer::make()
         buf += "fn("
         for let i = 0; i < .u.func.params.size; i += 1 {

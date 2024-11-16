@@ -63,7 +63,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enom: &Enum) {
     func.sym = Symbol::new_with_parent(Function, enom.sym.ns, enom.sym, "dbg", span)
     func.sym.u.func = func
     func.return_type = .o.program.get_type_by_name("str", span)
-    func.is_method = true
+    func.kind = Method
     func.parent_type = enom.type
 
     let var = Variable::new(enom.type)
@@ -71,7 +71,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enom: &Enum) {
 
     func.params.push(var)
 
-    let typ = Type::new_resolved(Function, span)
+    let typ = Type::new_resolved(FunctionPtr, span)
     typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
     func.type = typ
 
@@ -147,7 +147,7 @@ def RegisterTypes::register_print_function(&this, name: str) {
     func.is_variadic = true
     func.is_variadic_format = true
 
-    let typ = Type::new_resolved(Function, Span::default())
+    let typ = Type::new_resolved(FunctionPtr, Span::default())
     typ.u.func = FunctionType(func, params, .o.program.get_type_by_name("void", Span::default()), true)
     func.type = typ
 
@@ -223,7 +223,7 @@ def RegisterTypes::register_cached_types(&this) {
     let allocator = finder["std"]["mem"]["state"]["allocator"].sym
 
     // Sanity checks to make sure the function is what we expect
-    assert alloc_fn.type == Variable and alloc_fn.u.var.type.base == Function
+    assert alloc_fn.type == Variable and alloc_fn.u.var.type.base == FunctionPtr
     assert allocator.type == Variable
     assert alloc_fn.u.var.type.u.func.params.size == 2
 

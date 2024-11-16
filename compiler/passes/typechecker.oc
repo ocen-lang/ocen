@@ -13,7 +13,7 @@ import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
 import @ast::nodes::{ ImportPart, Import, Argument, MatchCond, Enum, EnumVariant }
 import @ast::program::{ Program, Namespace }
-import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType }
+import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType, ClosedVariable }
 import @errors::{ Error }
 import @lexer::{ Lexer }
 import @parser::{ Parser }
@@ -70,6 +70,29 @@ def TypeChecker::set_resolved_symbol(&this, node: &AST, sym: &Symbol) {
     }
 }
 
+def TypeChecker::get_closure_type(&this, params: &Vector<&Variable>, return_type: &Type, old: &Type): &Type {
+    let canon = .o.program.find_closure_type(params, return_type)
+    if not canon? {
+        if old? {
+            let func_ty = old.u.func
+            canon = Type::shallow_copy(old)
+            canon.u.func = FunctionType(func_ty.orig, params, return_type, func_ty.is_variadic)
+
+        } else {
+            canon = Type::new_resolved(Closure, old.span)
+            canon.u.func = FunctionType(null, params, return_type, false)
+        }
+
+        let closure_name = `_ClosureTy_{.o.program.closure_types.size}`
+        .o.program.closure_types.push(canon)
+
+        let sym = Symbol::new(TypeDef, ns: null, closure_name, closure_name, closure_name, old.span)
+        sym.u.type_def = canon
+        canon.sym = sym
+    }
+    return canon
+}
+
 def TypeChecker::resolve_type(
     &this,
     old: &Type,
@@ -109,7 +132,7 @@ def TypeChecker::resolve_type(
             }
             return .resolve_type(old.u.ptr, p_a, p_e, p_r)
         }
-        Function => {
+        Closure | FunctionPtr => {
             let checked_params = Vector<&Variable>::new()
 
             let func = old.u.func
@@ -123,8 +146,14 @@ def TypeChecker::resolve_type(
             let return_type = .resolve_type(func.return_type, p_a, p_e, p_r)
             if not return_type? return null
 
-            resolved = Type::shallow_copy(old)
-            resolved.u.func = FunctionType(func.orig, checked_params, return_type, func.is_variadic)
+            // We want all closures to point to the same "canonical" closure type
+            if old.base == Closure {
+                resolved = .get_closure_type(checked_params, return_type, old)
+
+            } else {
+                resolved = Type::shallow_copy(old)
+                resolved.u.func = FunctionType(func.orig, checked_params, return_type, func.is_variadic)
+            }
         }
         Unresolved => {
             let node = old.u.unresolved
@@ -413,6 +442,36 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
 
             if not res? {
                 res = .scope().lookup_recursive(name)
+            }
+
+            if not res? {
+                // FIXME: We only check the current function's closure_scope. This doesn't
+                //        allow us to have nested closures, which is a limitation.
+                let scope = .scope()
+                if scope.cur_func? {
+                    let cur_func = scope.cur_func
+                    if cur_func.kind == Closure {
+                        let tmp = scope.cur_func.closure_scope.lookup_recursive(name)
+
+                        if tmp.type == Variable {
+                            let it = cur_func.closed_vars.get_item(name)
+                            if it? {
+                                res = it.value
+
+                            } else {
+                                let closed_sym = Symbol::new(ClosedVariable, ns: null, name, name, name, node.span)
+                                closed_sym.u.closed_var = ClosedVariable(tmp.u.var, cur_func)
+                                cur_func.closed_vars.insert(name, closed_sym)
+                                res = closed_sym
+                            }
+
+                        // FIXME: Functions/globals?
+                        } else {
+                            .error(Error::new(node.span, f"Can't close over non-variable {name}"))
+                        }
+
+                    }
+                }
             }
 
             .set_resolved_symbol(node, res)
@@ -806,10 +865,10 @@ def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
 
     node.u.call.call_type = Normal
     if res? {
-        if res.base == BaseType::Pointer and res.u.ptr.base == BaseType::Function {
+        if res.base == BaseType::Pointer and res.u.ptr.base == BaseType::FunctionPtr {
             res = res.u.ptr
 
-        } else if res.base != BaseType::Function {
+        } else if not res.base.is_callable() {
             .error(Error::new(callee.span, `Cannot call a non-function type: {res.str()}`))
             // Mark this node as an error, we'll exit after checking the arguments
             res = .o.error_type
@@ -834,8 +893,12 @@ def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
     if func.orig? and func.orig.exits then node.returns = true
     let params = func.params
 
-    if func.orig? and func.orig.is_method and not func.orig.is_static {
+    if func.orig? and func.orig.kind == Method and not func.orig.is_static {
         .check_method_call(func.orig, node)
+    }
+
+    if res.base == Closure {
+        node.u.call.call_type = Closure
     }
 
     .check_call_args(node, params, func.is_variadic)
@@ -1302,7 +1365,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         ASTType::Null => {
             if hint? {
                 if hint.base == BaseType::Pointer return hint
-                if hint.base == BaseType::Function return hint
+                if hint.base == BaseType::FunctionPtr return hint
             }
 
             return .get_type_by_name("untyped_ptr", node.span)
@@ -1433,6 +1496,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             match item.type {
                 Function => return item.u.func.type
                 Variable | Constant => return item.u.var.type
+                ClosedVariable => return item.u.closed_var.orig.type
                 EnumVariant => {
                     let variant = item.u.enum_var
                     if variant.num_fields() != 0 {
@@ -1593,6 +1657,15 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             let typ = Type::new_resolved(Pointer, node.span)
             typ.u.ptr = child_typ
             return typ
+        }
+        ASTType::CreateClosure => {
+            let clos = node.u.closure
+            clos.closure_scope = .o.scope()
+            clos.closed_vars = Map<str, &Symbol>::new()
+
+            .check_function_declaration(clos)
+            .check_function(clos)
+            return clos.type
         }
         Error => {
             return hint
@@ -2201,7 +2274,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     .resolve_doc_links(func.sym)
 
     let is_templated = false
-    if func.is_method and func.parent_type.base == Structure {
+    if func.kind == Method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.sym.is_templated() then is_templated = true
     }
@@ -2246,7 +2319,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     }
     new_scope.cur_func = func
 
-    if func.sym.is_extern then return
+    if func.sym? and func.sym.is_extern then return
 
     .o.push_scope(new_scope)
     .check_statement(func.body)
@@ -2336,7 +2409,7 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
 
 // FIXME: This should really live somewhere else...
 def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
-    if not sym.comment? return
+    if not (sym? and sym.comment?) return
 
     let buffer = Buffer::make()
     let prev = 0
@@ -2594,7 +2667,7 @@ def TypeChecker::handle_import_statement(&this, node: &AST) {
 }
 
 def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
-    if func.is_method {
+    if func.kind == Method {
         let parent_span = func.parent_type.span
         let parent_type = .resolve_type(func.parent_type, allow_incomplete: true)
         if not parent_type? {
@@ -2781,7 +2854,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     let error = true
     let resolve_templates = true
 
-    if func.is_method and func.parent_type.base == Structure {
+    if func.kind == Method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
         if struc.sym.is_templated() {
             allow_incomplete = true
@@ -2789,7 +2862,11 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
             resolve_templates = false
         }
     }
-    if func.sym.is_templated() {
+    let func_span = match func.kind {
+        Closure => func.span
+        else => func.sym.span
+    }
+    if func.sym? and func.sym.is_templated() {
         allow_incomplete = true
         error = false
         resolve_templates = false
@@ -2797,7 +2874,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
     func.return_type = .resolve_type(func.return_type, allow_incomplete, error, resolve_templates)
     if not func.return_type? {
-        func.return_type = .get_base_type(BaseType::Void, func.sym.span)
+        func.return_type = .get_base_type(BaseType::Void, func_span)
     }
 
     for param : func.params.iter() {
@@ -2818,9 +2895,14 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 
     // A function keeps track of a type that represents an equivalent function pointer type
     // This is used for type checking function calls
-    let typ = Type::new_resolved(Function, func.sym.span)
-    typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
-    func.type = typ
+    if func.kind == Closure {
+        func.type = .get_closure_type(func.params, func.return_type, func.type)
+
+    } else {
+        let typ = Type::new_resolved(FunctionPtr, func_span)
+        typ.u.func = FunctionType(func, func.params, func.return_type, func.is_variadic)
+        func.type = typ
+    }
 }
 
 def TypeChecker::try_resolve_typedefs_in_namespace(&this, ns: &Namespace, pre_import: bool) {

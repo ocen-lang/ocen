@@ -43,6 +43,7 @@ enum ASTType {
     Defer
     Specialization
     ArrayLiteral
+    CreateClosure
 
     // Used for heap-allocating the result of an expression
     // @new XYZ   =>  { let a = mem::alloc<typeof(XYZ)>(); *a = XYZ; yield a  }
@@ -179,13 +180,38 @@ def EnumVariant::new(span: Span): &EnumVariant {
     return variant
 }
 
+// Calling this FunctionKind instead of FunctionType to
+// avoid confusion with the `struct FunctionType` used in &Type
+enum FunctionKind {
+    Normal
+    Method
+    Closure
+}
+
+
+// FIXME: Can we do something about `alloca()` in codegen?
+// FIXME: Codegen is super hacky, need to clean up and fix:
+// FIXME: Have a "ground truth" function for getting names of closure fields/etc. Currently hardcoded in many places
+// FIXME: Check to see if any existing fields clash with implicit closure fields, and throw an error/rename
+// FIXME: Checking lifetimes: closures can't outlive their parent function
+// FIXME: Allow capturing things other than variables
+// FIXME: Allow nested closures (in resolve_scoped_identifier) we only ever look up one level
+// FIXME: Don't treat global variables/functions as captured variables, they should be looked up normally
+// FIXME: Almost ALL the details are hardcoded in codegen. Make type-checker aware of extra implicit fields/params etc.
+// FIXME:   - Essentially, "unroll" the closures into structs+fields at type-checker level
+// FIXME: We do not correctly account for ordering of used types in closure types
 struct Function {
+    kind: FunctionKind
+
     sym: &Symbol
     params: &Vector<&Variable>
     //! (Eventually) resolved return type of the function
     return_type: &Type
     body: &AST
+
     scope: &Scope
+    closure_scope: &Scope
+    closed_vars: &Map<str, &Symbol>
 
     span: Span
     //! Used for LSP, to know span of (unresolved) return type
@@ -201,7 +227,6 @@ struct Function {
     operator_overloads: &Vector<Operator>
 
     exits: bool
-    is_method: bool
     is_static: bool
     parent_type: &Type
 
@@ -251,6 +276,7 @@ def Argument::new(expr: &AST, label_token: &Token = null): &Argument {
 
 enum CallType {
     Normal
+    Closure
     StructConstructor
     EnumConstructor
 }
@@ -480,6 +506,7 @@ union ASTUnion {
     array_literal: ArrayLiteral
     child: &AST
     ret: Return
+    closure: &Function
 }
 
 struct AST {

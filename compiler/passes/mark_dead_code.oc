@@ -1,6 +1,6 @@
 //* Mark Dead Code
 //*
-//* This pass marks all functions / structs / enums that are not used as dead, so 
+//* This pass marks all functions / structs / enums that are not used as dead, so
 //* that they can be removed and not compiled into the final binary.
 
 import std::vector::Vector
@@ -41,6 +41,7 @@ def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
         Function => .mark_function(sym.u.func)
         Structure => .mark_struct(sym.u.struc)
         Enum => .mark_enum(sym.u.enom)
+
         Constant | Variable => {
             .mark_type(sym.u.var.type)
             .mark(sym.u.var.default_value)
@@ -67,7 +68,7 @@ def MarkDeadCode::mark_type(&this, typ: &Type) {
     match typ.base {
         Pointer | Alias => .mark_type(typ.u.ptr)
         Array => .mark_type(typ.u.arr.elem_type)
-        Function => {
+        FunctionPtr => {
             let ft = typ.u.func
             .mark_type(ft.return_type)
             for param : ft.params.iter() {
@@ -142,6 +143,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
                 .mark(statement)
             }
         }
+        CreateClosure => .mark_function(node.u.closure)
         If => {
             for branch in node.u.if_stmt.branches.iter() {
                 .mark(branch.cond)

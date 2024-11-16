@@ -17,6 +17,8 @@ enum SymbolType {
     Namespace
     Variable
     Constant
+    Closure
+    ClosedVariable
 
     Enum
     EnumVariant
@@ -78,6 +80,11 @@ struct EnumField {
     idx: u32
 }
 
+struct ClosedVariable {
+    orig: &Variable
+    closure: &Function
+}
+
 union SymbolUnion {
     func: &Function
     struc: &Structure
@@ -87,6 +94,8 @@ union SymbolUnion {
     enom: &Enum
     enum_var: &EnumVariant
     enum_field: EnumField
+    closure: &Function
+    closed_var: ClosedVariable
 }
 
 struct Symbol {
@@ -148,7 +157,7 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_
 def Symbol::join_display(a: str, b: str): str => if a.len() == 0 then b else `{a}::{b}`
 def Symbol::join_full_name(a: str, b: str): str => if a.len() == 0 then b else `{a}_{b}`
 
-def Symbol::is_templated(&this): bool => .template?
+def Symbol::is_templated(&this): bool => this? and .template?
 
 def Symbol::new_with_parent(type: SymbolType, ns: &Namespace, parent: &Symbol, name: str, span: Span): &Symbol {
     let display = Symbol::join_display(parent.display, name)
