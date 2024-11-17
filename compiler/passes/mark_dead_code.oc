@@ -37,6 +37,7 @@ def MarkDeadCode::free(&this) {
 
 def MarkDeadCode::mark_sym(&this, sym: &Symbol) {
     if not sym? return
+    sym.is_dead = false
     match sym.type {
         Function => .mark_function(sym.u.func)
         Structure => .mark_struct(sym.u.struc)
@@ -63,6 +64,9 @@ def MarkDeadCode::mark_function(&this, f: &Function) {
     for param : f.params.iter() {
         .mark_type(param.type)
     }
+
+    .mark_sym(f.type.sym)
+    .mark_type(f.return_type)
 }
 
 def MarkDeadCode::mark_type(&this, typ: &Type) {

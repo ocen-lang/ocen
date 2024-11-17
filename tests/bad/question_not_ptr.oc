@@ -1,4 +1,4 @@
-/// fail: Can only use ? on pointer types
+/// fail: Can only use ? on pointer types, got u32
 
 def main() {
 	let x = 50

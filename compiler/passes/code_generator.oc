@@ -719,7 +719,20 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             IsNotNull => {
                 let expr = node.u.unary.expr
                 .out += "((bool)"
-                .gen_expression(expr)
+
+                let type = expr.etype
+                // FIXME: Is there a better place to do this? We generally want to treat
+                //        the closure as the full struct when passing it around, but specifically
+                //        for null-checks we want to only look at the function pointer.
+                if type? and type.base == Closure {
+                    .gen_expression(expr)
+                    .out += "."
+                    .out += cls::fn_field_name
+
+                } else {
+                    .gen_expression(expr)
+                }
+
                 .out += ")"
             }
             PreIncrement | PreDecrement => {
@@ -747,7 +760,13 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             .gen_type(node.u.size_of_type)
             .out += "))"
         }
-        Null => .out += "NULL"
+        Null => match node.etype.base {
+            // Closures behave like a function pointer in ocen, but are actually a
+            // struct in the output C. We need special handling here.
+            // Zero-initialize the struct, including the pointer
+            Closure => .out <<= f"(({node.etype.sym.out_name()})\{0\})"
+            else => .out += "NULL"
+        }
         BinaryOp => match node.u.binary.op {
             Index => {
                 let lhs = node.u.binary.lhs

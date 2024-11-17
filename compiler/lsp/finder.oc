@@ -173,6 +173,7 @@ def Finder::find_in_call_args(&this, node: &AST, args: &Vector<&Argument>): bool
 }
 
 def Finder::find_in_expression(&this, node: &AST): bool {
+    if not node? return false
     match node.type {
         IntLiteral | FloatLiteral | BoolLiteral |
         StringLiteral | CharLiteral |
@@ -200,6 +201,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
                 return .set_usage(node.resolved_symbol, node)
             }
         }
+        CreateClosure => return .find_in_function(node.u.closure)
         NSLookup => {
             // We actually want to point to the type, not the variable
             if .find_in_expression(node.u.lookup.lhs) return true
@@ -383,6 +385,16 @@ def Finder::find_in_type(&this, type: &Type): bool {
             if .find_in_type(spec.base) return true
             for ty : spec.args.iter() {
                 if .find_in_type(ty) return true
+            }
+        }
+        FunctionPtr | Closure => {
+            let func = type.u.func
+            for param : func.params.iter() {
+                if .find_in_var(param, node: null) return true
+            }
+            if func.return_type? and .find_in_type(func.return_type) return true
+            if type.span.contains_loc(.loc) {
+                return .set_usage(type.sym, node: null) // FIXME: What should be the node here?
             }
         }
         else => {
