@@ -1,0 +1,11 @@
+/// fail: Variable type does not match assignment type, Expected type 'u32', got 'i32'
+
+def test(callback: @fn(i32), x: i32) {
+    callback(x)
+}
+
+def main() {
+    let x: u32 = 100
+    let cb = |a: i32| => x = a
+    test(cb, 10)
+}

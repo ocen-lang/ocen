@@ -1,0 +1,11 @@
+/// fail: Expected `callback` with type @fn(i32): void, but got @fn(u32): void
+
+def test(callback: @fn(i32), x: i32) {
+    callback(x)
+}
+
+def main() {
+    let x: u32 = 100
+    let cb = |a: u32| => x += a
+    test(cb, 10)
+}

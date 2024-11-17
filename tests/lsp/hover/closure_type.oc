@@ -1,0 +1,5 @@
+/// lsp: -h 4 24
+/// {"hover": "i32"}
+
+def foo(x: @fn(str): i32) {}
+def main() => 0

@@ -189,13 +189,10 @@ enum FunctionKind {
 // FIXME: Codegen is super hacky, need to clean up and fix:
 // FIXME: Check to see if any existing fields clash with implicit closure fields, and throw an error/rename
 // FIXME: Checking lifetimes: closures can't outlive their parent function
-// FIXME: Allow capturing things other than variables
 // FIXME: Allow nested closures (in resolve_scoped_identifier) we only ever look up one level
-// FIXME: Don't treat global variables/functions as captured variables, they should be looked up normally
 // FIXME: Almost ALL the details are hardcoded in codegen. Make type-checker aware of extra implicit fields/params etc.
 // FIXME:   - Essentially, "unroll" the closures into structs+fields at type-checker level
 // FIXME: Allow passing a normal function pointer to a closure (just wrap it in Closure struct with empty context)
-// FIXME: More comprehensive postive / negative tests for closures.
 struct Function {
     kind: FunctionKind
 
