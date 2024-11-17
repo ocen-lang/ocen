@@ -1,0 +1,11 @@
+/// lsp: -h 6 15
+/// {"hover": "a: u32"}
+
+def main() {
+    let x = 100
+    let cb = |a: u32| => x += a
+
+    for let i = 0; i < 5; i++ {
+        cb(i)
+    }
+}
