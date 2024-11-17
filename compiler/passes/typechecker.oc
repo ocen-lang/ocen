@@ -1367,8 +1367,10 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         }
         ASTType::Null => {
             if hint? {
-                if hint.base == BaseType::Pointer return hint
-                if hint.base == BaseType::FunctionPtr return hint
+                match hint.base {
+                    Pointer | FunctionPtr | Closure => return hint
+                    else => {}
+                }
             }
 
             return .get_type_by_name("untyped_ptr", node.span)
@@ -1429,8 +1431,12 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 let typ = .check_expression(node.u.unary.expr)
                 if not typ? return null
                 typ = typ.unaliased()
-                if typ.base != BaseType::Pointer {
-                    .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
+                match typ.base {
+                    Pointer | FunctionPtr | Closure => {}
+                    else => {
+                        .error(Error::new(node.span, `Can only use ? on pointer types, got {typ.str()}`))
+                        return null
+                    }
                 }
                 return .get_base_type(BaseType::Bool, node.span)
             }
@@ -1663,6 +1669,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         }
         ASTType::CreateClosure => {
             let clos = node.u.closure
+            clos.scope = .o.ns().scope
+
             clos.closure_scope = .o.scope()
             clos.closed_vars = Map<str, &Symbol>::new()
 
@@ -3010,8 +3018,10 @@ def TypeChecker::run(program: &Program) {
 
     pass.check_namespace(program.global)
 
+    pass.o.push_namespace(program.global)
     while pass.unchecked_functions.size > 0 {
         let func = pass.unchecked_functions.pop() as &Function
         pass.check_function(func)
     }
+    pass.o.pop_namespace()
 }

@@ -22,7 +22,7 @@ def main() {
         arr[i] = randu32() % 10000
     }
 
-    nth_element_by<u32>(arr, 100, 25, u32::compare)
+    nth_element_by<u32>(arr, 100, 25, |a: u32, b: u32|: i8 => a.compare(b))
     let n = arr[25]
 
     for let i = 0; i < 100; i = i + 1 {
@@ -32,5 +32,4 @@ def main() {
             assert arr[i] >= n
         }
     }
-
 }
