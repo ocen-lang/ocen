@@ -784,6 +784,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             return AST::new(Error, .token().span)
         }
         TokenType::Line => {
+            let start_loc = .token().span.start
             let closure_func = .parse_closure()
             let node = AST::new(CreateClosure, closure_func.span)
             node.u.closure = closure_func
@@ -795,7 +796,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
                 .curr_func? => .curr_func.sym
                 else => .ns.sym
             }
-            let sym = Symbol::new_with_parent(Closure, .ns, parent_sym, closure_name, closure_func.span)
+            let sym = Symbol::new_with_parent(Closure, .ns, parent_sym, closure_name, Span(start_loc, start_loc))
             sym.u.func = closure_func
             closure_func.sym = sym
             return node

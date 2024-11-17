@@ -2,9 +2,9 @@
 
 import std::traits::compare
 
-def sort<T>(data: &T, size: u32) => sort_by<T>(data, size, T::compare)
+def sort<T>(data: &T, size: u32) => sort_by<T>(data, size, |a: T, b: T|: i8 => a.compare(b))
 
-def sort_by<T>(data: &T, size: u32, cmp: fn(T,T): i8) {
+def sort_by<T>(data: &T, size: u32, cmp: @fn(T,T): i8) {
     if size <= 1 {
         return
     }
@@ -33,9 +33,9 @@ def sort_by<T>(data: &T, size: u32, cmp: fn(T,T): i8) {
     sort_by<T>(data + i, size - i, cmp)
 }
 
-def nth_element<T>(data: &T, size: u32, n: u32) => nth_element_by<T>(data, size, n, T::compare)
+def nth_element<T>(data: &T, size: u32, n: u32) => nth_element_by<T>(data, size, n, |a: T, b: T|: i8 => a.compare(b))
 
-def nth_element_by<T>(data: &T, size: u32, n: u32, cmp: fn(T,T): i8): T {
+def nth_element_by<T>(data: &T, size: u32, n: u32, cmp: @fn(T,T): i8): T {
     if size <= 1 return data[0]
 
     let pivot = data[size / 2]
