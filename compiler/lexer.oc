@@ -229,7 +229,15 @@ def Lexer::lex_numeric_literal(&this) {
             .inc()
         }
         let len = .i - start
-        let suffix = .source.substring(start, len)
+        let suffix = if {
+            len > 1 => .source.substring(start, len)
+            initial_char == 'i' => "i32"
+            initial_char == 'u' => "u32"
+            else => {
+                .errors.push(Error::new(Span(start_loc, .loc), "Invalid numeric literal suffix"))
+                yield .source.substring(start, len)
+            }
+        }
         token.suffix = Token::from_ident(suffix, Span(start_loc, .loc))
     }
 

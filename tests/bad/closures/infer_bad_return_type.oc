@@ -1,0 +1,8 @@
+/// fail: Expected `x` with type @fn(i32, i32): i32, but got @fn(i32, i32): str
+
+def foo(x: @fn(i32,i32): i32): i32 => x(1, 2)
+
+def main() {
+    let t = foo(|a, b|: str => "hello")
+    println(`t={t}`)
+}

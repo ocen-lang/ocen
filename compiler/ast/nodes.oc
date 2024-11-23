@@ -201,6 +201,7 @@ struct Function {
     //! (Eventually) resolved return type of the function
     return_type: &Type
     body: &AST
+    is_arrow: bool
 
     scope: &Scope
     closure_scope: &Scope

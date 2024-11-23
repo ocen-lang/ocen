@@ -267,7 +267,7 @@ def Type::str(&this): str => match .base {
             if param.type? {
                 buf += param.type.str()
             } else {
-                buf += "null"
+                buf += "<unknown>"
             }
             if i < .u.func.params.size - 1 {
                 buf += ", "

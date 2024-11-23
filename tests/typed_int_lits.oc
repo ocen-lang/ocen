@@ -11,4 +11,5 @@ def main() {
     let d: i64 = -40i64
     let e: f32 = 50.0f32
     let f: f64 = 60.0f64
+    let g: i32 = 60i
 }

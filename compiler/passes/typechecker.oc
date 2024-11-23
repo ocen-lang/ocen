@@ -1674,6 +1674,42 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             clos.closure_scope = .o.scope()
             clos.closed_vars = Map<str, &Symbol>::new()
 
+            let hint_matches = if {
+                not hint? => false
+                hint.base != Closure => false
+                hint.u.func.params.size != clos.params.size => false
+                else => true
+            }
+
+            if hint_matches {
+                let hfunc = hint.u.func
+                for let i = 0; i < clos.params.size; i += 1 {
+                    let param = clos.params[i]
+                    let hint_type = hfunc.params[i].type
+                    let param_type = if {
+                        param.type? => param.type
+                        else => hint_type
+                    }
+                    param.type = param_type
+                }
+
+                let hint_ret_type = hfunc.return_type
+                let clos_ret_type = if {
+                    clos.return_type? => clos.return_type
+                    else => hint_ret_type
+                }
+                clos.return_type = clos_ret_type
+            } else {
+                for param : clos.params.iter() {
+                    if not param.type? {
+                        .error(Error::new(param.sym.span, "Cannot infer type, specify it explicitly"))
+                    }
+                }
+            }
+            if not clos.return_type? {
+                clos.return_type = .get_base_type(BaseType::Void, node.span)
+            }
+
             .check_function_declaration(clos)
             .check_function(clos)
             return clos.type
@@ -2333,7 +2369,24 @@ def TypeChecker::check_function(&this, func: &Function) {
     if func.sym? and func.sym.is_extern then return
 
     .o.push_scope(new_scope)
-    .check_statement(func.body)
+    let ret_type = func.return_type
+    if func.is_arrow and ret_type? and ret_type.base != BaseType::Void {
+        let stmt_type = .check_expression(func.body, hint: ret_type)
+        if not stmt_type? {
+            .error(Error::new(func.body.span, "Arrow function must yield a value"))
+        } else if not stmt_type.eq(ret_type) {
+            .error(Error::new_hint(
+                func.body.span, `Expected return type {ret_type.str()}, but got {stmt_type.str()}`,
+                ret_type.span, `Arrow function has return type {ret_type.str()}`
+            ))
+        } else {
+            func.body.returns = true
+        }
+
+    } else {
+        .check_statement(func.body)
+    }
+
     if not func.body.returns and func.return_type.base != BaseType::Void and not func.sym.full_name.eq("main") {
         .error(Error::new(func.sym.span, "Function does not always return"))
     }
@@ -2528,6 +2581,7 @@ def TypeChecker::check_const_expression(&this, node: &AST, hint: &Type = null): 
             }
             yield sym.u.var.type
         }
+        // FIXME: What about inferring integer types based on hint?
         IntLiteral  => .get_base_type(BaseType::I32, node.span)
         FloatLiteral => .get_base_type(BaseType::F32, node.span)
         BoolLiteral => .get_base_type(BaseType::Bool, node.span)

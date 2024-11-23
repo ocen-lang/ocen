@@ -1,0 +1,12 @@
+/// out: "t=6"
+
+def foo(x: @fn(i32,i32): i32): i32 => x(1, 2)
+
+def main() {
+    let t = foo(|a, b| => a + b + 3)
+    t = foo(|a, b|: i32 => a + b + 3)
+    t = foo(|a: i32, b| => a + b + 3)
+    t = foo(|a: i32, b: i32| => a + b + 3)
+    t = foo(|a, b: i32| => a + b + 3)
+    println(`t={t}`)
+}
