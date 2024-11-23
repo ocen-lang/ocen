@@ -1,0 +1,9 @@
+/// fail: Expected return type i32, but got str
+
+def foo(x: @fn(i32,i32): i32): i32 => x(1, 2)
+
+def main() {
+    // Infered type is @fn(i32, i32): i32, but we are returning str
+    let t = foo(|a, b| => "hello")
+    println(`t={t}`)
+}

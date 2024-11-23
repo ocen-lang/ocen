@@ -1424,6 +1424,30 @@ def CodeGenerator::gen_type(&this, type: &Type) {
     .gen_type_and_name(type, name: "")
 }
 
+def CodeGenerator::gen_function_body(&this, func: &Function) {
+    let ret_type = func.return_type
+    if func.is_arrow {
+        .out += "{\n"
+        .indent += 1
+        .gen_indent()
+
+        if ret_type.base != Void {
+            .out += "return "
+            .gen_expression(func.body)
+            .out += ";"
+        } else {
+            .gen_statement(func.body)
+        }
+
+        .indent -= 1
+        .gen_indent()
+        .out += "}"
+
+    } else {
+        .gen_block(func.body)
+    }
+}
+
 def CodeGenerator::gen_function(&this, func: &Function) {
     if func.kind == Method and func.parent_type.base == Structure {
         let struc = func.parent_type.u.struc
@@ -1435,7 +1459,7 @@ def CodeGenerator::gen_function(&this, func: &Function) {
     .gen_debug_info(func.sym.span)
     .gen_function_decl(func)
     .out += " "
-    .gen_block(func.body)
+    .gen_function_body(func)
     .out += "\n\n"
 }
 
@@ -1644,7 +1668,7 @@ def CodeGenerator::gen_closure_func(&this, clos: &Function) {
     )
     .out += " {\n"
     .out <<= `  {ctx_type} *{ctx} = ({ctx_type} *)_{ctx};\n`
-    .gen_block(clos.body)
+    .gen_function_body(clos)
     .out += "\n}\n\n"
 }
 

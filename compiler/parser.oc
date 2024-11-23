@@ -1554,7 +1554,7 @@ def Parser::add_doc_comment(&this, sym: &Symbol, token: &Token) {
     }
 }
 
-def Parser::parse_function_args(&this, func: &Function, end: TokenType) {
+def Parser::parse_function_args(&this, func: &Function, end: TokenType, need_types: bool = true) {
     let seen_default = false
     while not .token_is_eof_or(end) {
 
@@ -1584,8 +1584,10 @@ def Parser::parse_function_args(&this, func: &Function, end: TokenType) {
             }
         }
         if not type? {
-            .consume(TokenType::Colon)
-            type = .parse_type()
+            if need_types or .token_is(Colon) {
+                .consume(TokenType::Colon)
+                type = .parse_type()
+            }
         }
 
         let default_value = null as &AST
@@ -1610,11 +1612,13 @@ def Parser::parse_function_args(&this, func: &Function, end: TokenType) {
     }
 }
 
-def Parser::parse_function_body(&this, returns: bool): &AST {
+def Parser::parse_function_body(&this, func: &Function): &AST {
     if .token().type != FatArrow {
+        func.is_arrow = false
         return .parse_block()
     }
 
+    func.is_arrow = true
     let arrow = .consume(TokenType::FatArrow)
     if .token_is(TokenType::OpenCurly) {
         .error(Error::new(.token().span, "Expected an expression for an arrow function"))
@@ -1622,20 +1626,7 @@ def Parser::parse_function_body(&this, returns: bool): &AST {
     }
 
     let stmt = .parse_expression(end_type: TokenType::Newline)
-    if returns {
-        let ret = AST::new(Return, stmt.span)
-        ret.u.ret.expr = stmt
-        ret.u.ret.return_span = arrow.span
-        stmt = ret
-    }
-
-    let body = AST::new(Block, stmt.span)
-
-    let statements = Vector<&AST>::new()
-    statements.push(stmt)
-    body.u.block.statements = statements
-
-    return body
+    return stmt
 }
 
 def Parser::parse_closure(&this): &Function {
@@ -1644,20 +1635,18 @@ def Parser::parse_closure(&this): &Function {
     func.name_ast = null
     func.kind = Closure
 
-    .parse_function_args(func, Line)
+    .parse_function_args(func, Line, need_types: false)
     let end_span = .consume(Line).span
 
-    let returns = false
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
         end_span = func.return_type.span
-        returns = true
     } else {
-        func.return_type = Type::new_unresolved_base(BaseType::Void, start.span)
+        func.return_type = null  // Leave this as null so we can infer it later
     }
 
     func.parsed_return_type = func.return_type
-    func.body = .parse_function_body(returns)
+    func.body = .parse_function_body(func)
     func.span = start.span.join(func.body.span)
     return func
 }
@@ -1767,7 +1756,7 @@ def Parser::parse_function(&this): &Function {
 
     .curr_func = func
 
-    func.body = .parse_function_body(returns)
+    func.body = .parse_function_body(func)
 
     .curr_func = null
     func.span = start.span.join(func.body.span)
