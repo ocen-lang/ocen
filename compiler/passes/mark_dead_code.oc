@@ -61,7 +61,7 @@ def MarkDeadCode::mark_function(&this, f: &Function) {
     f.sym.is_dead = false
     .mark(f.body)
 
-    for param : f.params.iter() {
+    for param in f.params.iter() {
         .mark_type(param.type)
     }
 
@@ -77,14 +77,14 @@ def MarkDeadCode::mark_type(&this, typ: &Type) {
         FunctionPtr | Closure => {
             let ft = typ.u.func
             .mark_type(ft.return_type)
-            for param : ft.params.iter() {
+            for param in ft.params.iter() {
                 .mark_type(param.type)
             }
         }
         else => {
             .mark_sym(typ.sym)
             if typ.template_instance? {
-                for arg : typ.template_instance.args.iter() {
+                for arg in typ.template_instance.args.iter() {
                     .mark_type(arg)
                 }
             }
@@ -97,7 +97,7 @@ def MarkDeadCode::mark_struct(&this, s: &Structure) {
     .done.add(s as u64)
 
     s.sym.is_dead = false
-    for field : s.fields.iter() {
+    for field in s.fields.iter() {
         .mark_type(field.type)
     }
 }
@@ -145,7 +145,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         SizeOf => .mark_type(node.u.size_of_type)
         VarDeclaration => .mark_sym(node.u.var_decl.sym)
         Block => {
-            for statement : node.u.block.statements.iter() {
+            for statement in node.u.block.statements.iter() {
                 .mark(statement)
             }
         }
@@ -159,7 +159,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         }
         Match => {
             .mark(node.u.match_stmt.expr)
-            for c : node.u.match_stmt.cases.iter() {
+            for c in node.u.match_stmt.cases.iter() {
                 for cond in c.conds.iter() {
                     .mark(cond.expr)
                     if cond.cmp_fn? {
@@ -184,7 +184,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
             if .o.program.did_cache_symbols {
                 .mark_sym(.o.program.cached_symbols.fmt_string_fn)
             }
-            for expr : node.u.fmt_str.exprs.iter() {
+            for expr in node.u.fmt_str.exprs.iter() {
                 .mark(expr)
             }
         }
@@ -195,7 +195,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
         NSLookup => .mark(node.u.lookup.lhs)
         Call => {
             .mark(node.u.call.callee)
-            for arg : node.u.call.args.iter() {
+            for arg in node.u.call.args.iter() {
                 .mark(arg.expr)
             }
         }
@@ -208,7 +208,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
             .mark_type(node.u.cast.to)
         }
         ArrayLiteral => {
-            for expr : node.u.array_literal.elements.iter() {
+            for expr in node.u.array_literal.elements.iter() {
                 .mark(expr)
             }
         }
@@ -217,8 +217,8 @@ def MarkDeadCode::mark(&this, node: &AST) {
 }
 
 def MarkDeadCode::find_main_function(&this, program: &Program): &Function {
-    for ns : program.iter_namespaces() {
-        for f : ns.functions.iter() {
+    for ns in program.iter_namespaces() {
+        for f in ns.functions.iter() {
             if f.sym.full_name.eq("main") {
                 return f
             }
@@ -232,7 +232,7 @@ def MarkDeadCode::mark_sym_as_dead_by_default(&this, sym: &Symbol) {
     sym.is_dead = true
 
     if sym.template? {
-        for instance : sym.template.instances.iter() {
+        for instance in sym.template.instances.iter() {
             .mark_sym_as_dead_by_default(instance.resolved)
         }
     }
@@ -253,20 +253,20 @@ def MarkDeadCode::run(program: &Program) {
     }
 
     // Mark all functions as dead by default
-    for ns : program.iter_namespaces() {
-        for f : ns.functions.iter() {
+    for ns in program.iter_namespaces() {
+        for f in ns.functions.iter() {
             pass.mark_sym_as_dead_by_default(f.sym)
         }
-        for s : ns.structs.iter() {
+        for s in ns.structs.iter() {
             pass.mark_sym_as_dead_by_default(s.sym)
         }
-        for e : ns.enums.iter() {
+        for e in ns.enums.iter() {
             pass.mark_sym_as_dead_by_default(e.sym)
         }
-        for v : ns.variables.iter() {
+        for v in ns.variables.iter() {
             pass.mark_sym_as_dead_by_default(v.u.var_decl.sym)
         }
-        for c : ns.constants.iter() {
+        for c in ns.constants.iter() {
             pass.mark_sym_as_dead_by_default(c.u.var_decl.sym)
         }
     }

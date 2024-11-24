@@ -66,11 +66,11 @@ def save_and_compile_code(program: &Program, code: str) {
 
     cmd <<= `{c_compiler} -o {exec_path} {c_path}`
 
-    for flag : program.c_flags.iter() {
+    for flag in program.c_flags.iter() {
         cmd += " "
         cmd += flag
     }
-    for flag : extra_c_flags.iter() {
+    for flag in extra_c_flags.iter() {
         cmd += " "
         cmd += flag
     }

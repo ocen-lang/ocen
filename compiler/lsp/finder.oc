@@ -263,7 +263,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         Specialization => {
             let spec = &node.u.spec
             if .find_in_expression(spec.base) return true
-            for ty : spec.parsed_template_args.iter() {
+            for ty in spec.parsed_template_args.iter() {
                 if .find_in_type(ty) return true
             }
         }
@@ -295,9 +295,9 @@ def Finder::find_in_import_part(&this, base: &Symbol, part: &ImportPart, node: &
     }
     Multiple => {
         let multi = &part.u.multiple
-        for subpath : multi.paths.iter() {
+        for subpath in multi.paths.iter() {
             let prev = base
-            for subpart : subpath.iter() {
+            for subpart in subpath.iter() {
                 if .find_in_import_part(prev, subpart, node) {
                     if prev? and prev.type == Namespace {
                         .found_import_ns = prev.u.ns
@@ -339,7 +339,7 @@ def Finder::find_in_statement(&this, node: &AST): bool {
         Import => {
             let path = node.u.import_path
             let prev = path.root_sym
-            for part : path.parts.iter() {
+            for part in path.parts.iter() {
                 if .find_in_import_part(prev, part, node) {
                     if prev? and prev.type == Namespace {
                         .found_import_ns = prev.u.ns
@@ -383,13 +383,13 @@ def Finder::find_in_type(&this, type: &Type): bool {
         UnresolvedTemplate => {
             let spec = type.u.unresolved_spec
             if .find_in_type(spec.base) return true
-            for ty : spec.args.iter() {
+            for ty in spec.args.iter() {
                 if .find_in_type(ty) return true
             }
         }
         FunctionPtr | Closure => {
             let func = type.u.func
-            for param : func.params.iter() {
+            for param in func.params.iter() {
                 if .find_in_var(param, node: null) return true
             }
             if func.return_type? and .find_in_type(func.return_type) return true
@@ -419,7 +419,7 @@ def Finder::find_in_function(&this, func: &Function): bool {
     if .find_in_expression(func.name_ast) return true
 
     .scopes.push(func.scope)
-    for param : func.params.iter() {
+    for param in func.params.iter() {
         if .find_in_var(param, node: null) return true
     }
 
@@ -435,19 +435,19 @@ def Finder::find_in_function(&this, func: &Function): bool {
 def Finder::find_in_program(&this, ns: &Namespace): bool {
     .scopes.push(ns.scope)
 
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         // If this is a template instance, we skip checking it at all.
         // The original template (which should be checked separately) will
         // have the same span as this instance, and is what we are looking for.
         if struc.type? and struc.type.template_instance? continue
 
         if struc.sym.span.contains_loc(.loc) return .set_usage(struc.sym, node: null)
-        for field : struc.fields.iter() {
+        for field in struc.fields.iter() {
             if .find_in_var(field, node: null) return true
         }
     }
 
-    for enom : ns.enums.iter() {
+    for enom in ns.enums.iter() {
         if enom.sym.span.contains_loc(.loc) return .set_usage(enom.sym, node: null)
         for field in enom.shared_fields.iter() {
             if .find_in_var(field, node: null) return true
@@ -455,19 +455,19 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         for variant in enom.variants.iter() {
             if variant.sym.span.contains_loc(.loc) return .set_usage(variant.sym, node: null)
             if variant.specific_fields? {
-                for field : variant.specific_fields.iter() {
+                for field in variant.specific_fields.iter() {
                     if .find_in_var(field, node: null) return true
                 }
             }
         }
     }
 
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         if func.sym.span.contains_loc(.loc) return .set_usage(func.sym, node: null)
         if .find_in_function(func) return true
     }
 
-    for import_ : ns.imports.iter() {
+    for import_ in ns.imports.iter() {
         if .find_in_statement(import_) return true
     }
 
@@ -489,7 +489,7 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
 
     .scopes.pop()
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         if child.sym.span.contains_loc(.loc) return .set_usage(child.sym, node: null)
         if .find_in_program(child) return true
     }

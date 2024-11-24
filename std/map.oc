@@ -11,7 +11,7 @@
 //!     let map = Map<u32, str>::new()
 //!     map.insert(1, "one")
 //!     map.insert(2, "two")
-//!     for it : map.iter() {
+//!     for it in map.iter() {
 //!         println(`{it.key} = {it.value}`)
 //!     }
 //!     map.remove(1)
@@ -133,7 +133,7 @@ def Map::insert(&this, key: K, value: V) {
 [operator "+="]
 //* Inserts all key-value pairs from the other map into
 def Map::extend(&this, other: &Map<K, V>) {
-    for iter : other.iter() {
+    for iter in other.iter() {
         .insert(iter.key, iter.value)
     }
 }

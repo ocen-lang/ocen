@@ -36,7 +36,7 @@ def DocGenerator::gen_enum(&this, enom: &Enum): &Value {
     }
 
     let shared_fields_doc = Value::new(List)
-    for field : enom.shared_fields.iter() {
+    for field in enom.shared_fields.iter() {
         let field_doc = Value::new(Dictionary)
         field_doc["name"] = field.sym.name
         field_doc["type"] = .gen_typename(field.type)
@@ -48,7 +48,7 @@ def DocGenerator::gen_enum(&this, enom: &Enum): &Value {
     enum_doc["shared_fields"] = shared_fields_doc
 
     let variants_doc = Value::new(List)
-    for variant : enom.variants.iter() {
+    for variant in enom.variants.iter() {
         // TODO: Add values for the variants if needed
         let variant_doc = Value::new(Dictionary)
         variant_doc["name"] = variant.sym.name
@@ -59,7 +59,7 @@ def DocGenerator::gen_enum(&this, enom: &Enum): &Value {
             variant_doc["extern"] = variant.sym.out_name()
         }
         let fields_doc = Value::new(List)
-        for field : variant.specific_fields.iter() {
+        for field in variant.specific_fields.iter() {
             fields_doc.push(.gen_typename(field.type))
         }
         variant_doc["fields"] = fields_doc
@@ -93,7 +93,7 @@ def DocGenerator::gen_templated_type(&this, base: &Type, args: &Vector<&Type>): 
     buf += base_name
     buf += "<"
     let first = true
-    for arg_type : args.iter() {
+    for arg_type in args.iter() {
         if not first then buf += ", "
         first = false
 
@@ -144,7 +144,7 @@ def DocGenerator::gen_typename_str(&this, type: &Type): str {
             let buf = Buffer::make()
             buf += "fn("
             let first = true
-            for param : type.u.func.params.iter() {
+            for param in type.u.func.params.iter() {
                 if not first then buf += ", "
                 first = false
 
@@ -188,7 +188,7 @@ def DocGenerator::gen_methods(&this, type: &Type): &Value {
     assert type.can_have_methods(), "gen_methods called with type that can't have methods"
 
     let methods_doc = Value::new(Dictionary)
-    for it : type.methods.iter() {
+    for it in type.methods.iter() {
         let method = it.value
         methods_doc[method.sym.name] = .gen_function(method)
     }
@@ -221,7 +221,7 @@ def DocGenerator::gen_function(&this, func: &Function): &Value {
     return_doc["type"] = .gen_typename(ret_type)
 
     let params_doc = Value::new(List)
-    for param : func.params.iter() {
+    for param in func.params.iter() {
         let param_doc = Value::new(Dictionary)
         param_doc["name"] = `{param.sym.name}`
         if param.sym.comment? {
@@ -259,7 +259,7 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
 
     if struc.sym.is_templated() {
         let params_doc = Value::new(List)
-        for sym : struc.sym.template.params.iter() {
+        for sym in struc.sym.template.params.iter() {
             params_doc.push(Value::new_str(sym.name))
         }
         struc_doc["template_params"] = params_doc
@@ -271,7 +271,7 @@ def DocGenerator::gen_struct(&this, struc: &Structure): &Value {
     }
 
     let fields_doc = Value::new(List)
-    for field : struc.fields.iter() {
+    for field in struc.fields.iter() {
         let field_doc = Value::new(Dictionary)
         field_doc["name"] = field.sym.name
         field_doc["type"] = .gen_typename(field.type)
@@ -305,7 +305,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
     if not ns.enums.is_empty() {
         let enums_doc = Value::new(Dictionary)
-        for enom : ns.enums.iter() {
+        for enom in ns.enums.iter() {
             enums_doc[enom.sym.name] = .gen_enum(enom)
         }
         ns_doc["enums"] = enums_doc
@@ -314,7 +314,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
     if not ns.structs.is_empty() {
         let structs_doc = Value::new(Dictionary)
         let unions_doc = Value::new(Dictionary)
-        for struc : ns.structs.iter() {
+        for struc in ns.structs.iter() {
             let struct_doc = .gen_struct(struc)
             if not struc.is_union {
                 structs_doc[struc.sym.name] = struct_doc
@@ -333,7 +333,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
     if not ns.variables.is_empty() {
         let vars_doc = Value::new(Dictionary)
-        for node : ns.variables.iter() {
+        for node in ns.variables.iter() {
             let var = node.u.var_decl
             let var_doc = Value::new(Dictionary)
             var_doc["id"] = `{var:x}`
@@ -354,7 +354,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
     if not ns.constants.is_empty() {
         let consts_doc = Value::new(Dictionary)
-        for node : ns.constants.iter() {
+        for node in ns.constants.iter() {
             let var = node.u.var_decl
             let const_doc = Value::new(Dictionary)
             const_doc["id"] = `{var:x}`
@@ -375,7 +375,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
     if not ns.functions.is_empty() {
         let funcs_doc = Value::new(Dictionary)
-        for func : ns.functions.iter() {
+        for func in ns.functions.iter() {
             if func.kind == Method {
                 continue
             }
@@ -387,7 +387,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
     if not ns.typedefs.is_empty() {
         let typedefs_doc = Value::new(Dictionary)
-        for it : ns.typedefs.iter() {
+        for it in ns.typedefs.iter() {
             let typedef_doc = Value::new(Dictionary)
             typedef_doc["kind"] = "typedef"
             typedef_doc["name"] = it.key.copy()
@@ -399,7 +399,7 @@ def DocGenerator::gen_ns(&this, ns: &Namespace): &Value {
 
     if not ns.namespaces.is_empty() {
         let namespaces_doc = Value::new(Dictionary)
-        for it : ns.namespaces.iter() {
+        for it in ns.namespaces.iter() {
             let ns_doc = .gen_ns(it.value)
             namespaces_doc[it.key] = ns_doc
         }

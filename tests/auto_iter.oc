@@ -20,9 +20,9 @@ def main() {
     vec.push("key2")
     vec.push("key3")
 
-    for it : map.iter() { println(`map: {it.key} -> {it.value}`) }
-    for it : map.iter_keys() { println(`map: (key) {it}`) }
-    for it : map.iter_values() { println(`map: (value) {it}`) }
-    for it : set.iter() { println(`set: {it}`) }
-    for it : vec.iter() { println(`vec: {it}`) }
+    for it in map.iter() { println(`map: {it.key} -> {it.value}`) }
+    for it in map.iter_keys() { println(`map: (key) {it}`) }
+    for it in map.iter_values() { println(`map: (value) {it}`) }
+    for it in set.iter() { println(`set: {it}`) }
+    for it in vec.iter() { println(`vec: {it}`) }
 }

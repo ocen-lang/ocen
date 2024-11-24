@@ -202,7 +202,7 @@ def serialize_into(val: &Value, sb: &Buffer) {
         Dictionary => {
             sb += "{"
             let first = true
-            for iter : val.u.as_dict.iter() {
+            for iter in val.u.as_dict.iter() {
                 if not first {
                     sb += ","
                 }

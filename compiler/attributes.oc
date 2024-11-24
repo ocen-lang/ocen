@@ -81,7 +81,7 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
             // object itself, which will be replaced with the object's name at codegen
             if .args.size == 2 {
                 let found_dollar = false
-                for c : .args.at(1).chars() {
+                for c in .args.at(1).chars() {
                     if c == '$' then found_dollar = true
                 }
                 if not found_dollar {

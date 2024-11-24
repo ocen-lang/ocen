@@ -185,7 +185,7 @@ def CodeGenerator::format_string_custom_argument(&this, type: &Type, expr: &AST)
     if type.base == Structure {
         let struc = type.u.struc
         if struc? and struc.format_args? {
-            for c : struc.format_args.chars() {
+            for c in struc.format_args.chars() {
                 if c == '$' {
                     .out += "("
                     .gen_expression(expr)
@@ -245,7 +245,7 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
     if newline_after then .out += "\\n"
     .out += '"'
 
-    for expr : exprs.iter() {
+    for expr in exprs.iter() {
         let expr_type = expr.etype.unaliased()
         .out += ", "
 
@@ -302,17 +302,17 @@ def CodeGenerator::gen_constant(&this, node: &AST) {
 }
 
 def CodeGenerator::gen_constants(&this, ns: &Namespace) {
-    for const_ : ns.constants.iter() {
+    for const_ in ns.constants.iter() {
         .gen_constant(const_)
     }
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .gen_constants(child)
     }
 }
 
 def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
-    for node : ns.variables.iter() {
+    for node in ns.variables.iter() {
         let var = node.u.var_decl
         if var.sym.is_dead continue
         if not var.sym.is_extern {
@@ -321,7 +321,7 @@ def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
         }
     }
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .gen_global_variables(child)
     }
 }
@@ -1096,8 +1096,8 @@ def CodeGenerator::gen_match(&this, node: &AST) {
 
     let cases = stmt.cases
     .indent += 1
-    for _case : cases.iter() {
-        for cond : _case.conds.iter() {
+    for _case in cases.iter() {
+        for cond in _case.conds.iter() {
             .gen_indent()
             .out += "case "
             .gen_expression(cond.expr)
@@ -1299,7 +1299,7 @@ def CodeGenerator::gen_block(&this, node: &AST, with_braces: bool = true) {
 
     let statements = node.u.block.statements
     .indent += 1
-    for statement : statements.iter() {
+    for statement in statements.iter() {
         .gen_statement(statement)
     }
 
@@ -1473,10 +1473,10 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
     let functions = ns.functions;
     .o.push_scope(ns.scope)
 
-    for func : functions.iter() {
+    for func in functions.iter() {
         if func.sym.is_extern then continue
         if func.sym.is_templated() then {
-            for instance : func.sym.template.instances.iter() {
+            for instance in func.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Function
                 let func = sym.u.func
@@ -1487,7 +1487,7 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
         }
     }
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .gen_functions(child)
     }
     .o.pop_scope()
@@ -1503,7 +1503,7 @@ def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
     }
 
     if func.sym.is_templated() then {
-        for instance : func.sym.template.instances.iter() {
+        for instance in func.sym.template.instances.iter() {
             let sym = instance.resolved
             assert sym.type == Function
             let func = sym.u.func
@@ -1523,11 +1523,11 @@ def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
 }
 
 def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         .gen_function_decl_toplevel(func)
     }
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .gen_function_decls(child)
     }
 }
@@ -1547,7 +1547,7 @@ def CodeGenerator::gen_enum_dbg_method(&this, enom: &Enum) {
     }
 
     .indent += 1
-    for variant : enom.variants.iter() {
+    for variant in enom.variants.iter() {
         .gen_indent()
         .out += "case "
         .out += variant.sym.out_name()
@@ -1713,7 +1713,7 @@ def CodeGenerator::gen_struct_def(&this, struc: &Structure) {
         .out <<= `struct {strufull_name} \{\n`
     }
 
-    for field : struc.fields.iter() {
+    for field in struc.fields.iter() {
         .out += "  "
         if field.is_atomic {
             .out += "_Atomic "
@@ -1772,12 +1772,12 @@ def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
 }
 
 def CodeGenerator::generate(&this): str {
-    for include : .o.program.c_includes.iter() {
+    for include in .o.program.c_includes.iter() {
         .out <<= `#include "{include}"\n`
     }
     .out += "\n"
 
-    for it : .o.program.c_embeds.iter() {
+    for it in .o.program.c_embeds.iter() {
         .out <<= `/* Embed: {it.key} */\n`
         .out += it.value
         .out += "\n\n"

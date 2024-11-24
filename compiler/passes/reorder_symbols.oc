@@ -42,9 +42,9 @@ def ReorderSymbols::collect_sym(&this, sym: &Symbol) {
 
 // Collects all structs we have in the namespace into the vector
 def ReorderSymbols::collect_all_symbols_ns(&this, ns: &Namespace) {
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         if struc.sym.is_templated() {
-            for instance : struc.sym.template.instances.iter() {
+            for instance in struc.sym.template.instances.iter() {
                 let sym = instance.resolved
                 assert sym.type == Structure
                 .collect_sym(sym)
@@ -57,7 +57,7 @@ def ReorderSymbols::collect_all_symbols_ns(&this, ns: &Namespace) {
     for enom in ns.enums.iter() {
         .collect_sym(enom.sym)
     }
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .collect_all_symbols_ns(child)
     }
 }
@@ -78,7 +78,7 @@ def ReorderSymbols::dfs(&this, sym: &Symbol) {
 
     match sym.type {
         Structure => {
-            for field : sym.u.struc.fields.iter() {
+            for field in sym.u.struc.fields.iter() {
                 if field.type? {
                     .dfs(field.type.sym)
                 }
@@ -114,7 +114,7 @@ def ReorderSymbols::dfs(&this, sym: &Symbol) {
 // This function topologically sorts the structs based on depedencies, and stores
 // the result inside `program.ordered_structs`
 def ReorderSymbols::reorder_structs(&this) {
-    for sym : .all_syms.iter() {
+    for sym in .all_syms.iter() {
         .dfs(sym)
     }
 }

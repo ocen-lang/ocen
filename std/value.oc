@@ -251,13 +251,13 @@ def Value::free(&this) {
     match .type {
         String => .u.as_str.free()
         List => {
-            for val : .u.as_list.iter() {
+            for val in .u.as_list.iter() {
                 val.free()
             }
             .u.as_list.free()
         }
         Dictionary => {
-            for iter : .u.as_dict.iter() {
+            for iter in .u.as_dict.iter() {
                 mem::free(iter.key)
                 iter.value.free()
             }

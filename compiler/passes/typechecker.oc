@@ -139,7 +139,7 @@ def TypeChecker::resolve_type(
             let checked_params = Vector<&Variable>::new()
 
             let func = old.u.func
-            for var : func.params.iter() {
+            for var in func.params.iter() {
                 // Note: it's okay to overwrite here since `var` has `parsed_type` already
                 var.type = .resolve_type(var.type, p_a, p_e, p_r)
                 if not var.type? return null
@@ -259,7 +259,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
 
     let parent_ns = old.sym.ns
 
-    for iter : old_methods.iter() {
+    for iter in old_methods.iter() {
         let name = iter.key
         let method = iter.value
 
@@ -327,7 +327,7 @@ def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &T
 
 
 def TypeChecker::find_template_instance(&this, template_instances: &Vector<&TemplateInstance>, args: &Vector<&Type>): &Symbol {
-    for instance : template_instances.iter() {
+    for instance in template_instances.iter() {
         if instance.matches(args) return instance.resolved
     }
     return null
@@ -533,7 +533,7 @@ def TypeChecker::check_block(&this, node: &AST, is_expr: bool, hint: &Type = nul
     .o.push_scope(block.scope)
     let stmts = block.statements
     let yield_span = Span::default()
-    for stmt : stmts.iter() {
+    for stmt in stmts.iter() {
         .check_statement(stmt)
         if stmt.returns then node.returns = true
 
@@ -582,7 +582,7 @@ def TypeChecker::check_union_constructor(&this, node: &AST, params: &Vector<&Var
     let args = node.u.call.args
     if args.size != 1 {
         .error(Error::new(node.span, `Union constructors must have exactly one field`))
-        for arg : args.iter() {
+        for arg in args.iter() {
             .check_expression(arg.expr)
         }
         return
@@ -886,7 +886,7 @@ def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
     // If we have an error, still type-check the arguments, but don't try to
     // compare them against anything.
     if res.base == Error {
-        for arg : args.iter() {
+        for arg in args.iter() {
             .check_expression(arg.expr)
         }
         return null
@@ -1622,7 +1622,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
 
             let elem_type = null as &Type
             let first_span = Span::default()
-            for elem : node.u.array_literal.elements.iter() {
+            for elem in node.u.array_literal.elements.iter() {
                 let typ = .check_expression(elem, hint_elem_type)
                 if not typ? continue
 
@@ -1700,7 +1700,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 }
                 clos.return_type = clos_ret_type
             } else {
-                for param : clos.params.iter() {
+                for param in clos.params.iter() {
                     if not param.type? {
                         .error(Error::new(param.sym.span, "Cannot infer type, specify it explicitly"))
                     }
@@ -1758,7 +1758,7 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
 
 
     let current_args = Map<str, &Type>::new()
-    for _case : cases.iter() {
+    for _case in cases.iter() {
         let conds = _case.conds
 
         current_args.clear()
@@ -2049,8 +2049,8 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     let cases = match_stmt.cases
     node.returns = (cases.size > 0)
 
-    for _case : cases.iter() {
-        for cond : _case.conds.iter() {
+    for _case in cases.iter() {
+        for cond in _case.conds.iter() {
             let cond_expr = cond.expr
             let cond_type = .check_expression(cond_expr, hint: expr_type)
             if not cond_type? then continue
@@ -2348,7 +2348,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     //       function, and if there are more errors after, we're going to remove them.
     let error_count_before = .o.program.errors.size
 
-    for param : params.iter() {
+    for param in params.iter() {
         if not param.type? then continue  // Error should be reported already
         let default_expr = param.default_value
         if default_expr? {
@@ -2404,11 +2404,11 @@ def TypeChecker::handle_imports(&this, ns: &Namespace, is_global: bool = false) 
     .o.push_namespace(ns)
     .o.push_scope(ns.scope)
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .handle_imports(child)
     }
 
-    for import_ : ns.imports.iter() {
+    for import_ in ns.imports.iter() {
         .handle_import_statement(import_)
     }
 
@@ -2444,27 +2444,27 @@ def TypeChecker::check_namespace(&this, ns: &Namespace) {
     .o.push_namespace(ns)
     .resolve_doc_links(ns.sym)
 
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         .check_function(func)
     }
 
-    for node : ns.constants.iter() {
+    for node in ns.constants.iter() {
         .check_globals(node, is_const: true)
     }
 
-    for node : ns.variables.iter() {
+    for node in ns.variables.iter() {
         .check_globals(node, is_const: false)
     }
 
-    for enom : ns.enums.iter() {
+    for enom in ns.enums.iter() {
         // Rest of the enum is already resolved
         .resolve_doc_links(enom.sym)
-        for variant : enom.variants.iter() {
+        for variant in enom.variants.iter() {
             .resolve_doc_links(variant.sym)
         }
     }
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .check_namespace(child)
     }
     .o.pop_namespace()
@@ -2804,7 +2804,7 @@ def TypeChecker::pre_check_function(&this, ns: &Namespace, func: &Function) {
 // We can't really fully resolve the types for the template struct itself, but we can
 // try to evaluate some of the explicit types so we have some more information.
 def TypeChecker::loosely_resolve_templated_struct(&this, struc: &Structure) {
-    for field : struc.fields.iter() {
+    for field in struc.fields.iter() {
         // Don't error here, we'll do that later when we specialize the struct
         let res = .resolve_type(field.type, allow_incomplete: true, error: false, resolve_templates: false)
         field.type = res
@@ -2821,7 +2821,7 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
         return
     }
 
-    for field : fields.iter() {
+    for field in fields.iter() {
         let res = .resolve_type(field.type)
         .resolve_doc_links(field.sym)
         if not res? {
@@ -2942,12 +2942,12 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
         func.return_type = .get_base_type(BaseType::Void, func_span)
     }
 
-    for param : func.params.iter() {
+    for param in func.params.iter() {
         param.type = .resolve_type(param.type, allow_incomplete, error, resolve_templates)
     }
 
     if func.operator_overloads? {
-        for op : func.operator_overloads.iter() {
+        for op in func.operator_overloads.iter() {
             .check_operator_overload_function(func, op)
         }
     }
@@ -2971,7 +2971,7 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
 }
 
 def TypeChecker::try_resolve_typedefs_in_namespace(&this, ns: &Namespace, pre_import: bool) {
-    for it : ns.typedefs.iter() {
+    for it in ns.typedefs.iter() {
         if it.value.is_resolved() continue
 
         let sym = .o.scope().lookup_recursive(it.key)
@@ -2998,30 +2998,30 @@ def TypeChecker::check_post_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
     .o.push_namespace(ns)
 
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         .check_function_declaration(func)
     }
 
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         .resolve_struct(struc)
     }
 
-    for enom : ns.enums.iter() {
+    for enom in ns.enums.iter() {
         .resolve_enum(enom)
     }
 
-    for node : ns.constants.iter() {
+    for node in ns.constants.iter() {
         .pre_check_globals(node, is_const: true)
     }
 
-    for node : ns.variables.iter() {
+    for node in ns.variables.iter() {
         .pre_check_globals(node, is_const: false)
     }
 
     // We try to resolve post-imports so typedefs can use imported types
     .try_resolve_typedefs_in_namespace(ns, pre_import: false)
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .check_post_import(child)
     }
 
@@ -3044,7 +3044,7 @@ def TypeChecker::pre_check_globals(&this, node: &AST, is_const: bool) {
 def TypeChecker::check_pre_import(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
 
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         .pre_check_function(ns, func)
     }
 
@@ -3053,7 +3053,7 @@ def TypeChecker::check_pre_import(&this, ns: &Namespace) {
     //        Removing this line causes `tests/import_typedef.oc` to fail.
     .try_resolve_typedefs_in_namespace(ns, pre_import: true)
 
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .check_pre_import(child)
     }
 

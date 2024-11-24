@@ -16,7 +16,6 @@ enum ASTType {
     BoolLiteral
     Break
     Call
-    Constant
     Continue
     Error
     Identifier
@@ -38,7 +37,6 @@ enum ASTType {
     FormatStringLiteral
     Cast
     Null
-    MethodCall
     Match
     Defer
     Specialization
@@ -94,7 +92,7 @@ def Structure::new(): &Structure {
 }
 
 def Structure::get_field(&this, name: str): &Variable {
-    for field : .fields.iter() {
+    for field in .fields.iter() {
         if field.sym.name.eq(name) {
             return field
         }
@@ -119,7 +117,7 @@ struct Enum {
 }
 
 def Enum::get_variant(&this, name: str): &EnumVariant {
-    for variant : .variants.iter() {
+    for variant in .variants.iter() {
         if variant.sym.name.eq(name) return variant
     }
     return null
