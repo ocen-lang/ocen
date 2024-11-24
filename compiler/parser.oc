@@ -1377,16 +1377,28 @@ def Parser::parse_for(&this): &AST {
         return .parse_for_each(start_span: tok.span)
     }
 
-    let init = null as &AST
+    let init: &AST = null
     if .token_is(TokenType::Let) {
         init = .parse_statement()
-    } else {
+    } else if not .consume_if(TokenType::Semicolon) {
         init = .parse_expression(end_type: TokenType::Semicolon)
         .consume(TokenType::Semicolon)
     }
-    let cond = .parse_expression(end_type: TokenType::Semicolon)
-    .consume(TokenType::Semicolon)
-    let step = .parse_expression(end_type: TokenType::OpenCurly)
+    let cond = if {
+        .consume_if(TokenType::Semicolon) => null
+        else => {
+            let res = .parse_expression(end_type: TokenType::Semicolon)
+            .consume(TokenType::Semicolon)
+            yield res
+        }
+    }
+    let step = if {
+        .token_is(TokenType::OpenCurly) => null
+        else => {
+            let res = .parse_expression(end_type: TokenType::OpenCurly)
+            yield res
+        }
+    }
     let body = .parse_block()
     let node = AST::new(For, tok.span.join(body.span))
     node.u.loop.init = init
