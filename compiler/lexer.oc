@@ -222,6 +222,7 @@ def Lexer::lex_numeric_literal(&this) {
     let token = .lex_numeric_literal_helper()
 
     if .cur() == 'u' or .cur() == 'i' or .cur() == 'f' {
+        let initial_char = .cur()
         let start_loc = .loc
         let start = .i
         .inc()

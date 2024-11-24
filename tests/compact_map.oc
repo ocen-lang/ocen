@@ -23,7 +23,7 @@ def main() {
 
     // Should preserve insertion order
     let i = 1
-    for it : map.iter() {
+    for it in map.iter() {
         assert it.key == i
         assert it.value == i + 1
         i += 1

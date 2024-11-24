@@ -154,35 +154,35 @@ def GenericPass::find_in_symbol_or_error(&this, sym: &Symbol, name: str, span: S
 }
 
 def GenericPass::import_all_from_namespace(&this, ns: &Namespace, export: bool) {
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         if func.kind != Method {
             .insert_into_scope_checked_and_export(export, func.sym)
         }
     }
 
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         .insert_into_scope_checked_and_export(export, struc.sym)
     }
 
-    for enom : ns.enums.iter() {
+    for enom in ns.enums.iter() {
         .insert_into_scope_checked_and_export(export, enom.sym)
     }
 
-    for node : ns.variables.iter() {
+    for node in ns.variables.iter() {
         let var = node.u.var_decl
         .insert_into_scope_checked_and_export(export, var.sym)
     }
 
-    for node : ns.constants.iter() {
+    for node in ns.constants.iter() {
         let var = node.u.var_decl
         .insert_into_scope_checked_and_export(export, var.sym)
     }
 
-    for it : ns.typedefs.iter() {
+    for it in ns.typedefs.iter() {
         .insert_into_scope_checked_and_export(export, it.value.sym, it.key)
     }
 
-    for it : ns.exported_symbols.iter() {
+    for it in ns.exported_symbols.iter() {
         .insert_into_scope_checked_and_export(export, it.value, it.key)
     }
 }
@@ -191,17 +191,17 @@ def GenericPass::import_all_from_symbol(&this, sym: &Symbol, export: bool) {
     match sym.type {
         Namespace => .import_all_from_namespace(sym.u.ns, export)
         TypeDef => {
-            for method : sym.u.type_def.methods.iter_values() {
+            for method in sym.u.type_def.methods.iter_values() {
                 .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
         Structure => {
-            for method : sym.u.struc.type.methods.iter_values() {
+            for method in sym.u.struc.type.methods.iter_values() {
                 .insert_into_scope_checked_and_export(export, method.sym)
             }
         }
         Enum => {
-            for variant : sym.u.enom.variants.iter() {
+            for variant in sym.u.enom.variants.iter() {
                 .insert_into_scope_checked_and_export(export, variant.sym)
             }
         }

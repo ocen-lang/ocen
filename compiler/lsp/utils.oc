@@ -303,7 +303,7 @@ def gen_hover_string_with_docs(sym: &Symbol): &Value {
 
 def gen_type_methods_into(obj: &Value, type: &Type) {
     if not type? or not type.methods? return
-    for it : type.methods.iter() {
+    for it in type.methods.iter() {
         let func = it.value
         let func_doc = Value::new(Dictionary)
         func_doc["name"] = it.key
@@ -325,7 +325,7 @@ def gen_enum_json(enom: &Enum): &Value {
     obj["selection_range"] = gen_span_json(enom.sym.span)
 
     let children = Value::new(List)
-    for variant : enom.variants.iter() {
+    for variant in enom.variants.iter() {
         let member_obj = Value::new(Dictionary)
         member_obj["name"] = variant.sym.name
         member_obj["kind"] = "enum-member"
@@ -387,24 +387,24 @@ def gen_namespace_json(ns: &Namespace): &Value {
 
     let children = Value::new(List)
 
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         children += gen_struct_json(struc)
     }
 
-    for var : ns.variables.iter() {
+    for var in ns.variables.iter() {
         children += gen_variable_json(var.u.var_decl)
     }
 
-    for var : ns.constants.iter() {
+    for var in ns.constants.iter() {
         children += gen_variable_json(var.u.var_decl)
     }
 
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         if func.kind == Method continue
         children += gen_function_json(func)
     }
 
-    for it : ns.namespaces.iter_values() {
+    for it in ns.namespaces.iter_values() {
         if not it.is_a_file and not it.is_dir_with_mod {
             children += gen_namespace_json(it)
         }
@@ -584,27 +584,27 @@ def gen_completions_from_scope(scope: &Scope, completions: &Value, hint_type: &T
 }
 
 def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set<str>) {
-    for it : ns.namespaces.iter_values() {
+    for it in ns.namespaces.iter_values() {
         seen += it.sym.name
         insert_completion_item(completions, it.sym, seen)
     }
-    for it : ns.structs.iter() {
+    for it in ns.structs.iter() {
         seen += it.sym.name
         insert_completion_item(completions, it.sym, seen)
     }
-    for it : ns.variables.iter() {
+    for it in ns.variables.iter() {
         if it.resolved_symbol? {
             seen += it.resolved_symbol.name
             insert_completion_item(completions, it.resolved_symbol, seen)
         }
     }
-    for it : ns.constants.iter() {
+    for it in ns.constants.iter() {
         if it.resolved_symbol? {
             seen += it.resolved_symbol.name
             insert_completion_item(completions, it.resolved_symbol, seen)
         }
     }
-    for it : ns.functions.iter() {
+    for it in ns.functions.iter() {
         if it.kind != Method {
             seen += it.sym.name
             insert_completion_item(completions, it.sym, seen)
@@ -650,26 +650,26 @@ def gen_completions_from_symbol(sym: &Symbol, node: &AST, completions: &Value, s
     match sym.type {
         Structure => {
             if node? and node.type != NSLookup {
-                for field : sym.u.struc.fields.iter() {
+                for field in sym.u.struc.fields.iter() {
                     insert_completion_item(completions, field.sym, seen)
                 }
             }
-            for mth : sym.u.struc.type.methods.iter_values() {
+            for mth in sym.u.struc.type.methods.iter_values() {
                 insert_completion_item(completions, mth.sym, seen)
             }
         }
         TypeDef => {
-            for mth : sym.u.type_def.methods.iter_values() {
+            for mth in sym.u.type_def.methods.iter_values() {
                 insert_completion_item(completions, mth.sym, seen)
             }
         }
         Enum => {
             if (node? and node.type == NSLookup) {
-                for variant : sym.u.enom.variants.iter() {
+                for variant in sym.u.enom.variants.iter() {
                     insert_completion_item(completions, variant.sym, seen)
                 }
             }
-            for mth : sym.u.enom.type.methods.iter_values() {
+            for mth in sym.u.enom.type.methods.iter_values() {
                 insert_completion_item(completions, mth.sym, seen)
             }
         }

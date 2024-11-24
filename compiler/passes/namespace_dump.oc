@@ -23,44 +23,44 @@ def NamespaceDump::print_namespace(&this, ns: &Namespace) {
     }
 
     .indent += 1
-    for func : ns.functions.iter() {
+    for func in ns.functions.iter() {
         .print_indent()
         println(`(func) {func.sym.display}`)
     }
 
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         .print_indent()
         println(`(struct) {struc.sym.display}`)
     }
 
-    for enom : ns.enums.iter() {
+    for enom in ns.enums.iter() {
         .print_indent()
         println(`(enum) {enom.sym.display}`)
     }
 
-    for node : ns.variables.iter() {
+    for node in ns.variables.iter() {
         let var = node.u.var_decl
         .print_indent()
         println(`(var) {var.sym.display}`)
     }
 
-    for node : ns.constants.iter() {
+    for node in ns.constants.iter() {
         let var = node.u.var_decl
         .print_indent()
         println(`(const) {var.sym.display}`)
     }
 
-    for it : ns.typedefs.iter() {
+    for it in ns.typedefs.iter() {
         .print_indent()
         println(`(typedef) {it.key}`)
     }
 
-    for it : ns.exported_symbols.iter() {
+    for it in ns.exported_symbols.iter() {
         .print_indent()
         println(`(export) {it.key}`)
     }
 
-    for it : ns.namespaces.iter() {
+    for it in ns.namespaces.iter() {
         .print_namespace(it.value)
     }
 

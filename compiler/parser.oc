@@ -159,7 +159,7 @@ def Parser::consume_end_of_statement(&this) {
 }
 
 def Parser::clear_attributes(&this) {
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         mem::free(attr)
     }
     .attrs.clear()
@@ -458,7 +458,7 @@ def Parser::parse_format_string(&this): &AST {
         lexer.loc.col += start + 1
 
         let tokens = lexer.lex()
-        for error : lexer.errors.iter() {
+        for error in lexer.errors.iter() {
             .error(error)
         }
         lexer.errors.free()
@@ -686,7 +686,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
 
     .parse_extern_into_symbol(var.sym)
 
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(var.sym, attr)
             Atomic => var.is_atomic = true
@@ -1260,7 +1260,7 @@ def Parser::parse_if(&this): &AST {
 //*
 //* This function is responsible for parsing
 //*
-//*      for i : expr {
+//*      for i in expr {
 //*          ...
 //*      }
 //*
@@ -1275,14 +1275,14 @@ def Parser::parse_if(&this): &AST {
 def Parser::parse_for_each(&this, start_span: Span): &AST {
 
     let name = .consume(Identifier)
-    if not (.token_is(TokenType::Colon) or .token_is_identifier("in")) {
-        .error(Error::new(.token().span, "Expected `:` of `in` after for-each loop variable"))
+    if not .token_is_identifier("in") {
+        .error(Error::new(.token().span, "Expected `in` after for-each loop variable"))
         return AST::new(Error, start_span)
     }
     .consume(.token().type)
 
     let expr = .parse_expression(end_type: TokenType::Newline)
-    let iter_var_name = "__iter"
+    let iter_var_name = f"_i{.program.uid++}"
 
     let init = {
         let node = AST::new(VarDeclaration, start_span)
@@ -1373,10 +1373,7 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
 def Parser::parse_for(&this): &AST {
     let tok = .consume(TokenType::For)
 
-    if .token_is(Identifier) and (
-        .peek(1).type == TokenType::Colon or
-        .peek(1).is_identifier("in")
-    ) {
+    if .token_is(Identifier) and .peek(1).is_identifier("in") {
         return .parse_for_each(start_span: tok.span)
     }
 
@@ -1720,7 +1717,7 @@ def Parser::parse_function(&this): &Function {
     // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(func.sym)
 
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         match attr.type {
             Exits => func.exits = true
             Extern => .get_extern_from_attr(func.sym, attr)
@@ -1908,7 +1905,7 @@ def Parser::parse_import(&this): &AST {
         root_sym: null
     )
 
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         match attr.type {
             Export => node.u.import_path.export = true
             else => .error(Error::new(attr.span, "Invalid attribute for import"))
@@ -1973,7 +1970,7 @@ def Parser::parse_struct_field(&this, struc: &Structure): bool {
         default_value = .parse_expression(end_type: TokenType::Comma)
     }
 
-    for var : fields.iter() {
+    for var in fields.iter() {
         var.type = type
         var.parsed_type = type
         var.default_value = default_value
@@ -2008,7 +2005,7 @@ def Parser::parse_struct(&this): &Structure {
     // TODO: Deprecate this once we've fully moved to attributes
     .parse_extern_into_symbol(struc.sym)
 
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         match attr.type {
             Extern => .get_extern_from_attr(struc.sym, attr)
             Formatting => {
@@ -2047,7 +2044,7 @@ def Parser::parse_enum(&this): &Enum {
     enom.has_values = false
 
     let is_extern = false
-    for attr : .attrs.iter() {
+    for attr in .attrs.iter() {
         match attr.type {
             Extern => {
                 .get_extern_from_attr(enom.sym, attr)
@@ -2405,7 +2402,7 @@ def Parser::load_import_path_from_base(&this, parts: &Vector<&ImportPart>, base:
             Multiple => {
                 let paths = part.u.multiple.paths
                 let success = true
-                for path : paths.iter() {
+                for path in paths.iter() {
                     success = .load_import_path_from_base(path, base) and success
                 }
                 return success
@@ -2425,7 +2422,7 @@ struct LibraryInfo {
 }
 
 def Parser::find_external_library(&this, name: str): LibraryInfo {
-    for lib_path : .program.library_paths.iter() {
+    for lib_path in .program.library_paths.iter() {
         let dir_path = if lib_path.len() > 0 then  f"{lib_path}/{name}" else name.copy()
         if directory_exists(dir_path) {
             return LibraryInfo(

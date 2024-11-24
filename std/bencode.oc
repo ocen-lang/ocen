@@ -120,14 +120,14 @@ def serialize_into(val: &Value, sb: &Buffer) {
         Integer => sb <<= `i{val.u.as_int}e`
         List => {
             sb += "l"
-            for val : val.u.as_list.iter() {
+            for val in val.u.as_list.iter() {
                 serialize_into(val, sb)
             }
             sb += "e"
         }
         Dictionary => {
             sb += "d"
-            for it : val.u.as_dict.iter() {
+            for it in val.u.as_dict.iter() {
                 sb <<= `{it.key.len()}:{it.key}`
                 serialize_into(it.value, sb)
             }

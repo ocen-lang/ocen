@@ -42,7 +42,7 @@ def typecheck_and_log_errors(program: &Program, path: str) {
         return
     }
 
-    for err : program.errors.iter() {
+    for err in program.errors.iter() {
         let start = err.span1.start
         let end = err.span1.end
         if verbose then println("[-] ERROR: %s:%d:%d - %d:%d :: %s", start.filename, start.line, start.col, end.line, end.col, err.msg1)
@@ -51,7 +51,7 @@ def typecheck_and_log_errors(program: &Program, path: str) {
 
 def handle_validate(program: &Program, path: str) {
     typecheck_and_log_errors(program, path)
-    for err : program.errors.iter() {
+    for err in program.errors.iter() {
         if not err.span1.start.filename? continue
         if not (err.span1.start.filename == path) continue
 
@@ -105,7 +105,7 @@ def handle_document_symbols(program: &Program, path: str) {
     typecheck_and_log_errors(program, path)
 
     let doc_ns: &Namespace = null
-    for ns : program.iter_namespaces() {
+    for ns in program.iter_namespaces() {
         let ns_filename = ns.span.start.filename
         if ns_filename? and ns_filename.eq(path) {
             doc_ns = ns

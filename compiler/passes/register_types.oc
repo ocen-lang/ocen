@@ -80,25 +80,25 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enom: &Enum) {
 
 def RegisterTypes::register_namespace(&this, ns: &Namespace) {
     .o.push_scope(ns.scope)
-    for struc : ns.structs.iter() {
+    for struc in ns.structs.iter() {
         .register_struct(ns, struc)
     }
-    for enom : ns.enums.iter() {
+    for enom in ns.enums.iter() {
         .register_enum(ns, enom)
         .add_dbg_method_for_enum(enom)
     }
-    for node : ns.constants.iter() {
+    for node in ns.constants.iter() {
         .register_globals(node)
     }
-    for node : ns.variables.iter() {
+    for node in ns.variables.iter() {
         .register_globals(node)
     }
-    for it : ns.typedefs.iter() {
+    for it in ns.typedefs.iter() {
         // NOTE: We add a dummy type here, which will be replaced later in the
         // type resolution pass
         .register_alias(it.key, it.value)
     }
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         if child.always_add_to_scope {
             .o.insert_into_scope_checked(child.sym)
         }
@@ -242,7 +242,7 @@ def RegisterTypes::create_namespace_scopes(&this, ns: &Namespace, parent: &Names
         else => parent.scope
     }
     ns.scope = Scope::new(parent_scope)
-    for child : ns.namespaces.iter_values() {
+    for child in ns.namespaces.iter_values() {
         .create_namespace_scopes(child, ns)
     }
 }

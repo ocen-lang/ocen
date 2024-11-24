@@ -76,7 +76,7 @@ def Vector::pop_at(&this, i: u32): T {
 [operator "+="]
 //* Appends the contents of another vector to this one
 def Vector::extend(&this, other: &Vector<T>) {
-    for val : other.iter() {
+    for val in other.iter() {
         .push(val)
     }
 }

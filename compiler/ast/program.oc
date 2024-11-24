@@ -80,7 +80,7 @@ def Namespace::new(parent: &Namespace, path: str): &Namespace {
 def Namespace::dump(&this) {
     println(f"============= NS: {.sym.display} {.path} ==============")
     println("   Functions:")
-    for func : .functions.iter() {
+    for func in .functions.iter() {
         println(f"     - {func.sym.display}")
     }
     println(f"   Structs:")
@@ -110,26 +110,26 @@ def Namespace::find_importable_symbol(&this, name: str): &Symbol {
     let item = .namespaces.get(name, null)
     if item? then return item.sym
 
-    for node : .constants.iter() {
+    for node in .constants.iter() {
         let var = node.u.var_decl
         if var.sym.name.eq(name) return var.sym
     }
 
-    for node : .variables.iter() {
+    for node in .variables.iter() {
         let var = node.u.var_decl
         if var.sym.name.eq(name) return var.sym
     }
 
-    for func : .functions.iter() {
+    for func in .functions.iter() {
         if func.kind == Method then continue
         if func.sym.name.eq(name) return func.sym
     }
 
-    for struc : .structs.iter() {
+    for struc in .structs.iter() {
         if struc.sym.name.eq(name) return struc.sym
     }
 
-    for enom : .enums.iter() {
+    for enom in .enums.iter() {
         if enom.sym.name.eq(name) return enom.sym
     }
 
@@ -383,7 +383,7 @@ struct NSIterator {
 def NSIterator::has_value(&this): bool => .curr?
 
 def NSIterator::next(&this) {
-    for ns : .curr.namespaces.iter_values() {
+    for ns in .curr.namespaces.iter_values() {
         .stack.push(ns)
     }
 
