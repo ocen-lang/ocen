@@ -1,0 +1,116 @@
+import @ast::nodes::{ AST, Variable }
+import @types::{ Type }
+
+struct Visitor {
+    node_fn: @fn(&AST) = |node| {}
+    type_fn: @fn(&Type) = |type| {}
+}
+
+
+
+def Visitor::visit_var(&this, var: &Variable) {
+    if not var? or not var.type? return
+
+    // FIXME: This is eh, should we traverse through type-tree as well?
+    .type_fn(var.type)
+
+    .visit_po(var.default_value)
+}
+
+// Visit the nodes in post-order
+def Visitor::visit_po(&this, node: &AST) {
+    if not node? return
+    match node.type {
+        BoolLiteral | IntLiteral | Break | Continue | Error | Identifier | Null
+        | Import | OverloadedOperator | StringLiteral | SizeOf
+        | CharLiteral | FloatLiteral => {}
+        Assert => {
+            .visit_po(node.u.assertion.expr)
+            .visit_po(node.u.assertion.msg)
+        }
+        Block => {
+            for stmt in node.u.block.statements.iter() {
+                .visit_po(stmt)
+            }
+        }
+        Call => {
+            .visit_po(node.u.call.callee)
+            for arg in node.u.call.args.iter() {
+                .visit_po(arg.expr)
+            }
+        }
+        If => {
+            for branch in node.u.if_stmt.branches.iter() {
+                .visit_po(branch.cond)
+                .visit_po(branch.body)
+            }
+            .visit_po(node.u.if_stmt.els)
+        }
+        Member => {
+            .visit_po(node.u.member.lhs)
+        }
+        NSLookup => {
+            .visit_po(node.u.lookup.lhs)
+        }
+        Return => {
+            .visit_po(node.u.ret.expr)
+        }
+        Yield => {
+            .visit_po(node.u.child)
+        }
+        VarDeclaration => {
+            .visit_var(node.u.var_decl)
+        }
+        While | For => {
+            .visit_po(node.u.loop.cond)
+            .visit_po(node.u.loop.body)
+            .visit_po(node.u.loop.step)
+        }
+        FormatStringLiteral => {
+            for arg in node.u.fmt_str.exprs.iter() {
+                .visit_po(arg)
+            }
+        }
+        Cast => {
+            .visit_po(node.u.cast.lhs)
+        }
+        Match => {
+            let mtch = node.u.match_stmt
+            .visit_po(mtch.expr)
+            for _case in mtch.cases.iter() {
+                for cond in _case.conds.iter() {
+                    .visit_po(cond.expr)
+                }
+                .visit_po(_case.body)
+            }
+            .visit_po(mtch.defolt)
+        }
+        Defer => {
+            .visit_po(node.u.child)
+        }
+        Specialization => {
+            .visit_po(node.u.spec.base)
+        }
+        ArrayLiteral => {
+            for elem in node.u.array_literal.elements.iter() {
+                .visit_po(elem)
+            }
+        }
+        CreateClosure => {
+            let func = node.u.closure
+            .visit_po(func.body)
+        }
+        CreateNew => {
+            .visit_po(node.u.child)
+        }
+        UnaryOp => {
+            .visit_po(node.u.unary.expr)
+        }
+        BinaryOp => {
+            .visit_po(node.u.binary.lhs)
+            .visit_po(node.u.binary.rhs)
+        }
+    }
+    .node_fn(node)
+}
+

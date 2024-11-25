@@ -1,0 +1,34 @@
+@compiler c_include "signal.h"
+
+[extern "SA_NODEFER"] const NODEFER: u32
+
+[extern "i32"]
+enum Signal {
+    [extern] SIGHUP     // hangup */
+    [extern] SIGINT     // interrupt */
+    [extern] SIGQUIT    // quit */
+    [extern] SIGILL     // illegal instruction (not reset when caught) */
+    [extern] SIGTRAP    // trace trap (not reset when caught) */
+    [extern] SIGABRT    // abort() */
+    [extern] SIGFPE     // floating point exception */
+    [extern] SIGKILL    // kill (cannot be caught or ignored) */
+    [extern] SIGBUS     // bus error */
+    [extern] SIGSEGV    // segmentation violation */
+    [extern] SIGSYS     // bad argument to system call */
+    [extern] SIGPIPE    // write on a pipe with no one to read it */
+    [extern] SIGTERM    // software termination signal from kill */
+    [extern] SIGSTOP    // sendable stop signal not from tty */
+}
+
+[extern "struct sigaction"] struct SigAction {
+    sa_handler: fn(i32),
+    sa_flags: u32,
+}
+
+[extern "sigaction"]
+def sigaction(sig: Signal, act: &SigAction, oldact: &SigAction = null): i32
+
+def set_signal_handler(sig: Signal, callback: fn(i32)) {
+    let action = SigAction(callback, NODEFER)
+    sigaction(sig, &action)
+}

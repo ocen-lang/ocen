@@ -1511,6 +1511,9 @@ def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
 
             .gen_function_decl(func)
             if func.exits then .out += " __attribute__((noreturn))"
+            // .out += " asm(\""
+            // .out += func.sym.display
+            // .out += "\")"
             .out += ";\n"
         }
         return
@@ -1519,6 +1522,11 @@ def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
     if func.sym.is_dead then return
     .gen_function_decl(func)
     if func.exits then .out += " __attribute__((noreturn))"
+    // if not func.sym.out_name().eq("main") {
+    //     .out += " asm(\""
+    //     .out += func.sym.display
+    //     .out += "\")"
+    // }
     .out += ";\n"
 }
 

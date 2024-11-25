@@ -32,6 +32,8 @@ out
 *.png
 *.qoi
 
+*.trace
+
 tmp/**
 
 docs/build/
