@@ -10,6 +10,8 @@ import std::value::Value
 import std::{ panic, exit }
 import std::fs
 import std::json
+import std::signal::{ set_signal_handler, Signal }
+import std::setjmp::{ ErrorContext }
 
 import @lexer::Lexer
 import @parser::Parser
@@ -18,6 +20,7 @@ import @ast::nodes::*
 import @ast::program::*
 import @ast::scopes::*
 import @types::*
+import @passes::visitor::Visitor
 
 import .finder::{ Finder }
 import .utils::{ this, verbose }
@@ -57,6 +60,39 @@ def handle_validate(program: &Program, path: str) {
 
         let err_value = utils::gen_error_json(err)
         println(`{err_value.dbg()}`)
+    }
+
+
+    return  // Look below
+
+    /// TODO: The following code "works", but current way of handling this in server
+    //        clears all hints when document is changed and validate is called, which
+    //        causes the hints to appear glitchy when user is typing. Need some way to
+    //        keep the old hints around till we have a next successful validate call?
+    //  For now, just disable this code and only show errors
+    let visitor = Visitor(
+        node_fn: |node| => match node.type {
+            VarDeclaration => {
+                let msg = utils::gen_inlay_hint(node.u.var_decl, path)
+                if msg? then println(`{msg.dbg()}`)
+            }
+            CreateClosure => {
+                for param in node.u.closure.params.iter() {
+                    let msg = utils::gen_inlay_hint(param, path)
+                    if msg? then println(`{msg.dbg()}`)
+                }
+            }
+            else => {}
+        }
+    )
+    for ns in program.iter_namespaces() {
+        if ns.path.eq(path) {
+            for func in ns.functions.iter() {
+                if func.body? {
+                    visitor.visit_po(func.body)
+                }
+            }
+        }
     }
 }
 
@@ -163,6 +199,13 @@ def lsp_usage(code: i32, full: bool) {
     exit(code)
 }
 
+let global_err_ctx: ErrorContext
+
+def signal_handler(sig: i32) {
+    if verbose then println(`Received signal {sig as Signal}, exiting`)
+    global_err_ctx.jump_back(1)
+}
+
 def lsp_main(argc: i32, argv: &str) {
     shift_args(&argc, &argv) // skip the first argument
 
@@ -220,8 +263,18 @@ def lsp_main(argc: i32, argv: &str) {
         show_path = fs::realpath(show_path)
     }
 
+    set_signal_handler(SIGSEGV, signal_handler)
+    set_signal_handler(SIGILL, signal_handler)
+    set_signal_handler(SIGFPE, signal_handler)
+
     // Load the program
     let program = Program::new()
+
+    if global_err_ctx.set_jump_point() > 0 {
+        // Do nothing here, since LSP is sensitive to unnecessary output
+        exit(1)
+    }
+
     program.setup_library_paths()
     // Always try to load stdlib for LSP
     program.include_stdlib = true

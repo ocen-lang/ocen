@@ -217,7 +217,7 @@ def gen_hover_string(sym: &Symbol): str => match sym.type {
         let field = sym.u.enum_field
         yield `enum {field.variant.sym.display}.{field.idx}`
     }
-    Closure => `closure {sym.display}`
+    Closure => gen_type_string(sym.u.func.type)
     ClosedVariable => {
         let var = sym.u.closed_var.orig
         let buf = Buffer::make()
@@ -716,4 +716,23 @@ def gen_completions_json(finder: &Finder): &Value {
     let obj = Value::new(Dictionary)
     obj["completions"] = completions
     return obj
+}
+
+def gen_inlay_hint(var: &Variable, path: str): &Value {
+    if var.parsed_type? return null
+
+    let msg = Value::new(Dictionary)
+    // FIXME: both here and in ocen-vscode, change this to use a `kind` field and only
+    //        use `severity` for diagnostics.
+    msg["severity"] = "InlayType"
+    if var.type? {
+        let hint_type = gen_type_string(var.type)
+        msg["type"] = hint_type
+    } else {
+        msg["type"] = "???"
+    }
+
+    let loc = Location(path,0,0,0)
+    msg["span"] = gen_span_json_with_filename(var.sym.span, loc)
+    return msg
 }
