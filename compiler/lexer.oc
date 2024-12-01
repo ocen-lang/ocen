@@ -13,16 +13,17 @@ struct Lexer {
     loc: Location
     seen_newline: bool
     tokens: &Vector<&Token>
-
     errors: &Vector<&Error>
-
     in_comment: bool
     comment: Buffer
     comment_start: Location
 }
 
-def Lexer::make(source: str, filename: str): Lexer {
+def Lexer::make(source: str, filename: str, errors: &Vector<&Error> = null): Lexer {
     let start_loc = Location(filename, 1, 1, 0)
+    if not errors? {
+        errors = Vector<&Error>::new()
+    }
     return Lexer(
         source,
         source_len: source.len(),
@@ -30,7 +31,7 @@ def Lexer::make(source: str, filename: str): Lexer {
         loc: start_loc,
         seen_newline: false,
         tokens: Vector<&Token>::new(),
-        errors: Vector<&Error>::new(),
+        errors: errors,
         in_comment: false,
         comment: Buffer::make(),
         comment_start: start_loc,
@@ -61,17 +62,43 @@ def Lexer::push_type(&this, type: TokenType, len: u32 = 1) {
 
 def Lexer::cur(&this): char => .source[.i]
 
+def is_valid_ident_char(c: char): bool {
+    // Allow unicode characters in identifiers
+    return c.is_alnum() or c == '_' or (c as u8 >> 7) & 1 == 1
+}
+
+def is_valid_utf8_start(c: char, out_sz: &u32 = null): bool {
+    let cu8 = c as u8
+    let sz = if {
+        cu8 & 0b10000000 == 0 => 1
+        cu8 & 0b11100000 == 0b11000000 => 2
+        cu8 & 0b11110000 == 0b11100000 => 3
+        cu8 & 0b11111000 == 0b11110000 => 4
+        else => 1
+    }
+    if out_sz? then *out_sz = sz
+    return true
+}
+
 def Lexer::inc(&this) {
-    match .cur() {
-        '\n' => {
+    let c = .cur()
+    let cu8 = c as u8
+    if {
+        c == '\n' => {
             .loc.line += 1
             .loc.col = 1
             .seen_newline = true
+            .loc.index += 1
+            .i += 1
         }
-        else => .loc.col += 1
+        else => {
+            let ln = 1
+            assert is_valid_utf8_start(c, out_sz: &ln), "Invalid UTF-8 character"
+            .loc.col += 1
+            .loc.index += ln
+            .i += ln
+        }
     }
-    .i += 1
-    .loc.index += 1
 }
 
 def Lexer::peek(&this, offset: u32 = 1): char {
@@ -133,6 +160,7 @@ def Lexer::lex_string_literal(&this, has_seen_f: bool) {
         .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
     }
 
+    let span = Span(start_loc, .loc)
     match end_char == '`' or has_seen_f {
         true => .push(Token::new(FormatStringLiteral, Span(start_loc, .loc), text))
         false => .push(Token::new(StringLiteral, Span(start_loc, .loc), text))
@@ -293,6 +321,7 @@ def Lexer::lex(&this): &Vector<&Token> {
             '|' => .push_type(Line)
             '?' => .push_type(Question)
             '~' => .push_type(Tilde)
+            '$' => .push_type(Dollar)
             '.' => match .peek(1) == '.' and .peek(2) == '.' {
                 true => .push_type(Ellipsis, len: 3)
                 false => .push_type(Dot)
@@ -352,9 +381,9 @@ def Lexer::lex(&this): &Vector<&Token> {
                         .lex_raw_string_literal()
                     }
                     c.is_digit() => .lex_numeric_literal()
-                    c.is_alpha() or c == '_' => {
+                    is_valid_ident_char(c) and not c.is_digit() => {
                         let start = .i
-                        while .cur().is_alnum() or .cur() == '_' {
+                        while is_valid_ident_char(.cur()) {
                             .inc()
                         }
                         let len = .i - start
@@ -363,8 +392,10 @@ def Lexer::lex(&this): &Vector<&Token> {
                         .push(Token::from_ident(text, Span(start_loc, .loc)))
                     }
                     else => {
-                        .errors.push(Error::new(Span(.loc, .loc), `Unrecognized char in lexer: '{c}'`))
+                        println(``)
+                        let start = .loc
                         .inc()
+                        .errors.push(Error::new(Span(start, .loc), `Unrecognized char in lexer: '{c}'`))
                     }
                 }
             }

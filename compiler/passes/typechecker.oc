@@ -11,7 +11,7 @@ import std::vector::{ Vector }
 
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
-import @ast::nodes::{ ImportPart, Import, Argument, MatchCond, Enum, EnumVariant }
+import @ast::nodes::{ ImportPart, Import, Argument, MatchCond, Enum, EnumVariant, Specialization }
 import @ast::program::{ Program, Namespace }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType, ClosedVariable }
 import @errors::{ Error }
@@ -288,6 +288,7 @@ def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &
     }
 }
 
+//! Internal use only. Should call resolve_template_symbol instead
 def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &TemplateInstance) {
     let sym = instance.resolved
     let resolved_struc = .o.program.get_struct_deep_copy(struc, struc.sym.ns)
@@ -308,6 +309,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &T
     .resolve_templated_struct_methods(struc, resolved_struc)
 }
 
+//! Internal use only. Should call resolve_template_symbol instead
 def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &TemplateInstance) {
     let sym = instance.resolved
     let resolved_func = .o.program.get_function_deep_copy(func, func.sym.ns)
@@ -333,19 +335,18 @@ def TypeChecker::find_template_instance(&this, template_instances: &Vector<&Temp
     return null
 }
 
-def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Symbol {
+def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, template_args: &Vector<&Type>, span: Span): &Symbol {
     // If we've already resolved this template, just return the symbol
     {
-        let found = .find_template_instance(sym.template.instances, node.u.spec.template_args)
+        let found = .find_template_instance(sym.template.instances, template_args)
         if found? return found
     }
 
     let parent_ns = sym.ns
-    let template_args = node.u.spec.template_args
     let template_params = sym.template.params
 
     if template_params.size != template_args.size {
-        .error(Error::new(node.span, `Invalid number of template arguments for {sym.name}`))
+        .error(Error::new(span, `Invalid number of template arguments for {sym.name}`))
         return null
     }
 
@@ -400,7 +401,7 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, node: &AST): &Sym
         Structure => .resolve_templated_struct(sym.u.struc, instance)
         Function => .resolve_templated_function(sym.u.func, instance)
         else => {
-            .error(Error::new(node.span, `Cannot specialize non-templated symbol {sym.name}`))
+            .error(Error::new(span, `Cannot specialize non-templated symbol {sym.name}`))
             return null
         }
     }
@@ -512,7 +513,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                 return base
             }
 
-            return .resolve_templated_symbol(base, node)
+            return .resolve_templated_symbol(base, resolved_args, node.span)
         }
         else => {
             if error {
@@ -1613,7 +1614,76 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 else => std::panic(`Internal error: unhandled op in check_expression binary_op: {node.type}`)
             }
         }
+        VectorLiteral => {
+            if (not .o.program.did_cache_symbols or
+                not .o.program.cached_symbols.std_vector?) {
+                // This shouldn't happen since we should be auto-importing it and setting
+                // up the binding if we can find it.
+                .error(Error::new(node.span, "Could not find std::vector, please import it."))
+            }
+            let std_vector = .o.program.cached_symbols.std_vector
 
+            let hint_elem_type = null as &Type
+            if hint? and hint.base == Pointer {
+                let ptr = hint.u.ptr
+                if (ptr? and
+                    ptr.template_instance? and
+                    ptr.template_instance.parent == std_vector
+                ) {
+                    assert ptr.template_instance.args.size == 1
+                    hint_elem_type = ptr.template_instance.args[0]
+                }
+            }
+
+            let elem_type: &Type = null
+            let first_span = Span::default()
+
+            let elements = node.u.vec_literal.elements
+            for elem in elements.iter() {
+                let typ = .check_expression(elem, hint: hint_elem_type)
+                if not typ? continue
+
+                if not elem_type? {
+                    elem_type = typ
+                    // After the first element, we can use the type of the first element as the hint
+                    hint_elem_type = elem_type
+                    first_span = elem.span
+
+                } else if not elem_type.eq(typ) {
+                    .error(Error::new_hint(
+                        elem.span, `Expected type {elem_type.str()}, but got {typ.str()}`,
+                        first_span, `First element was of type {elem_type.str()}`
+                    ))
+                    return null
+                }
+            }
+            if elements.size == 0 {
+                elem_type = hint_elem_type
+            }
+            if not elem_type? {
+                .error(Error::new(node.span, "Can't infer type of Vector literal"))
+                return null
+            }
+
+            // We can no longer do anything if std_vector was not resolved. Exit.
+            if not std_vector? return null
+
+            let vec_sym = std_vector
+            let template_args = Vector<&Type>::new()
+            template_args.push(elem_type)
+
+            let res = .resolve_templated_symbol(vec_sym, template_args, node.span)
+            if not res? or res.type != Structure {
+                .error(Error::new(node.span, "Internal error: Failed to resolve std::vector specialization"))
+                return null
+            }
+            node.u.vec_literal.vec_struc = res.u.struc
+            node.u.vec_literal.vec_type = res.u.struc.type
+
+            let ptr_type = Type::new_resolved(Pointer, node.span)
+            ptr_type.u.ptr = res.u.struc.type
+            return ptr_type
+        }
         ArrayLiteral => {
             let hint_elem_type = null as &Type
             if hint? and hint.base == BaseType::Array {

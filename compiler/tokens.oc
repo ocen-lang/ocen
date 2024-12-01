@@ -96,6 +96,7 @@ enum TokenType {
     StarEquals
     StringLiteral
     Tilde
+    Dollar
 
     //* Not an actual token, just here for convenience
     Newline
