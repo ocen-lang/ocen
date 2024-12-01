@@ -1,0 +1,5 @@
+/// fail: Expected type u32, but got str
+
+def main() {
+    let mp = ${5: "Hello", "hi": "bye"}
+}

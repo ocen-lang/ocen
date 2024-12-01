@@ -15,7 +15,7 @@ import @attributes::{ Attribute, AttributeType }
 import @errors::Error
 import @lexer::Lexer
 import @tokens::{ Token, TokenType }
-import @types::{ Type, BaseType, FunctionType, ArrayType }
+import @types::{ Type, BaseType, FunctionType, ArrayType, MapShorthandType }
 import @utils::directory_exists
 
 @compiler c_include "libgen.h"
@@ -281,6 +281,17 @@ def Parser::parse_type(&this): &Type => match .token().type {
                 let typ = Type::new_resolved(VectorShorthand, dollar.span.join(close.span))
                 typ.u.ptr = elem_type
                 .import_from_stdlib("vector", typ.span)
+                yield typ
+            }
+            OpenCurly => {
+                .consume(OpenCurly)
+                let key_type = .parse_type()
+                .consume(Colon)
+                let value_type = .parse_type()
+                let close = .consume(CloseCurly)
+                let typ = Type::new_resolved(MapShorthand, dollar.span.join(close.span))
+                typ.u.map_types = MapShorthandType(key: key_type, value: value_type)
+                .import_from_stdlib("compact_map", typ.span)
                 yield typ
             }
             else => {
@@ -650,12 +661,12 @@ def Parser::parse_var_declaration(&this): &AST {
     let name = .consume(TokenType::Identifier)
     let end_span = name.span
 
-    let type = null as &Type
+    let type: &Type = null
     if .consume_if(TokenType::Colon) {
         type = .parse_type()
         end_span = type.span
     }
-    let init = null as &AST
+    let init: &AST = null
     if .consume_if(TokenType::Equals) {
         init = .parse_var_initializer()
         end_span = init.span
@@ -687,7 +698,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
         return node
     }
 
-    let type = null as &Type
+    let type: &Type = null
     if .consume_if(TokenType::Colon) { type = .parse_type(); }
 
     let var = Variable::new(type)
@@ -721,7 +732,7 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
 }
 
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
-    let node = null as &AST
+    let node: &AST = null
     match .token().type {
         TokenType::If => node = .parse_if()
         TokenType::Match => node = .parse_match()
@@ -832,6 +843,25 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
                     node.u.vec_literal.elements = elements
                     node.u.vec_literal.start_span = dollar.span.join(start.span)
                     .import_from_stdlib("vector", node.span)
+                    return node
+                }
+                OpenCurly => {
+                    let start = .consume(TokenType::OpenCurly)
+                    let elements: $[MapLiteralPair] = $[]
+                    while not .token_is_eof_or(TokenType::CloseCurly) {
+                        let key = .parse_expression(TokenType::Colon)
+                        .consume(TokenType::Colon)
+                        let value = .parse_expression(TokenType::Comma)
+                        if not .token_is(TokenType::CloseCurly) {
+                            .consume(TokenType::Comma)
+                        }
+                        elements += MapLiteralPair(key, value)
+                    }
+                    let close = .consume(TokenType::CloseCurly)
+                    let node = AST::new(MapLiteral, dollar.span.join(close.span))
+                    node.u.map_literal.elements = elements
+                    node.u.map_literal.start_span = dollar.span.join(start.span)
+                    .import_from_stdlib("compact_map", node.span)
                     return node
                 }
                 else => {
@@ -1135,7 +1165,7 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
 
     if not operators? return lhs
 
-    let root = null as &AST
+    let root: &AST = null
     for let i = 0; i < operators.size; i += 1 {
         let tok = operators.at(i)
         let lhs = operands.at(i)
@@ -1451,14 +1481,14 @@ def Parser::parse_for(&this): &AST {
 }
 
 def Parser::parse_statement(&this): &AST {
-    let node = null as &AST
+    let node: &AST = null
     let start_span = .token().span
 
     match .token().type {
         TokenType::OpenCurly => node = .parse_block()
         TokenType::Return => {
             let tok = .consume(TokenType::Return)
-            let expr = null as &AST
+            let expr: &AST = null
             if not .is_end_of_statement() {
                 expr = .parse_expression(end_type: TokenType::Newline)
             }
@@ -1496,7 +1526,7 @@ def Parser::parse_statement(&this): &AST {
             let start = .consume(TokenType::Assert)
             let expr = .parse_expression(end_type: TokenType::Newline)
 
-            let msg = null as &AST
+            let msg: &AST = null
             let end_span = expr.span
 
             if .consume_if(TokenType::Comma) {
@@ -1621,7 +1651,7 @@ def Parser::parse_function_args(&this, func: &Function, end: TokenType, need_typ
 
         let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
-        let type = null as &Type
+        let type: &Type = null
         if func.params.is_empty() and func.kind == Method {
             if var_name.text.eq("this") {
                 type = func.parent_type
@@ -1641,7 +1671,7 @@ def Parser::parse_function_args(&this, func: &Function, end: TokenType, need_typ
             }
         }
 
-        let default_value = null as &AST
+        let default_value: &AST = null
         if .consume_if(TokenType::Equals) {
             default_value = .parse_expression(end_type: TokenType::Comma)
             seen_default = true
@@ -1705,7 +1735,7 @@ def Parser::parse_closure(&this): &Function {
 def Parser::parse_function(&this): &Function {
     let start = .consume(TokenType::Def)
 
-    let parent_type = null as &Type
+    let parent_type: &Type = null
     let kind = FunctionKind::Normal
 
     let ident = .parse_scoped_identifier(consume_template: false)
@@ -2502,7 +2532,7 @@ def Parser::find_external_library(&this, name: str): LibraryInfo {
 
 def Parser::import_from_stdlib(&this, name: str, span: Span): &Namespace {
     let std_ns = .find_or_import_stdlib()
-    let ns = std_ns.namespaces.get("vector", null)
+    let ns = std_ns.namespaces.get(name, null)
     if not ns? {
         ns = .load_single_import_part(base: std_ns, name, span)
     }

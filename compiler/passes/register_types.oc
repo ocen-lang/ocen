@@ -239,11 +239,19 @@ def RegisterTypes::register_cached_types(&this) {
         assert std_vector.is_templated()
     }
 
+    let std_map = (finder/"std"/"compact_map"/"Map").sym
+    if std_map? {
+        // Some sanity checks
+        assert std_map.type == Structure
+        assert std_map.is_templated()
+    }
+
     .o.program.cached_symbols = CachedSymbols(
         fmt_string_fn: fmt_string_fn,
         mem_alloc_fn: alloc_fn,
         mem_allocator: allocator,
-        std_vector: std_vector
+        std_vector: std_vector,
+        std_map: std_map
     )
 }
 

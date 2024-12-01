@@ -224,6 +224,19 @@ def MarkDeadCode::mark(&this, node: &AST) {
                 .mark_function(vec_type.methods.get("new", null))
             }
         }
+        MapLiteral => {
+            let map_lit = node.u.map_literal
+            for expr in map_lit.elements.iter() {
+                .mark(expr.key)
+                .mark(expr.value)
+            }
+            if map_lit.map_type? {
+                let map_type = map_lit.map_type
+                .mark_type(map_type)
+                .mark_function(map_type.methods.get("insert", null))
+                .mark_function(map_type.methods.get("new", null))
+            }
+        }
         else => .o.error(Error::new(node.span, `Unhandled expression type in MarkDeadCode: {node.type}`))
     }
 }

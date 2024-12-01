@@ -1,0 +1,11 @@
+/// out: "2, 2, 0, 1, World"
+
+import std::compact_map::{ Map }
+
+def main() {
+    let x = ${1: "hello", 2: "World"}
+    let y: &Map<i32, str> = ${1: "hello", 2: "World"}
+    let z: &Map<i32, str> = ${}
+    let w: ${str: str} = ${"Hello":"World"}
+    println(`{x.size()}, {y.size()}, {z.size()}, {w.size()}, {w["Hello"]}`)
+} 

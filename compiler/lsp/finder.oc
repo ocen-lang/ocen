@@ -289,6 +289,17 @@ def Finder::find_in_expression(&this, node: &AST): bool {
                 }
             }
         }
+        MapLiteral => {
+            for elem in node.u.map_literal.elements.iter() {
+                if .find_in_expression(elem.key) return true
+                if .find_in_expression(elem.value) return true
+            }
+            if node.u.map_literal.start_span.contains_loc(.loc) {
+                if node.u.map_literal.map_struc? {
+                    return .set_usage(node.u.map_literal.map_struc.sym, node)
+                }
+            }
+        }
         Error => {
             if node.span.contains_loc(.loc) {
                 return .set_usage(node.resolved_symbol, node)
@@ -414,6 +425,13 @@ def Finder::find_in_type(&this, type: &Type): bool {
         }
         VectorShorthand => {
             if .find_in_type(type.u.ptr) return true
+            if type.span.contains_loc(.loc) {
+                return .set_usage(type.sym, node: null)
+            }
+        }
+        MapShorthand => {
+            if .find_in_type(type.u.map_types.key) return true
+            if .find_in_type(type.u.map_types.value) return true
             if type.span.contains_loc(.loc) {
                 return .set_usage(type.sym, node: null)
             }

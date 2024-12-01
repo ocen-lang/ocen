@@ -1,0 +1,5 @@
+/// fail: Variable x has type &std::vector::Vector<i32> but initializer has type &std::vector::Vector<str>
+
+def main() {
+    let x: $[i32] = $["Hello"]
+}

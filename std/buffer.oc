@@ -258,6 +258,7 @@ def BytesReader::read_u32(&this, endian: Endian = Big): u32 {
     return value
 }
 
+
 //* Read a signed 16-bit integer with the given endianness
 def BytesReader::read_i16(&this, endian: Endian = Big): i16 { return .read_u16(endian) as i16 }
 //* Read an unsigned 16-bit integer with the given endianness
@@ -279,6 +280,12 @@ def BytesReader::read_u8(&this): u8 {
     .index += 1
     return value
 }
+//* Read a single character
+def BytesReader::read_char(&this): char {
+    if .index >= .size return '\0'
+    return .read_u8() as char
+}
+
 
 //* Read `count` bytes from the buffer.
 def BytesReader::read_bytes(&this, _dst: untyped_ptr, count: u32) {

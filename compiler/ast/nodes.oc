@@ -42,8 +42,9 @@ enum ASTType {
     Specialization      // Foo<Bar, Baz>
     CreateClosure       // |a, b| => a+b
     ArrayLiteral        // [1, 2, 3]
-    VectorLiteral       // $[1, 2, 3]
     TryMember           // x?.y (only if x and x.y are both ptr like)
+    VectorLiteral       // $[1, 2, 3]
+    MapLiteral          // ${1: 2, 2: 3}
 
     // Used for heap-allocating the result of an expression
     // @new XYZ   =>  { let a = mem::alloc<typeof(XYZ)>(); *a = XYZ; yield a  }
@@ -78,6 +79,7 @@ union ASTUnion {
     spec: Specialization
     array_literal: ArrayLiteral
     vec_literal: VectorLiteral
+    map_literal: MapLiteral
     child: &AST
     ret: Return
     closure: &Function
@@ -514,6 +516,18 @@ struct VectorLiteral {
     elements: &Vector<&AST>
     vec_type: &Type  // Type for Vector<X>
     vec_struc: &Structure  // Structure for Vector<X>
+    start_span: Span
+}
+
+struct MapLiteralPair {
+    key: &AST
+    value: &AST
+}
+
+struct MapLiteral {
+    elements: $[MapLiteralPair]
+    map_type: &Type         // Type for Map<X, Y>
+    map_struc: &Structure   // Structure for Map<X, Y>
     start_span: Span
 }
 

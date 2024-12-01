@@ -101,6 +101,12 @@ def Visitor::visit_po(&this, node: &AST) {
                 .visit_po(elem)
             }
         }
+        MapLiteral => {
+            for elem in node.u.map_literal.elements.iter() {
+                .visit_po(elem.key)
+                .visit_po(elem.value)
+            }
+        }
         CreateClosure => {
             let func = node.u.closure
             .visit_po(func.body)

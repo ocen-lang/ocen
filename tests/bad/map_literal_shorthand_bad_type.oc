@@ -1,0 +1,5 @@
+/// fail: Variable mp has type &std::compact_map::Map<u32, i32> but initializer has type &std::compact_map::Map<u32, str>
+
+def main() {
+    let mp: ${u32: i32} = ${5: "Hello"}
+}
