@@ -46,7 +46,7 @@ def Visitor::visit_po(&this, node: &AST) {
             }
             .visit_po(node.u.if_stmt.els)
         }
-        Member => {
+        Member | TryMember => {
             .visit_po(node.u.member.lhs)
         }
         NSLookup => {

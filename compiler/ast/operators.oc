@@ -60,7 +60,7 @@ enum Operator {
 
 //! This takes in the parameters of the (potentially) overloaded function to determine
 //! whether this is a unary/binary operator, and what the operator is.
-def Operator::from_operator_overload(s: str, params: &Vector<&Variable>): Operator => match s {
+def Operator::from_operator_overload(s: str, params: $[&Variable]): Operator => match s {
     "+" => Plus
     "-" => match params.size {
         1 => Negate

@@ -650,6 +650,20 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             }
             .out += node.u.member.rhs_name
         }
+        TryMember => {
+            let lhs = node.u.member.lhs
+            let rhs_name = node.u.member.rhs_name
+
+            let tmp_var = `_t{.o.program.uid++}`
+            .out += "({"
+            .gen_type_and_name(lhs.etype, tmp_var)
+            .out += " = "
+            .gen_expression(lhs)
+            .out += "; "
+            .out <<= `{tmp_var} ? {tmp_var}->{rhs_name} : NULL;`
+            .out += "})"
+            tmp_var.free()
+        }
         Identifier | NSLookup | Specialization | OverloadedOperator => {
             let sym = node.resolved_symbol
             if not sym? {

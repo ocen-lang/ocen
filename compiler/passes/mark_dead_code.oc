@@ -188,7 +188,7 @@ def MarkDeadCode::mark(&this, node: &AST) {
                 .mark(expr)
             }
         }
-        Member => {
+        Member | TryMember => {
             .mark(node.u.member.lhs)
         }
         Identifier | Specialization | OverloadedOperator => {}

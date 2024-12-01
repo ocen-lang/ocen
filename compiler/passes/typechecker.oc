@@ -54,7 +54,7 @@ def TypeChecker::set_resolved_symbol(&this, node: &AST, sym: &Symbol) {
         }
         // Want to find the span of the actual identifier
         NSLookup => node.u.lookup.rhs_span
-        Member => {
+        Member | TryMember => {
             if sym.name == "this" and node.u.member.dot_shorthand {
                 ref_type = DotShorthand
             }
@@ -230,6 +230,7 @@ def TypeChecker::resolve_type(
 
                 let res = .resolve_templated_symbol(std_vector, $[elem_type], old.span)
                 assert res.type == Structure
+                old.sym = res
                 resolved = Type::new_resolved(Pointer, old.span)
                 resolved.u.ptr = res.u.struc.type
             }
@@ -855,7 +856,8 @@ def TypeChecker::check_call(&this, node: &AST, hint: &Type = null): &Type {
     let args = node.u.call.args
 
     let res = match callee.type {
-        Member => .check_member(callee, is_being_called: true)
+        Member => .check_member(callee, is_being_called: true, is_try: false)
+        TryMember => .check_member(callee, is_being_called: true, is_try: true)
         Identifier | NSLookup | Specialization => {
             let sym = .resolve_scoped_identifier(callee, error: true, hint)
             yield match sym? {
@@ -1236,9 +1238,15 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
     return .get_type_by_name("str", node.span)
 }
 
-def TypeChecker::check_member(&this, node: &AST, is_being_called: bool, hint: &Type = null): &Type {
+def TypeChecker::check_member(&this, node: &AST,  is_being_called: bool, is_try: bool, hint: &Type = null): &Type {
     let lhs = .check_expression(node.u.member.lhs)
     if not lhs? return null
+
+    if is_try {
+        if not lhs.base == Pointer {
+            .error(Error::new(node.u.member.lhs.span, "Cannot use ?. on non-pointer LHS"))
+        }
+    }
 
     // How would this work for strings?
     let is_pointer = false
@@ -1261,31 +1269,45 @@ def TypeChecker::check_member(&this, node: &AST, is_being_called: bool, hint: &T
     let rhs_name = node.u.member.rhs_name
     if not rhs_name? return hint
 
-    match lhs.base {
+    let res = match lhs.base {
         Structure => {
             let struc = lhs.u.struc
             let field = struc.get_field(rhs_name)
-            if field? {
-                node.u.member.is_pointer = is_pointer
-                .set_resolved_symbol(node, field.sym)
-                return field.type
+            yield if {
+                field? => {
+                    node.u.member.is_pointer = is_pointer
+                    .set_resolved_symbol(node, field.sym)
+                    yield field.type
+                }
+                else => null
             }
         }
         Enum => {
             let enom = lhs.u.enom
             let field = enom.get_shared_field(rhs_name)
-            if field? {
-                node.u.member.is_pointer = is_pointer
-                .set_resolved_symbol(node, field.sym)
-                return field.type
+            yield if {
+                field? => {
+                    node.u.member.is_pointer = is_pointer
+                    .set_resolved_symbol(node, field.sym)
+                    yield field.type
+                }
+                else => null
             }
         }
 
         // Fallthrough
-        else => {}
+        else => null
     }
 
-    if lhs.can_have_methods() {
+    if res? {
+        if is_try and res.base != Pointer {
+            .error(Error::new(node.u.member.lhs.span, f"Cannot use ?. with non-pointer member type {res.str()}"))
+        }
+        return res
+    }
+
+    // NOTE: `x?.y` syntax should only work for member access, not method calls
+    if not is_try and lhs.can_have_methods() {
         let method = lhs.methods.get(rhs_name, null)
         if method? {
             if not is_being_called {
@@ -1493,7 +1515,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             }
         }
 
-        ASTType::Member => return .check_member(node, is_being_called: false, hint)
+        ASTType::Member => return .check_member(node, is_being_called: false, is_try: false, hint)
+        ASTType::TryMember => return .check_member(node, is_being_called: false, is_try: true, hint)
         ASTType::SizeOf => {
             let typ = .resolve_type(node.u.size_of_type)
             if not typ? return null

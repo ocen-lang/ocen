@@ -39,10 +39,11 @@ enum ASTType {
     Null
     Match
     Defer
-    Specialization
-    CreateClosure
-    ArrayLiteral
-    VectorLiteral  // $[1, 2, 3]
+    Specialization      // Foo<Bar, Baz>
+    CreateClosure       // |a, b| => a+b
+    ArrayLiteral        // [1, 2, 3]
+    VectorLiteral       // $[1, 2, 3]
+    TryMember           // x?.y (only if x and x.y are both ptr like)
 
     // Used for heap-allocating the result of an expression
     // @new XYZ   =>  { let a = mem::alloc<typeof(XYZ)>(); *a = XYZ; yield a  }
@@ -513,6 +514,7 @@ struct VectorLiteral {
     elements: &Vector<&AST>
     vec_type: &Type  // Type for Vector<X>
     vec_struc: &Structure  // Structure for Vector<X>
+    start_span: Span
 }
 
 struct Return {

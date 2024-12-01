@@ -280,6 +280,7 @@ def Parser::parse_type(&this): &Type => match .token().type {
                 let close = .consume(CloseSquare)
                 let typ = Type::new_resolved(VectorShorthand, dollar.span.join(close.span))
                 typ.u.ptr = elem_type
+                .import_from_stdlib("vector", typ.span)
                 yield typ
             }
             else => {
@@ -829,6 +830,7 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
                     let close = .consume(TokenType::CloseSquare)
                     let node = AST::new(VectorLiteral, dollar.span.join(close.span))
                     node.u.vec_literal.elements = elements
+                    node.u.vec_literal.start_span = dollar.span.join(start.span)
                     .import_from_stdlib("vector", node.span)
                     return node
                 }
@@ -872,10 +874,14 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
         if .token_is(end_type) break
         match .token().type {
             TokenType::OpenParen => node = .parse_call(node)
-            TokenType::Dot => {
+            TokenType::Dot | TokenType::QuestionDot => {
                 if .token_is(end_type) break
-                .consume(TokenType::Dot)
-                let member = AST::new(Member, node.span)
+                let op = .consume(.token().type)
+                let member = match op.type {
+                    QuestionDot => AST::new(TryMember, node.span)
+                    Dot => AST::new(Member, node.span)
+                    else => std::panic("Unreachable")
+                }
                 member.u.member.lhs = node
                 node = member
 

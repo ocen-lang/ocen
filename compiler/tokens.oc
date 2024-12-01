@@ -50,8 +50,8 @@ def Token::is_identifier(this, name: str): bool => match .type {
 
 enum TokenType {
     // Other tokens
-    AtSign
     Ampersand
+    AtSign
     Backtick
     Caret
     CharLiteral
@@ -61,11 +61,12 @@ enum TokenType {
     Colon
     ColonColon
     Comma
+    Dollar
     Dot
-    EOF
     Ellipsis
-    Equals
+    EOF
     EqualEquals
+    Equals
     Exclamation
     FatArrow
     FloatLiteral
@@ -89,6 +90,7 @@ enum TokenType {
     PlusEquals
     PlusPlus
     Question
+    QuestionDot
     Semicolon
     Slash
     SlashEquals
@@ -96,7 +98,6 @@ enum TokenType {
     StarEquals
     StringLiteral
     Tilde
-    Dollar
 
     //* Not an actual token, just here for convenience
     Newline
