@@ -220,6 +220,20 @@ def TypeChecker::resolve_type(
 
             .try_infer_array_size(&resolved.u.arr)
         }
+        VectorShorthand => {
+            if not (.o.program.did_cache_symbols and .o.program.cached_symbols.std_vector?) {
+                .error(Error::new(old.span, "Vector shorthand not available"))
+                resolved = null
+            } else {
+                let std_vector = .o.program.cached_symbols.std_vector
+                let elem_type = .resolve_type(old.u.ptr, p_a, p_e, p_r)
+
+                let res = .resolve_templated_symbol(std_vector, $[elem_type], old.span)
+                assert res.type == Structure
+                resolved = Type::new_resolved(Pointer, old.span)
+                resolved.u.ptr = res.u.struc.type
+            }
+        }
         Structure | Char | Bool | Void | I8 | I16 |
         I32 | I64 | U8 | U16 | U32 | U64 | F32 | F64 |
         Enum => {}

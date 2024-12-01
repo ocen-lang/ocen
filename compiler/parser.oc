@@ -271,6 +271,24 @@ def Parser::parse_type(&this): &Type => match .token().type {
         yield typ
     }
 
+    Dollar => {
+        let dollar = .consume(Dollar)
+        yield match .token().type {
+            OpenSquare => {
+                .consume(OpenSquare)
+                let elem_type = .parse_type()
+                let close = .consume(CloseSquare)
+                let typ = Type::new_resolved(VectorShorthand, dollar.span.join(close.span))
+                typ.u.ptr = elem_type
+                yield typ
+            }
+            else => {
+                .error(Error::new(.token().span, "Unexpected token after `$`"))
+                yield null
+            }
+        }
+    }
+
     else => {
         .unhandled_type("parse_type")
         yield Type::new_unresolved_base(BaseType::Error, .token().span)

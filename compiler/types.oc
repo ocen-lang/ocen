@@ -39,6 +39,7 @@ enum BaseType {
     Alias
     UnresolvedTemplate
     Enum
+    VectorShorthand
 
     Error
 }

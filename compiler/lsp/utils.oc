@@ -64,6 +64,7 @@ def gen_type_string(type: &Type, full: bool = true): str => match type.base {
         else => `&{gen_type_string(type.u.ptr, full)}`
     }
     Array => `&{gen_type_string(type.u.arr.elem_type, full)}`
+    VectorShorthand => `$[{gen_type_string(type.u.arr.elem_type, full)}]`
     Structure | Alias | Enum => {
         if not type.template_instance? return match full {
             true => type.sym.display
