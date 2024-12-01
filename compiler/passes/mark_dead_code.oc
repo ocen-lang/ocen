@@ -212,6 +212,18 @@ def MarkDeadCode::mark(&this, node: &AST) {
                 .mark(expr)
             }
         }
+        VectorLiteral => {
+            let vec_lit = node.u.vec_literal
+            for expr in vec_lit.elements.iter() {
+                .mark(expr)
+            }
+            if vec_lit.vec_type? {
+                let vec_type = vec_lit.vec_type
+                .mark_type(vec_type)
+                .mark_function(vec_type.methods.get("push", null))
+                .mark_function(vec_type.methods.get("new", null))
+            }
+        }
         else => .o.error(Error::new(node.span, `Unhandled expression type in MarkDeadCode: {node.type}`))
     }
 }

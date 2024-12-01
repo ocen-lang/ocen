@@ -96,6 +96,11 @@ def Visitor::visit_po(&this, node: &AST) {
                 .visit_po(elem)
             }
         }
+        VectorLiteral => {
+            for elem in node.u.vec_literal.elements.iter() {
+                .visit_po(elem)
+            }
+        }
         CreateClosure => {
             let func = node.u.closure
             .visit_po(func.body)

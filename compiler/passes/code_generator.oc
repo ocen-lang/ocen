@@ -276,6 +276,33 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
     .out += ")"
 }
 
+def CodeGenerator::gen_vector_literal(&this, node: &AST) {
+    assert node.type == VectorLiteral
+    let vec_lit = node.u.vec_literal
+    assert vec_lit.vec_type?
+
+    let new_method = vec_lit.vec_type.methods["new"]
+    let push_method = vec_lit.vec_type.methods["push"]
+
+    let var = `_vc{.o.program.uid++}`
+
+    .out += "({"
+    .gen_type_and_name(new_method.return_type, var)
+    .out += " = "
+    .out += new_method.sym.out_name()
+    .out <<= `({vec_lit.elements.size});\n`
+    for expr in vec_lit.elements.iter() {
+        .gen_indent()
+        .out += push_method.sym.out_name()
+        .out <<= `({var}, `
+        .gen_expression(expr)
+        .out += ");\n"
+    }
+    .gen_indent()
+    .out += var
+    .out += ";})"
+}
+
 def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
     let yield_var = .yield_vars.back()
     .gen_indent()
@@ -556,6 +583,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             }
             .out += "}"
         }
+        VectorLiteral => .gen_vector_literal(node)
         FormatStringLiteral => .gen_format_string(node)
         StringLiteral => {
             let str_lit = node.u.string_literal

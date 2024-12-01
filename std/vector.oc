@@ -24,6 +24,15 @@ def Vector::resize(&this, new_capacity: u32) {
     .capacity = new_capacity
 }
 
+def Vector::find(&this, cb: @fn(T): bool): i32 {
+    for let i = 0; i < .size; i += 1 {
+        if cb(.data[i]) {
+            return i as i32
+        }
+    }
+    return -1
+}
+
 [operator "+="]
 //* Pushes an element to the end of the vector
 def Vector::push(&this, value: T) {
@@ -109,7 +118,7 @@ def Vector::at(&this, i: u32): T {
 }
 
 [operator "[]="]
-//* Returns the element at the given index
+//* Sets the element at the given index
 def Vector::set(&this, i: u32, val: T) {
     assert i < .size, "Out of bounds in Vector::set"
     .data[i] = val

@@ -453,16 +453,11 @@ def Parser::parse_format_string(&this): &AST {
         let part = expr_parts.at(i)
         let start = expr_start.at(i)
 
-        let lexer = Lexer::make(part, fstr_start.filename)
+        let lexer = Lexer::make(part, fstr_start.filename, .program.errors)
         lexer.loc = fstr_start
         lexer.loc.col += start + 1
 
         let tokens = lexer.lex()
-        for error in lexer.errors.iter() {
-            .error(error)
-        }
-        lexer.errors.free()
-
         let sub_parser = Parser::make(.program, .ns)
         sub_parser.tokens = tokens
         sub_parser.curr = 0
@@ -800,6 +795,29 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             sym.u.func = closure_func
             closure_func.sym = sym
             return node
+        }
+        TokenType::Dollar => {
+            let dollar = .consume(Dollar)
+            match .token().type {
+                OpenSquare => {
+                    let start = .consume(TokenType::OpenSquare)
+                    let elements = Vector<&AST>::new()
+                    while not .token_is_eof_or(TokenType::CloseSquare) {
+                        elements.push(.parse_var_initializer())
+                        if not .token_is(TokenType::CloseSquare) {
+                            .consume(TokenType::Comma)
+                        }
+                    }
+                    let close = .consume(TokenType::CloseSquare)
+                    let node = AST::new(VectorLiteral, dollar.span.join(close.span))
+                    node.u.vec_literal.elements = elements
+                    .import_from_stdlib("vector", node.span)
+                    return node
+                }
+                else => {
+                    .error(Error::new(.token().span, f"Unexpected token: {.token().type}"))
+                }
+            }
         }
         else => {
             let prev_span = .tokens[.curr - 1].span
@@ -2341,10 +2359,12 @@ def Parser::parse_compiler_option(&this) {
 }
 
 def Parser::try_load_mod_for_namespace(&this, ns: &Namespace) {
+    if ns.is_dir_with_mod return
+
     let mod_path = f"{ns.path}/mod.oc"
     // The `not ns.is_dir_with_mod` check is not strictly necessary, but it's just
     // an early exit in case we've already loaded in the `mod.oc` file.
-    if fs::file_exists(mod_path) and not ns.is_dir_with_mod {
+    if fs::file_exists(mod_path){
         ns.is_dir_with_mod = true
         let parser = Parser::make(.program, ns)
         parser.load_file(mod_path)
@@ -2456,6 +2476,15 @@ def Parser::find_external_library(&this, name: str): LibraryInfo {
     return LibraryInfo(null, null)
 }
 
+def Parser::import_from_stdlib(&this, name: str, span: Span): &Namespace {
+    let std_ns = .find_or_import_stdlib()
+    let ns = std_ns.namespaces.get("vector", null)
+    if not ns? {
+        ns = .load_single_import_part(base: std_ns, name, span)
+    }
+    return ns
+}
+
 //* Finds the library with the name provided, and loads it into the program.
 def Parser::import_external_lib(&this, name: str): &Namespace {
     let lib = .find_external_library(name)
@@ -2545,7 +2574,7 @@ def Parser::load_file(&this, filename: str, contents: str = null) {
     }
     .program.sources.insert(filename, contents)
 
-    let lexer = Lexer::make(contents, filename)
+    let lexer = Lexer::make(contents, filename, .program.errors)
     .tokens = lexer.lex()
     .curr = 0
 
@@ -2565,9 +2594,13 @@ def Parser::couldnt_find_stdlib(&this) {
     .program.get_error_context().jump_back(1)
 }
 
-def Parser::find_and_import_stdlib(&this) {
-    let std_ns = .import_external_lib("std")
-    .program.global.namespaces.insert("std", std_ns)
+def Parser::find_or_import_stdlib(&this): &Namespace {
+    let std_ns = .program.global.namespaces.get("std", null)
+    if not std_ns? {
+        let std_ns = .import_external_lib("std")
+        .program.global.namespaces.insert("std", std_ns)
+    }
+    return std_ns
 }
 
 def Parser::include_prelude_only(&this) {
@@ -2722,13 +2755,12 @@ def Parser::parse_toplevel(program: &Program, filename: str, file_contents: str 
 
     let parser = Parser::make(program, program.global)
     if program.include_stdlib {
-        parser.find_and_import_stdlib()
+        parser.find_or_import_stdlib()
     } else {
         parser.include_prelude_only()
     }
     parser.create_namespaces_for_initial_file(filename, false)
     parser.load_file(filename, file_contents)
-
 
     let file_ns = parser.ns
     if include_workspace_main and file_ns.internal_project_root? {

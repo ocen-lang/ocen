@@ -40,8 +40,9 @@ enum ASTType {
     Match
     Defer
     Specialization
-    ArrayLiteral
     CreateClosure
+    ArrayLiteral
+    VectorLiteral  // $[1, 2, 3]
 
     // Used for heap-allocating the result of an expression
     // @new XYZ   =>  { let a = mem::alloc<typeof(XYZ)>(); *a = XYZ; yield a  }
@@ -50,6 +51,49 @@ enum ASTType {
     UnaryOp
     BinaryOp
 }
+
+union ASTUnion {
+    assertion: Assertion
+    binary: Binary
+    block: Block
+    bool_literal: bool
+    call: FuncCall
+    cast: Cast
+    ident: Identifier
+    if_stmt: IfStatement
+    import_path: Import
+    lookup: NSLookup
+    loop: Loop
+    member: Member
+    num_literal: NumLiteral
+    string_literal: str
+    char_literal: str
+    unary: Unary
+    operator_span: Span
+    var_decl: &Variable
+    fmt_str: FormatString
+    size_of_type: &Type
+    match_stmt: Match
+    spec: Specialization
+    array_literal: ArrayLiteral
+    vec_literal: VectorLiteral
+    child: &AST
+    ret: Return
+    closure: &Function
+}
+
+struct AST {
+    type: ASTType
+    span: Span
+    u: ASTUnion
+
+    // Resolved by type checker
+    etype: &Type
+    hint: &Type  // For LSP
+    resolved_symbol: &Symbol
+    returns: bool
+}
+
 
 struct Variable {
     sym: &Symbol
@@ -465,98 +509,16 @@ struct ArrayLiteral {
     elements: &Vector<&AST>
 }
 
+struct VectorLiteral {
+    elements: &Vector<&AST>
+    vec_type: &Type  // Type for Vector<X>
+    vec_struc: &Structure  // Structure for Vector<X>
+}
+
 struct Return {
     expr: &AST
     return_span: Span
 }
-
-union ASTUnion {
-    assertion: Assertion
-    binary: Binary
-    block: Block
-    bool_literal: bool
-    call: FuncCall
-    cast: Cast
-    ident: Identifier
-    if_stmt: IfStatement
-    import_path: Import
-    lookup: NSLookup
-    loop: Loop
-    member: Member
-    num_literal: NumLiteral
-    string_literal: str
-    char_literal: str
-    unary: Unary
-    operator_span: Span
-    var_decl: &Variable
-    fmt_str: FormatString
-    size_of_type: &Type
-    match_stmt: Match
-    spec: Specialization
-    array_literal: ArrayLiteral
-    child: &AST
-    ret: Return
-    closure: &Function
-}
-
-struct AST {
-    type: ASTType
-    span: Span
-    u: ASTUnion
-
-    // Resolved by type checker
-    etype: &Type
-    hint: &Type  // For LSP
-    resolved_symbol: &Symbol
-    returns: bool
-}
-
-// enum AST2 {
-//     span: Span
-//     etype: &Type = null
-//     hint: &Type = null
-//     resolved_symbol: &Symbol = null
-//     returns: bool = false
-
-//     Assert(assertion: Assertion)
-//     Block(block: Block)
-//     BoolLiteral(value: bool)
-//     Break
-//     Call(call: FuncCall)
-//     Continue
-//     Error
-//     Identifier(ident: Identifier)
-//     If(if_stmt: IfStatement)
-//     Import(import_path: Import)
-//     IntLiteral(value: NumLiteral)
-//     Member(member: Member)
-//     NSLookup(lookup: NSLookup)
-//     OverloadedOperator(symbol: &Symbol)
-//     Return(expr: &AST2)
-//     Yield(expr: &AST2)
-//     StringLiteral(value: str)
-//     SizeOf(type: &Type)
-//     VarDeclaration(var: &Variable)
-//     While(loop: Loop)
-//     For(loop: Loop)
-//     CharLiteral(value: str)
-//     FloatLiteral(value: NumLiteral)
-//     FormatStringLiteral(fmt_str: FormatString)
-//     Cast(cast: Cast)
-//     Null
-//     Match(match_stmt: Match)
-//     Defer(stmt: &AST2)
-//     Specialization(spec: Specialization)
-//     ArrayLiteral(arr: ArrayLiteral)
-//     CreateClosure(func: &Function)
-
-//     // Used for heap-allocating the result of an expression
-//     // @new XYZ   =>  { let a = mem::alloc<typeof(XYZ)>(); *a = XYZ; yield a  }
-//     CreateNew(expr: &AST2)
-
-//     UnaryOp(unop: Unary)
-//     BinaryOp(binop: Binary)
-// }
 
 def AST::new(type: ASTType, span: Span): &AST {
     let ast = mem::alloc<AST>()

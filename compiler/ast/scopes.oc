@@ -4,11 +4,13 @@ import std::mem
 import std::span::{ Span, Location }
 import std::map::Map
 import std::vector::Vector
+import std::buffer::{ Buffer }
 
 import @ast::nodes::{ AST, Structure, Variable, Function }
 import @ast::nodes::{ Enum, EnumVariant }
 import @ast::program::Namespace
 import @types::Type
+import @lexer::{ is_valid_utf8_start }
 
 enum SymbolType {
     Function
@@ -143,11 +145,24 @@ def Symbol::new(type: SymbolType, ns: &Namespace, name: str, display: str, full_
 
     // Replace invalid characters in full_name, since we codegen it to C
     let full_name_len = full_name.len()
-    for let i = 0; i < full_name_len; i++ {
+    full_name = full_name.copy()
+    for let i = 0; i < full_name_len; {
         let c = full_name[i]
-        if (i == 0 and c.is_digit()) or (not c.is_alnum() and c != '_') {
-            full_name[i] = '_'
+        let ln = 1
+        assert is_valid_utf8_start(c, &ln)
+        match ln {
+            1 => {
+                if (i == 0 and c.is_digit()) or (not c.is_alnum() and c != '_') {
+                    full_name[i] = '_'
+                }
+            }
+            else => {
+                for let j = 0; j < ln; j++ {
+                    full_name[i + j] =  (('a' as u8) + (full_name[i + j] as u8)%26) as char
+                }
+            }
         }
+        i += ln
     }
     item.full_name = full_name
 

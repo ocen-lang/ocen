@@ -212,3 +212,7 @@ def main(argc: i32, argv: &str) {
         if run_after_compile then run_executable(argc, argv)
     }
 }
+
+
+/// Assorted Fix-mes:
+// FIXME: `let 👀` does not properly highlighy `let`

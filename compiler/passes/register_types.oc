@@ -192,8 +192,7 @@ struct Finder {
     type: &Type
 }
 
-[operator "[]"]
-def Finder::to(this, name: str): Finder {
+def Finder::to(this, name: str, error: bool = true): Finder {
     if not .sym? return this
     let res = .o.find_in_symbol(.sym, name, allow_templated: true)
 
@@ -204,7 +203,7 @@ def Finder::to(this, name: str): Finder {
             Enum => .type = res.u.enom.type
             else => .type = null
         }
-    } else {
+    } else if error {
         .o.error(Error::new_note(
             .sym.span, `Could not find {.sym.display}::{name}`,
             "The compiler expects this internally (in RegisterTypes)"
@@ -214,6 +213,14 @@ def Finder::to(this, name: str): Finder {
     return this
 }
 
+[operator "[]"]
+def Finder::get(this, name: str): Finder => .to(name, error: true)
+
+
+[operator "/"]
+def Finder::try_get(this, name: str): Finder => .to(name, error: false)
+
+
 def RegisterTypes::register_cached_types(&this) {
     let finder = Finder(.o, .o.program.global.sym, null)
 
@@ -221,16 +228,22 @@ def RegisterTypes::register_cached_types(&this) {
 
     let alloc_fn = finder["std"]["mem"]["state"]["alloc_fn"].sym
     let allocator = finder["std"]["mem"]["state"]["allocator"].sym
-
-    // Sanity checks to make sure the function is what we expect
     assert alloc_fn.type == Variable and alloc_fn.u.var.type.base == FunctionPtr
     assert allocator.type == Variable
     assert alloc_fn.u.var.type.u.func.params.size == 2
+
+    let std_vector = (finder/"std"/"vector"/"Vector").sym
+    if std_vector? {
+        // Some sanity checks
+        assert std_vector.type == Structure
+        assert std_vector.is_templated()
+    }
 
     .o.program.cached_symbols = CachedSymbols(
         fmt_string_fn: fmt_string_fn,
         mem_alloc_fn: alloc_fn,
         mem_allocator: allocator,
+        std_vector: std_vector
     )
 }
 
