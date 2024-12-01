@@ -1,0 +1,11 @@
+/// out: "3, 4, 0, 2, World"
+
+import std::vector::{ Vector }
+
+def main() {
+    let x = $[1, 2, 3]
+    let y: &Vector<i32> = $[1, 2, 3, 4]
+    let z: &Vector<i32> = $[]
+    let w: $[str] = $["Hello", "World"]
+    println(`{x.size}, {y.size}, {z.size}, {w.size}, {w[1]}`)
+}

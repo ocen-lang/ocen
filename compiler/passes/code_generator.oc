@@ -286,11 +286,18 @@ def CodeGenerator::gen_vector_literal(&this, node: &AST) {
 
     let var = `_vc{.o.program.uid++}`
 
-    .out += "({"
+    .out += "({\n"
+    .indent += 1
+    .gen_indent()
     .gen_type_and_name(new_method.return_type, var)
     .out += " = "
     .out += new_method.sym.out_name()
-    .out <<= `({vec_lit.elements.size});\n`
+
+    // FIXME: Make this use default param
+    let size = vec_lit.elements.size
+    if size == 0 then size = 8
+
+    .out <<= `({size});\n`
     for expr in vec_lit.elements.iter() {
         .gen_indent()
         .out += push_method.sym.out_name()
@@ -301,6 +308,7 @@ def CodeGenerator::gen_vector_literal(&this, node: &AST) {
     .gen_indent()
     .out += var
     .out += ";})"
+    .indent -= 1
 }
 
 def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
