@@ -1,0 +1,10 @@
+/// fail: Cannot use ?. with non-pointer member type i32
+
+struct Foo {
+    x: i32
+}
+
+def main() {
+    let a: &Foo
+    let b = a?.x
+}

@@ -319,12 +319,15 @@ def Lexer::lex(&this): &Vector<&Token> {
             '^' => .push_type(Caret)
             '&' => .push_type(Ampersand)
             '|' => .push_type(Line)
-            '?' => .push_type(Question)
             '~' => .push_type(Tilde)
             '$' => .push_type(Dollar)
             '.' => match .peek(1) == '.' and .peek(2) == '.' {
                 true => .push_type(Ellipsis, len: 3)
                 false => .push_type(Dot)
+            }
+            '?' => match .peek(1) {
+                '.'  => .push_type(QuestionDot, len: 2)
+                else => .push_type(Question)
             }
             '!' => match .peek(1) {
                 '='  => .push_type(NotEquals, len: 2)

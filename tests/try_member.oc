@@ -1,0 +1,8 @@
+/// exit: 0
+
+def main() {
+    let x: $[u32] = null
+    // Should NOT segfault.
+    let y = x?.data
+    assert y == null
+}

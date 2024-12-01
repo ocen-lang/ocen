@@ -1,0 +1,6 @@
+/// lsp: -h 5 22
+/// {"hover": "struct std::vector::Vector<u32>"}
+
+def main() {
+    let x: $[u32] = $[1, 2, 3]
+}

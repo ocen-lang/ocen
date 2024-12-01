@@ -6,16 +6,26 @@ import subprocess as sp
 from sys import argv
 import json
 from pathlib import Path
+import clipboard
 
 _, inp_file, args, out_file = argv
 
 # Rebuild compiler...
 sp.run("ocen compiler/main.oc -o ./build/ocen", shell=True, check=True)
-expected = sp.check_output(f"./build/ocen lsp {args} {inp_file}", text=True, shell=True)
+lsp_cmd = f"./build/ocen lsp {args} {inp_file}"
+expected = sp.check_output(lsp_cmd, text=True, shell=True)
 try:
     expected = json.loads(expected)
 except json.JSONDecodeError:
-    assert False, f"Failed to parse JSON output: {expected}"
+    print(f'[ERROR]: Failed to parse JSON output: `{expected}`')
+    print()
+    cmd = "ocen compiler/main.oc -o ./build/ocen && " + lsp_cmd
+    print('Command:')
+    print(cmd)
+    clipboard.copy(cmd)
+    exit(1)
+
+
 
 res = re.search(r"([-\w]+) (\d+) (\d+)", args)
 if res:

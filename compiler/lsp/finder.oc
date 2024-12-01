@@ -274,6 +274,21 @@ def Finder::find_in_expression(&this, node: &AST): bool {
                 return .set_usage(node.resolved_symbol, node)
             }
         }
+        ArrayLiteral => {
+            for elem in node.u.array_literal.elements.iter() {
+                if .find_in_expression(elem) return true
+            }
+        }
+        VectorLiteral => {
+            for elem in node.u.vec_literal.elements.iter() {
+                if .find_in_expression(elem) return true
+            }
+            if node.u.vec_literal.start_span.contains_loc(.loc) {
+                if node.u.vec_literal.vec_struc? {
+                    return .set_usage(node.u.vec_literal.vec_struc.sym, node)
+                }
+            }
+        }
         Error => {
             if node.span.contains_loc(.loc) {
                 return .set_usage(node.resolved_symbol, node)
@@ -395,6 +410,12 @@ def Finder::find_in_type(&this, type: &Type): bool {
             if func.return_type? and .find_in_type(func.return_type) return true
             if type.span.contains_loc(.loc) {
                 return .set_usage(type.sym, node: null) // FIXME: What should be the node here?
+            }
+        }
+        VectorShorthand => {
+            if .find_in_type(type.u.ptr) return true
+            if type.span.contains_loc(.loc) {
+                return .set_usage(type.sym, node: null)
             }
         }
         else => {
