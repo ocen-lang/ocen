@@ -1,0 +1,5 @@
+/// fail: Can't infer type of Vector literal
+
+def main() {
+    let x = $[]
+}

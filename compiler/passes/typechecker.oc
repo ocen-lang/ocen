@@ -227,8 +227,26 @@ def TypeChecker::resolve_type(
             } else {
                 let std_vector = .o.program.cached_symbols.std_vector
                 let elem_type = .resolve_type(old.u.ptr, p_a, p_e, p_r)
+                if not elem_type? return null
 
                 let res = .resolve_templated_symbol(std_vector, $[elem_type], old.span)
+                assert res.type == Structure
+                old.sym = res
+                resolved = Type::new_resolved(Pointer, old.span)
+                resolved.u.ptr = res.u.struc.type
+            }
+        }
+        MapShorthand => {
+            if not (.o.program.did_cache_symbols and .o.program.cached_symbols.std_map?) {
+                .error(Error::new(old.span, "Map shorthand not available"))
+                resolved = null
+            } else {
+                let std_map = .o.program.cached_symbols.std_map
+                let key_type = .resolve_type(old.u.map_types.key, p_a, p_e, p_r)
+                let value_type = .resolve_type(old.u.map_types.value, p_a, p_e, p_r)
+                if not (key_type? and value_type?) return null
+
+                let res = .resolve_templated_symbol(std_map, $[key_type, value_type], old.span)
                 assert res.type == Structure
                 old.sym = res
                 resolved = Type::new_resolved(Pointer, old.span)
@@ -442,7 +460,7 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
         }
         ASTType::Identifier => {
             let name = node.u.ident.name
-            let res = null as &Symbol
+            let res: &Symbol = null
 
             // If we know that the type of this identifier is supposed to be a particular enum,
             // then we can look up the field in that enum implicitly.
@@ -1651,6 +1669,88 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 else => std::panic(`Internal error: unhandled op in check_expression binary_op: {node.type}`)
             }
         }
+        MapLiteral => {
+            if (not .o.program.did_cache_symbols or
+                not .o.program.cached_symbols.std_map?) {
+                // This shouldn't happen since we should be auto-importing it and setting
+                // up the binding if we can find it.
+                .error(Error::new(node.span, "Could not find std::compact_map, please import it."))
+            }
+            let std_map = .o.program.cached_symbols.std_map
+
+            let key_hint_type: &Type = null
+            let value_hint_type: &Type = null
+            if hint? and hint.base == Pointer {
+                let ptr = hint.u.ptr
+                if (ptr? and
+                    ptr.template_instance? and
+                    ptr.template_instance.parent == std_map
+                ) {
+                    assert ptr.template_instance.args.size == 2
+                    key_hint_type = ptr.template_instance.args[0]
+                    value_hint_type = ptr.template_instance.args[1]
+                }
+            }
+
+            let key_type: &Type = null
+            let value_type: &Type = null
+
+            let first_key_span = Span::default()
+            let first_value_span = Span::default()
+
+            let elements = node.u.map_literal.elements
+            for elem in elements.iter() {
+                let key = .check_expression(elem.key, hint: key_hint_type)
+                let value = .check_expression(elem.value, hint: value_hint_type)
+
+                if not key_type? {
+                    key_type = key
+                    value_type = value
+                    // After the first element, we can use the type of the first element as the hint
+                    key_hint_type = key_type
+                    value_hint_type = value_type
+                    first_key_span = elem.key.span
+                    first_value_span = elem.value.span
+
+                } else {
+                    if not key.eq(key_type) {
+                        .error(Error::new_hint(
+                            elem.key.span, `Expected type {key_type.str()}, but got {key.str()}`,
+                            first_key_span, `First key was of type {key_type.str()}`
+                        ))
+                    }
+                    if not value.eq(value_type) {
+                        .error(Error::new_hint(
+                            elem.value.span, `Expected type {value_type.str()}, but got {value.str()}`,
+                            first_value_span, `First value was of type {value_type.str()}`
+                        ))
+                    }
+                }
+            }
+            if elements.size == 0 {
+                key_type = key_hint_type
+                value_type = value_hint_type
+            }
+            if not (key_type? and value_type?) {
+                .error(Error::new(node.span, "Can't infer type of Map literal"))
+                return null
+            }
+
+            // We can no longer do anything if std_vector was not resolved. Exit.
+            if not std_map? return null
+
+            let res = .resolve_templated_symbol(std_map, $[key_type, value_type], node.span)
+            if not res? or res.type != Structure {
+                .error(Error::new(node.span, "Internal error: Failed to resolve std::compact_map specialization"))
+                return null
+            }
+            node.u.map_literal.map_struc = res.u.struc
+            node.u.map_literal.map_type = res.u.struc.type
+
+            let ptr_type = Type::new_resolved(Pointer, node.span)
+            ptr_type.u.ptr = res.u.struc.type
+            return ptr_type
+        }
         VectorLiteral => {
             if (not .o.program.did_cache_symbols or
                 not .o.program.cached_symbols.std_vector?) {
@@ -1660,7 +1760,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             }
             let std_vector = .o.program.cached_symbols.std_vector
 
-            let hint_elem_type = null as &Type
+            let hint_elem_type: &Type = null
             if hint? and hint.base == Pointer {
                 let ptr = hint.u.ptr
                 if (ptr? and
@@ -1722,12 +1822,12 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return ptr_type
         }
         ArrayLiteral => {
-            let hint_elem_type = null as &Type
+            let hint_elem_type: &Type = null
             if hint? and hint.base == BaseType::Array {
                 hint_elem_type = hint.u.arr.elem_type
             }
 
-            let elem_type = null as &Type
+            let elem_type: &Type = null
             let first_span = Span::default()
             for elem in node.u.array_literal.elements.iter() {
                 let typ = .check_expression(elem, hint_elem_type)
@@ -2071,18 +2171,6 @@ def TypeChecker::check_match_for_bool(&this, node: &AST, is_expr: bool, hint: &T
             .check_expression_statement(node,  _case.body, is_expr, hint)
 
         } else {
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
-            // FIXME(NOW)
             .error(Error::new(node.span, "Case must have a body"))
         }
     }
@@ -3181,7 +3269,7 @@ def TypeChecker::run(program: &Program) {
 
     pass.o.push_namespace(program.global)
     while pass.unchecked_functions.size > 0 {
-        let func = pass.unchecked_functions.pop() as &Function
+        let func = pass.unchecked_functions.pop()
         pass.check_function(func)
     }
     pass.o.pop_namespace()

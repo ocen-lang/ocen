@@ -1,0 +1,5 @@
+/// fail: Couldn't find this identifier: Foo
+
+def main() {
+    let x: $[Foo]
+}

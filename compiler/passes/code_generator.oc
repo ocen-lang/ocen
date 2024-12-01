@@ -311,6 +311,43 @@ def CodeGenerator::gen_vector_literal(&this, node: &AST) {
     .indent -= 1
 }
 
+def CodeGenerator::gen_map_literal(&this, node: &AST) {
+    assert node.type == MapLiteral
+    let map_lit = node.u.map_literal
+    assert map_lit.map_type?
+
+    let new_method = map_lit.map_type.methods["new"]
+    let insert_method = map_lit.map_type.methods["insert"]
+
+    let var = `_mc{.o.program.uid++}`
+
+    .out += "({\n"
+    .indent += 1
+    .gen_indent()
+    .gen_type_and_name(new_method.return_type, var)
+    .out += " = "
+    .out += new_method.sym.out_name()
+
+    // FIXME: Make this use default param
+    let size = map_lit.elements.size
+    if size == 0 then size = 8
+
+    .out <<= `({size});\n`
+    for expr in map_lit.elements.iter() {
+        .gen_indent()
+        .out += insert_method.sym.out_name()
+        .out <<= `({var}, `
+        .gen_expression(expr.key)
+        .out += ", "
+        .gen_expression(expr.value)
+        .out += ");\n"
+    }
+    .gen_indent()
+    .out += var
+    .out += ";})"
+    .indent -= 1
+}
+
 def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
     let yield_var = .yield_vars.back()
     .gen_indent()
@@ -592,6 +629,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             .out += "}"
         }
         VectorLiteral => .gen_vector_literal(node)
+        MapLiteral => .gen_map_literal(node)
         FormatStringLiteral => .gen_format_string(node)
         StringLiteral => {
             let str_lit = node.u.string_literal

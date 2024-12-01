@@ -367,6 +367,7 @@ struct CachedSymbols {
     mem_alloc_fn: &Symbol
     mem_allocator: &Symbol
     std_vector: &Symbol
+    std_map: &Symbol
 }
 
 def Program::iter_namespaces(&this): NSIterator {
