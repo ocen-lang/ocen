@@ -88,6 +88,9 @@ namespace cls {
     const fn_field_name: str = "fn"
 }
 
+def CodeGenerator::gen_start_expr_statement(&this) => .out += "({"
+def CodeGenerator::gen_end_expr_statement(&this) =>   .out += "})"
+
 // NOTE: This function doesn't actually "need" to return a boolean, this is just to make the call in
 //       gen_call a little nicer so we can match on the callee name.
 def CodeGenerator::gen_internal_print(&this, node: &AST, newline_after: bool, is_stderr: bool): bool {
@@ -286,7 +289,8 @@ def CodeGenerator::gen_vector_literal(&this, node: &AST) {
 
     let var = `_vc{.o.program.uid++}`
 
-    .out += "({\n"
+    .gen_start_expr_statement()
+    .out += "\n"
     .indent += 1
     .gen_indent()
     .gen_type_and_name(new_method.return_type, var)
@@ -307,7 +311,8 @@ def CodeGenerator::gen_vector_literal(&this, node: &AST) {
     }
     .gen_indent()
     .out += var
-    .out += ";})"
+    .out += ";"
+    .gen_end_expr_statement()
     .indent -= 1
 }
 
@@ -321,7 +326,8 @@ def CodeGenerator::gen_map_literal(&this, node: &AST) {
 
     let var = `_mc{.o.program.uid++}`
 
-    .out += "({\n"
+    .gen_start_expr_statement()
+    .out += "\n"
     .indent += 1
     .gen_indent()
     .gen_type_and_name(new_method.return_type, var)
@@ -344,7 +350,8 @@ def CodeGenerator::gen_map_literal(&this, node: &AST) {
     }
     .gen_indent()
     .out += var
-    .out += ";})"
+    .out += ";"
+    .gen_end_expr_statement()
     .indent -= 1
 }
 
@@ -357,6 +364,8 @@ def CodeGenerator::gen_yield_expression(&this, expr: &AST) {
     }
     .gen_expression(expr)
     .out += ";\n"
+    .gen_indent()
+    .out <<= `goto _l_{yield_var};\n`
 }
 
 def CodeGenerator::gen_constant(&this, node: &AST) {
@@ -423,12 +432,12 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     // Using a GCC extension for statement expressions
     // https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
 
-    let yield_var = `__yield_{.yield_vars.size}`
+    let yield_var = `__yv_{.o.program.uid++}`
     .yield_vars.push(yield_var)
 
     let ret_type = node.etype
 
-    .out += "({ "
+    .gen_start_expr_statement()
     .gen_type_and_name(ret_type, yield_var)
     .out += ";\n"
 
@@ -441,9 +450,11 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     }
 
     .out += "\n"
+    .out <<= f"_l_{yield_var}:\n"
     .gen_indent()
     .out += yield_var
-    .out += "; })"
+    .out += ";"
+    .gen_end_expr_statement()
 
     .yield_vars.pop()
 }
@@ -525,7 +536,7 @@ def CodeGenerator::gen_create_new(&this, node: &AST) {
     //     *a = XYZ
     //     yield a
     // }
-    .out += "({"
+    .gen_start_expr_statement()
     .gen_type_and_name(node.etype, var_name)
     .out += " = "
     .out += .o.program.cached_symbols.mem_alloc_fn.out_name()
@@ -536,7 +547,7 @@ def CodeGenerator::gen_create_new(&this, node: &AST) {
     .out <<= `)); *{var_name} = `
     .gen_expression(child)
     .out <<= `; {var_name}; `
-    .out += "})"
+    .gen_end_expr_statement()
 
     var_name.free()
 }
@@ -590,7 +601,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
         }
         CreateClosure => {
             let func = node.u.closure
-            .out += "({"
+            .gen_start_expr_statement()
             let ctx_name = `{cls::ctx_name}{.o.program.uid++}`
             let ctx_typ = cls::ctx_type(func)
 
@@ -609,7 +620,8 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             .out <<= `{func.type.sym.out_name()} {cls_name} = \{`
             .out <<= `.{cls::ctx_name}={ctx_name}, .{cls::fn_field_name}=&{func.sym.out_name()}\};`
             .out += cls_name
-            .out += "; })"
+            .out += ";"
+            .gen_end_expr_statement()
         }
         FloatLiteral => {
             let num_lit = &node.u.num_literal
@@ -693,13 +705,13 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             let rhs_name = node.u.member.rhs_name
 
             let tmp_var = `_t{.o.program.uid++}`
-            .out += "({"
+            .gen_start_expr_statement()
             .gen_type_and_name(lhs.etype, tmp_var)
             .out += " = "
             .gen_expression(lhs)
             .out += "; "
             .out <<= `{tmp_var} ? {tmp_var}->{rhs_name} : NULL;`
-            .out += "})"
+            .gen_end_expr_statement()
             tmp_var.free()
         }
         Identifier | NSLookup | Specialization | OverloadedOperator => {
