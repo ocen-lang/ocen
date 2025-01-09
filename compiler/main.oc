@@ -76,7 +76,10 @@ def save_and_compile_code(program: &Program, code: str) {
         cmd += " "
         cmd += flag
     }
-    if debug then cmd += " -ggdb3"
+    if debug {
+        cmd += " -ggdb3"
+        cmd += " -fsanitize=address"
+    }
 
     log(Info, f"{cmd}")
     let exit_code = system(cmd.str())
