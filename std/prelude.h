@@ -21,6 +21,8 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
+const char* __asan_default_options() { return "detect_leaks=0"; }
+
 void dump_backtrace() {
 #ifndef OC_NO_BACKTRACE
   void *array[40];

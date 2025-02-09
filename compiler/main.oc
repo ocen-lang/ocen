@@ -38,6 +38,7 @@ def usage(code: i32, full: bool) {
     println("    --cflags flags Additional C flags (can be used multiple times)")
     println("    -h             Display this information")
     println("    -r <args>      Run executable with arguments (can only be at the end)")
+    println("    --asan         Compile with address sanitizer")
     exit(code)
 }
 
@@ -52,6 +53,7 @@ let docs_path: str = null
 let include_stdlib: bool = true
 let extra_c_flags: &Vector<str>
 let run_after_compile: bool = false
+let compile_asan: bool = false
 
 def save_and_compile_code(program: &Program, code: str) {
     if not c_path? {
@@ -78,6 +80,8 @@ def save_and_compile_code(program: &Program, code: str) {
     }
     if debug {
         cmd += " -ggdb3"
+    }
+    if compile_asan {
         cmd += " -fsanitize=address"
     }
 
@@ -134,6 +138,7 @@ def parse_args(argc: &i32, argv: &&str, program: &Program) {
                 // All remaining arguments are for the executable
                 break
             }
+            "-a" | "--asan" => compile_asan = true
             else => {
                 if arg[0] == '-' {
                     println("Unknown option: %s", arg)

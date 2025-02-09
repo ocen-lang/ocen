@@ -17,7 +17,12 @@ echo "[+] Building stage 3 compiler"
 echo "[+] Comparing stage 2 and 3"
 
 if diff build/stage2.c build/stage3.c; then
-    ./build/stage3 -s -d compiler/main.oc -o ./build/ocen
+    # if macos, also add --asan flag
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        ./build/stage3 -s -d compiler/main.oc -o ./build/ocen --asan
+    else
+        ./build/stage3 -s -d compiler/main.oc -o ./build/ocen
+    fi
     mv build/ocen bootstrap/ocen
     echo "[+] Bootstrap successful: Use ./bootstrap/ocen"
 else
