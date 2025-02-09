@@ -1617,7 +1617,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 RightShiftEquals |
                 LeftShift |
                 RightShift => {
-                    let lhs = .check_expression(lhs_node)
+                    let lhs = .check_expression(lhs_node, hint: hint)
                     let rhs = .check_expression(rhs_node, hint: lhs)
                     if not lhs? or not rhs? return null
                     return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
