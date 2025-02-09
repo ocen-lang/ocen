@@ -53,7 +53,11 @@ if [[ $confirm =~ ^[Yy]$ ]]; then
     echo "[+] cp build/stage3.c bootstrap/stage0.c"
     cp build/stage3.c bootstrap/stage0.c
     echo "[+] Creating debug version into /bootstrap/ocen"
-    ./build/stage3 -s -d compiler/main.oc -o ./build/ocen
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        ./build/stage3 -s -d compiler/main.oc -o ./build/ocen --asan
+    else
+        ./build/stage3 -s -d compiler/main.oc -o ./build/ocen
+    fi
     cp build/ocen bootstrap/ocen
     echo "Done."
 else
