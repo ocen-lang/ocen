@@ -9,6 +9,8 @@ def main() {
     let x: u64 = 69
     foo(7)
 
+    let z: u64 = 7 - x
+
     let g = 7.0
     takes_f32(g)
 
