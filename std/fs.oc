@@ -93,6 +93,8 @@ def File::read(&this, buf: untyped_ptr, size: u32): i32 {
     return bindings::fread(buf, 1, size, this)
 }
 
+[extern "fflush"] def File::flush(&this)
+
 def File::write(&this, buf: untyped_ptr, size: u32): i32 {
     return bindings::fwrite(buf, 1, size, this)
 }
