@@ -1,0 +1,281 @@
+import std::fs
+import std::sv::{ SV }
+import std::mem
+import std::json
+import std::value::{ Value }
+import std::gc
+import std::buffer::{ Buffer }
+import std::compact_map::{ Map }
+
+// TODO: put in stdlib
+[extern] def setvbuf(file: &fs::File, buffer: str, mode: i32, size: u64): i32
+[extern] const stdin: &fs::File
+[extern] const stdout: &fs::File
+[extern] const _IONBF: i32
+[extern] def fgets(buf: str, size: u32, file: &fs::File): str
+
+def lsp_log(msg: str) {
+    send_message(Value::new_dict(${
+        "jsonrpc": Value::new_str("2.0"),
+        "method": Value::new_str("window/logMessage"),
+        "params": Value::new_dict(${
+            "type": Value::new_int(4),
+            "message": Value::new_str(msg),
+        }),
+    }))
+}
+
+struct TextDocument {
+    data: Buffer
+}
+
+let documents: ${SV: TextDocument} = null
+
+def read_message(): str {
+    let header: [char; 1024]
+    let content_length = 0
+
+    while fgets(header, 1024, stdin)? {
+        let sv = SV::from_str(header)
+        if sv.starts_with_str("Content-Length: ") {
+            sv.chop_by_delim(' ')
+            content_length = sv.chop_u32()
+        }
+        if header[0] == '\n' or header[0] == '\r' {
+            break
+        }
+    }
+
+    if content_length == 0 {
+        return null
+    }
+
+    let msg = mem::alloc<char>(content_length+1)
+    stdin.read(msg, content_length)
+    msg[content_length] = '\0'
+    return msg
+}
+
+def send_message(content: &Value) {
+    let content_str = json::serialize(content)
+    let header = `Content-Length: {content_str.size}\r\n\r\n`
+    stdout.write(header, header.len())
+    stdout.write(content_str.str(), content_str.size)
+}
+
+def handle_initialize(req: &Value) {
+    let params = req["params"]
+    assert params.is(Dictionary)
+
+    let response = Value::new_dict(${
+        "jsonrpc": Value::new_str("2.0"),
+        "id": req["id"],
+        "result": Value::new_dict(${
+            "capabilities": Value::new_dict(${
+                "textDocumentSync": Value::new_int(1),  // Full sync
+                "completionProvider": Value::new_dict(${
+                    "resolveProvider": Value::new_bool(false),
+                    "triggerCharacters": Value::new_list($[
+                        Value::new_str("."),
+                        Value::new_str(":"),
+                        Value::new_str("@"),
+                        Value::new_str(" "),
+                    ]),
+                }),
+                "referencesProvider": Value::new_bool(true),
+                "definitionProvider": Value::new_bool(true),
+                "typeDefinitionProvider": Value::new_bool(true),
+                "documentSymbolProvider": Value::new_bool(true),
+                "hoverProvider": Value::new_bool(true),
+                "renameProvider": Value::new_bool(true),
+                "signatureHelpProvider": Value::new_dict(${
+                "triggerCharacters": Value::new_list($[
+                        Value::new_str("("),
+                        Value::new_str(","),
+                    ]),
+                }),
+            }),
+        }),
+    })
+    send_message(response)
+}
+
+def handle_hover(req: &Value) {
+    lsp_log("Handling hover request\n");
+    let response = Value::new_dict(${
+        "jsonrpc": Value::new_str("2.0"),
+        "id": req["id"],
+        "result": Value::new_dict(${
+            "contents": Value::new_list($[
+                Value::new_dict(${
+                    "language": Value::new_str("ocaml"),
+                    "value": Value::new_str("Hello, world!"),
+                }),
+            ]),
+        }),
+    })
+    send_message(response)
+}
+
+def handle_did_open(req: &Value) {
+    lsp_log("Handling textDocument/didOpen request\n");
+    let params = req["params"]
+    let uri = params["textDocument"]["uri"].as_str()
+    lsp_log(`[SERVER] Opening document: {uri}\n`);
+    assert params.is(Dictionary)
+
+    let text = params["textDocument"]["text"].as_str().sv()
+    let document = TextDocument(Buffer::from_sv(text))
+    documents[uri.sv()] = document
+}
+
+def handle_did_change(req: &Value) {
+    lsp_log("Handling textDocument/didChange request\n");
+    let params = req["params"]
+    let uri = params["textDocument"]["uri"].as_str()
+    lsp_log(`[SERVER] Changing document: {uri}\n`);
+    assert params.is(Dictionary)
+
+    let text = params["textDocument"]["text"].as_str().sv()
+    // Note that this assumes full sync
+    let document = TextDocument(Buffer::from_sv(text))
+    documents[uri.sv()] = document
+}
+
+def handle_did_close(req: &Value) {
+    lsp_log("Handling textDocument/didClose request\n");
+    let params = req["params"]
+    let uri = params["textDocument"]["uri"].as_str()
+    lsp_log(`[SERVER] Closing document: {uri}\n`);
+    assert params.is(Dictionary)
+
+    documents.remove(uri.sv())
+}
+
+def handle_completion(req: &Value) {
+    lsp_log("Handling completion request\n");
+    let params = req["params"]
+    let uri = params["textDocument"]["uri"].as_str()
+    let file_text = documents[uri.sv()].data.sv()
+    assert params.is(Dictionary)
+
+    // FIXME: Add actual completions
+    let response = Value::new_dict(${
+        "jsonrpc": Value::new_str("2.0"),
+        "id": req["id"],
+        "result": Value::new_list($[
+            Value::new_dict(${
+                "label": Value::new_str("mem"),
+                "insertText": Value::new_str("mem"),
+                "detail": Value::new_str("namespace std::mem"),
+                "insertTextFormat": Value::new_int(2),
+                "kind": Value::new_int(5),
+                "data": Value::new_int(1),
+                "labelDetails": Value::new_str("namespace std::mem"),
+                "documentation": Value::new_str("Defines the allocator"),
+            }),
+            Value::new_dict(${
+                "label": Value::new_str("libc"),
+                "insertText": Value::new_str("libc"),
+                "detail": Value::new_str("namespace std::libc"),
+                "insertTextFormat": Value::new_int(2),
+                "kind": Value::new_int(5),
+                "data": Value::new_int(2),
+                "labelDetails": Value::new_str("namespace std::libc"),
+                "documentation": Value::new_str("Bindings to libc functions"),
+            }),
+        ]),
+    })
+    send_message(response)
+}
+
+def handle_shutdown(req: &Value) {
+    lsp_log("Handling shutdown request\n");
+    let response = Value::new_dict(${
+        "jsonrpc": Value::new_str("2.0"),
+        "id": req["id"],
+        "result": Value::new(Null),
+    })
+    send_message(response)
+    stdout.flush()  // We're exiting, so flush the output
+}
+
+def handle_initialized(req: &Value) {
+    lsp_log("Handling initialzed request\n");
+    // Noop
+}
+
+def handle_request(): bool {
+    let message = read_message()
+    defer mem::free(message)
+
+    if not message? {
+        lsp_log("Failed to read message\n");
+        return false
+    }
+
+    let data = json::parse(message)
+
+    if not (
+        data.is(Dictionary) and
+        data.as_dict().contains("method") and
+        data["method"].is(String)
+    ) {
+        lsp_log("Invalid message format");
+        return false
+    }
+
+    let method = data["method"].as_str().sv()
+    match method {
+        "initialize" => handle_initialize(data)
+        "initialized" => handle_initialized(data)
+        "textDocument/hover" => handle_hover(data)
+        "textDocument/didOpen" => handle_did_open(data)
+        "textDocument/didChange" => handle_did_change(data)
+        "textDocument/didClose" => handle_did_close(data)
+        "textDocument/completion" => handle_completion(data)
+        "shutdown" => handle_shutdown(data)
+        "exit" => return false
+        // onclose
+
+        else => {
+            lsp_log(f"-----------------------------------------");
+            lsp_log(f"[SERVER] Unknown method: {method}");
+            lsp_log(f"-----------------------------------------");
+        }
+    }
+
+    return true
+}
+
+def main_loop() {
+    documents = ${}
+    gc::set_global(documents)
+
+    while true {
+        defer {
+            gc::collect()
+            gc::print_stats()
+        }
+
+        // TODO: don't error, just continue
+        if not handle_request() {
+            break
+        }
+    }
+
+    gc::unset_global(documents)
+}
+
+
+def main(argc: i32, argv: &str): i32 {
+    gc::init(&argv)
+
+    setvbuf(stdin, null, _IONBF, 0)
+    setvbuf(stdout, null, _IONBF, 0)
+
+    main_loop()
+
+    gc::shutdown()
+    return 0
+}

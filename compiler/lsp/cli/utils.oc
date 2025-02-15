@@ -13,7 +13,7 @@ import @ast::program::*
 import @ast::scopes::*
 import @types::*
 import @errors::{ Error }
-import @lsp::finder::{ Finder }
+import .finder::{ Finder }
 
 let verbose: bool = false
 

@@ -206,7 +206,7 @@ def signal_handler(sig: i32) {
     global_err_ctx.jump_back(1)
 }
 
-def lsp_main(argc: i32, argv: &str) {
+def main(argc: i32, argv: &str): i32 {
     shift_args(&argc, &argv) // skip the first argument
 
     let show_path: str = null
@@ -295,4 +295,5 @@ def lsp_main(argc: i32, argv: &str) {
             handle_location_command(program, cmd_type, loc)
         }
     }
+    return 0
 }
