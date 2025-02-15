@@ -1,0 +1,29 @@
+import std::disjoint_set::{ DisjointSet }
+
+
+def main() {
+    let s = DisjointSet<i32>::new()
+    let n0 = s.insert(0)
+    let n1 = s.insert(1)
+    let n2 = s.insert(2)
+    let n3 = s.insert(3)
+
+    println(`-------------------------`)
+    for let i = 0i; i < 4; i++ {
+        println(`number: {i}, parent: {s.find(i)}`)
+    }
+
+    s.merge(n0, n1)
+    s.merge(n2, n3)
+    s.merge(n1, n2)
+
+
+    println(`-------------------------`)
+    for let i = 0i; i < 4; i++ {
+        println(`number: {i}, parent: {s.find(i)}`)
+    }
+
+    assert(s.find(n0) == s.find(n3))
+    assert(s.find(n1) == s.find(n2))
+    assert(s.find(n0) == s.find(n2))
+}
