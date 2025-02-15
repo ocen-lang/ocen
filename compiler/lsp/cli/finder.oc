@@ -14,7 +14,7 @@ import @ast::nodes::*
 import @ast::program::*
 import @ast::scopes::*
 import @types::*
-import @lsp::{ CommandType }
+import .{ CommandType }
 import .utils::{ verbose }
 
 // Namespace thing again
