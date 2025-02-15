@@ -1703,6 +1703,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 let key = .check_expression(elem.key, hint: key_hint_type)
                 let value = .check_expression(elem.value, hint: value_hint_type)
 
+
                 if not key_type? {
                     key_type = key
                     value_type = value
@@ -1713,13 +1714,13 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     first_value_span = elem.value.span
 
                 } else {
-                    if not key.eq(key_type) {
+                    if key? and not key.eq(key_type) {
                         .error(Error::new_hint(
                             elem.key.span, `Expected type {key_type.str()}, but got {key.str()}`,
                             first_key_span, `First key was of type {key_type.str()}`
                         ))
                     }
-                    if not value.eq(value_type) {
+                    if value? and not value.eq(value_type) {
                         .error(Error::new_hint(
                             elem.value.span, `Expected type {value_type.str()}, but got {value.str()}`,
                             first_value_span, `First value was of type {value_type.str()}`
