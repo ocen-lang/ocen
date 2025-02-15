@@ -1,0 +1,29 @@
+//! A simple bump-allocator for temporary memory
+//! usage while lexing and parsing.
+import std::mem
+import std::logging::log
+
+const MEM_SIZE: u64 = 1u64 * 1024 * 1024 * 1024
+let memory: [u8; MEM_SIZE]
+let cursor: u64 = 0
+
+def alloc(_: mem::State, size: u32): untyped_ptr {
+    let new_cursor = cursor + size as u64
+    // println(f"[Bump] Allocating {size} bytes at {cursor}..{new_cursor}")
+    if new_cursor > MEM_SIZE {
+        std::panic("Out of memory in bump allocator!")
+    }
+    let ptr = memory + cursor
+    cursor = new_cursor
+    return ptr as untyped_ptr
+}
+
+def dealloc(_: mem::State, ptr: untyped_ptr) {}
+
+def initialize() {
+    log(Info, "[Bump] Initializing bump allocator")
+    mem::set_allocator(allocator: null, alloc, dealloc)
+}
+
+def snapshot(): u64 => cursor
+def restore(new_cursor: u64) => cursor = new_cursor
