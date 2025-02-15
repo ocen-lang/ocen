@@ -1,0 +1,45 @@
+import std::compact_map::{ Map }
+
+struct DisjointSet<T> {
+    parent: &Map<T, T>,
+    rank: &Map<T, i32>,
+}
+
+def DisjointSet::new(): &DisjointSet<T> {
+    return @new DisjointSet<T>(
+        parent: Map<T, T>::new(),
+        rank: Map<T, i32>::new(),
+    )
+}
+
+def DisjointSet::insert(&this, x: T): T {
+    .parent[x] = x
+    .rank[x] = 0i
+    return x
+}
+
+def DisjointSet::find(&this, x: T): T {
+    if .parent[x] != x {
+        .parent[x] = .find(.parent[x])
+    }
+    return .parent[x]
+}
+
+def DisjointSet::merge(&this, x: T, y: T) {
+    let x_root = .find(x)
+    let y_root = .find(y)
+
+    if x_root == y_root {
+        return
+    }
+
+    if .rank[x_root] < .rank[y_root] {
+        .parent[x_root] = y_root
+    } else if .rank[x_root] > .rank[y_root] {
+        .parent[y_root] = x_root
+    } else {
+        .parent[y_root] = x_root
+        let node = .rank.get_item(x_root)
+        node.value += 1
+    }
+}
