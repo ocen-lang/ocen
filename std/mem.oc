@@ -8,14 +8,14 @@
 typedef State = untyped_ptr
 
 namespace impl {
-    [extern] def malloc(size: u32): untyped_ptr
-    [extern] def realloc(old: untyped_ptr, size: u32): untyped_ptr
-    [extern] def calloc(size: u32, elem_size: u32): untyped_ptr
-    [extern] def free(ptr: untyped_ptr)
+    [extern "malloc"] def c_malloc(size: u32): untyped_ptr
+    [extern "realloc"] def c_realloc(old: untyped_ptr, size: u32): untyped_ptr
+    [extern "calloc"] def c_calloc(size: u32, elem_size: u32): untyped_ptr
+    [extern "free"] def c_free(ptr: untyped_ptr)
 
-    def my_calloc(state: State, size: u32): untyped_ptr                                   => calloc(size, 1)
-    def my_realloc(state: State, ptr: untyped_ptr, old_size: u32, size: u32): untyped_ptr => realloc(ptr, size)
-    def my_free(state: State, ptr: untyped_ptr)                                           => free(ptr)
+    def my_calloc(state: State, size: u32): untyped_ptr                                   => c_calloc(size, 1)
+    def my_realloc(state: State, ptr: untyped_ptr, old_size: u32, size: u32): untyped_ptr => c_realloc(ptr, size)
+    def my_free(state: State, ptr: untyped_ptr)                                           => c_free(ptr)
 }
 
 namespace state {
