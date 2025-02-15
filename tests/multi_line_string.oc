@@ -1,0 +1,10 @@
+/// out: "\nfoo\nbar\nbaz\n"
+
+def main() {
+    let x = """
+foo
+bar
+baz
+"""
+    println(`{x}`)
+}

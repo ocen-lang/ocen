@@ -143,18 +143,41 @@ def Lexer::lex_char_literal(&this) {
 def Lexer::lex_string_literal(&this, has_seen_f: bool) {
     let start_loc = .loc
     let end_char = .cur()
-    let start = .i + 1
+
+    let is_multi_line = false
+    if .peek(1) == end_char and .peek(2) == end_char {
+        .inc()
+        .inc()
+        is_multi_line = true
+    }
     .inc()
-    while .i < .source_len and .cur() != end_char {
+
+    let start = .i
+    let end = start
+
+    while .i < .source_len {
+        if .cur() == end_char {
+            if not is_multi_line {
+                end = .i
+                .inc()
+                break
+            }
+            if .peek(1) == end_char and .peek(2) == end_char {
+                end = .i
+                .inc()
+                .inc()
+                .inc()
+                break
+            }
+        }
         if .cur() == '\\' {
             .inc()
         }
         .inc()
     }
 
-    let len = .i - start
+    let len = end - start
     let text = .source.substring(start, len)
-    .inc()
 
     if .i >= .source_len {
         .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
