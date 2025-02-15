@@ -1,0 +1,199 @@
+import std::mem
+
+def init(base: untyped_ptr) {
+    impl::stack_bottom = base
+    mem::set_allocator(
+        allocator: null,
+        alloc_fn: impl::_alloc_fn,
+        free_fn: impl::_free_fn,
+        realloc_fn: impl::_realloc_fn
+    )
+}
+
+def alloc(size: u32): untyped_ptr {
+    let total_size = size + sizeof(impl::Header)
+    // Going to fall back to actual libc malloc for real allocation.
+    let header: &impl::Header = mem::impl::c_calloc(total_size,1)
+    if not header? return null
+    // println("Allocating %d bytes at %p", total_size, (header+1) as untyped_ptr)
+
+    header.size = size
+    header.marked = false
+    header.global = false  // normal allocation
+
+    // Insert into the list of allocations.
+    header.next = impl::alloc_list
+    header.prev = null
+    if impl::alloc_list? {
+        impl::alloc_list.prev = header
+    }
+    impl::alloc_list = header
+
+    // Update stats.
+    impl::total_allocations += 1
+    impl::total_alloc_bytes += total_size
+    impl::live_allocations += 1
+    impl::live_alloc_bytes += total_size
+
+    return (header + 1) as untyped_ptr
+}
+
+def set_global(ptr: untyped_ptr): untyped_ptr {
+    let header = (ptr as &impl::Header) - 1
+    header.global = true
+    return ptr
+}
+
+def unset_global(ptr: untyped_ptr): untyped_ptr {
+    let header = (ptr as &impl::Header) - 1
+    header.global = false
+    return ptr
+}
+
+def collect() {
+    if not impl::stack_bottom? {
+        std::panic("collect called before init")
+    }
+
+    // Mark phase.
+
+    // Mark all globals.
+    for let header = impl::alloc_list; header?; header = header.next {
+        if header.global {
+            impl::mark_object(header)
+        }
+    }
+
+    // Mark all stack objects.
+    let dummy: untyped_ptr = null   // should be 8-byte aligned
+    let stack_top: untyped_ptr = &dummy
+
+    let start = stack_top
+    let end = impl::stack_bottom
+    if stack_top >= end {
+        start = impl::stack_bottom
+        end = stack_top
+    }
+    impl::mark_range(start, end)
+
+    // Sweep phase.
+    let header = impl::alloc_list
+    while header? {
+        let next = header.next
+        if not header.marked and not header.global {
+            // Remove from list.
+            if header.prev? {
+                header.prev.next = header.next
+            } else {
+                impl::alloc_list = header.next
+            }
+            if header.next? {
+                header.next.prev = header.prev
+            }
+
+            // Update stats.
+            impl::live_allocations -= 1
+            impl::live_alloc_bytes -= header.size + sizeof(impl::Header)
+            impl::freed_allocations += 1
+            impl::freed_alloc_bytes += header.size + sizeof(impl::Header)
+
+            // Free the memory.
+            mem::impl::c_free(header)
+        } else {
+            header.marked = false
+        }
+        header = next
+    }
+}
+
+def print_stats() {
+    eprint("\n=== Garbage Collector Statistics ===\n");
+    eprint("┌──────────────────────────┬────────────┐\n");
+    eprint("│ Metric                   │ Value      │\n");
+    eprint("├──────────────────────────┼────────────┤\n");
+    eprint("│ Live Allocations         │ %-10d │\n", impl::live_allocations);
+    eprint("│ Freed Allocations        │ %-10d │\n", impl::freed_allocations);
+    eprint("│ Total Allocations        │ %-10d │\n", impl::total_allocations);
+    eprint("├──────────────────────────┼────────────┤\n");
+    eprint("│ Live Bytes Allocated     │ %-10d │\n", impl::live_alloc_bytes);
+    eprint("│ Freed Bytes Allocated    │ %-10d │\n", impl::freed_alloc_bytes);
+    eprint("│ Total Bytes Allocated    │ %-10d │\n", impl::total_alloc_bytes);
+    eprint("└──────────────────────────┴────────────┘\n");
+}
+
+def shutdown() {
+    collect()
+    print_stats()
+    let header = impl::alloc_list
+    while header? {
+        let next = header.next
+        mem::impl::c_free(header)
+        header = next
+    }
+}
+
+namespace impl {
+    def _alloc_fn(_: mem::State, size: u32): untyped_ptr {
+        import .{ alloc }
+        return alloc(size)
+    }
+    def _realloc_fn(_: mem::State, ptr: untyped_ptr, old_size: u32, size: u32): untyped_ptr {
+        import .{ alloc }
+        let new_ptr = alloc(size)
+        let num_copy = old_size.min(size)
+        std::libc::memcpy(new_ptr, ptr, num_copy)
+        return new_ptr
+    }
+    // Noop
+    def _free_fn(_: mem::State, ptr: untyped_ptr) {}
+
+    struct Header {
+        size: u32          // Number of bytes requested.
+        marked: bool           // Mark flag for GC.
+        global: bool           // Non-zero if allocated as a global (root) object.
+        next: &Header          // Next object in the list.;
+        prev: &Header          // Previous object in the list.
+    }
+
+    let alloc_list: &Header = null
+    let stack_bottom: untyped_ptr = null
+
+    let total_allocations: u32 = 0
+    let total_alloc_bytes: u32 = 0
+    let live_allocations: u32 = 0
+    let live_alloc_bytes: u32 = 0
+    let freed_allocations: u32 = 0
+    let freed_alloc_bytes: u32 = 0
+
+    def mark_range(start: untyped_ptr, end: untyped_ptr) {
+        let align = sizeof(untyped_ptr) as u64
+        let ustart = ((start as u64) + align - 1) & ~(align - 1)
+        let uend = (end as u64) & ~(align - 1)
+
+        // println("Marking range %p to %p", ustart as untyped_ptr, uend as untyped_ptr)
+        for let ptr = ustart; ptr < uend; ptr += align {
+            let potential_ptr = *(ptr as &untyped_ptr)
+
+            // TODO: This is slow - maybe use a hashmap / some magic tags to quickly find the header?
+            for let header = alloc_list; header?; header = header.next {
+                let obj_start = (header + 1) as untyped_ptr
+                let obj_end = ((obj_start as &char) + header.size) as untyped_ptr
+                if obj_start <= potential_ptr < obj_end {
+                    // println("     Found object at %p pointing to %p", ptr as untyped_ptr, potential_ptr)
+                    // println("         + obj start %p, obj end %p", obj_start, obj_end)
+                    mark_object(header)
+                }
+            }
+        }
+    }
+
+    def mark_object(header: &Header) {
+        if header.marked return
+        header.marked = true
+        let start = (header + 1) as untyped_ptr
+        let end = ((start as &char) + header.size) as untyped_ptr
+        mark_range(start, end)
+    }
+
+
+}
