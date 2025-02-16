@@ -1428,8 +1428,18 @@ def CodeGenerator::helper_gen_function_type(
         params = cur.u.func.params
     }
 
-    if params.size == 0 then args_str += "void"
-    if param_prefix? then args_str <<= param_prefix
+    if {
+        param_prefix? => {
+            args_str <<= param_prefix
+            if params.size > 0 {
+                args_str += ", "
+            }
+        }
+        params.size == 0 => {
+            args_str += "void"
+        }
+    }
+
     for let i = 0; i < params.size; i += 1 {
         if i != 0 then args_str += ", "
         let var = params.at(i)
@@ -1549,9 +1559,9 @@ def CodeGenerator::gen_function_body(&this, func: &Function) {
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
-    if func.kind == Method and func.parent_type.base == Structure {
-        let struc = func.parent_type.u.struc
-        if struc.sym.is_templated() then return
+    if func.kind == Method {
+        let parent_sym = func.parent_type.sym
+        if parent_sym.is_templated() then return
     }
     if func.sym.is_templated() then return
     if func.sym.is_dead then return
@@ -1597,9 +1607,9 @@ def CodeGenerator::gen_functions(&this, ns: &Namespace) {
 def CodeGenerator::gen_function_decl_toplevel(&this, func: &Function) {
     if func.sym.is_extern return
 
-    if func.kind == Method and func.parent_type.base == Structure {
-        let struc = func.parent_type.u.struc
-        if struc.sym.is_templated() then return
+    if func.kind == Method{
+        let parent_sym = func.parent_type.sym
+        if parent_sym.is_templated() then return
     }
 
     if func.sym.is_templated() then {
@@ -1642,8 +1652,12 @@ def CodeGenerator::gen_function_decls(&this, ns: &Namespace) {
 
 //* Auto-generate `dbg()` method for enums
 def CodeGenerator::gen_enum_dbg_method(&this, enom: &Enum) {
-    let dbg = enom.type.methods.at("dbg")
-    .gen_function_decl(dbg)
+    let dbg_it = enom.type.methods.get_item("dbg")
+    if not dbg_it? {
+        return
+    }
+
+    .gen_function_decl(dbg_it.value)
     .out += " {\n"
     .indent += 1
     .gen_indent()
@@ -1705,7 +1719,7 @@ def CodeGenerator::gen_closure_type_def(&this, sym: &Symbol) {
         type,
         acc,
         is_func_def: false,
-        param_prefix: `void *_{cls::ctx_name}, `
+        param_prefix: `void *_{cls::ctx_name}`
     )
     .out += ";\n};\n"
 }
@@ -1751,7 +1765,7 @@ def CodeGenerator::gen_closure_func_decl(&this, clos: &Function) {
         type,
         acc,
         is_func_def: true,
-        param_prefix: `void *_{cls::ctx_name}, `,
+        param_prefix: `void *_{cls::ctx_name}`,
         params: clos.params
     )
     .out += ";\n"
@@ -1771,7 +1785,7 @@ def CodeGenerator::gen_closure_func(&this, clos: &Function) {
         type,
         acc,
         is_func_def: true,
-        param_prefix: `void *_{ctx}, `,
+        param_prefix: `void *_{ctx}`,
         params: clos.params
     )
     .out += " {\n"

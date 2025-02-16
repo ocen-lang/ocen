@@ -58,6 +58,11 @@ def RegisterTypes::register_globals(&this, node: &AST) {
 def RegisterTypes::add_dbg_method_for_enum(&this, enom: &Enum) {
     let span = enom.sym.span
 
+    // We can't add a print these trivially
+    if enom.has_values or enom.sym.is_templated() {
+        return
+    }
+
     let func = Function::new()
     func.span = Span::default()
     func.sym = Symbol::new_with_parent(Function, enom.sym.ns, enom.sym, "dbg", span)

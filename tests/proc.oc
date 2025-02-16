@@ -1,0 +1,10 @@
+import std::process
+
+
+def main() {
+    let output0 = process::get_output(cmd: "echo -n hello").assert_ok()
+    let output1 = process::get_output(callback: ||{
+        print("world!")
+    }).assert_ok()
+    println(`{output0} {output1}`)
+}

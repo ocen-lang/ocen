@@ -197,7 +197,22 @@ def TypeChecker::resolve_type(
                             resolved = type
                         }
                     }
-                    SymbolType::Enum => resolved = res.u.enom.type
+                    SymbolType::Enum => {
+                        let enom = res.u.enom
+                        if res.is_templated() and not allow_incomplete {
+                            if error {
+                                .error(Error::new(old.span, `Cannot use templated enum {enom.sym.name} as a type`))
+                            }
+                            return resolved
+                        }
+                        resolved = res.u.enom.type
+                        if node.type == Specialization and res.is_templated() {
+                            assert not resolve_templates, "Should have been errored in resolve_scoped_identifier"
+                            let type = Type::new_resolved(UnresolvedTemplate, node.span)
+                            type.u.unresolved_spec = UnresolvedTemplate(resolved, node.u.spec.template_args)
+                            resolved = type
+                        }
+                    }
                     else => {
                         if error {
                             .error(Error::new(res.span, `Cannot use {res.display} as a type`))
@@ -283,14 +298,14 @@ def TypeChecker::try_infer_array_size(&this, arr_typ: &ArrayType) {
     // pass that onto the C compiler.
 }
 
-def TypeChecker::resolve_templated_struct_methods(&this, old: &Structure, cur: &Structure) {
-    let old_type = old.type
-    let cur_type = cur.type
+def TypeChecker::resolve_templated_methods(&this, old_type: &Type, cur_type: &Type) {
+    // let old_type = old.type
+    // let cur_type = cur.type
 
     let old_methods = old_type.methods
     let cur_methods = cur_type.methods
 
-    let parent_ns = old.sym.ns
+    let parent_ns = old_type.sym.ns
 
     for iter in old_methods.iter() {
         let name = iter.key
@@ -339,7 +354,24 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &T
     typ.template_instance = instance
 
     .resolve_struct(resolved_struc)
-    .resolve_templated_struct_methods(struc, resolved_struc)
+    .resolve_templated_methods(struc.type, resolved_struc.type)
+}
+
+def TypeChecker::resolve_templated_enum(&this, enom: &Enum, instance: &TemplateInstance) {
+    let sym = instance.resolved
+    let resolved_enom = .o.program.get_enum_deep_copy(enom, enom.sym.ns)
+    resolved_enom.sym.template = null
+    resolved_enom.sym = sym
+    sym.u.enom = resolved_enom
+
+    let typ = Type::new_resolved(Enum, sym.span)
+    typ.u.enom = resolved_enom
+    resolved_enom.type = typ
+    typ.sym = sym
+    typ.template_instance = instance
+
+    .resolve_enum(resolved_enom)
+    .resolve_templated_methods(enom.type, resolved_enom.type)
 }
 
 //! Internal use only. Should call resolve_template_symbol instead
@@ -432,6 +464,7 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, template_args: &V
 
     match sym.type {
         Structure => .resolve_templated_struct(sym.u.struc, instance)
+        Enum => .resolve_templated_enum(sym.u.enom, instance)
         Function => .resolve_templated_function(sym.u.func, instance)
         else => {
             .error(Error::new(span, `Cannot specialize non-templated symbol {sym.name}`))
@@ -2517,9 +2550,9 @@ def TypeChecker::check_function(&this, func: &Function) {
     .resolve_doc_links(func.sym)
 
     let is_templated = false
-    if func.kind == Method and func.parent_type.base == Structure {
-        let struc = func.parent_type.u.struc
-        if struc.sym.is_templated() then is_templated = true
+    if func.kind == Method {
+        let parent_sym = func.parent_type.sym
+        if parent_sym.is_templated() then is_templated = true
     }
     if func.sym.is_templated() is_templated = true
     if func.checked then return
@@ -3007,6 +3040,23 @@ def TypeChecker::loosely_resolve_templated_struct(&this, struc: &Structure) {
     }
 }
 
+// We can't really fully resolve the types for the template struct itself, but we can
+// try to evaluate some of the explicit types so we have some more information.
+def TypeChecker::loosely_resolve_templated_enum(&this, enom: &Enum) {
+    for field in enom.shared_fields.iter() {
+        // Don't error here, we'll do that later when we specialize the struct
+        let res = .resolve_type(field.type, allow_incomplete: true, error: false, resolve_templates: false)
+        field.type = res
+    }
+    for variant in enom.variants.iter() {
+        for field in variant.specific_fields.iter() {
+            let res = .resolve_type(field.type, allow_incomplete: true, error: false, resolve_templates: false)
+            field.type = res
+        }
+    }
+}
+
+
 def TypeChecker::resolve_struct(&this, struc: &Structure) {
     let fields = struc.fields
     .resolve_doc_links(struc.sym)
@@ -3032,6 +3082,12 @@ def TypeChecker::resolve_struct(&this, struc: &Structure) {
 }
 
 def TypeChecker::resolve_enum(&this, enom: &Enum) {
+    // We cannot resolve templated structs.
+    if enom.sym.is_templated() {
+        .loosely_resolve_templated_enum(enom)
+        return
+    }
+
     let seen_fields = Map<str, Span>::new()
     defer seen_fields.free()
 
@@ -3115,9 +3171,9 @@ def TypeChecker::check_function_declaration(&this, func: &Function) {
     let error = true
     let resolve_templates = true
 
-    if func.kind == Method and func.parent_type.base == Structure {
-        let struc = func.parent_type.u.struc
-        if struc.sym.is_templated() {
+    if func.kind == Method {
+        let parent_sym = func.parent_type.sym
+        if parent_sym.is_templated() {
             allow_incomplete = true
             error = false
             resolve_templates = false
