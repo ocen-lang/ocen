@@ -299,68 +299,29 @@ def Program::find_closure_type(&this, params: &Vector<&Variable>, ret: &Type): &
     return null
 }
 
-def Program::get_function_deep_copy(&this, old: &Function, ns: &Namespace): &Function {
+def get_deep_copy<T>(
+    program: &Program,
+    old: &T,
+    ns: &Namespace,
+    parse_fn: fn(&Parser): &T
+): &T {
     // FIXME: This is a hack to get around the fact that we can't deep-copy
-    // functions yet. We're just going to get the source code of the function
+    // objects yet. We're just going to get the source code of the function
     // and re-parse it. This is obviously not ideal.
 
-    let func_text = .get_source_text(old.span)
-    if not func_text? return null
+    let obj_text = program.get_source_text(old.span)
+    if not obj_text? return null
 
-    let lexer = Lexer::make(func_text, old.span.start.filename)
+    let lexer = Lexer::make(obj_text, old.span.start.filename)
     lexer.loc = old.span.start
 
     let tokens = lexer.lex()
-    let parser = Parser::make(this, ns)
+    let parser = Parser::make(program, ns)
 
     parser.tokens = tokens
     parser.curr = 0
 
-    let func = parser.parse_function()
-    func.operator_overloads = old.operator_overloads
-    return func
-}
-
-def Program::get_struct_deep_copy(&this, old: &Structure, ns: &Namespace): &Structure {
-    // FIXME: This is a hack to get around the fact that we can't deep-copy
-    // structs yet. We're just going to get the source code of the struct
-    // and re-parse it. This is obviously not ideal.
-
-    let text = .get_source_text(old.span)
-    if not text? return null
-
-    let lexer = Lexer::make(text, old.span.start.filename)
-    lexer.loc = old.span.start
-
-    let tokens = lexer.lex()
-    let parser = Parser::make(this, ns)
-
-    parser.tokens = tokens
-    parser.curr = 0
-
-    let struc = parser.parse_struct()
-    return struc
-}
-
-def Program::get_enum_deep_copy(&this, old: &Enum, ns: &Namespace): &Enum {
-    // FIXME: This is a hack to get around the fact that we can't deep-copy
-    // structs yet. We're just going to get the source code of the struct
-    // and re-parse it. This is obviously not ideal.
-
-    let text = .get_source_text(old.span)
-    if not text? return null
-
-    let lexer = Lexer::make(text, old.span.start.filename)
-    lexer.loc = old.span.start
-
-    let tokens = lexer.lex()
-    let parser = Parser::make(this, ns)
-
-    parser.tokens = tokens
-    parser.curr = 0
-
-    let enom = parser.parse_enum()
-    return enom
+    return parse_fn(&parser)
 }
 
 def Program::get_base_type(&this, base: BaseType, span: Span): &Type {

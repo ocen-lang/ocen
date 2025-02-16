@@ -12,7 +12,7 @@ import std::vector::{ Vector }
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
 import @ast::nodes::{ ImportPart, Import, Argument, MatchCond, Enum, EnumVariant, Specialization }
-import @ast::program::{ Program, Namespace }
+import @ast::program::{ Program, Namespace, get_deep_copy }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType, ClosedVariable }
 import @errors::{ Error }
 import @lexer::{ Lexer }
@@ -311,7 +311,8 @@ def TypeChecker::resolve_templated_methods(&this, old_type: &Type, cur_type: &Ty
         let name = iter.key
         let method = iter.value
 
-        let new_method = .o.program.get_function_deep_copy(method, parent_ns)
+        let new_method = get_deep_copy<Function>(.o.program, method, parent_ns, Parser::parse_function)
+        new_method.operator_overloads = method.operator_overloads
         new_method.parent_type = cur_type
         cur_methods.insert(name, new_method)
 
@@ -339,7 +340,7 @@ def TypeChecker::resolve_templated_methods(&this, old_type: &Type, cur_type: &Ty
 //! Internal use only. Should call resolve_template_symbol instead
 def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &TemplateInstance) {
     let sym = instance.resolved
-    let resolved_struc = .o.program.get_struct_deep_copy(struc, struc.sym.ns)
+    let resolved_struc = get_deep_copy<Structure>(.o.program, struc, struc.sym.ns, Parser::parse_struct)
     resolved_struc.sym.template = null
     resolved_struc.sym = sym
     sym.u.struc = resolved_struc
@@ -359,7 +360,7 @@ def TypeChecker::resolve_templated_struct(&this, struc: &Structure, instance: &T
 
 def TypeChecker::resolve_templated_enum(&this, enom: &Enum, instance: &TemplateInstance) {
     let sym = instance.resolved
-    let resolved_enom = .o.program.get_enum_deep_copy(enom, enom.sym.ns)
+    let resolved_enom = get_deep_copy<Enum>(.o.program, enom, enom.sym.ns, Parser::parse_enum)
     resolved_enom.sym.template = null
     resolved_enom.sym = sym
     sym.u.enom = resolved_enom
@@ -375,6 +376,11 @@ def TypeChecker::resolve_templated_enum(&this, enom: &Enum, instance: &TemplateI
         variant_sym.update_parent(sym)
     }
 
+    for field in resolved_enom.shared_fields.iter() {
+        let field_sym = field.sym
+        field_sym.update_parent(sym)
+    }
+
     .resolve_enum(resolved_enom)
     .resolve_templated_methods(enom.type, resolved_enom.type)
 }
@@ -382,7 +388,8 @@ def TypeChecker::resolve_templated_enum(&this, enom: &Enum, instance: &TemplateI
 //! Internal use only. Should call resolve_template_symbol instead
 def TypeChecker::resolve_templated_function(&this, func: &Function, instance: &TemplateInstance) {
     let sym = instance.resolved
-    let resolved_func = .o.program.get_function_deep_copy(func, func.sym.ns)
+    let resolved_func = get_deep_copy<Function>(.o.program, func, func.sym.ns, Parser::parse_function)
+    resolved_func.operator_overloads = func.operator_overloads
     resolved_func.sym.template = null
     resolved_func.sym = sym
     if func.parent_type? {
