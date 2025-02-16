@@ -15,6 +15,7 @@ def Option::get_value(this): T => match this {
 
 def main() {
     let x = Option<i32>::Some(5)
+    let y = Option<str>::Some("hello")
     if x.is_error() {
         println("x is an error")
     } else {

@@ -370,6 +370,11 @@ def TypeChecker::resolve_templated_enum(&this, enom: &Enum, instance: &TemplateI
     typ.sym = sym
     typ.template_instance = instance
 
+    for variant in resolved_enom.variants.iter() {
+        let variant_sym = variant.sym
+        variant_sym.update_parent(sym)
+    }
+
     .resolve_enum(resolved_enom)
     .resolve_templated_methods(enom.type, resolved_enom.type)
 }
