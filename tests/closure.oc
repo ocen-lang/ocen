@@ -8,6 +8,8 @@ def test(callback: @fn(i32), x: i32) {
 
 def bar(x: i32): i32 => x
 
+def noop(x: @fn()) => x()
+
 def main() {
     let x: i32 = 100
     let cb = |a: i32| => x += bar(a)
@@ -25,5 +27,6 @@ def main() {
         )
     }
     test(null, 10)
+    noop(|| {})
     println(`Total: {x}`)
 }

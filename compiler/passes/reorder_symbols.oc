@@ -55,7 +55,16 @@ def ReorderSymbols::collect_all_symbols_ns(&this, ns: &Namespace) {
         }
     }
     for enom in ns.enums.iter() {
-        .collect_sym(enom.sym)
+        if enom.sym.is_templated() {
+            for instance in enom.sym.template.instances.iter() {
+                let sym = instance.resolved
+                assert sym.type == Enum
+                .collect_sym(sym)
+            }
+
+        } else {
+            .collect_sym(enom.sym)
+        }
     }
     for child in ns.namespaces.iter_values() {
         .collect_all_symbols_ns(child)

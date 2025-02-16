@@ -2124,6 +2124,11 @@ def Parser::parse_enum(&this): &Enum {
     let sym = Symbol::new_with_parent(Enum, .ns, .ns.sym, name.text, name.span)
     sym.u.enom = enom
     enom.sym = sym
+
+    if .token_is(TokenType::LessThan) {
+        .parse_template_params(enom.sym)
+    }
+
     .add_doc_comment(sym, start)
     enom.has_values = false
 
@@ -2219,7 +2224,8 @@ def Parser::parse_enum(&this): &Enum {
         enom.variants += variant
         .consume_if(Comma)
     }
-    .consume(CloseCurly)
+    let end_tok =.consume(CloseCurly)
+    enom.span = start.span + end_tok.span
     return enom
 }
 

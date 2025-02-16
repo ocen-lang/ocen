@@ -127,6 +127,8 @@ def check_lsp_output(smol, big):
 
 def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     cmd = f'{compiler} lsp {expected.value.flags} {path}'
+    if debug:
+        print(f"[{num}] {path} || {cmd}", flush=True)
     process = run(shlex.split(cmd), stdout=PIPE, stderr=PIPE)
     if process.returncode != 0:
         return False, f"LSP Command failed with code: {process.returncode}, stdout: {process.stdout}", path
@@ -146,7 +148,7 @@ def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, deb
 def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
     if debug:
-        print(f"[{num}] {path} exec_name", flush=True)
+        print(f"[{num}] {path} || {exec_name}", flush=True)
 
     if expected.type == Result.LSP:
         return handle_lsp_test(compiler, num, path, expected, debug)
@@ -161,6 +163,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
             return False, "Expected compilation failure, but succeeded", path
 
         error = process.stdout.decode("utf-8").strip()
+        error += process.stderr.decode("utf-8").strip()
         expected_error = expected.value
 
         if expected_error in error:
@@ -204,7 +207,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
         output = process.stdout.decode('utf-8').strip()
         output_err = process.stderr.decode('utf-8').strip()
         expected_out = expected.value
-        if expected_out not in output:
+        if expected_out not in output + output_err:
             return False, f'Expected runtime error not found\n  expected: {repr(expected_out)}\n  got: {repr(output)}', path
 
     return True, "(Success)", path
@@ -236,7 +239,7 @@ def main():
     parser.add_argument(
         "-c",
         "--compiler",
-        required=True,
+        default="ocen",
         help="Path to the compiler executable"
     )
     parser.add_argument(

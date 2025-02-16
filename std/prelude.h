@@ -28,9 +28,9 @@ void dump_backtrace() {
   void *array[40];
   size_t size = backtrace(array, 40);
   char **strings = backtrace_symbols(array, size);
-  printf("\nBacktrace:\n");
+  fprintf(stderr, "\nBacktrace:\n");
   for (size_t i = size-1; i > 0; i--) {
-    printf("%s\n", strings[i]);
+    fprintf(stderr, "%s\n", strings[i]);
   }
   free(strings);
 #endif
@@ -44,12 +44,12 @@ void dump_backtrace() {
 
 void ae_assert_fail(char *dbg_msg, char *msg) {
   dump_backtrace();
-  printf("--------------------------------------------------------------------------------\n");
-  printf("%s\n", dbg_msg);
+  fprintf(stderr, "--------------------------------------------------------------------------------\n");
+  fprintf(stderr, "%s\n", dbg_msg);
   if (msg) {
-    printf("  Message: %s\n", msg);
+    fprintf(stderr, "  Message: %s\n", msg);
   }
-  printf("--------------------------------------------------------------------------------\n");
+  fprintf(stderr, "--------------------------------------------------------------------------------\n");
   fflush(stdout);
   oc_trap();
 }

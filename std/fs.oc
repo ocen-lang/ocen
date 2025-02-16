@@ -7,6 +7,7 @@
 
 import std::libc::errno::{ get_err}
 import std::sv::{ SV }
+import std::mem
 import std::buffer::{ Buffer }
 
 
@@ -56,6 +57,8 @@ namespace bindings {
 
     [extern] def fileno(file: &File): i32
     [extern] def ftruncate(fd: i32, size: i64): i32
+
+    [extern] const PATH_MAX: u32
 }
 
 [extern "i32"]
@@ -76,8 +79,13 @@ struct FileMetadata {
     mode: u32
 }
 
-
-def realpath(path: str): str => bindings::realpath(path, null)
+def realpath(path: str): str {
+    // Hopefully big enough; we don't want to let `realpath` allocate memory
+    // since we have no control over the allocator.
+    let res = mem::alloc<char>(2048+1)
+    bindings::realpath(path, res)
+    return res
+}
 
 def File::open(path: str, mode: str = "r"): &File {
     let file = bindings::fopen(path, mode)

@@ -1,0 +1,98 @@
+import std::buffer::Buffer
+import std::libc::unistd
+
+struct Output {
+    error: bool
+    error_code: i32
+    output: Buffer
+}
+
+def Output::from_error(error_code: i32): Output {
+    let out: Output
+    out.error = true
+    out.error_code = error_code
+    return out
+}
+
+def Output::assert_ok(this): Buffer {
+    assert not .error, `Process failed with error code {this.error_code}`
+    return .output
+}
+
+def get_output(
+    cmd: str = null,
+    callback: @fn() = null,
+    capture_stderr: bool = true,
+    shell: str = "/bin/bash"
+): Output {
+    if (cmd? and callback?) or (not cmd? and not callback?) {
+        std::panic("Exactly one of cmd or callback must be provided")
+    }
+
+    let fds: [i32; 2]
+    if unistd::pipe(fds) == -1 {
+        return Output::from_error(-1)
+    }
+
+    let pid = unistd::fork()
+    if pid == -1 {
+        return Output::from_error(-1)
+    }
+
+    if pid == 0 {
+        unistd::close(fds[0])
+        if fds[1] != 1 {
+            unistd::dup2(fds[1], 1)
+            unistd::close(fds[1])
+        }
+
+        if capture_stderr {
+            if fds[1] != 2 {
+                unistd::dup2(fds[1], 2)
+                unistd::close(fds[1])
+            }
+        }
+
+        if cmd? {
+            let args = [shell, "-c", cmd, null]
+            unistd::execvp(args[0], args)
+            std::exit(1)  // execvp failed
+        } else {
+            callback()
+            std::exit(0)  // callback returned
+        }
+    }
+
+    // wait for the child process to finish
+    let status: i32
+    let exit_code: i32 = 0
+    unistd::waitpid(pid, &status, 0)
+    if unistd::WIFEXITED(status) {
+        exit_code = unistd::WEXITSTATUS(status)
+    } else {
+        return Output::from_error(-1)
+    }
+
+    unistd::close(fds[1])
+    let out = Buffer::make()
+    let buf: [u8; 4096]
+
+    while true {
+        let n = unistd::read(fds[0], buf, 4096)
+        if n == -1 {
+            unistd::close(fds[0])
+            return Output::from_error(-1)
+        }
+        if n == 0 {
+            break
+        }
+        out.write_bytes(buf, n as u32)
+    }
+
+    unistd::close(fds[0])
+    return Output(
+        error: (exit_code != 0),
+        error_code: exit_code,
+        output: out
+    )
+}
