@@ -1,0 +1,23 @@
+/// out: "x is 5\n"
+
+enum Option<T> {
+    Some(val: T),
+    None
+}
+
+def Option::is_error(this): bool => false
+def Option::get_value(this): T => match this {
+    Some(val) => val
+    None => {
+        std::panic("Option::get_value called on None")
+    }
+}
+
+def main() {
+    let x = Option<i32>::Some(5)
+    if x.is_error() {
+        println("x is an error")
+    } else {
+        println(`x is {x.get_value()}`)
+    }
+}
