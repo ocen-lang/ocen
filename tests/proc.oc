@@ -1,5 +1,6 @@
-import std::process
+/// out: "hello world!"
 
+import std::process
 
 def main() {
     let output0 = process::get_output(cmd: "echo -n hello").assert_ok()
