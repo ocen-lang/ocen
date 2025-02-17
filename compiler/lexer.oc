@@ -2,7 +2,8 @@
 
 import std::vector::Vector
 import std::span::{Span, Location}
-import std::buffer::Buffer
+import std::buffer::{ Buffer }
+import std::sv::{ SV }
 import @errors::Error
 import @tokens::{Token, TokenType}
 
@@ -19,14 +20,14 @@ struct Lexer {
     comment_start: Location
 }
 
-def Lexer::make(source: str, filename: str, errors: &Vector<&Error> = null): Lexer {
+def Lexer::make_sv(source: SV, filename: str, errors: &Vector<&Error> = null): Lexer {
     let start_loc = Location(filename, 1, 1, 0)
     if not errors? {
         errors = Vector<&Error>::new()
     }
     return Lexer(
-        source,
-        source_len: source.len(),
+        source.data,
+        source_len: source.len,
         i: 0,
         loc: start_loc,
         seen_newline: false,
@@ -36,6 +37,10 @@ def Lexer::make(source: str, filename: str, errors: &Vector<&Error> = null): Lex
         comment: Buffer::make(),
         comment_start: start_loc,
     )
+}
+
+def Lexer::make(source: str, filename: str, errors: &Vector<&Error> = null): Lexer {
+    return Lexer::make_sv(SV::from_str(source), filename, errors)
 }
 
 def Lexer::push(&this, token: &Token) {

@@ -101,6 +101,7 @@ def Map::remove(&this, key: K) {
     .num_tombstones += 1
 
     .resize_if_necessary()
+    .items.zero_unused()
 }
 
 def Map::resize(&this, new_capacity: u32) {

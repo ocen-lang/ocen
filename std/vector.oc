@@ -82,6 +82,12 @@ def Vector::pop_at(&this, i: u32): T {
     return val
 }
 
+//* Zeros out unused memory; this is helpful when using std::gc
+def Vector::zero_unused(&this) {
+    let start = .data + .size
+    std::libc::memset(start, 0, (.capacity - .size) * sizeof(T))
+}
+
 [operator "+="]
 //* Appends the contents of another vector to this one
 def Vector::extend(&this, other: &Vector<T>) {
@@ -131,6 +137,7 @@ def Vector::unchecked_at(&this, i: u32): T => .data[i]
 //* This does not free the memory
 def Vector::clear(&this) {
     .size = 0
+    .zero_unused()
 }
 
 def Vector::is_empty(&this): bool => .size == 0

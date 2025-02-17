@@ -192,6 +192,12 @@ def Value::as_int(&this): i64 {
     }
 }
 
+def Value::as_int_or(&this, defolt: i64): i64 => match .type {
+    Integer => .u.as_int
+    Float => .u.as_float as i64
+    else => defolt
+}
+
 def Value::as_float(&this): f64 {
     return match .type {
         Integer => .u.as_int as f64

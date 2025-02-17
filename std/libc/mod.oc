@@ -27,6 +27,9 @@
 [variadic_format]
 [extern] def sprintf(buf: str, fmt: str, ...): i32
 
+[variadic_format]
+[extern] def snprintf(buf: str, size: u32, fmt: str, ...): i32
+
 // ctype
 [extern] def isdigit(c: char): bool
 [extern] def isxdigit(c: char): bool
