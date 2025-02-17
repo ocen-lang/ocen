@@ -5,8 +5,9 @@
 
 
 import std::fs
-import std::buffer::Buffer
-import std::vector::Vector
+import std::buffer::{ Buffer }
+import std::sv::{ SV }
+import std::vector::{ Vector }
 import std::value::{ Value, ValueType }
 import std::span::{ Span, Location }
 import compiler::lexer::Lexer
@@ -145,6 +146,13 @@ def Parser::parse(&this): &Value => match .token().type {
 //* Parse a JSON string into a Value
 def parse(source: str, filename: str = "<anonymous>"): &Value {
     let lexer = Lexer::make(source, filename)
+    let tokens = lexer.lex()
+    let parser = Parser::make(tokens)
+    return parser.parse()
+}
+
+def parse_sv(source: SV, filename: str = "<anonymous>"): &Value {
+    let lexer = Lexer::make_sv(source, filename)
     let tokens = lexer.lex()
     let parser = Parser::make(tokens)
     return parser.parse()

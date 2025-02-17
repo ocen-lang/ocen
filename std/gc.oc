@@ -106,19 +106,48 @@ def collect() {
     }
 }
 
-def print_stats() {
-    eprint("\n=== Garbage Collector Statistics ===\n");
-    eprint("┌──────────────────────────┬────────────┐\n");
-    eprint("│ Metric                   │ Value      │\n");
-    eprint("├──────────────────────────┼────────────┤\n");
-    eprint("│ Live Allocations         │ %-10d │\n", impl::live_allocations);
-    eprint("│ Freed Allocations        │ %-10d │\n", impl::freed_allocations);
-    eprint("│ Total Allocations        │ %-10d │\n", impl::total_allocations);
-    eprint("├──────────────────────────┼────────────┤\n");
-    eprint("│ Live Bytes Allocated     │ %-10d │\n", impl::live_alloc_bytes);
-    eprint("│ Freed Bytes Allocated    │ %-10d │\n", impl::freed_alloc_bytes);
-    eprint("│ Total Bytes Allocated    │ %-10d │\n", impl::total_alloc_bytes);
-    eprint("└──────────────────────────┴────────────┘\n");
+
+def human_readable_size(bytes: i64, output: str) {
+    let suffixes = ["B", "K", "M", "G", "T"]
+    let i = 0
+    let size = bytes as f64
+
+    while size >= 1000.0 and i < 4 {  // Stop at 'T' (terabytes)
+        size /= 1024.0
+        i++
+    }
+
+    if size < 10.0 {
+        std::libc::snprintf(output, 7, "%.1f%s", size, suffixes[i]); // Keep one decimal for small numbers
+    } else {
+        std::libc::snprintf(output, 7, "%.0f%s", size, suffixes[i]); // No decimals for larger numbers
+    }
+}
+
+def print_stats(full: bool = false) {
+    if full {
+        eprintln("\n=== Garbage Collector Statistics ===");
+        eprintln("┌──────────────────────────┬──────────┐");
+        eprintln("│ Live Allocations         │ %-8d │", impl::live_allocations);
+        eprintln("│ Freed Allocations        │ %-8d │", impl::freed_allocations);
+        eprintln("│ Total Allocations        │ %-8d │", impl::total_allocations);
+        eprintln("├──────────────────────────┼──────────┤");
+        eprintln("│ Live Bytes Allocated     │ %-8d │", impl::live_alloc_bytes);
+        eprintln("│ Freed Bytes Allocated    │ %-8d │", impl::freed_alloc_bytes);
+        eprintln("│ Total Bytes Allocated    │ %-8d │", impl::total_alloc_bytes);
+        eprintln("└──────────────────────────┴──────────┘");
+    } else {
+        let live_bytes_str: [char; 20]
+        let freed_bytes_str: [char; 20]
+        human_readable_size(impl::live_alloc_bytes as i64, live_bytes_str)
+        human_readable_size(impl::freed_alloc_bytes as i64, freed_bytes_str)
+        eprintln("┌──────────────────────────┬──────────┬────────┐");
+        eprintln("│                          │ Count    │ Bytes  │");
+        eprintln("├──────────────────────────┼──────────┼────────┤");
+        eprintln("│ GC: Live Allocations     │ %-8d │ %-6s │", impl::live_allocations, live_bytes_str);
+        eprintln("│ GC: Freed Allocations    │ %-8d │ %-6s │", impl::freed_allocations, freed_bytes_str);
+        eprintln("└──────────────────────────┴──────────┴────────┘");
+    }
 }
 
 def shutdown() {
