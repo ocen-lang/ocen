@@ -1,4 +1,4 @@
-/// fail: Cannot use ! outside of a function returning Result
+/// fail: Cannot use ! here, expression is std::result::Result<i32, str> but function returns void
 
 import std::result::{ Result }
 
@@ -11,13 +11,9 @@ def bar() {
     let res0 = foo(true)!
     println(f"res0: {res0}")
     let res1 = foo(false)!
-    println(f"res1: {res1}")
-    return Ok(0)
+    println(f"{res0 + res1}")
 }
 
 def main() {
-    match bar() {
-        Ok => println("ok"),
-        Error => println("error")
-    }
+    bar()
 }

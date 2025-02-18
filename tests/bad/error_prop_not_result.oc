@@ -1,4 +1,4 @@
-/// fail:  Can only use ! on Result type, got i32
+/// fail:  Can only use ! on Result/Option types, got i32
 
 def foo(): i32 => 0
 

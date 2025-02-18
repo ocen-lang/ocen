@@ -1,0 +1,12 @@
+import std::result::Result
+import std::option::Option
+
+def foo(ok: bool): Result<i32, i32> => match ok {
+    true => Ok(42),
+    false => Error(7)
+}
+
+def bar(ok: bool): Option<i32> {
+    let res0 = foo(ok)!
+    return Some(res0)
+}
