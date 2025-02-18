@@ -418,6 +418,12 @@ def TypeChecker::find_template_instance(&this, template_instances: &Vector<&Temp
 }
 
 def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, template_args: &Vector<&Type>, span: Span): &Symbol {
+    let template_params = sym.template.params
+    if template_params.size != template_args.size {
+        .error(Error::new(span, `Invalid number of template arguments for {sym.name}`))
+        return null
+    }
+
     // If we've already resolved this template, just return the symbol
     {
         let found = .find_template_instance(sym.template.instances, template_args)
@@ -425,12 +431,6 @@ def TypeChecker::resolve_templated_symbol(&this, sym: &Symbol, template_args: &V
     }
 
     let parent_ns = sym.ns
-    let template_params = sym.template.params
-
-    if template_params.size != template_args.size {
-        .error(Error::new(span, `Invalid number of template arguments for {sym.name}`))
-        return null
-    }
 
     // Want to also build a new display name for the specialization
     let new_display_name = Buffer::make()

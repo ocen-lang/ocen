@@ -419,18 +419,22 @@ def gen_namespace_json(ns: &Namespace): &Value {
     return obj
 }
 
-def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>) {
+def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>, name: str = null) {
     if sym.display in seen return
     seen += sym.display
 
+    if not name? {
+        name = sym.name
+    }
+
     let val = Value::new(Dictionary)
-    val["label"] = sym.name
+    val["label"] = name
     val["detail"] = gen_hover_string(sym)
 
     // TODO: other types?
     match sym.type {
         Function => {
-            val["insertText"] = sym.name
+            val["insertText"] = name
             val["kind"] = "function"
             val["labelDetails"] = gen_hover_string(sym)
             if sym.comment? {
@@ -438,7 +442,7 @@ def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>) {
             }
         }
         Variable => {
-            val["insertText"] = sym.name
+            val["insertText"] = name
             val["kind"] = "field"
             val["labelDetails"] = gen_hover_string(sym)
             if sym.comment? {
@@ -446,7 +450,7 @@ def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>) {
             }
         }
         Constant => {
-            val["insertText"] = sym.name
+            val["insertText"] = name
             val["kind"] = "constant"
             val["labelDetails"] = gen_hover_string(sym)
             if sym.comment? {
@@ -454,7 +458,7 @@ def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>) {
             }
         }
         else => {
-            val["insertText"] = sym.name
+            val["insertText"] = name
             // TODO: Different `kinds`
             val["kind"] = "field"
             val["labelDetails"] = gen_hover_string(sym)
@@ -616,6 +620,14 @@ def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set
     for it in ns.enums.iter() {
         seen += it.sym.name
         insert_completion_item(completions, it.sym, seen)
+    }
+    for it in ns.typedefs.iter() {
+        seen += it.value.sym.name
+        insert_completion_item(completions, it.value.sym, seen, name: it.key)
+    }
+    for it in ns.exported_symbols.iter() {
+        seen += it.value.name
+        insert_completion_item(completions, it.value, seen, name: it.key)
     }
     for it in ns.functions.iter() {
         if it.kind != Method {
