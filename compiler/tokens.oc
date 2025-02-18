@@ -68,6 +68,7 @@ enum TokenType {
     EqualEquals
     Equals
     Exclamation
+    ExclamationExclamation
     FatArrow
     FloatLiteral
     FormatStringLiteral

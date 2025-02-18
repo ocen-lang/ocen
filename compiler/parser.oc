@@ -930,6 +930,17 @@ def Parser::parse_postfix(&this, end_type: TokenType): &AST {
                 let tok = .consume(TokenType::Question)
                 node = AST::new_unop(IsNotNull, node.span.join(tok.span), node)
             }
+            TokenType::Exclamation => {
+                let tok = .consume(TokenType::Exclamation)
+                node = AST::new_unop(ErrorProp, node.span.join(tok.span), node)
+                .import_from_stdlib("result", node.span)
+
+            }
+            TokenType::ExclamationExclamation => {
+                let tok = .consume(TokenType::ExclamationExclamation)
+                node = AST::new_unop(ErrorUnwrap, node.span.join(tok.span), node)
+                .import_from_stdlib("result", node.span)
+            }
             TokenType::OpenSquare => {
                 let open = .consume(TokenType::OpenSquare)
                 let index = .parse_expression(end_type: TokenType::CloseSquare)

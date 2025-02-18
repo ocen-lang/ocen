@@ -1,0 +1,23 @@
+/// fail: Cannot propagate error type i32, expected str
+
+import std::result::{ Result }
+
+def foo(ok: bool): Result<i32, i32> => match ok {
+    true => Ok(42),
+    false => Error(7)
+}
+
+def bar(): Result<i32, str> {
+    let res0 = foo(true)!
+    println(f"res0: {res0}")
+    let res1 = foo(false)!
+    println(f"res1: {res1}")
+    return Ok(0)
+}
+
+def main() {
+    match bar() {
+        Ok => println("ok"),
+        Error => println("error")
+    }
+}

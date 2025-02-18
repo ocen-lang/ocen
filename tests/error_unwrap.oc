@@ -1,0 +1,19 @@
+/// runfail: Error unwrapping: 7 (tests/error_unwrap.oc:13:26)
+
+import std::result::{ Result }
+
+def foo(ok: bool): Result<i32, i32> => match ok {
+    true => Ok(42),
+    false => Error(7)
+}
+
+def bar() {
+    let res0 = foo(true)!!
+    println(f"res0: {res0}")
+    let res1 = foo(false)!!
+    println(f"res1: {res1}")
+}
+
+def main() {
+    bar()
+}

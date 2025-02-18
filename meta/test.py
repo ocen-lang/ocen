@@ -207,8 +207,10 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: 
         output = process.stdout.decode('utf-8').strip()
         output_err = process.stderr.decode('utf-8').strip()
         expected_out = expected.value
-        if expected_out not in output + output_err:
-            return False, f'Expected runtime error not found\n  expected: {repr(expected_out)}\n  got: {repr(output)}', path
+        all_out = output + output_err
+
+        if expected_out not in all_out:
+            return False, f'Expected runtime error not found\n  expected: {repr(expected_out)}\n  got: {repr(all_out)}', path
 
     return True, "(Success)", path
 

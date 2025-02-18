@@ -9,9 +9,13 @@ import std::map::{ Map }
 import std::span::{ Span }
 import std::vector::{ Vector }
 
+import @passes::visitor::{ Visitor }
 import @ast::nodes::{ AST, ASTType, Structure, Function, Variable }
 import @ast::operators::{ Operator, OperatorOverload }
-import @ast::nodes::{ ImportPart, Import, Argument, MatchCond, Enum, EnumVariant, Specialization }
+import @ast::nodes::{
+    ImportPart, Import, Argument, MatchCond, MatchCondArg, MatchCase,
+    Enum, EnumVariant, Specialization
+}
 import @ast::program::{ Program, Namespace, get_deep_copy }
 import @ast::scopes::{ Scope, Symbol, SymbolType, TemplateInstance, ReferenceType, ClosedVariable }
 import @errors::{ Error }
@@ -1242,6 +1246,48 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
     }
 }
 
+enum Formattable {
+    No        // Cannot be formatted
+    NotHere   // Only in simple expressions
+    Yes       // Yes
+}
+
+def TypeChecker::is_formattable(&this, typ: &Type, expr: &AST): Formattable {
+    match typ.base {
+        Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 |
+        U32 | U64 | F32 | F64 | Pointer => {}
+        Enum => if {
+            typ.u.enom.has_values => return No
+            else => return Yes
+        }
+        else => {
+            let can_format = false
+            if typ.base == Structure {
+                let struc = typ.u.struc
+                if struc? and struc.format_spec? {
+                    can_format = true
+                }
+            }
+
+            if can_format {
+                // These checks are to try to avoid side-effects when formatting our custom types. Eg:
+                //      println(`{get_sv()}`)
+                // would end up calling get_sv() twice when we generate:
+                //      printf("%.*s", get_sv().len, get_sv().data).
+                // These are just some heuristics to try to avoid that, but it's not perfect.
+                match expr.type {
+                    Identifier | Member | NSLookup => return Yes
+                    else => return NotHere
+                }
+
+            } else {
+                return No
+            }
+        }
+    }
+    return Yes
+}
+
 def TypeChecker::check_format_string(&this, node: &AST): &Type {
     let parts = node.u.fmt_str.parts
     let exprs = node.u.fmt_str.exprs
@@ -1261,41 +1307,17 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         if not typ? continue
         typ = typ.unaliased()
 
-        match typ.base {
-            Bool | Char | I8 | I16 | I32 | I64 | U8 | U16 |
-            U32 | U64 | F32 | F64 | Pointer => {}
-            else => {
-                let can_format = false
-                if typ.base == Structure {
-                    let struc = typ.u.struc
-                    if struc? and struc.format_spec? {
-                        can_format = true
-                    }
-                }
-
-                if can_format {
-                    // These checks are to try to avoid side-effects when formatting our custom types. Eg:
-                    //      println(`{get_sv()}`)
-                    // would end up calling get_sv() twice when we generate:
-                    //      printf("%.*s", get_sv().len, get_sv().data).
-                    // These are just some heuristics to try to avoid that, but it's not perfect.
-                    match expr.type {
-                        Identifier | Member | NSLookup => continue
-                        else => {
-                            .error(Error::new_note(
-                                expr.span, `Can only format {typ.sym.display} in simple expressions`,
-                                "Try moving the expression into a variable and formatting that instead"
-                            ))
-                        }
-                    }
-
-                } else {
-                    .error(Error::new(
-                        expr.span, `Type '{typ.str()}' cannot be formatted automatically`
-                    ))
-                }
-            }
+        match .is_formattable(typ, expr) {
+            No => .error(Error::new(
+                expr.span, `Type '{typ.str()}' cannot be formatted automatically`
+            ))
+            NotHere => .error(Error::new_note(
+                expr.span, `Can only format {typ.sym.display} in simple expressions`,
+                "Try moving the expression into a variable and formatting that instead"
+            ))
+            else => {}
         }
+
     }
 
     return .get_type_by_name("str", node.span)
@@ -1446,6 +1468,131 @@ def TypeChecker::check_assignment(&this, node: &AST, lhs: &Type, rhs: &Type): &T
     return lhs
 }
 
+def TypeChecker::create_match_for_error_unwrap(&this, node: &AST, expr: &AST): &AST {
+    // FIXME: Just rewriting AST for match statement here - is there a better way?
+    let op_span = node.u.unary.op_span
+
+    // TODO: This assumes the error is printable. Fix this.
+    let err_type = expr.etype.template_instance.args.at(1)
+    let panic_txt = match .is_formattable(err_type, expr) {
+        Yes => f"Error unwrapping: \{err\} ({expr.span.end})"
+        else => f"Error unwrapping ({expr.span.end})"
+    }
+
+    let res_text = f"""
+    match x \{
+        Ok(val) => val,
+        Error(err) => std::panic(`{panic_txt}`)
+    \}
+    """
+    let lexer = Lexer::make(res_text, op_span.start.filename)
+
+    let tokens = lexer.lex()
+    let parser = Parser::make(.o.program, .o.ns())
+    parser.tokens = tokens
+    parser.curr = 0
+
+    let match_stmt = parser.parse_match()
+    let visitor = Visitor(
+        node_fn: |node: &AST| => node.span = op_span
+    )
+    visitor.visit_po(match_stmt)
+
+    match_stmt.u.match_stmt.expr = expr
+    return match_stmt
+}
+
+def TypeChecker::check_error_unwrap(&this, node: &AST): &Type {
+    let expr = node.u.unary.expr
+    let expr_typ = .check_expression(expr)
+
+    if not expr_typ? return null
+    // TODO: Come up with a generic way to allow multiple structs to support error prop
+    if expr_typ.template_instance?.parent != .o.program.cached_symbols.std_result {
+        .error(Error::new(node.span, f"Can only use !! on Result type, got {expr_typ.str()}"))
+        return null
+    }
+
+    let ok_hint = expr_typ.template_instance.args.at(0)
+
+    let match_stmt = .create_match_for_error_unwrap(node, expr)
+    let res = .check_expression(match_stmt, ok_hint)
+    *node = *match_stmt
+
+    return res
+}
+
+def TypeChecker::create_match_for_error_prop(&this, node: &AST, expr: &AST): &AST {
+    // FIXME: Just rewriting AST for match statement here - is there a better way?
+    let op_span = node.u.unary.op_span
+
+    let res_text = """
+    match x {
+        Ok(val) => val,
+        Error(err) => { return Error(err) }
+    }
+    """
+    let lexer = Lexer::make(res_text, op_span.start.filename)
+
+    let tokens = lexer.lex()
+    let parser = Parser::make(.o.program, .o.ns())
+    parser.tokens = tokens
+    parser.curr = 0
+
+    let match_stmt = parser.parse_match()
+    let visitor = Visitor(
+        node_fn: |node: &AST| => node.span = op_span
+    )
+    visitor.visit_po(match_stmt)
+
+    match_stmt.u.match_stmt.expr = expr
+    return match_stmt
+}
+
+def TypeChecker::check_error_prop(&this, node: &AST): &Type {
+    let expr = node.u.unary.expr
+    let expr_typ = .check_expression(expr)
+
+    if not expr_typ? return null
+    // TODO: Come up with a generic way to allow multiple structs to support error prop
+    if expr_typ.template_instance?.parent != .o.program.cached_symbols.std_result {
+        .error(Error::new(node.span, f"Can only use ! on Result type, got {expr_typ.str()}"))
+        return null
+    }
+
+    let cur_func = .o.current_func()
+    if not cur_func? {
+        .error(Error::new(node.span, "Cannot use ! outside of a function"))
+        return null
+    }
+    let ret_type = cur_func.return_type
+    if ret_type?.template_instance?.parent != .o.program.cached_symbols.std_result {
+        .error(Error::new_hint(
+            node.span, "Cannot use ! outside of a function returning Result",
+            cur_func.parsed_return_type.span, f"Function returns {ret_type.str()}"
+        ))
+        return null
+    }
+
+    let expr_err_type = expr_typ.template_instance.args.at(1)
+    let ret_err_type = ret_type.template_instance.args.at(1)
+    if not expr_err_type.eq(ret_err_type) {
+        .error(Error::new_hint(
+            node.span, f"Cannot propagate error type {expr_err_type.str()}, expected {ret_err_type.str()}",
+            cur_func.parsed_return_type.span, f"Function returns {ret_type.str()}"
+        ))
+        return null
+    }
+
+    let ok_hint = expr_typ.template_instance.args.at(0)
+
+    let match_stmt = .create_match_for_error_prop(node, expr)
+    let res = .check_expression(match_stmt, ok_hint)
+    *node = *match_stmt
+
+    return res
+}
+
 def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type {
     match node.type {
         ASTType::IntLiteral => {
@@ -1572,6 +1719,8 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 }
                 return typ.u.ptr
             }
+            ErrorProp => return .check_error_prop(node)
+            ErrorUnwrap => return .check_error_unwrap(node)
             else => {
                 .error(Error::new(node.span, `Unknown unary operator in check_expression: {node.u.unary.op}`))
                 return null

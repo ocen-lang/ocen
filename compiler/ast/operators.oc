@@ -18,6 +18,8 @@ enum Operator {
     Not
     BitwiseNot
     IsNotNull
+    ErrorProp
+    ErrorUnwrap
     PreIncrement
     PreDecrement
     PostIncrement
@@ -123,7 +125,8 @@ def Operator::from_token(tok: &Token): Operator => match tok.type {
 
 def Operator::num_overload_params(this): u32 => match this {
     Address | Dereference | Negate | Not | BitwiseNot | IsNotNull |
-    PreIncrement | PreDecrement | PostIncrement | PostDecrement => 1
+    PreIncrement | PreDecrement | PostIncrement | PostDecrement |
+    ErrorProp | ErrorUnwrap => 1
 
     And | Assignment | BitwiseAnd | BitwiseOr | LeftShiftEquals | Divide |
     RightShiftEquals | BitwiseXor | DivideEquals | Equals | GreaterThan |

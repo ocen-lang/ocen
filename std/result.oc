@@ -1,0 +1,29 @@
+import std::option::{ Option }
+
+// TODO: No equivalent of Result<(), E> for functions that don't return a value
+//       but want to propagate errors. Can approximate with Result<i32, E> and
+//       ignore the value. Ocen currently doesn't have a `void` type.
+enum Result<T, E> {
+    Ok(val: T)
+    Error(err: E)
+}
+
+def Result::unwrap_or(this, defolt: T): T => match this {
+    Ok(val) => val
+    Error => defolt
+}
+
+def Result::is_error(this): bool => match this {
+    Ok => false
+    Error => true
+}
+
+def Result::into_option(this): Option<T> => match this {
+    Ok(val) => Some(val)
+    Error => None
+}
+
+def Result::from_option(opt: Option<T>, err: E): Result<T, E> => match opt {
+    Some(val) => Ok(val)
+    None => Error(err)
+}
