@@ -1,0 +1,17 @@
+/// runfail: Error unwrapping: None (tests/error_unwrap_option.oc:12:26)
+
+import std::option::{ Option }
+
+def foo(ok: bool): Option<i32> => match ok {
+    true => Some(42),
+    false => None
+}
+
+def bar() {
+    let res0 = foo(true)!!
+    let res1 = foo(false)!!
+}
+
+def main() {
+    bar()
+}

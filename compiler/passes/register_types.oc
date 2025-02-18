@@ -252,12 +252,38 @@ def RegisterTypes::register_cached_types(&this) {
     }
 
     let std_result = (finder/"std"/"result"/"Result").sym
-    let std_result_error = (finder/"std"/"result"/"Result"/"Error").sym
     if std_result? {
-        // Some sanity checks
+        // Some sanity checks to make sure variant / field names
+        // in `std/result.oc` are expected; we hardcode these later.
         assert std_result.type == Enum
         assert std_result.is_templated()
-        assert std_result_error.type == EnumVariant
+
+        let error = (finder/"std"/"result"/"Result"/"Error").sym
+        assert error.type == EnumVariant
+        assert error.u.enum_var.specific_fields.size == 1
+        assert error.u.enum_var.specific_fields[0].sym.name.eq("err")
+
+        let ok = (finder/"std"/"result"/"Result"/"Ok").sym
+        assert ok.type == EnumVariant
+        assert ok.u.enum_var.specific_fields.size == 1
+        assert ok.u.enum_var.specific_fields[0].sym.name.eq("val")
+    }
+
+    let std_option = (finder/"std"/"option"/"Option").sym
+    if std_option? {
+        // Some sanity checks to make sure variant / field names
+        // in `std/option.oc` are expected; we hardcode these later.
+        assert std_option.type == Enum
+        assert std_option.is_templated()
+
+        let none = (finder/"std"/"option"/"Option"/"None").sym
+        assert none.type == EnumVariant
+        assert none.u.enum_var.specific_fields.size == 0
+
+        let some = (finder/"std"/"option"/"Option"/"Some").sym
+        assert some.type == EnumVariant
+        assert some.u.enum_var.specific_fields.size == 1
+        assert some.u.enum_var.specific_fields[0].sym.name.eq("val")
     }
 
     .o.program.cached_symbols = CachedSymbols(
@@ -267,7 +293,7 @@ def RegisterTypes::register_cached_types(&this) {
         std_vector: std_vector,
         std_map: std_map,
         std_result: std_result,
-        std_result_error: std_result_error
+        std_option: std_option
     )
 }
 

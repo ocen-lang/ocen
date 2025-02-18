@@ -1,6 +1,7 @@
-/// out: "res0: 42\nerror"
+/// out: "res0: 42\nerror\nnone"
 
 import std::result::{ Result }
+import std::option::{ Option }
 
 def foo(ok: bool): Result<i32, str> => match ok {
     true => Ok(42),
@@ -15,9 +16,24 @@ def bar(): Result<i32, str> {
     return Ok(0)
 }
 
+def foo2(ok: bool): Option<i32> => match ok {
+    true => Some(42),
+    false => None
+}
+
+def bar2(): Option<i32> {
+    let res0 = foo2(true)!
+    let res1 = foo2(false)!
+    return Some(res0 + res1)
+}
+
 def main() {
     match bar() {
         Ok => println("ok"),
         Error => println("error")
+    }
+    match bar2() {
+        Some(val) => println(f"res2: {val}"),
+        None => println("none")
     }
 }

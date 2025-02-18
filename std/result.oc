@@ -4,6 +4,9 @@ import std::option::{ Option }
 //       but want to propagate errors. Can approximate with Result<i32, E> and
 //       ignore the value. Ocen currently doesn't have a `void` type.
 enum Result<T, E> {
+    // NOTE: The names of these variants/fields are hardcoded in the compiler
+    //       and must not be changed without updating the corresponding
+    //       methods in the compiler. (typechecker.oc)
     Ok(val: T)
     Error(err: E)
 }

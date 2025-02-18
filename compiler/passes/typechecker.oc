@@ -1469,23 +1469,38 @@ def TypeChecker::check_assignment(&this, node: &AST, lhs: &Type, rhs: &Type): &T
     return lhs
 }
 
-def TypeChecker::create_match_for_error_unwrap(&this, node: &AST, expr: &AST): &AST {
+enum ErrorPropBase {
+    Result
+    Option
+}
+
+def TypeChecker::create_match_for_error_unwrap(&this, node: &AST, expr: &AST, error_prop_base: ErrorPropBase): &AST {
     // FIXME: Just rewriting AST for match statement here - is there a better way?
     let op_span = node.u.unary.op_span
 
-    // TODO: This assumes the error is printable. Fix this.
-    let err_type = expr.etype.template_instance.args.at(1)
-    let panic_txt = match .is_formattable(err_type, expr) {
-        Yes => f"Error unwrapping: \{err\} ({expr.span.end})"
-        else => f"Error unwrapping ({expr.span.end})"
+    let res_text = match error_prop_base {
+        Result => {
+            let err_type = expr.etype.template_instance.args.at(1)
+            let panic_txt = match .is_formattable(err_type, expr) {
+                Yes => f"Error unwrapping: \{err\} ({expr.span.end})"
+                else => f"Error unwrapping ({expr.span.end})"
+            }
+
+            yield f"""
+            match x \{
+                Ok(val) => val,
+                Error(err) => std::panic(`{panic_txt}`)
+            \}
+            """
+        }
+        Option => f"""
+            match x \{
+                Some(val) => val,
+                None => std::panic(`Error unwrapping: None ({expr.span.end})`)
+            \}
+            """
     }
 
-    let res_text = f"""
-    match x \{
-        Ok(val) => val,
-        Error(err) => std::panic(`{panic_txt}`)
-    \}
-    """
     let lexer = Lexer::make(res_text, op_span.start.filename)
 
     let tokens = lexer.lex()
@@ -1508,31 +1523,55 @@ def TypeChecker::check_error_unwrap(&this, node: &AST): &Type {
     let expr_typ = .check_expression(expr)
 
     if not expr_typ? return null
-    // TODO: Come up with a generic way to allow multiple structs to support error prop
-    if expr_typ.template_instance?.parent != .o.program.cached_symbols.std_result {
-        .error(Error::new(node.span, f"Can only use !! on Result type, got {expr_typ.str()}"))
-        return null
+
+    // TODO: Come up with a generic way to allow multiple structs to support error unwrap
+    let parent = expr_typ.template_instance?.parent
+    let error_prop_base: ErrorPropBase = if {
+        parent == .o.program.cached_symbols.std_result => Result
+        parent == .o.program.cached_symbols.std_option => Option
+        else => {
+            .error(Error::new(node.span, f"Can only use !! on Result/Option types, got {expr_typ.str()}"))
+            return null
+        }
     }
 
-    let ok_hint = expr_typ.template_instance.args.at(0)
+    // For exhaustiveness check if we add other options
+    let ok_hint = match error_prop_base {
+        Result => expr_typ.template_instance.args.at(0)
+        Option => expr_typ.template_instance.args.at(0)
+    }
 
-    let match_stmt = .create_match_for_error_unwrap(node, expr)
+    let cur_func = .o.current_func()
+    if not cur_func? {
+        .error(Error::new(node.span, "Cannot use !! outside of a function"))
+        return ok_hint
+    }
+
+    let match_stmt = .create_match_for_error_unwrap(node, expr, error_prop_base)
     let res = .check_expression(match_stmt, ok_hint)
     *node = *match_stmt
 
     return res
 }
 
-def TypeChecker::create_match_for_error_prop(&this, node: &AST, expr: &AST): &AST {
+def TypeChecker::create_match_for_error_prop(&this, node: &AST, expr: &AST, error_prop_base: ErrorPropBase): &AST {
     // FIXME: Just rewriting AST for match statement here - is there a better way?
     let op_span = node.u.unary.op_span
 
-    let res_text = """
-    match x {
-        Ok(val) => val,
-        Error(err) => { return Error(err) }
+    let res_text = match error_prop_base {
+        Result => """
+            match x {
+                Ok(val) => val,
+                Error(err) => { return Error(err) }
+            }
+            """
+        Option => """
+            match x {
+                Some(val) => val,
+                None => { return None }
+            }
+            """
     }
-    """
     let lexer = Lexer::make(res_text, op_span.start.filename)
 
     let tokens = lexer.lex()
@@ -1555,39 +1594,55 @@ def TypeChecker::check_error_prop(&this, node: &AST): &Type {
     let expr_typ = .check_expression(expr)
 
     if not expr_typ? return null
-    // TODO: Come up with a generic way to allow multiple structs to support error prop
-    if expr_typ.template_instance?.parent != .o.program.cached_symbols.std_result {
-        .error(Error::new(node.span, f"Can only use ! on Result type, got {expr_typ.str()}"))
-        return null
-    }
-
     let cur_func = .o.current_func()
     if not cur_func? {
         .error(Error::new(node.span, "Cannot use ! outside of a function"))
         return null
     }
+
+    // TODO: Come up with a generic way to allow multiple structs to support error prop
+    let parent = expr_typ.template_instance?.parent
+    let error_prop_base: ErrorPropBase = if {
+        parent == .o.program.cached_symbols.std_result => Result
+        parent == .o.program.cached_symbols.std_option => Option
+        else => {
+            .error(Error::new(node.span, f"Can only use ! on Result/Option types, got {expr_typ.str()}"))
+            return null
+        }
+    }
+
+    // For exhaustiveness check if we add other options
+    let ok_hint = match error_prop_base {
+        Result => expr_typ.template_instance.args.at(0)
+        Option => expr_typ.template_instance.args.at(0)
+    }
+
     let ret_type = cur_func.return_type
-    if ret_type?.template_instance?.parent != .o.program.cached_symbols.std_result {
+    if ret_type?.template_instance?.parent != parent {
         .error(Error::new_hint(
-            node.span, "Cannot use ! outside of a function returning Result",
+            node.span, f"Cannot use ! here, expression is {expr_typ.str()} but function returns {ret_type.str()}",
             cur_func.parsed_return_type.span, f"Function returns {ret_type.str()}"
         ))
-        return null
+        return ok_hint
     }
 
-    let expr_err_type = expr_typ.template_instance.args.at(1)
-    let ret_err_type = ret_type.template_instance.args.at(1)
-    if not expr_err_type.eq(ret_err_type) {
-        .error(Error::new_hint(
-            node.span, f"Cannot propagate error type {expr_err_type.str()}, expected {ret_err_type.str()}",
-            cur_func.parsed_return_type.span, f"Function returns {ret_type.str()}"
-        ))
-        return null
+    match error_prop_base {
+        Result => {
+            let expr_err_type = expr_typ.template_instance.args.at(1)
+            let ret_err_type = ret_type.template_instance.args.at(1)
+            if not expr_err_type.eq(ret_err_type) {
+                .error(Error::new_hint(
+                    node.span, f"Cannot propagate error type {expr_err_type.str()}, expected {ret_err_type.str()}",
+                    cur_func.parsed_return_type.span, f"Function returns {ret_type.str()}"
+                ))
+                return ok_hint
+            }
+        }
+        // Nothing to do here, all options can propagate None
+        Option => {}
     }
 
-    let ok_hint = expr_typ.template_instance.args.at(0)
-
-    let match_stmt = .create_match_for_error_prop(node, expr)
+    let match_stmt = .create_match_for_error_prop(node, expr, error_prop_base)
     let res = .check_expression(match_stmt, ok_hint)
     *node = *match_stmt
 

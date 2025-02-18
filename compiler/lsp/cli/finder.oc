@@ -189,7 +189,7 @@ def Finder::find_in_expression(&this, node: &AST): bool {
         }
 
         Identifier => return .find_in_identifier(node)
-        Member => {
+        Member | TryMember => {
             let rhs = node.u.member.rhs_name
             // This is usually for autocompletion:
             if not rhs? and .cmd == Completions and node.span.contains_loc(.loc) {

@@ -1,15 +1,11 @@
 import std::result::{ Result }
 
-// TODO: Can't use ! and !! for Option types - would be useful for functions that
-//       return Option<T> and want to panic on None.
 enum Option<T> {
+    // NOTE: The names of these fields are hardcoded in the compiler
+    //       and must not be changed without updating the corresponding
+    //       methods in the compiler. (typechecker.oc)
     None
     Some(val: T),
-}
-
-def Option::unwrap(this): T => match this {
-    Some(val) => val
-    None => std::panic("called `Option::unwrap()` on a `None` value")
 }
 
 def Option::unwrap_or(this, defolt: T): T => match this {
