@@ -64,6 +64,7 @@ def TypeChecker::set_resolved_symbol(&this, node: &AST, sym: &Symbol) {
             }
             yield node.u.member.rhs_span
         }
+        VarDeclaration => sym.span
         else => {
             assert false, `Unhandled node type in set_resolved_symbol: {node.type}`
         }
@@ -2826,7 +2827,7 @@ def TypeChecker::check_globals(&this, node: &AST, is_const: bool) {
             .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but got {init_type.str()}`))
         }
     }
-
+    .set_resolved_symbol(node, var.sym)
 }
 
 def TypeChecker::check_namespace(&this, ns: &Namespace) {
