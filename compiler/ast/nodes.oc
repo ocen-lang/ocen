@@ -149,7 +149,6 @@ def Structure::get_field(&this, name: str): &Variable {
 
 // Enum implementation miscellaneous todos:
 // TODO: Struct-like variants with named fields (currently only tuple-like)
-// TODO: In codegen, store match expression in separate variable to avoid side effects in multiple branches
 // TODO: Potentially(?) replace tuple-like completely with struct-like variants. Makes match expressions more readable
 // TODO: Find some syntax to be able to construct variants without fully specifying all (shared) fields (for eg: for Node)
 struct Enum {
