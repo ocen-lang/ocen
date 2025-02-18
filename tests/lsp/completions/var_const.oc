@@ -1,0 +1,4 @@
+/// lsp: -c 4 19
+/// {"completions":[{"label":"STDIN_FILENO","kind":"constant"}]}
+
+import std::libc::
