@@ -1,0 +1,7 @@
+/// fail:  Can only use !! on Result type, got i32
+
+def foo(): i32 => 0
+
+def main() {
+    foo()!!
+}

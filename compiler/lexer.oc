@@ -359,6 +359,7 @@ def Lexer::lex(&this): &Vector<&Token> {
             }
             '!' => match .peek(1) {
                 '='  => .push_type(NotEquals, len: 2)
+                '!'  => .push_type(ExclamationExclamation, len: 2)
                 else => .push_type(Exclamation)
             }
             ':' => match .peek(1) {

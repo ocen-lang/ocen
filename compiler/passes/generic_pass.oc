@@ -230,3 +230,6 @@ def GenericPass::verify_structure_has_field(&this, type: &Type, field_name: str,
     }
     return field.type
 }
+
+def GenericPass::current_return_type(&this): &Type => .scope()?.cur_func?.return_type
+def GenericPass::current_func(&this): &Function => .scope()?.cur_func

@@ -1,0 +1,32 @@
+import std::result::{ Result }
+
+// TODO: Can't use ! and !! for Option types - would be useful for functions that
+//       return Option<T> and want to panic on None.
+enum Option<T> {
+    None
+    Some(val: T),
+}
+
+def Option::unwrap(this): T => match this {
+    Some(val) => val
+    None => std::panic("called `Option::unwrap()` on a `None` value")
+}
+
+def Option::unwrap_or(this, defolt: T): T => match this {
+    Some(val) => val
+    None => defolt
+}
+
+def Option::is_none(this): bool => match this {
+    Some => false
+    None => true
+}
+def Option::is_some(this): bool => not .is_none()
+
+// TODO: Template methods don't work, so can't have a generic error type
+//       Use Result::from_option instead
+def Option::into_result(this, msg: str): Result<T, str> => match this {
+    Some(val) => Ok(val)
+    None => Error(msg)
+}
+

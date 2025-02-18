@@ -11,8 +11,8 @@ import .variadic
 [exits]
 def panic(msg: str = "<panic>") {
     dump_backtrace()
-    println("--------------------------------------------------------------------------------")
-    println("%s", msg)
+    eprintln("--------------------------------------------------------------------------------")
+    eprintln("%s", msg)
     builtin_trap()
     std::exit(1)
 }

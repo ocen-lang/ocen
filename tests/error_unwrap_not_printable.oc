@@ -1,0 +1,24 @@
+/// runfail: Error unwrapping (tests/error_unwrap_not_printable.oc:18:26)
+
+import std::result::{ Result }
+
+struct Foo {
+    x: i32
+    y: i32
+}
+
+def foo(ok: bool): Result<i32, Foo> => match ok {
+    true => Ok(42),
+    false => Error(Foo(7, 8))
+}
+
+def bar() {
+    let res0 = foo(true)!!
+    println(f"res0: {res0}")
+    let res1 = foo(false)!!
+    println(f"res1: {res1}")
+}
+
+def main() {
+    bar()
+}

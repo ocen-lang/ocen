@@ -251,12 +251,23 @@ def RegisterTypes::register_cached_types(&this) {
         assert std_map.is_templated()
     }
 
+    let std_result = (finder/"std"/"result"/"Result").sym
+    let std_result_error = (finder/"std"/"result"/"Result"/"Error").sym
+    if std_result? {
+        // Some sanity checks
+        assert std_result.type == Enum
+        assert std_result.is_templated()
+        assert std_result_error.type == EnumVariant
+    }
+
     .o.program.cached_symbols = CachedSymbols(
         fmt_string_fn: fmt_string_fn,
         mem_alloc_fn: alloc_fn,
         mem_allocator: allocator,
         std_vector: std_vector,
-        std_map: std_map
+        std_map: std_map,
+        std_result: std_result,
+        std_result_error: std_result_error
     )
 }
 

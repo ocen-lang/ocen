@@ -350,6 +350,8 @@ struct CachedSymbols {
     mem_allocator: &Symbol
     std_vector: &Symbol
     std_map: &Symbol
+    std_result: &Symbol
+    std_result_error: &Symbol
 }
 
 def Program::iter_namespaces(&this): NSIterator {
