@@ -445,6 +445,14 @@ def insert_completion_item(completions: &Value, sym: &Symbol, seen: &Set<str>) {
                 val["documentation"] = sym.comment
             }
         }
+        Constant => {
+            val["insertText"] = sym.name
+            val["kind"] = "constant"
+            val["labelDetails"] = gen_hover_string(sym)
+            if sym.comment? {
+                val["documentation"] = sym.comment
+            }
+        }
         else => {
             val["insertText"] = sym.name
             // TODO: Different `kinds`
@@ -598,16 +606,16 @@ def gen_completion_items_from_ns(completions: &Value, ns: &Namespace, seen: &Set
         insert_completion_item(completions, it.sym, seen)
     }
     for it in ns.variables.iter() {
-        if it.resolved_symbol? {
-            seen += it.resolved_symbol.name
-            insert_completion_item(completions, it.resolved_symbol, seen)
-        }
+        seen += it.resolved_symbol.name
+        insert_completion_item(completions, it.resolved_symbol, seen)
     }
     for it in ns.constants.iter() {
-        if it.resolved_symbol? {
-            seen += it.resolved_symbol.name
-            insert_completion_item(completions, it.resolved_symbol, seen)
-        }
+        seen += it.resolved_symbol.name
+        insert_completion_item(completions, it.resolved_symbol, seen)
+    }
+    for it in ns.enums.iter() {
+        seen += it.sym.name
+        insert_completion_item(completions, it.sym, seen)
     }
     for it in ns.functions.iter() {
         if it.kind != Method {

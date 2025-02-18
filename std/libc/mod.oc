@@ -50,6 +50,6 @@
 
 // macros
 [extern] const STDIN_FILENO: i32
-[extern] const EXIT_FAILURE:i32
-[extern] const EXIT_SUCCESS:i32
+[extern] const EXIT_FAILURE: i32
+[extern] const EXIT_SUCCESS: i32
 
