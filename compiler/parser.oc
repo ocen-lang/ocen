@@ -1939,7 +1939,10 @@ def Parser::parse_import_path(&this, end_type: TokenType): &Vector<&ImportPart> 
         }
 
         if done break
-        if not .consume_if(TokenType::ColonColon) break
+        if not (
+            .consume_if(TokenType::ColonColon) or
+            .consume_if(TokenType::Slash)
+        ) break
     }
     return parts
 }
@@ -1954,8 +1957,8 @@ def Parser::parse_import(&this): &AST {
             .consume(TokenType::AtSign)
             yield ImportType::ProjectNamespace
         }
-        TokenType::ColonColon => {
-            .consume(TokenType::ColonColon)
+        TokenType::ColonColon | TokenType::Slash => {
+            .consume(.token().type)
             yield ImportType::CurrentScope
         }
         TokenType::Dot | TokenType::Ellipsis => {

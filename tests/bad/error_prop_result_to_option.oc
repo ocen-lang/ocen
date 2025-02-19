@@ -1,3 +1,5 @@
+/// fail: Cannot use ! here, expression is std::result::Result<i32, i32> but function returns std::option::Option<i32>
+
 import std::result::Result
 import std::option::Option
 
