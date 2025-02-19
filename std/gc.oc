@@ -124,30 +124,17 @@ def human_readable_size(bytes: i64, output: str) {
     }
 }
 
-def print_stats(full: bool = false) {
-    if full {
-        eprintln("\n=== Garbage Collector Statistics ===");
-        eprintln("┌──────────────────────────┬──────────┐");
-        eprintln("│ Live Allocations         │ %-8d │", impl::live_allocations);
-        eprintln("│ Freed Allocations        │ %-8d │", impl::freed_allocations);
-        eprintln("│ Total Allocations        │ %-8d │", impl::total_allocations);
-        eprintln("├──────────────────────────┼──────────┤");
-        eprintln("│ Live Bytes Allocated     │ %-8d │", impl::live_alloc_bytes);
-        eprintln("│ Freed Bytes Allocated    │ %-8d │", impl::freed_alloc_bytes);
-        eprintln("│ Total Bytes Allocated    │ %-8d │", impl::total_alloc_bytes);
-        eprintln("└──────────────────────────┴──────────┘");
-    } else {
-        let live_bytes_str: [char; 20]
-        let freed_bytes_str: [char; 20]
-        human_readable_size(impl::live_alloc_bytes as i64, live_bytes_str)
-        human_readable_size(impl::freed_alloc_bytes as i64, freed_bytes_str)
-        eprintln("┌──────────────────────────┬──────────┬────────┐");
-        eprintln("│                          │ Count    │ Bytes  │");
-        eprintln("├──────────────────────────┼──────────┼────────┤");
-        eprintln("│ GC: Live Allocations     │ %-8d │ %-6s │", impl::live_allocations, live_bytes_str);
-        eprintln("│ GC: Freed Allocations    │ %-8d │ %-6s │", impl::freed_allocations, freed_bytes_str);
-        eprintln("└──────────────────────────┴──────────┴────────┘");
-    }
+def print_stats() {
+    let live_bytes_str: [char; 20]
+    let freed_bytes_str: [char; 20]
+    human_readable_size(impl::live_alloc_bytes as i64, live_bytes_str)
+    human_readable_size(impl::freed_alloc_bytes as i64, freed_bytes_str)
+    eprintln("┌──────────────────────────┬──────────┬────────┐");
+    eprintln("│                          │ Count    │ Bytes  │");
+    eprintln("├──────────────────────────┼──────────┼────────┤");
+    eprintln("│ GC: Live Allocations     │ %-8d │ %-6s │", impl::live_allocations, live_bytes_str);
+    eprintln("│ GC: Freed Allocations    │ %-8d │ %-6s │", impl::freed_allocations, freed_bytes_str);
+    eprintln("└──────────────────────────┴──────────┴────────┘");
 }
 
 def shutdown() {
