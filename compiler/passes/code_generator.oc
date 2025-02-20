@@ -593,10 +593,10 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
                 .out += "(("
                 .gen_type(node.etype)
                 .out += ")"
-                .out += num_lit.text
+                .out <<= `{num_lit.as_int}`
                 .out += ")"
             } else {
-                .out += num_lit.text
+                .out <<= `{num_lit.as_int}`
             }
         }
         CreateClosure => {
@@ -625,7 +625,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
         }
         FloatLiteral => {
             let num_lit = &node.u.num_literal
-            .out += num_lit.text
+            .out <<= `{num_lit.as_float}`
             if node.etype.base == F32 {
                 .out += "f"
             }

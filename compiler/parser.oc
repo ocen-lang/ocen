@@ -731,6 +731,45 @@ def Parser::parse_global_value(&this, is_const: bool): &AST {
     return node
 }
 
+def Parser::parse_num_literal_int(&this, text: str): u64 {
+    let offset = 2
+    let base: u64 = if {
+        text.starts_with("0x") => 16
+        text.starts_with("0o") => 8
+        text.starts_with("0b") => 2
+        else => {
+            offset = 0
+            yield 10u64
+        }
+    }
+
+    let len = text.len()
+    let value = 0u64
+    for let i = offset; i < len; i += 1 {
+        let c = text[i]
+        if c == '_' continue
+        value = value * base + c.get_hex_digit() as u64
+    }
+    return value
+}
+
+def Parser::parse_num_literal_float(&this, text: str): f64 {
+    let len = text.len()
+    let buf: [char; 32]  // Hopefully this is enough
+    assert len < 32
+    let j = 0
+
+    for let i = 0; i < len; i += 1 {
+        let c = text[i]
+        if c == '_' continue
+        buf[j++] = c
+    }
+
+    buf[j] = '\0'
+    let endptr: str
+    return std::libc::strtod(buf, &endptr)
+}
+
 def Parser::parse_atom(&this, end_type: TokenType): &AST {
     let node: &AST = null
     match .token().type {
@@ -747,7 +786,8 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             let tok = .consume(TokenType::IntLiteral)
             node.u.num_literal = NumLiteral(
                 text: tok.text,
-                suffix: .parse_literal_suffix_type(tok.suffix)
+                suffix: .parse_literal_suffix_type(tok.suffix),
+                as_int: .parse_num_literal_int(tok.text)
             )
         }
         TokenType::FloatLiteral => {
@@ -755,7 +795,8 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             let tok = .consume(TokenType::FloatLiteral)
             node.u.num_literal = NumLiteral(
                 text: tok.text,
-                suffix: .parse_literal_suffix_type(tok.suffix)
+                suffix: .parse_literal_suffix_type(tok.suffix),
+                as_float: .parse_num_literal_float(tok.text)
             )
         }
         TokenType::StringLiteral => {

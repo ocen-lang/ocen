@@ -1,0 +1,10 @@
+/// exit: 0
+
+def main() {
+    let x = 0b1000_0000_1000_0000_1000_0000_1000_0000
+
+    assert 100_000 == 100000
+    assert 0b0100_0000 == 64
+    assert 0o100_000 == 32768
+    assert 0xdead_beef == 0xDEADBEEF == 3735928559
+}

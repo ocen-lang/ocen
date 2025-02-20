@@ -225,13 +225,19 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
     match .cur() {
         'x' => {
             .inc()
-            while .i < .source_len and .cur().is_hex_digit() {
+            while .i < .source_len and (.cur().is_hex_digit() or .cur() == '_') {
                 .inc()
             }
         }
         'b' => {
             .inc()
-            while .i < .source_len and .cur() == '0' or .cur() == '1' {
+            while .i < .source_len and (.cur() == '0' or .cur() == '1' or .cur() == '_') {
+                .inc()
+            }
+        }
+        'o' => {
+            .inc()
+            while .i < .source_len and (.cur().is_digit() or .cur() == '_') {
                 .inc()
             }
         }
@@ -246,7 +252,7 @@ def Lexer::lex_numeric_literal_helper(&this): &Token {
     let start_loc = .loc
     if .cur() == '0' {
         match .peek(1) {
-            'x' | 'b' => {
+            'x' | 'b' | 'o' => {
                 return .lex_int_literal_different_base()
             }
             // Do nothing, fall through
@@ -256,12 +262,12 @@ def Lexer::lex_numeric_literal_helper(&this): &Token {
 
     let start = .i
     let token_type: TokenType
-    while .cur().is_digit() {
+    while .cur().is_digit() or .cur() == '_' {
         .inc()
     }
     if .cur() == '.' {
         .inc()
-        while .cur().is_digit() {
+        while .cur().is_digit() or .cur() == '_' {
             .inc()
         }
         token_type = TokenType::FloatLiteral
