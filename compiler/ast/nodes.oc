@@ -253,8 +253,8 @@ struct Function {
 
     span: Span
     //! Used for LSP, to know span of (unresolved) return type
-    parsed_return_type: &Type
     //! Store full AST for methods `Foo::bar()`
+    parsed_return_type: &Type
     name_ast: &AST
 
     type: &Type
@@ -394,6 +394,8 @@ struct Import {
 struct NumLiteral {
     text: str
     suffix: &Type
+    as_float: f64 = 0.0
+    as_int: u64 = 0
 }
 
 struct Binary {
