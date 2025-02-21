@@ -39,6 +39,7 @@ def usage(code: i32, full: bool) {
     println("    --cflags flags Additional C flags (can be used multiple times)")
     println("    -h             Display this information")
     println("    -r <args>      Run executable with arguments (can only be at the end)")
+    println("    --backtrace    Track all calls for generating backtraces")
     println("    --asan         Compile with address sanitizer")
     exit(code)
 }
@@ -55,6 +56,7 @@ let include_stdlib: bool = true
 let extra_c_flags: &Vector<str>
 let run_after_compile: bool = false
 let compile_asan: bool = false
+let backtrace: bool = false
 
 def save_and_compile_code(program: &Program, code: str) {
     if not c_path? {
@@ -118,6 +120,11 @@ def parse_args(argc: &i32, argv: &&str, program: &Program) {
             "--help" => usage(code: 0, true)
             "-s" => silent = true
             "-d" => debug = true
+            // Enabling backtraces also enables debug mode
+            "-b" | "-bt" | "--backtrace" => {
+                backtrace = true
+                debug = true
+            }
             "-n" => {
                 compile_c = false
             }
@@ -207,6 +214,7 @@ def main(argc: i32, argv: &str): i32 {
     program.error_level = error_level
     program.gen_debug_info = debug
     program.include_stdlib = include_stdlib
+    program.backtrace = backtrace
     Parser::parse_toplevel(program, filename, file_contents: null, include_workspace_main: true)
 
     run_typecheck_passes(program)

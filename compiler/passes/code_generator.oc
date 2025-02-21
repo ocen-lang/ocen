@@ -584,8 +584,81 @@ def CodeGenerator::gen_closure_call(&this, node: &AST, sym: &Symbol) {
     .out += ")"
 }
 
+def CodeGenerator::gen_call(&this, node: &AST, is_expr: bool) {
+    let callee = node.u.call.callee
+
+
+    let ret_is_void = node.etype.base == Void
+    if .o.program.backtrace {
+        let s = `{callee.resolved_symbol.display} \\t({node.span.start})`
+        .out += `(\{_WITH_BT(\"{s}\",`
+        if is_expr and not ret_is_void {
+            .gen_type_and_name(node.etype, "_ret")
+            .out += " = "
+        }
+    }
+
+    defer if .o.program.backtrace {
+        .out += ");"
+        if is_expr and not ret_is_void {
+            .out += " _ret;"
+        }
+        .out += "})"
+    }
+
+    // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
+    if callee.type == Identifier {
+        let matched = match callee.u.ident.name {
+            "print" => .gen_internal_print(node, newline_after: false, is_stderr: false)
+            "println" => .gen_internal_print(node, newline_after: true, is_stderr: false)
+            "eprint" => .gen_internal_print(node, newline_after: false, is_stderr: true)
+            "eprintln" => .gen_internal_print(node, newline_after: true, is_stderr: true)
+            else => false
+        }
+        if matched then return
+    }
+
+    let sym = callee.symbol()
+    if sym? {
+        match node.u.call.call_type {
+            StructConstructor => {
+                assert sym.type == Structure
+                .gen_constructor(node, sym.u.struc)
+                return
+            }
+            EnumConstructor => {
+                assert sym.type == EnumVariant
+                .gen_enum_constructor(sym.u.enum_var, node.u.call.args)
+                return
+            }
+            Closure => {
+                .gen_closure_call(node, sym)
+                return
+            }
+
+            // Fallthrough
+            else => {}
+        }
+    }
+
+    .gen_expression(callee)
+
+    let is_variadic_format = (
+        sym? and
+        sym.type == Function and
+        sym.u.func? and
+        sym.u.func.is_variadic_format
+    )
+
+    .out += "("
+    .gen_call_args(node.u.call.args, is_variadic_format)
+    .out += ")"
+
+}
+
 //! Generate an expression. If `is_top_level` is true, don't put parens around it.
-def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false) {
+def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false, is_statement: bool = false) {
+    let needs_parens = not is_top_level and not is_statement
     match node.type {
         IntLiteral => {
             let num_lit = &node.u.num_literal
@@ -732,57 +805,7 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
                 else => assert false, `Unhandled symbol type: {sym.type}`
             }
         }
-        Call => {
-            let callee = node.u.call.callee
-
-            // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
-            if callee.type == Identifier {
-                let matched = match callee.u.ident.name {
-                    "print" => .gen_internal_print(node, newline_after: false, is_stderr: false)
-                    "println" => .gen_internal_print(node, newline_after: true, is_stderr: false)
-                    "eprint" => .gen_internal_print(node, newline_after: false, is_stderr: true)
-                    "eprintln" => .gen_internal_print(node, newline_after: true, is_stderr: true)
-                    else => false
-                }
-                if matched then return
-            }
-
-            let sym = callee.symbol()
-            if sym? {
-                match node.u.call.call_type {
-                    StructConstructor => {
-                        assert sym.type == Structure
-                        .gen_constructor(node, sym.u.struc)
-                        return
-                    }
-                    EnumConstructor => {
-                        assert sym.type == EnumVariant
-                        .gen_enum_constructor(sym.u.enum_var, node.u.call.args)
-                        return
-                    }
-                    Closure => {
-                        .gen_closure_call(node, sym)
-                        return
-                    }
-
-                    // Fallthrough
-                    else => {}
-                }
-            }
-
-            .gen_expression(callee)
-
-            let is_variadic_format = (
-                sym? and
-                sym.type == Function and
-                sym.u.func? and
-                sym.u.func.is_variadic_format
-            )
-
-            .out += "("
-            .gen_call_args(node.u.call.args, is_variadic_format)
-            .out += ")"
-        }
+        Call => .gen_call(node, is_expr: not is_statement)
         BoolLiteral => {
             let bool_lit = node.u.bool_literal
             .out += if bool_lit then "true" else "false"
@@ -897,13 +920,13 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false)
             RightShift => {
                 let lhs = node.u.binary.lhs
                 let rhs = node.u.binary.rhs
-                if not is_top_level then .out += "("
+                if needs_parens then .out += "("
                 .gen_expression(lhs)
                 .out += " "
                 .out += .get_op(node)
                 .out += " "
                 .gen_expression(rhs)
-                if not is_top_level then .out += ")"
+                if needs_parens then .out += ")"
             }
             Equals |
             Assignment |
@@ -1348,13 +1371,13 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
                 if init.type == ASTType::VarDeclaration {
                     .gen_var_declaration(init)
                 } else {
-                    .gen_expression(init, is_top_level: true)
+                    .gen_expression(init, is_statement: true)
                 }
             }
             .out += "; "
             if cond? then .gen_expression(cond, is_top_level: true)
             .out += "; "
-            if step? then .gen_expression(step, is_top_level: true)
+            if step? then .gen_expression(step, is_statement: true)
             .out += ") "
             .gen_block(body)
             .out += "\n"
@@ -1396,7 +1419,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         }
         else => {
             .gen_indent()
-            .gen_expression(node, is_top_level: true)
+            .gen_expression(node, is_statement: true)
             .out += ";\n"
         }
     }
