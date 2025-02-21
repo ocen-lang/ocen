@@ -2,11 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>
-
-#ifndef OC_NO_BACKTRACE
 #include <stdlib.h>
-#include <execinfo.h>
-#endif
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -23,18 +19,30 @@ typedef double f64;
 
 const char* __asan_default_options() { return "detect_leaks=0"; }
 
+//// Backtraces
+
+volatile static const char *__oc_bt[] = {0};
+volatile u64 __oc_bt_idx = 0;
+
+#define _WITH_BT(s, ...)      \
+  __oc_bt[__oc_bt_idx++] = s; \
+  __VA_ARGS__;                \
+  (void)__oc_bt_idx--;
+
 void dump_backtrace() {
-#ifndef OC_NO_BACKTRACE
-  void *array[40];
-  size_t size = backtrace(array, 40);
-  char **strings = backtrace_symbols(array, size);
-  fprintf(stderr, "\nBacktrace:\n");
-  for (size_t i = size-1; i > 0; i--) {
-    fprintf(stderr, "%s\n", strings[i]);
+  fprintf(stderr, "--------------------------------------------------------------------------------\n");
+  if (__oc_bt_idx == 0) {
+    fprintf(stderr, "[NOTE] Compile with -b flag to enable backtrace\n");
+  } else {
+    fprintf(stderr, "Backtrace:\n");
+    for (u64 i = 0; i < __oc_bt_idx; i++) {
+      fprintf(stderr, "  => %s\n", __oc_bt[i]);
+    }
   }
-  free(strings);
-#endif
+  fprintf(stderr, "--------------------------------------------------------------------------------\n");
 }
+
+/// End backtraces
 
 #ifdef __APPLE__
   #define oc_trap __builtin_debugtrap

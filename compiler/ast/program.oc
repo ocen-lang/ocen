@@ -186,6 +186,7 @@ struct Program {
     // Configs
     check_doc_links: bool
     gen_debug_info: bool
+    backtrace: bool
     keep_all_code: bool
     include_stdlib: bool
 
