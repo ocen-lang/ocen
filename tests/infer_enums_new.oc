@@ -1,0 +1,13 @@
+/// compile
+
+enum Foo {
+    Bar
+    Baz
+}
+
+def main() {
+    let y: &Foo = match 0 {
+        1 => @new Foo::Bar
+        else => @new Baz
+    }
+}
