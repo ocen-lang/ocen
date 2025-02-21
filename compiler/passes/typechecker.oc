@@ -2113,7 +2113,12 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 .error(Error::new(node.span, "Cannot use `@new` without using stdlib"))
             }
 
-            let child_typ = .check_expression(node.u.child)
+            let hint_type = if {
+                hint? and hint.base == BaseType::Pointer => hint.u.ptr
+                else => null
+            }
+
+            let child_typ = .check_expression(node.u.child, hint: hint_type)
             if not child_typ? return null
 
             if child_typ.base == Pointer {
