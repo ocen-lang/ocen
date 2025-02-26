@@ -939,6 +939,14 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false,
                 .out += .get_op(node)
                 .gen_expression(node.u.binary.rhs)
             }
+            EqualsValueEnumVariant => {
+                .out += "("
+                .gen_expression(node.u.binary.lhs)
+                .out += ").tag == "
+                let rhs_sym = node.u.binary.rhs.resolved_symbol
+                assert rhs_sym? and rhs_sym.type == EnumVariant
+                .out += rhs_sym.out_name()
+            }
             else => .error(Error::new(node.span, `Unhandled binary op type in CodeGenerator: {node.u.binary.op}`))
         }
 
@@ -1050,9 +1058,7 @@ def CodeGenerator::gen_custom_match(&this, node: &AST) {
     .out += "}\n"
 }
 
-def CodeGenerator::gen_match_enum(&this, node: &AST) {
-    let match_stmt = &node.u.match_stmt
-    let expr = match_stmt.expr
+def CodeGenerator::gen_match_enum_switch_line(&this, expr: &AST): str {
     assert expr.etype? and expr.etype.base == Enum
 
     let enom = expr.etype.u.enom
@@ -1076,90 +1082,115 @@ def CodeGenerator::gen_match_enum(&this, node: &AST) {
         .gen_expression(expr)
         .out += ")) {\n"
     }
+    return var_name
+}
+
+def CodeGenerator::gen_match_enum_cases_body(
+    &this,
+    node: &AST,
+    var_name: str,
+    conds: &Vector<&MatchCond>,
+    body: &AST,
+    uid: u32,
+    case_index: u32 = 0
+) {
+    let has_args = conds.size > 0 and conds[0].args?
+
+    if has_args {
+        let args = conds[0].args
+        .gen_indent()
+        .out += "{\n"
+        .indent += 1
+        for arg in args.iter() {
+            if not arg.var.sym.name.eq("_") {
+                .gen_indent()
+                .gen_type_and_name(arg.var.type, arg.var.sym.out_name())
+                .out += ";\n"
+            }
+        }
+    }
+
+    for let j = 0; j < conds.size; j++ {
+        let cond = conds[j]
+
+        let resolved = cond.expr.resolved_symbol
+        assert resolved? and resolved.type == EnumVariant
+        let variant = resolved.u.enum_var
+
+        .gen_indent()
+        .out += "case "
+        .out += variant.sym.out_name()
+        .out += ":\n"
+
+        .indent += 1
+        if cond.args? {
+            let args = cond.args
+            for let i = 0; i < args.size; i += 1 {
+                let arg = args.at(i)
+                if arg.is_shared {
+                    .gen_indent()
+                    // TODO: Allow different variable name here
+                    .out += arg.var.sym.out_name()
+                    .out += " = "
+                    .out += var_name
+                    .out += "."
+                    // TODO: It's possible the shared field might be called something else?
+                    //       We should have MatchCondArg store the &Variable pointing to shared field
+                    //       and use the name from it.
+                    .out += arg.var.sym.out_name()
+                    .out += ";\n"
+
+                } else {
+                    .gen_indent()
+                    .out += arg.var.sym.out_name()
+                    .out += " = "
+                    .out += var_name
+                    .out += "."
+                    .out += variant.sym.out_name()
+                    .out <<= f".{arg.var.sym.out_name()};\n"
+                }
+            }
+            .gen_indent()
+            .out += f"goto m_{uid}_{case_index};\n"
+        }
+        .indent -= 1
+    }
+
+    if body? {
+        .gen_indent()
+        .out += f"m_{uid}_{case_index}:\n"
+        .indent += 1
+        .gen_indent()
+        .gen_control_body(node, body)
+        .out += " break;\n"
+        .indent -= 1
+    }
+    if has_args {
+        .indent -= 1
+        .gen_indent()
+        .out += "}\n"
+    }
+
+}
+
+def CodeGenerator::gen_match_enum(&this, node: &AST) {
+    let match_stmt = &node.u.match_stmt
+    let expr = match_stmt.expr
+    let var_name = .gen_match_enum_switch_line(expr)
 
     let uid = .o.program.uid++
     .indent += 1
     for let i = 0; i < match_stmt.cases.size; i += 1 {
         let _case = match_stmt.cases[i]
-
-        let has_args = _case.conds.size > 0 and _case.conds[0].args?
-
-        if has_args {
-            let args = _case.conds[0].args
-            .gen_indent()
-            .out += "{\n"
-            .indent += 1
-            for arg in args.iter() {
-                if not arg.var.sym.name.eq("_") {
-                    .gen_indent()
-                    .gen_type_and_name(arg.var.type, arg.var.sym.out_name())
-                    .out += ";\n"
-                }
-            }
-        }
-
-        for let j = 0; j < _case.conds.size; j++ {
-            let cond = _case.conds[j]
-
-            let resolved = cond.expr.resolved_symbol
-            assert resolved? and resolved.type == EnumVariant
-            let variant = resolved.u.enum_var
-
-            .gen_indent()
-            .out += "case "
-            .out += variant.sym.out_name()
-            .out += ":\n"
-
-            .indent += 1
-            if cond.args? {
-                let args = cond.args
-                for let i = 0; i < args.size; i += 1 {
-                    let arg = args.at(i)
-                    if arg.is_shared {
-                        .gen_indent()
-                        // TODO: Allow different variable name here
-                        .out += arg.var.sym.out_name()
-                        .out += " = "
-                        .out += var_name
-                        .out += "."
-                        // TODO: It's possible the shared field might be called something else?
-                        //       We should have MatchCondArg store the &Variable pointing to shared field
-                        //       and use the name from it.
-                        .out += arg.var.sym.out_name()
-                        .out += ";\n"
-
-                    } else {
-                        .gen_indent()
-                        .out += arg.var.sym.out_name()
-                        .out += " = "
-                        .out += var_name
-                        .out += "."
-                        .out += variant.sym.out_name()
-                        .out <<= f".{arg.var.sym.out_name()};\n"
-                    }
-                }
-                .gen_indent()
-                .out += f"goto m_{uid}_{i};\n"
-            }
-            .indent -= 1
-        }
-
-
-        if _case.body? {
-            .gen_indent()
-            .out += f"m_{uid}_{i}:\n"
-            .indent += 1
-            .gen_indent()
-            .gen_control_body(node, _case.body)
-            .out += " break;\n"
-            .indent -= 1
-
-        }
-        if has_args {
-            .indent -= 1
-            .gen_indent()
-            .out += "}\n"
-        }
+        let conds = _case.conds
+        .gen_match_enum_cases_body(
+            node: node,
+            var_name: var_name,
+            conds: conds,
+            body: _case.body,
+            uid: uid,
+            case_index: i
+        )
     }
 
     if match_stmt.defolt? {
@@ -1255,6 +1286,143 @@ def CodeGenerator::gen_match(&this, node: &AST) {
     .out += "}\n"
 }
 
+def CodeGenerator::gen_if_is_expr_cond(&this, var_name: str, conds: &Vector<&MatchCond>) {
+    let first = true
+    for cond in conds.iter() {
+        if not first then .out += " || "
+        first = false
+        .out <<= `{var_name}.tag == `
+        let sym = cond?.expr?.resolved_symbol
+        assert sym? and sym.type == EnumVariant
+        .out += sym.out_name()
+    }
+}
+
+def CodeGenerator::gen_if_is_expr_body(
+    &this,
+    node: &AST,
+    var_name: str,
+    conds: &Vector<&MatchCond>,
+    body: &AST,
+    bool_name: str,
+) {
+    .out += "switch ("
+    .out += var_name
+    .out += ".tag) {\n"
+    .indent += 1
+    .gen_match_enum_cases_body(
+        node: node,
+        var_name: var_name,
+        conds: conds,
+        body: body,
+        uid: .o.program.uid++,
+    )
+    .out += f"default: {bool_name} = false; break;\n"
+    .indent -= 1
+    .out += "}\n"
+    .gen_indent()
+}
+
+def CodeGenerator::gen_if_is_expr_branch(
+    &this,
+    node: &AST,
+    branch: &IfBranch,
+) {
+    """
+    NOTE: This is a little tricky, we want a few properties:
+         1. The expression is only evaluated once
+         2. All enum variant values are captured and available in the body
+         3. We can't put the whole if statement in a separate scope, so further else/if chains work.
+
+
+    As an example, for this:
+        if get() is Foo::Bar(val) | Baz(val) {
+            // body
+        }
+
+    we will generate:
+
+
+        if (
+            ({
+                Foo x = get();
+                bool res = true;
+
+                match (x.tag) {
+                    // codegen match cases here similar to enum-match
+                    //      this also includes the actual body.
+                    default:
+                        res = false;  // This causes the if to eval to false
+                        break;
+                };
+                res;
+            })
+        ) {}  // Empty since the body is handled in compound statement above
+    """
+    assert branch.cond.type == Is
+    let is_expr = &branch.cond.u.is_expr
+
+    .out += "if ( ({\n"
+    .indent += 1
+    .gen_indent()
+
+    let var_name = `_is_{.o.program.uid++}`
+    .gen_type_and_name(is_expr.lhs.etype, var_name)
+    .out += " = "
+    .gen_expression(is_expr.lhs)
+    .out += ";\n"
+    .gen_indent()
+
+    let bool_name = `_r_{.o.program.uid++}`
+    .out <<= `bool {bool_name} = true;\n`
+    .gen_indent()
+
+    .gen_if_is_expr_body(
+        node,
+        var_name,
+        is_expr.conds,
+        body: branch.body,
+        bool_name: bool_name,
+    )
+    .out <<= `{bool_name};`
+    .out += "}) ) {\n"
+    .indent += 1
+    .gen_indent()
+    .out += "// empty\n"
+    .indent -= 1
+    .gen_indent()
+    .out += "}"
+}
+
+def CodeGenerator::gen_if(&this, node: &AST) {
+    .gen_indent()
+
+    let branches = node.u.if_stmt.branches
+    for let i = 0; i < branches.size; i += 1 {
+        let branch = branches[i]
+        if i > 0 then .out += " else "
+        match branch.cond.type {
+            Is => .gen_if_is_expr_branch(node, &branch)
+            else => {
+                .out += "if ("
+                .gen_expression(branch.cond, is_top_level: true)
+                .out += ") "
+                .gen_control_body(node, branch.body)
+            }
+        }
+    }
+
+    let else_body = node.u.if_stmt.els
+
+    if else_body? {
+        .out += " else "
+        .gen_control_body(node, else_body)
+        .out += "\n"
+    } else {
+        .out += "\n"
+    }
+}
+
 def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
     let first = true
     for let cur = .scope(); cur?; cur = cur.parent {
@@ -1272,6 +1440,14 @@ def CodeGenerator::gen_defers_upto(&this, end_scope: &Scope) {
         }
         if cur == end_scope then break
     }
+}
+
+def CodeGenerator::get_break_label_for_loop(&this, node: &AST): str {
+    let loop = &node.u.loop
+    if not loop.break_label? {
+        loop.break_label = `_{node.type}_break_{.o.program.uid++}`
+    }
+    return loop.break_label
 }
 
 def CodeGenerator::gen_statement(&this, node: &AST) {
@@ -1308,7 +1484,13 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
 
             .gen_indent()
             if node.type == ASTType::Break {
-                .out += "break;\n"
+                let target_loop = upto.parent_loop
+                if target_loop.u.loop.needs_goto_break {
+                    let label = .get_break_label_for_loop(target_loop)
+                    .out <<= `goto {label};\n`
+                } else {
+                    .out += "break;\n"
+                }
             } else {
                 .out += "continue;\n"
             }
@@ -1326,29 +1508,7 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
         ASTType::Defer => {
             .scope().defers.push(node.u.child)
         }
-        ASTType::If => {
-            .gen_indent()
-
-            let branches = node.u.if_stmt.branches
-            for let i = 0; i < branches.size; i += 1 {
-                let branch = branches[i]
-                if i > 0 then .out += " else "
-                .out += "if ("
-                .gen_expression(branch.cond, is_top_level: true)
-                .out += ") "
-                .gen_control_body(node, branch.body)
-            }
-
-            let else_body = node.u.if_stmt.els
-
-            if else_body? {
-                .out += " else "
-                .gen_control_body(node, else_body)
-                .out += "\n"
-            } else {
-                .out += "\n"
-            }
-        }
+        ASTType::If => .gen_if(node)
         ASTType::Match => .gen_match(node)
         ASTType::While => {
             let cond = node.u.loop.cond
@@ -1359,6 +1519,11 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .out += ") "
             .gen_block(body)
             .out += "\n"
+            if node.u.loop.needs_goto_break {
+                .gen_indent()
+                let label = .get_break_label_for_loop(node)
+                .out <<= `{label}:;\n`
+            }
         }
         ASTType::For => {
             let init = node.u.loop.init
@@ -1381,6 +1546,11 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
             .out += ") "
             .gen_block(body)
             .out += "\n"
+            if node.u.loop.needs_goto_break {
+                .gen_indent()
+                let label = .get_break_label_for_loop(node)
+                .out <<= `{label}:;\n`
+            }
         }
         ASTType::Assert => {
             let expr = node.u.assertion.expr
@@ -1416,6 +1586,9 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
                 .out += " exit(1);"
             }
             .out += " }\n"
+        }
+        StringLiteral => {
+            // This is a doc-comment, we don't need to do anything.
         }
         else => {
             .gen_indent()

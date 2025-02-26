@@ -28,6 +28,12 @@ def Visitor::visit_po(&this, node: &AST) {
             .visit_po(node.u.assertion.expr)
             .visit_po(node.u.assertion.msg)
         }
+        Is => {
+            .visit_po(node.u.is_expr.lhs)
+            for cond in node.u.is_expr.conds.iter() {
+                .visit_po(cond.expr)
+            }
+        }
         Block => {
             for stmt in node.u.block.statements.iter() {
                 .visit_po(stmt)

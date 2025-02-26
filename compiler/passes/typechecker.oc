@@ -1816,7 +1816,6 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     let variant = item.u.enum_var
                     if variant.num_fields() != 0 {
                         .error(Error::new(node.span, f"{item.display} needs {variant.num_fields()} fields to construct"))
-                        return null
                     }
                     return variant.parent.type
                 }
@@ -1851,7 +1850,6 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                 LessThanEquals |
                 GreaterThan |
                 GreaterThanEquals |
-                Equals |
                 NotEquals |
                 PlusEquals |
                 MinusEquals |
@@ -1871,6 +1869,53 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     let rhs = .check_expression(rhs_node, hint: lhs)
                     if not lhs? or not rhs? return null
                     return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
+                }
+                // We want to special-case this for value-enums. Basically, we want
+                // to allow matching against **only** the tag of the enum, and not unpacking
+                // the values. The RHS here needs to be checked manually.
+                Equals => {
+                    let lhs = .check_expression(lhs_node, hint: hint)
+                    if not lhs? or lhs.base != Enum or not lhs.u.enom.has_values {
+                        // Fall back to the normal binary op check
+                        let rhs = .check_expression(rhs_node, hint: lhs)
+                        if not lhs? or not rhs? return .get_base_type(Bool, node.span)
+                        return .check_binary_op(node, lhs.unaliased(), rhs.unaliased())
+                    }
+
+                    // OK, so lhs is a value enum. RHS must be some sort of scoped identifier,
+                    // since we only allow naming the fully scoped enum variant.
+                    match rhs_node.type {
+                        Identifier | NSLookup | Specialization => {}
+                        Call => {
+                            let call = rhs_node.u.call
+                            let args_span = call.open_paren_span + call.close_paren_span
+                            .error(Error::new(args_span, f"Can only compare against the variant name here, remove this"))
+                            .check_expression(rhs_node, hint: lhs)
+                            return .get_base_type(Bool, node.span)
+                        }
+                        else => {
+                            .error(Error::new(rhs_node.span, f"Expected explicit enum variant, got: {rhs_node.type}"))
+                            .check_expression(rhs_node, hint: lhs)
+                            return .get_base_type(Bool, node.span)
+                        }
+                    }
+
+                    let rhs_sym = .resolve_scoped_identifier(rhs_node, error: true, hint: lhs)
+                    if not rhs_sym? return .get_base_type(Bool, node.span)
+
+                    if {
+                        rhs_sym.type != EnumVariant => {
+                            .error(Error::new(rhs_node.span, f"Expected enum variant, got: {rhs_sym.type}"))
+                            return .get_base_type(Bool, node.span)
+                        }
+                        not rhs_sym.u.enum_var?.parent?.type.eq(lhs) => {
+                            .error(Error::new(rhs_node.span, f"Expected enum variant of type {lhs.str()}, got: {rhs_sym.u.enum_var.parent.type.str()}"))
+                            return .get_base_type(Bool, node.span)
+                        }
+                    }
+
+                    node.u.binary.op = EqualsValueEnumVariant
+                    return .get_base_type(Bool, node.span)
                 }
                 In => {
                     // Swap the order of the operands for the potential overload
@@ -1916,7 +1961,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     if not lhs? or not rhs? return null
                     return .check_assignment(node, lhs, rhs)
                 }
-                else => std::panic(`Internal error: unhandled op in check_expression binary_op: {node.type}`)
+                else => std::panic(`Internal error: unhandled op in check_expression binary_op: {node.u.binary.op}`)
             }
         }
         MapLiteral => {
@@ -2180,6 +2225,10 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
         Error => {
             return hint
         }
+        Is => {
+            .error(Error::new(node.span, "Can only use `is` inside an if statement condition. Use `==` for standalone enum comparison"))
+            return .get_base_type(BaseType::Bool, node.span)
+        }
         else => {
             .error(Error::new(node.span, f"Invalid expression in TypeChecker::check_expression: {node.type}"))
             return null
@@ -2212,6 +2261,148 @@ def TypeChecker::call_dbg_on_enum_value(&this, node_ptr: &&AST): &Type {
     return .check_expression(call)
 }
 
+def TypeChecker::check_match_case_enum(
+    &this,
+    lhs_node: &AST,
+    enom_type: &Type,
+    conds: $[&MatchCond],
+    mapping: &Map<str, &MatchCond>,
+    current_args: &Map<str, &Type>  // This is just a cache to avoid excessive allocations
+) {
+    assert enom_type.base == Enum
+    let enom = enom_type.u.enom
+
+    current_args.clear()
+    for let i = 0; i < conds.size; i++ {
+        let cond = conds[i]
+        let name: str
+
+        let expr = cond.expr
+        expr.hint = enom_type
+        match expr.type {
+            Identifier | NSLookup | Specialization => {}
+            else => {
+                .error(Error::new(expr.span, f"Expected value enum variant, got {expr.type}"))
+                continue
+            }
+        }
+
+        let resolved_sym = .resolve_scoped_identifier(expr, error: true, hint: enom_type)
+        if not resolved_sym? continue
+        if resolved_sym.type != EnumVariant {
+            .error(Error::new(
+                expr.span, f"Expected value enum variant, got {resolved_sym.type} ({resolved_sym.display})",
+            ))
+            continue
+        }
+        let variant = resolved_sym.u.enum_var
+
+        if variant.parent != enom {
+            .error(Error::new_hint(
+                expr.span, "Condition does not match expression type",
+                lhs_node.span, `Match expression is of type '{enom.type.str()}'`
+            ))
+        }
+        expr.etype = enom_type
+
+        let args = cond.args
+
+        // Populate the current_args map with the fields of the first variant
+        if i == 0 {
+            if args? {
+                for let j = 0; j < args.size; j += 1 {
+                    let arg = args[j]
+
+
+                    // TODO: Allow binding name to be different from variable name in scope
+                    // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
+
+                    let sp_field = variant.get_specific_field(arg.var.sym.name)
+                    let sh_field = enom.get_shared_field(arg.var.sym.name)
+                    let field = if {
+                        sp_field? => sp_field
+                        sh_field? => {
+                            arg.is_shared = true
+                            yield sh_field
+                        }
+                        else => {
+                            .error(Error::new(
+                                arg.var.sym.span, f"Field `{arg.var.sym.name}` does not exist in enum variant {variant.sym.display}"
+                            ))
+                            yield null
+                        }
+                    }
+                    if field? {
+                        arg.var.type = field.type
+                        current_args[arg.var.sym.name] = field.type
+                    }
+                }
+            }
+
+        // For the rest, check that the fields match the first variant
+        } else {
+
+            let found_args = 0
+            for let j = 0; args? and j < args.size; j += 1 {
+                let arg = args[j]
+
+                // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
+                let sp_field = variant.get_specific_field(arg.var.sym.name)
+                let sh_field = enom.get_shared_field(arg.var.sym.name)
+                let field = if {
+                    sp_field? => sp_field
+                    sh_field? => {
+                        arg.is_shared = true
+                        yield sh_field
+                    }
+                    else => {
+                        .error(Error::new(
+                            arg.var.sym.span, "Field does not exist in enum variant"
+                        ))
+                        yield null
+                    }
+                }
+
+
+                if field? {
+                    arg.var.type = field.type
+                }
+
+                let item = current_args.get_item(arg.var.sym.name)
+                if not item? {
+                    .error(Error::new(
+                        arg.var.sym.span, "All conditions in this branch must have the same fields"
+                    ))
+                    continue
+                }
+
+                found_args += 1
+                if field? and not item.value.eq(field.type) {
+                    .error(Error::new(
+                        arg.var.sym.span, f"Field type does not match previous branch: {item.value.str()}"
+                    ))
+                    continue
+                }
+            }
+            if found_args != current_args.size {
+                .error(Error::new(
+                    expr.span, "All conditions in this branch must have the same fields"
+                ))
+            }
+        }
+
+        name = expr.resolved_symbol.name
+        let prev = mapping.get(name, null)
+        if prev? {
+            .error(Error::new_hint(
+                expr.span, "Duplicate condition name in match",
+                prev.expr.span, "This condition was previously used here"
+            ))
+        }
+        mapping.insert(name, cond)
+    }
+}
+
 def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: bool, hint: &Type = null) {
     let mapping = Map<str, &MatchCond>::new()
     defer mapping.free()
@@ -2224,135 +2415,13 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
     for _case in cases.iter() {
         let conds = _case.conds
 
-        current_args.clear()
-        for let i = 0; i < conds.size; i++ {
-            let cond = conds[i]
-            let name: str
-
-            let expr = cond.expr
-            expr.hint = enom.type
-            match expr.type {
-                Identifier | NSLookup | Specialization => {}
-                else => {
-                    .error(Error::new(expr.span, f"Expected value enum variant, got {expr.type}"))
-                    continue
-                }
-            }
-
-            let resolved_sym = .resolve_scoped_identifier(expr, error: true, hint: enom.type)
-            if not resolved_sym? continue
-            if resolved_sym.type != EnumVariant {
-                .error(Error::new(
-                    expr.span, f"Expected value enum variant, got {resolved_sym.type} ({resolved_sym.display})",
-                ))
-                continue
-            }
-            let variant = resolved_sym.u.enum_var
-
-            if variant.parent != enom {
-                .error(Error::new_hint(
-                    expr.span, "Condition does not match expression type",
-                    node.u.match_stmt.expr.span, `Match expression is of type '{enom.type.str()}'`
-                ))
-            }
-            expr.etype = enom.type
-
-            let args = cond.args
-
-            // Populate the current_args map with the fields of the first variant
-            if i == 0 {
-                if args? {
-                    for let j = 0; j < args.size; j += 1 {
-                        let arg = args[j]
-
-
-                        // TODO: Allow binding name to be different from variable name in scope
-                        // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
-
-                        let sp_field = variant.get_specific_field(arg.var.sym.name)
-                        let sh_field = enom.get_shared_field(arg.var.sym.name)
-                        let field = if {
-                            sp_field? => sp_field
-                            sh_field? => {
-                                arg.is_shared = true
-                                yield sh_field
-                            }
-                            else => {
-                                .error(Error::new(
-                                    arg.var.sym.span, f"Field `{arg.var.sym.name}` does not exist in enum variant {variant.sym.display}"
-                                ))
-                                yield null
-                            }
-                        }
-                        if field? {
-                            arg.var.type = field.type
-                            current_args[arg.var.sym.name] = field.type
-                        }
-                    }
-                }
-
-            // For the rest, check that the fields match the first variant
-            } else {
-
-                let found_args = 0
-                for let j = 0; args? and j < args.size; j += 1 {
-                    let arg = args[j]
-
-                    // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
-                    let sp_field = variant.get_specific_field(arg.var.sym.name)
-                    let sh_field = enom.get_shared_field(arg.var.sym.name)
-                    let field = if {
-                        sp_field? => sp_field
-                        sh_field? => {
-                            arg.is_shared = true
-                            yield sh_field
-                        }
-                        else => {
-                            .error(Error::new(
-                                arg.var.sym.span, "Field does not exist in enum variant"
-                            ))
-                            yield null
-                        }
-                    }
-
-
-                    if field? {
-                        arg.var.type = field.type
-                    }
-
-                    let item = current_args.get_item(arg.var.sym.name)
-                    if not item? {
-                        .error(Error::new(
-                            arg.var.sym.span, "All conditions in this branch must have the same fields"
-                        ))
-                        continue
-                    }
-
-                    found_args += 1
-                    if field? and not item.value.eq(field.type) {
-                        .error(Error::new(
-                            arg.var.sym.span, f"Field type does not match previous branch: {item.value.str()}"
-                        ))
-                        continue
-                    }
-                }
-                if found_args != current_args.size {
-                    .error(Error::new(
-                        expr.span, "All conditions in this branch must have the same fields"
-                    ))
-                }
-            }
-
-            name = expr.resolved_symbol.name
-            let prev = mapping.get(name, null)
-            if prev? {
-                .error(Error::new_hint(
-                    expr.span, "Duplicate condition name in match",
-                    prev.expr.span, "This condition was previously used here"
-                ))
-            }
-            mapping.insert(name, cond)
-        }
+        .check_match_case_enum(
+            lhs_node: node.u.match_stmt.expr,
+            enom_type: enom.type,
+            conds,
+            mapping,
+            current_args
+        )
 
         if _case.body? {
             .o.push_scope(Scope::new(.o.scope()))
@@ -2485,6 +2554,11 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
         return
     }
 
+    let match_scope = Scope::new(.o.scope())
+    match_scope.is_for_match = true
+    .o.push_scope(match_scope)
+    defer .o.pop_scope()
+
     match expr_type.base {
         Enum => {
             .check_match_for_enum(expr_type.u.enom, node, is_expr, hint)
@@ -2538,19 +2612,65 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type = nul
     }
 }
 
+def TypeChecker::check_is_expr_in_if_condition(&this, cond: &AST) {
+    assert cond.type == Is, `Expected 'Is' node, got '{cond.type}'`
+
+    let is_expr = &cond.u.is_expr
+    let lhs = .check_expression(is_expr.lhs)
+
+    let mapping = Map<str, &MatchCond>::new()
+    defer mapping.free()
+
+    let current_args = Map<str, &Type>::new()
+    defer current_args.free()
+
+    .check_match_case_enum(
+        lhs_node: is_expr.lhs,
+        enom_type: lhs,
+        conds: is_expr.conds,
+        mapping,
+        current_args
+    )
+
+    for arg in current_args.iter() {
+        let var = Variable::new(arg.value)
+        var.sym = Symbol::from_local_variable(arg.key, var, arg.value.span)
+        .o.insert_into_scope_checked(var.sym)
+    }
+}
+
 def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type = null) {
     // NOTE: `check_expression_statement` will modify this
     node.returns = true
 
-    for branch in node.u.if_stmt.branches.iter() {
-        let cond_type = .check_expression(branch.cond, hint: .get_base_type(BaseType::Bool, node.span))
-        if cond_type? and cond_type.base != BaseType::Bool {
-            .error(Error::new_note(
-                branch.cond.span, "Condition must be a boolean",
-                `Got type '{cond_type.str()}'`
-            ))
+    let branches = node.u.if_stmt.branches
+    let num_is_expr = 0
+    let bad_span = Span::default()
+
+    for branch in branches.iter() {
+        match branch.cond.type {
+            Is => {
+                let scope = Scope::new(.scope())
+                scope.is_for_match = true  // This will be codegen'd as a match
+                .o.push_scope(scope)
+
+                // NOTE: The return type of this is always bool
+                .check_is_expr_in_if_condition(branch.cond)
+                .check_expression_statement(node, branch.body, is_expr, hint)
+                .o.pop_scope()
+                num_is_expr++
+            }
+            else => {
+                let cond_type = .check_expression(branch.cond, hint: .get_base_type(BaseType::Bool, node.span))
+                if cond_type? and cond_type.base != BaseType::Bool {
+                    .error(Error::new_note(
+                        branch.cond.span, "Condition must be a boolean",
+                        `Got type '{cond_type.str()}'`
+                    ))
+                }
+                .check_expression_statement(node, branch.body, is_expr, hint)
+            }
         }
-        .check_expression_statement(node, branch.body, is_expr, hint)
     }
 
     if node.u.if_stmt.els? {
@@ -2613,6 +2733,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
 def TypeChecker::check_while(&this, node: &AST) {
     let scope = Scope::new(.scope())
     scope.loop_count += 1
+    scope.parent_loop = node
 
     .o.push_scope(scope)
     let cond = node.u.loop.cond
@@ -2632,6 +2753,7 @@ def TypeChecker::check_while(&this, node: &AST) {
 def TypeChecker::check_for(&this, node: &AST) {
     let scope = Scope::new(.scope())
     scope.loop_count += 1
+    scope.parent_loop = node
     .o.push_scope(scope)
 
     let init = node.u.loop.init
@@ -2718,9 +2840,33 @@ def TypeChecker::check_statement(&this, node: &AST) {
         ASTType::Import => {
             .handle_import_statement(node)
         }
+        // TODO: Now that we have support for labelled break statements in C codegen,
+        //       add support for `break N;` to break out of N loops.
         ASTType::Break | ASTType::Continue => {
             if .scope().loop_count == 0 {
                 .error(Error::new(node.span, `{node.type} statement outside of loop`))
+            }
+            // FIXME: Handling the `break` from inside a match here is a little hacky.
+            //        We need to do this purely because we codegen to C, and in there
+            //        the `break` applies to the switch.
+            //        A better place for this logic is probably in codegen since that
+            //        should be the only place concerned with C-isms.
+            let target_loop: &AST = null
+            let needs_goto_break = false
+            for let scope = .o.scope(); scope?; scope = scope.parent {
+                if scope.parent_loop? {
+                    target_loop = scope.parent_loop
+                    break
+                }
+                if scope.is_for_match and node.type == Break {
+                    needs_goto_break = true
+                }
+            }
+            if not target_loop? {
+                .error(Error::new(node.span, "Internal error: Could not find loop for break/continue"))
+            } else {
+                node.u.target_loop = target_loop
+                target_loop.u.loop.needs_goto_break = needs_goto_break
             }
         }
         ASTType::If => .check_if(node, is_expr: false)

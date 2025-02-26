@@ -1,0 +1,19 @@
+/// out: "side_effect\nbar with val=42"
+
+enum Foo {
+    Bar(val: i32)
+    Bar2(val: i32)
+    Baz(x: str, y: i32)
+    None()
+}
+
+def get(): Foo {
+    println("side_effect")
+    return Foo::Bar(42)
+}
+
+def main() {
+    if get() is Bar(val) | Bar2(val) {
+        println(f"bar with val={val}")
+    }
+}
