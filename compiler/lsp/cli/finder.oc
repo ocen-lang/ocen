@@ -167,147 +167,7 @@ def Finder::find_in_call_args(&this, node: &AST, args: &Vector<&Argument>): bool
             }
             return true
         }
-        if .find_in_expression(arg.expr) return true
-    }
-    return false
-}
-
-def Finder::find_in_expression(&this, node: &AST): bool {
-    if not node? return false
-    match node.type {
-        IntLiteral | FloatLiteral | BoolLiteral |
-        StringLiteral | CharLiteral |
-        Null => return .find_in_literal(node)
-        CreateNew => return .find_in_expression(node.u.child)
-
-        FormatStringLiteral => {
-            let fmt = &node.u.fmt_str
-            for let i = 0; i < fmt.exprs.size; i += 1 {
-                if .find_in_expression(fmt.exprs.at(i)) return true
-            }
-            return .find_in_literal(node)
-        }
-
-        Identifier => return .find_in_identifier(node)
-        Member | TryMember => {
-            let rhs = node.u.member.rhs_name
-            // This is usually for autocompletion:
-            if not rhs? and .cmd == Completions and node.span.contains_loc(.loc) {
-                return .set_usage(node.u.member.lhs.resolved_symbol, node)
-            }
-
-            if .find_in_expression(node.u.member.lhs) return true
-            if node.u.member.rhs_span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol, node)
-            }
-        }
-        CreateClosure => return .find_in_function(node.u.closure)
-        NSLookup => {
-            // We actually want to point to the type, not the variable
-            if .find_in_expression(node.u.lookup.lhs) return true
-
-            // This is usually for autocompletion:
-            let rhs = node.u.member.rhs_name
-            if not rhs? and node.span.contains_loc(.loc) {
-                let res = .set_usage(node.u.member.lhs.resolved_symbol, node)
-                return res
-            }
-
-            if node.u.member.rhs_span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol, node)
-            }
-        }
-        BinaryOp => {
-            let lhs = node.u.binary.lhs
-            let rhs = node.u.binary.rhs
-            return .find_in_expression(lhs) or .find_in_expression(rhs)
-        }
-        UnaryOp => return .find_in_expression(node.u.unary.expr)
-        Defer | Yield => return .find_in_expression(node.u.child)
-        Call => {
-            let call = &node.u.call
-            if .find_in_expression(call.callee) return true
-            if .find_in_call_args(node, call.args) return true
-        }
-        Cast => {
-            if .find_in_expression(node.u.cast.lhs) return true
-            return .find_in_type(node.u.cast.parsed_to)
-        }
-        SizeOf => return .find_in_type(node.u.size_of_type)
-        If => {
-            let stmt = &node.u.if_stmt
-            for branch in stmt.branches.iter() {
-                if .find_in_expression(branch.cond) return true
-                if .find_in_statement(branch.body) return true
-            }
-            if stmt.els? and .find_in_statement(stmt.els) return true
-        }
-        Match => {
-            let stmt = &node.u.match_stmt
-            if .find_in_expression(stmt.expr) return true
-            for _case in stmt.cases.iter() {
-                for cond in _case.conds.iter() {
-                    if .find_in_expression(cond.expr) return true
-                    if cond.args? {
-                        for arg in cond.args.iter() {
-                            if .find_in_var(arg.var, node) return true
-                        }
-                    }
-                }
-                if _case.body? and .find_in_statement(_case.body) return true
-            }
-            if stmt.defolt? and .find_in_statement(stmt.defolt) return true
-        }
-        Break | Continue => {}
-        Assert => return .find_in_expression(node.u.assertion.expr)
-        Specialization => {
-            let spec = &node.u.spec
-            if .find_in_expression(spec.base) return true
-            for ty in spec.parsed_template_args.iter() {
-                if .find_in_type(ty) return true
-            }
-        }
-        Block => return .find_in_block(node)
-        OverloadedOperator => {
-            let op_span = node.u.operator_span
-            if op_span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol, node)
-            }
-        }
-        ArrayLiteral => {
-            for elem in node.u.array_literal.elements.iter() {
-                if .find_in_expression(elem) return true
-            }
-        }
-        VectorLiteral => {
-            for elem in node.u.vec_literal.elements.iter() {
-                if .find_in_expression(elem) return true
-            }
-            if node.u.vec_literal.start_span.contains_loc(.loc) {
-                if node.u.vec_literal.vec_struc? {
-                    return .set_usage(node.u.vec_literal.vec_struc.sym, node)
-                }
-            }
-        }
-        MapLiteral => {
-            for elem in node.u.map_literal.elements.iter() {
-                if .find_in_expression(elem.key) return true
-                if .find_in_expression(elem.value) return true
-            }
-            if node.u.map_literal.start_span.contains_loc(.loc) {
-                if node.u.map_literal.map_struc? {
-                    return .set_usage(node.u.map_literal.map_struc.sym, node)
-                }
-            }
-        }
-        Error => {
-            if node.span.contains_loc(.loc) {
-                return .set_usage(node.resolved_symbol, node)
-            }
-        }
-        else => {
-            if verbose println("Unhandled node type in Finder::find_in_expression: %s", node.type)
-        }
+        if .find_in_node(arg.expr) return true
     }
     return false
 }
@@ -346,22 +206,22 @@ def Finder::find_in_import_part(&this, base: &Symbol, part: &ImportPart, node: &
     Wildcard => false
 }
 
-def Finder::find_in_statement(&this, node: &AST): bool {
+def Finder::find_in_node(&this, node: &AST): bool {
+    if not node? return false
     match node.type {
         While | For => {
             let loop = &node.u.loop
-            if loop.init? and .find_in_statement(loop.init) return true
-            if loop.cond? and .find_in_expression(loop.cond) return true
-            if loop.step? and .find_in_expression(loop.step) return true
-            if loop.body? and .find_in_statement(loop.body) return true
+            if .find_in_node(loop.init) return true
+            if .find_in_node(loop.cond) return true
+            if .find_in_node(loop.step) return true
+            if .find_in_node(loop.body) return true
         }
         VarDeclaration => {
             let decl = node.u.var_decl
             if decl? and .find_in_var(decl, node) return true
-            if decl.default_value? and .find_in_expression(decl.default_value) return true
+            if .find_in_node(decl.default_value) return true
         }
-        Block => return .find_in_block(node)
-        Return => return node.u.ret.expr? and .find_in_expression(node.u.ret.expr)
+        Return => return .find_in_node(node.u.ret.expr)
         Import => {
             let path = node.u.import_path
             let prev = path.root_sym
@@ -375,7 +235,147 @@ def Finder::find_in_statement(&this, node: &AST): bool {
                 prev = part.resolved_symbol
             }
         }
-        else => return .find_in_expression(node)
+        IntLiteral | FloatLiteral | BoolLiteral |
+        StringLiteral | CharLiteral |
+        Null => return .find_in_literal(node)
+        CreateNew => return .find_in_node(node.u.child)
+
+        FormatStringLiteral => {
+            let fmt = &node.u.fmt_str
+            for let i = 0; i < fmt.exprs.size; i += 1 {
+                if .find_in_node(fmt.exprs.at(i)) return true
+            }
+            return .find_in_literal(node)
+        }
+
+        Identifier => return .find_in_identifier(node)
+        Member | TryMember => {
+            let rhs = node.u.member.rhs_name
+            // This is usually for autocompletion:
+            if not rhs? and .cmd == Completions and node.span.contains_loc(.loc) {
+                return .set_usage(node.u.member.lhs.resolved_symbol, node)
+            }
+
+            if .find_in_node(node.u.member.lhs) return true
+            if node.u.member.rhs_span.contains_loc(.loc) {
+                return .set_usage(node.resolved_symbol, node)
+            }
+        }
+        CreateClosure => return .find_in_function(node.u.closure)
+        NSLookup => {
+            // We actually want to point to the type, not the variable
+            if .find_in_node(node.u.lookup.lhs) return true
+
+            // This is usually for autocompletion:
+            let rhs = node.u.member.rhs_name
+            if not rhs? and node.span.contains_loc(.loc) {
+                let res = .set_usage(node.u.member.lhs.resolved_symbol, node)
+                return res
+            }
+
+            if node.u.member.rhs_span.contains_loc(.loc) {
+                return .set_usage(node.resolved_symbol, node)
+            }
+        }
+        BinaryOp => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            return .find_in_node(lhs) or .find_in_node(rhs)
+        }
+        UnaryOp => return .find_in_node(node.u.unary.expr)
+        Defer | Yield => return .find_in_node(node.u.child)
+        Call => {
+            let call = &node.u.call
+            if .find_in_node(call.callee) return true
+            if .find_in_call_args(node, call.args) return true
+        }
+        Cast => {
+            if .find_in_node(node.u.cast.lhs) return true
+            return .find_in_type(node.u.cast.parsed_to)
+        }
+        SizeOf => return .find_in_type(node.u.size_of_type)
+        If => {
+            let stmt = &node.u.if_stmt
+            for branch in stmt.branches.iter() {
+                if .find_in_node(branch.cond) return true
+                if .find_in_node(branch.body) return true
+            }
+            if .find_in_node(stmt.els) return true
+        }
+        Match => {
+            let stmt = &node.u.match_stmt
+            if .find_in_node(stmt.expr) return true
+            for _case in stmt.cases.iter() {
+                if .find_in_match_conds(_case.conds) return true
+                if .find_in_node(_case.body) return true
+            }
+            if .find_in_node(stmt.defolt) return true
+        }
+        Break | Continue => {}
+        Assert => return .find_in_node(node.u.assertion.expr)
+        Specialization => {
+            let spec = &node.u.spec
+            if .find_in_node(spec.base) return true
+            for ty in spec.parsed_template_args.iter() {
+                if .find_in_type(ty) return true
+            }
+        }
+        Block => return .find_in_block(node)
+        OverloadedOperator => {
+            let op_span = node.u.operator_span
+            if op_span.contains_loc(.loc) {
+                return .set_usage(node.resolved_symbol, node)
+            }
+        }
+        ArrayLiteral => {
+            for elem in node.u.array_literal.elements.iter() {
+                if .find_in_node(elem) return true
+            }
+        }
+        VectorLiteral => {
+            for elem in node.u.vec_literal.elements.iter() {
+                if .find_in_node(elem) return true
+            }
+            if node.u.vec_literal.start_span.contains_loc(.loc) {
+                if node.u.vec_literal.vec_struc? {
+                    return .set_usage(node.u.vec_literal.vec_struc.sym, node)
+                }
+            }
+        }
+        MapLiteral => {
+            for elem in node.u.map_literal.elements.iter() {
+                if .find_in_node(elem.key) return true
+                if .find_in_node(elem.value) return true
+            }
+            if node.u.map_literal.start_span.contains_loc(.loc) {
+                if node.u.map_literal.map_struc? {
+                    return .set_usage(node.u.map_literal.map_struc.sym, node)
+                }
+            }
+        }
+        Error => {
+            if node.span.contains_loc(.loc) {
+                return .set_usage(node.resolved_symbol, node)
+            }
+        }
+        Is => {
+            let is_expr = &node.u.is_expr
+            if .find_in_node(is_expr.lhs) return true
+            if .find_in_match_conds(is_expr.conds) return true
+        }
+    }
+    return false
+}
+
+def Finder::find_in_match_conds(&this, conds: &Vector<&MatchCond>): bool {
+    if not conds? return false
+    for cond in conds.iter() {
+        if .find_in_node(cond.expr) return true
+        if cond.args? {
+            for arg in cond.args.iter() {
+                if .find_in_var(arg.var, cond.expr) return true
+            }
+        }
     }
     return false
 }
@@ -384,7 +384,7 @@ def Finder::find_in_block(&this, node: &AST): bool {
     .scopes.push(node.u.block.scope)
     let stmts = node.u.block.statements
     for let i = 0; i < stmts.size; i += 1 {
-        if .find_in_statement(stmts.at(i)) return true
+        if .find_in_node(stmts.at(i)) return true
     }
 
     // If we got here, we didn't find the symbol in the block. However,
@@ -402,10 +402,10 @@ def Finder::find_in_type(&this, type: &Type): bool {
     match type.base {
         Pointer => return .find_in_type(type.u.ptr)
         Array => {
-            if type.u.arr.size_expr? and .find_in_expression(type.u.arr.size_expr) return true
+            if .find_in_node(type.u.arr.size_expr) return true
             return .find_in_type(type.u.arr.elem_type)
         }
-        Unresolved => return .find_in_expression(type.u.unresolved)
+        Unresolved => return .find_in_node(type.u.unresolved)
         UnresolvedTemplate => {
             let spec = type.u.unresolved_spec
             if .find_in_type(spec.base) return true
@@ -455,7 +455,7 @@ def Finder::find_in_function(&this, func: &Function): bool {
     if func.sym.span.contains_loc(.loc) {
         return .set_usage(func.sym, node: null)
     }
-    if .find_in_expression(func.name_ast) return true
+    if .find_in_node(func.name_ast) return true
 
     .scopes.push(func.scope)
     for param in func.params.iter() {
@@ -465,7 +465,7 @@ def Finder::find_in_function(&this, func: &Function): bool {
     let ret_type = func.parsed_return_type
     if ret_type? and .find_in_type(ret_type) return true
 
-    let res = func.body? and .find_in_statement(func.body)
+    let res = .find_in_node(func.body)
     .scopes.pop()
 
     return res
@@ -507,7 +507,7 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
     }
 
     for import_ in ns.imports.iter() {
-        if .find_in_statement(import_) return true
+        if .find_in_node(import_) return true
     }
 
     for vardecl in ns.variables.iter() {
@@ -515,7 +515,7 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         if var.sym.span.contains_loc(.loc) return .set_usage(var.sym, node: null)
 
         let init = vardecl.u.var_decl.default_value
-        if init? and .find_in_expression(init) return true
+        if .find_in_node(init) return true
     }
 
     for vardecl in ns.constants.iter() {
@@ -523,7 +523,7 @@ def Finder::find_in_program(&this, ns: &Namespace): bool {
         if var.sym.span.contains_loc(.loc) return .set_usage(var.sym, node: null)
 
         let init = vardecl.u.var_decl.default_value
-        if init? and .find_in_expression(init) return true
+        if .find_in_node(init) return true
     }
 
     .scopes.pop()
