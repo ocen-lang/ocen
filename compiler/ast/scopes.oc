@@ -239,9 +239,12 @@ struct Scope {
     items: &Map<str, &Symbol>
     defers: &Vector<&AST>
 
-    loop_count: u32
     can_yield: bool
     cur_func: &Function
+
+    loop_count: u32
+    parent_loop: &AST
+    is_for_match: bool
 
     parent: &Scope
 }
@@ -250,6 +253,7 @@ def Scope::new(parent: &Scope = null): &Scope {
     let scope = mem::alloc<Scope>()
     scope.items = Map<str, &Symbol>::new()
     scope.defers = Vector<&AST>::new()
+    scope.is_for_match = false
     if parent? {
         scope.loop_count = parent.loop_count
         scope.can_yield = parent.can_yield

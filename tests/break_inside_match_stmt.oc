@@ -1,0 +1,11 @@
+/// out: "0 1 2"
+
+def main() {
+    for let i = 0; i < 10; i++ {
+        match i {
+            3 => break
+            else => print(`{i} `)
+        }
+    }
+    println("")
+}

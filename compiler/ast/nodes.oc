@@ -20,6 +20,7 @@ enum ASTType {
     Error
     Identifier
     If
+    Is
     Import
     IntLiteral
     Member
@@ -76,6 +77,8 @@ union ASTUnion {
     fmt_str: FormatString
     size_of_type: &Type
     match_stmt: Match
+    is_expr: IsExpression
+    target_loop: &AST       // For break/continue
     spec: Specialization
     array_literal: ArrayLiteral
     vec_literal: VectorLiteral
@@ -453,6 +456,15 @@ struct Loop {
     cond: &AST
     step: &AST
     body: &AST
+
+    // This is true when we are trying to break out of a loop
+    // from an inner match statement. Since Ocen does not have
+    // a `break` from match, this is valid. However, when we
+    // codegen to C naively, the break ends up being for the generated
+    // switch statement, not the loop. So we need to generate a goto
+    // to break out of the loop.
+    needs_goto_break: bool
+    break_label: str = null
 }
 
 struct Cast {
@@ -502,6 +514,11 @@ struct Match {
     defolt_span: Span
     //! Span of `match` token
     match_span: Span
+}
+
+struct IsExpression {
+    lhs: &AST
+    conds: &Vector<&MatchCond>
 }
 
 struct Specialization {
