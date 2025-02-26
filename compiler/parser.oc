@@ -1236,13 +1236,28 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
     return root
 }
 
+def Parser::parse_is(&this, end_type: TokenType): &AST {
+    let lhs = .parse_relational(end_type)
+    if not .token_is_identifier("is") {
+        return lhs
+    }
+
+    assert .consume(Identifier).text.eq("is")
+    let conds = .parse_match_case_conds(end_type)
+    let prev_tok_span = .tokens[.curr - 1].span
+    let node = AST::new(Is, lhs.span.join(prev_tok_span))
+    node.u.is_expr.lhs = lhs
+    node.u.is_expr.conds = conds
+    return node
+}
+
 def Parser::parse_logical_not(&this, end_type: TokenType): &AST {
     if .token_is(TokenType::Not) {
         let tok = .consume(TokenType::Not)
         let expr = .parse_logical_not(end_type)
         return AST::new_unop(Not, tok.span.join(expr.span), expr)
     }
-    return .parse_relational(end_type)
+    return .parse_is(end_type)
 }
 
 def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
@@ -1491,6 +1506,8 @@ def Parser::parse_for_each(&this, start_span: Span): &AST {
     node.u.loop.cond = cond
     node.u.loop.step = step
     node.u.loop.body = body
+    node.u.loop.needs_goto_break = false
+    node.u.loop.break_label = null
     return node
 }
 
@@ -1529,6 +1546,8 @@ def Parser::parse_for(&this): &AST {
     node.u.loop.cond = cond
     node.u.loop.step = step
     node.u.loop.body = body
+    node.u.loop.needs_goto_break = false
+    node.u.loop.break_label = null
     return node
 }
 
@@ -1573,6 +1592,8 @@ def Parser::parse_statement(&this): &AST {
             node = AST::new(While, tok.span.join(body.span))
             node.u.loop.cond = cond
             node.u.loop.body = body
+            node.u.loop.needs_goto_break = false
+            node.u.loop.break_label = null
         }
         TokenType::Assert => {
             let start = .consume(TokenType::Assert)

@@ -1,4 +1,8 @@
+/// fail:  Expected enum variant, got: Variable
+
+// Old error
 /// fail: Operator `Equals` does not support non-trivial enum `Foo`
+
 
 enum Foo {
     x: i32

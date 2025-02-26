@@ -206,6 +206,12 @@ def MarkDeadCode::mark(&this, node: &AST) {
             .mark(node.u.binary.lhs)
             .mark(node.u.binary.rhs)
         }
+        Is => {
+            .mark(node.u.is_expr.lhs)
+            for cond in node.u.is_expr.conds.iter() {
+                .mark(cond.expr)
+            }
+        }
         Cast => {
             .mark(node.u.cast.lhs)
             .mark_type(node.u.cast.to)

@@ -1,0 +1,18 @@
+/// out: "0 1 2"
+
+enum Foo {
+    Ok(val: u32)
+    None
+}
+
+def main() {
+    for let i = 0; i < 10; i++ {
+        print(`{i} `)
+        let x = Foo::Ok(i)
+        if x is Ok(val) {
+            if val == 2 {
+                break
+            }
+        }
+    }
+}

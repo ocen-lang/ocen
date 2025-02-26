@@ -1,0 +1,15 @@
+/// out: "ok"
+
+enum Foo {
+    Bar(val: i32)
+    Baz(x: str, y: i32)
+}
+
+def main() {
+    let x = Foo::Bar(42)
+    if x == Bar {
+        println("ok")
+    } else {
+        println("error")
+    }
+}
