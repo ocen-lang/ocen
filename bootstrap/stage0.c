@@ -23091,14 +23091,13 @@ std_process_Output std_process_get_output(char *cmd, _ClosureTy_32 callback, boo
     close(fds[0]);
     if (fds[1] != 1) {
       dup2(fds[1], 1);
-      close(fds[1]);
     }
     if (capture_stderr) {
       if (fds[1] != 2) {
         dup2(fds[1], 2);
-        close(fds[1]);
       }
     }
+    close(fds[1]);
     if (((bool)cmd)) {
       char *args[4] = {shell, "-c", cmd, NULL};
       execvp(args[0], args);
@@ -23114,7 +23113,7 @@ std_process_Output std_process_get_output(char *cmd, _ClosureTy_32 callback, boo
   if (WIFEXITED(status)) {
     exit_code=WEXITSTATUS(status);
   } else {
-    return std_process_Output_from_error(-1);
+    exit_code=-1;
   }
   close(fds[1]);
   std_buffer_Buffer out = std_buffer_Buffer_make(16);

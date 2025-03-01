@@ -1,0 +1,18 @@
+/// out: "passed"
+
+import std::fs
+import std::process::{ get_output }
+
+def foo() {
+    print("0000")
+    fs::stdout.flush()
+    eprint("1111")
+    fs::stderr.flush()
+}
+
+def main() {
+    let res = get_output(callback: || => foo())
+    assert res.error == false
+    assert res.output.sv() == "00001111", `Unexpected output: {res.output}`
+    println("passed")
+}
