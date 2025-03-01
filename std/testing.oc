@@ -6,14 +6,13 @@ let tests_failed: u64 = 0
 
 def run_test(func: fn(), test_name: str) {
     // TODO: Timeout test?
-    let res = get_output(callback: || {
-        func()
-        fs::flush_stdio()
-    })
+    let res = get_output(callback: || => func())
     if res.error {
         tests_failed += 1
         eprintln(`[FAILED] {test_name} (code: {res.error_code})`)
-        eprintln(`Output: {res.output}`)
+        for line in res.output.sv().lines() {
+            eprintln(`    {line}`)
+        }
     } else {
         tests_passed += 1
         eprintln(`[PASSED] {test_name}`)
