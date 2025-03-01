@@ -41,17 +41,20 @@ def get_output(
 
     if pid == 0 {
         unistd::close(fds[0])
+
+        // Redirect stdout
         if fds[1] != 1 {
             unistd::dup2(fds[1], 1)
-            unistd::close(fds[1])
         }
 
+        // Redirect stderr if needed
         if capture_stderr {
             if fds[1] != 2 {
                 unistd::dup2(fds[1], 2)
-                unistd::close(fds[1])
             }
         }
+
+        unistd::close(fds[1])
 
         if cmd? {
             let args = [shell, "-c", cmd, null]
@@ -70,7 +73,7 @@ def get_output(
     if unistd::WIFEXITED(status) {
         exit_code = unistd::WEXITSTATUS(status)
     } else {
-        return Output::from_error(-1)
+        exit_code = -1
     }
 
     unistd::close(fds[1])
