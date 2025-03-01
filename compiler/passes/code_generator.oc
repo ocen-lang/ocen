@@ -1513,7 +1513,7 @@ def CodeGenerator::helper_gen_type(&this, top: &Type, cur: &Type, acc: str, is_f
 
         Pointer => {
             let needs_parens = (cur.u.ptr? and cur.u.ptr.base == BaseType::Array)
-            if cur.u.ptr.base == BaseType::FunctionPtr {
+            if is_func_def {
                 // No need to add extra * for function pointers
             } else if needs_parens {
                 acc.replace(`(*{acc})`)

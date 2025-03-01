@@ -1,0 +1,25 @@
+/// out: "baz\nbaz\n"
+
+namespace foo {
+    def foo(cb: @fn()) {
+        cb()
+    }
+}
+
+namespace bar {
+    def baz() {
+        println("baz")
+    }
+    def bar(cb: fn()) {
+        foo::foo(|| => cb())
+    }
+    def bar2() {
+        foo::foo(|| => baz())
+    }
+}
+
+
+def main() {
+    bar::bar(bar::baz)
+    bar::bar2()
+}
