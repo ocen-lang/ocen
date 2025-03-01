@@ -1,0 +1,11 @@
+import std::process::{get_output}
+
+def run_test(test: untyped_ptr, function_name: str) {
+    let output = get_output(callback: || =>  (test as fn())())
+    if output.error {
+        eprintln(f"{function_name}() => FAILED: {output.error_code}")
+        eprintln(f"{output.output}")
+    } else {
+        eprintln(f"{function_name}() => PASSED")
+    }
+}

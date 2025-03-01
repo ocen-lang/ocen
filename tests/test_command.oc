@@ -1,0 +1,20 @@
+def func() {
+    println("hello")
+}
+
+def main() {
+    func()
+}
+
+namespace foo{
+    [test]
+    def addition() {
+        assert 1 + 1 == 2
+    }
+
+    [test]
+    def addition2() {
+        assert 1 + 1 == 3
+    }
+}
+
