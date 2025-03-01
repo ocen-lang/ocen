@@ -30,15 +30,15 @@ volatile u64 __oc_bt_idx = 0;
   (void)__oc_bt_idx--;
 
 void dump_backtrace() {
-  fprintf(stderr, "--------------------------------------------------------------------------------\n");
   if (__oc_bt_idx == 0) {
-    fprintf(stderr, "[NOTE] Compile with -b flag to enable backtrace\n");
-  } else {
-    fprintf(stderr, "Backtrace:\n");
-    for (u64 i = 0; i < __oc_bt_idx; i++) {
-      fprintf(stderr, "  => %s\n", __oc_bt[i]);
-    }
+    return;
   }
+  fprintf(stderr, "--------------------------------------------------------------------------------\n");
+  fprintf(stderr, "Backtrace:\n");
+  for (u64 i = 0; i < __oc_bt_idx; i++) {
+    fprintf(stderr, "  => %s\n", __oc_bt[i]);
+  }
+
   fprintf(stderr, "--------------------------------------------------------------------------------\n");
 }
 

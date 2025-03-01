@@ -18,6 +18,7 @@ enum AttributeType {
     Operator        // [operator <op>]                          to specify an operator overload
     Atomic          // [atomic]                                 to mark a type as Atomic
     Alive           // [alive]                                  to explicitly mark a function as not dead
+    Test            // [test]                                   to mark a function as a test function
 
     Invalid         // used for error reporting
 }
@@ -34,6 +35,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "operator" => Operator
     "atomic" => Atomic
     "alive" => Alive
+    "test" => Test
     else => Invalid
 }
 
@@ -97,7 +99,7 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 .args.push("$")
             }
         }
-        Exits | VariadicFormat | Export | Atomic | Alive => {
+        Exits | VariadicFormat | Export | Atomic | Alive | Test => {
             if .args.size > 0 {
                 parser_for_errors.error(Error::new(
                     this.span,

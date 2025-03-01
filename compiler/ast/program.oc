@@ -189,6 +189,7 @@ struct Program {
     backtrace: bool
     keep_all_code: bool
     include_stdlib: bool
+    is_test_mode: bool
 
     // State
     uid: u32  // For generating unique IDs
@@ -353,6 +354,7 @@ struct CachedSymbols {
     std_map: &Symbol
     std_result: &Symbol
     std_option: &Symbol
+    std_run_test: &Symbol
 }
 
 def Program::iter_namespaces(&this): NSIterator {

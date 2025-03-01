@@ -1966,6 +1966,19 @@ def CodeGenerator::generate(&this): str {
         .gen_closure_func(clos)
     }
 
+    if .o.program.is_test_mode {
+        .out += "i32 main(void) {\n"
+        for ns in .o.program.iter_namespaces() {
+            for f in ns.functions.iter() {
+                if f.is_test_function {
+                    let run_test = .o.program.cached_symbols.std_run_test.out_name()
+                    .out += f"{run_test}({f.sym.out_name()}, \"{f.sym.display}\");\n"
+                }
+            }
+        }
+        .out += "}"
+    }
+
     return .out.str()
 }
 

@@ -306,7 +306,17 @@ def MarkDeadCode::run(program: &Program) {
     }
 
     // For constants and variables, mark their types as used
-    if main? {
+    if program.is_test_mode {
+
+        for ns in program.iter_namespaces() {
+            for f in ns.functions.iter() {
+                if f.is_test_function {
+                    pass.mark_function(f)
+                }
+            }
+        }
+        pass.mark_sym(program.cached_symbols.std_run_test)
+    } else if main? {
         pass.mark_function(main)
     }
     for sym in program.explicit_alive_symbols.iter() {

@@ -1877,6 +1877,7 @@ def Parser::parse_function(&this): &Function {
                 func.operator_overloads.push(op)
             }
             Alive => .program.explicit_alive_symbols.push(func.sym)
+            Test => func.is_test_function = true
             else => .error(Error::new(attr.span, f"Invalid attribute for function: {attr.type}"))
         }
     }
@@ -2898,5 +2899,8 @@ def Parser::parse_toplevel(program: &Program, filename: str, file_contents: str 
         } else {
             potential_main.free()
         }
+    }
+    if program.is_test_mode {
+        parser.import_from_stdlib("testing", Span::default())
     }
 }
