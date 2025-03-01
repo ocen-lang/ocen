@@ -15,6 +15,7 @@ import .passes::{ run_typecheck_passes, run_codegen_passes }
 import .docgen::{ generate_doc_json }
 import .lsp::{ this, cli, server }
 
+
 def usage(code: i32, full: bool) {
     println("Usage:")
     println("   ./ocen [--help] [compile-options] <file>")
@@ -179,11 +180,17 @@ def signal_handler(sig: i32) {
 }
 
 def main(argc: i32, argv: &str): i32 {
+    let is_test: bool = false
+
     shift_args(&argc, &argv) // skip the first argument
     if argc > 0 {
         match argv[0] {
             "lsp" => return lsp::cli::main(argc, argv)
             "lsp-server" => return lsp::server::main(argc, argv)
+            "test" =>  {
+                is_test = true
+                shift_args(&argc, &argv)
+            }
             else => {}
         }
     }
@@ -215,6 +222,7 @@ def main(argc: i32, argv: &str): i32 {
     program.gen_debug_info = debug
     program.include_stdlib = include_stdlib
     program.backtrace = backtrace
+    program.is_test_mode = is_test
     Parser::parse_toplevel(program, filename, file_contents: null, include_workspace_main: true)
 
     run_typecheck_passes(program)
@@ -229,7 +237,7 @@ def main(argc: i32, argv: &str): i32 {
         program.exit_with_errors_if_any()
         save_and_compile_code(program, code)
 
-        if run_after_compile then run_executable(argc, argv)
+        if run_after_compile or is_test then run_executable(argc, argv)
     }
     return 0
 }
