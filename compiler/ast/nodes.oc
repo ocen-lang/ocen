@@ -262,6 +262,7 @@ struct Function {
 
     is_variadic: bool
     is_variadic_format: bool
+    is_test_function: bool
     operator_overloads: &Vector<Operator>
 
     exits: bool
