@@ -271,7 +271,8 @@ def MarkDeadCode::run(program: &Program) {
     defer pass.free()
 
     let main = pass.find_main_function(program)
-    if not main? and program.explicit_alive_symbols.is_empty() {
+    let any_alive = main? or not program.explicit_alive_symbols.is_empty()
+    if not any_alive and not program.is_test_mode {
         println("[+] No alive functions found, not marking any functions as dead.")
         return
     }
@@ -307,7 +308,6 @@ def MarkDeadCode::run(program: &Program) {
 
     // For constants and variables, mark their types as used
     if program.is_test_mode {
-
         for ns in program.iter_namespaces() {
             for f in ns.functions.iter() {
                 if f.is_test_function {
@@ -316,10 +316,12 @@ def MarkDeadCode::run(program: &Program) {
             }
         }
         pass.mark_sym(program.cached_symbols.std_run_test)
-    } else if main? {
+        pass.mark_sym(program.cached_symbols.std_print_test_stats)
+
+    } else {
         pass.mark_function(main)
-    }
-    for sym in program.explicit_alive_symbols.iter() {
-        pass.mark_sym(sym)
+        for sym in program.explicit_alive_symbols.iter() {
+            pass.mark_sym(sym)
+        }
     }
 }

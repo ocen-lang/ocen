@@ -1926,6 +1926,22 @@ def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
     }
 }
 
+def CodeGenerator::gen_test_mode_main(&this) {
+    .out += "i32 main(void) {\n"
+    for ns in .o.program.iter_namespaces() {
+        for f in ns.functions.iter() {
+            if f.is_test_function {
+                let run_test = .o.program.cached_symbols.std_run_test.out_name()
+                .out += f"  {run_test}({f.sym.out_name()}, \"{f.sym.display}\");\n"
+            }
+        }
+    }
+    let print_test_stats = .o.program.cached_symbols.std_print_test_stats.out_name()
+    .out += f"  {print_test_stats}();\n"
+    .out += "  return 0;\n"
+    .out += "}\n"
+}
+
 def CodeGenerator::generate(&this): str {
     for include in .o.program.c_includes.iter() {
         .out <<= `#include "{include}"\n`
@@ -1967,16 +1983,7 @@ def CodeGenerator::generate(&this): str {
     }
 
     if .o.program.is_test_mode {
-        .out += "i32 main(void) {\n"
-        for ns in .o.program.iter_namespaces() {
-            for f in ns.functions.iter() {
-                if f.is_test_function {
-                    let run_test = .o.program.cached_symbols.std_run_test.out_name()
-                    .out += f"{run_test}({f.sym.out_name()}, \"{f.sym.display}\");\n"
-                }
-            }
-        }
-        .out += "}"
+        .gen_test_mode_main()
     }
 
     return .out.str()

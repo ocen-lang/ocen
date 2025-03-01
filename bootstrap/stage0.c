@@ -471,6 +471,7 @@ struct compiler_ast_program_CachedSymbols {
   compiler_ast_scopes_Symbol *std_result;
   compiler_ast_scopes_Symbol *std_option;
   compiler_ast_scopes_Symbol *std_run_test;
+  compiler_ast_scopes_Symbol *std_print_test_stats;
 };
 
 struct compiler_ast_program_Program {
@@ -2603,6 +2604,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_sym_def(compiler_passes_co
 void compiler_passes_code_generator_CodeGenerator_gen_enum_typedef(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom);
 void compiler_passes_code_generator_CodeGenerator_gen_struct_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Structure *struc);
 void compiler_passes_code_generator_CodeGenerator_gen_enum_def(compiler_passes_code_generator_CodeGenerator *this, compiler_ast_nodes_Enum *enom);
+void compiler_passes_code_generator_CodeGenerator_gen_test_mode_main(compiler_passes_code_generator_CodeGenerator *this);
 char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code_generator_CodeGenerator *this);
 compiler_passes_code_generator_CodeGenerator compiler_passes_code_generator_CodeGenerator_make(compiler_ast_program_Program *program);
 char *compiler_passes_code_generator_CodeGenerator_run(compiler_ast_program_Program *program);
@@ -4500,11 +4502,19 @@ void compiler_passes_register_types_RegisterTypes_register_cached_types(compiler
     if(!(some->u.enum_var->specific_fields->size==1)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:285:16: Assertion failed: `some.u.enum_var.specific_fields.size == 1`", NULL); }
     if(!(str_eq(std_vector_Vector__4_at(some->u.enum_var->specific_fields, 0)->sym->name, "val"))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:286:16: Assertion failed: `some.u.enum_var.specific_fields[0].sym.name.eq(\"val\")`", NULL); }
   }
-  compiler_ast_scopes_Symbol *std_test = compiler_passes_register_types_Finder_try_get(compiler_passes_register_types_Finder_try_get(compiler_passes_register_types_Finder_try_get(finder, "std"), "testing"), "run_test").sym;
-  if (((bool)std_test)) {
-    if(!(std_test->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:291:16: Assertion failed: `std_test.type == Function`", NULL); }
+  compiler_ast_scopes_Symbol *std_run_test = compiler_passes_register_types_Finder_try_get(compiler_passes_register_types_Finder_try_get(compiler_passes_register_types_Finder_try_get(finder, "std"), "testing"), "run_test").sym;
+  if (this->o->program->is_test_mode) {
+    if(!(((bool)std_run_test))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:291:16: Assertion failed: `std_run_test?`", "Did not import std::testing"); }
+    if(!(std_run_test->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:292:16: Assertion failed: `std_run_test.type == Function`", NULL); }
+    if(!(std_run_test->u.func->params->size==2)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:293:16: Assertion failed: `std_run_test.u.func.params.size == 2`", NULL); }
   }
-  this->o->program->cached_symbols=(compiler_ast_program_CachedSymbols){.fmt_string_fn=fmt_string_fn, .mem_alloc_fn=alloc_fn, .mem_allocator=allocator, .std_vector=std_vector, .std_map=std_map, .std_result=std_result, .std_option=std_option, .std_run_test=std_test};
+  compiler_ast_scopes_Symbol *std_print_test_stats = compiler_passes_register_types_Finder_try_get(compiler_passes_register_types_Finder_try_get(compiler_passes_register_types_Finder_try_get(finder, "std"), "testing"), "print_test_stats").sym;
+  if (this->o->program->is_test_mode) {
+    if(!(((bool)std_print_test_stats))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:298:16: Assertion failed: `std_print_test_stats?`", "Did not import std::testing"); }
+    if(!(std_print_test_stats->type==compiler_ast_scopes_SymbolType_Function)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:299:16: Assertion failed: `std_print_test_stats.type == Function`", NULL); }
+    if(!(std_print_test_stats->u.func->params->size==0)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/register_types.oc:300:16: Assertion failed: `std_print_test_stats.u.func.params.size == 0`", NULL); }
+  }
+  this->o->program->cached_symbols=(compiler_ast_program_CachedSymbols){.fmt_string_fn=fmt_string_fn, .mem_alloc_fn=alloc_fn, .mem_allocator=allocator, .std_vector=std_vector, .std_map=std_map, .std_result=std_result, .std_option=std_option, .std_run_test=std_run_test, .std_print_test_stats=std_print_test_stats};
 }
 
 void compiler_passes_register_types_RegisterTypes_create_namespace_scopes(compiler_passes_register_types_RegisterTypes *this, compiler_ast_program_Namespace *ns, compiler_ast_program_Namespace *parent) {
@@ -5166,7 +5176,8 @@ void compiler_passes_mark_dead_code_MarkDeadCode_mark_sym_as_dead_by_default(com
 void compiler_passes_mark_dead_code_MarkDeadCode_run(compiler_ast_program_Program *program) {
   compiler_passes_mark_dead_code_MarkDeadCode *pass = compiler_passes_mark_dead_code_MarkDeadCode_new(program);
   compiler_ast_nodes_Function *main = compiler_passes_mark_dead_code_MarkDeadCode_find_main_function(pass, program);
-  if (!(((bool)main)) && std_vector_Vector__9_is_empty(program->explicit_alive_symbols)) {
+  bool any_alive = (((bool)main) || !(std_vector_Vector__9_is_empty(program->explicit_alive_symbols)));
+  if (!(any_alive) && !(program->is_test_mode)) {
     printf("[+] No alive functions found, not marking any functions as dead.""\n");
     /* defers */
     compiler_passes_mark_dead_code_MarkDeadCode_free(pass);
@@ -5239,13 +5250,14 @@ void compiler_passes_mark_dead_code_MarkDeadCode_run(compiler_ast_program_Progra
       }
     }
     compiler_passes_mark_dead_code_MarkDeadCode_mark_sym(pass, program->cached_symbols.std_run_test);
-  } else if (((bool)main)) {
+    compiler_passes_mark_dead_code_MarkDeadCode_mark_sym(pass, program->cached_symbols.std_print_test_stats);
+  } else {
     compiler_passes_mark_dead_code_MarkDeadCode_mark_function(pass, main);
-  }
-  for (std_vector_Iterator__9 _i105 = std_vector_Vector__9_iter(program->explicit_alive_symbols); std_vector_Iterator__9_has_value(&_i105); std_vector_Iterator__9_next(&_i105)) {
-    compiler_ast_scopes_Symbol *sym = std_vector_Iterator__9_cur(&_i105);
-    {
-      compiler_passes_mark_dead_code_MarkDeadCode_mark_sym(pass, sym);
+    for (std_vector_Iterator__9 _i105 = std_vector_Vector__9_iter(program->explicit_alive_symbols); std_vector_Iterator__9_has_value(&_i105); std_vector_Iterator__9_next(&_i105)) {
+      compiler_ast_scopes_Symbol *sym = std_vector_Iterator__9_cur(&_i105);
+      {
+        compiler_passes_mark_dead_code_MarkDeadCode_mark_sym(pass, sym);
+      }
     }
   }
   /* defers */
@@ -11717,16 +11729,38 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum_def(compiler_passes_c
   compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(this, enom);
 }
 
+void compiler_passes_code_generator_CodeGenerator_gen_test_mode_main(compiler_passes_code_generator_CodeGenerator *this) {
+  std_buffer_Buffer_write_str(&this->out, "i32 main(void) {\n");
+  for (compiler_ast_program_NSIterator _i150 = compiler_ast_program_Program_iter_namespaces(this->o->program); compiler_ast_program_NSIterator_has_value(&_i150); compiler_ast_program_NSIterator_next(&_i150)) {
+    compiler_ast_program_Namespace *ns = compiler_ast_program_NSIterator_cur(&_i150);
+    {
+      for (std_vector_Iterator__7 _i151 = std_vector_Vector__7_iter(ns->functions); std_vector_Iterator__7_has_value(&_i151); std_vector_Iterator__7_next(&_i151)) {
+        compiler_ast_nodes_Function *f = std_vector_Iterator__7_cur(&_i151);
+        {
+          if (f->is_test_function) {
+            char *run_test = compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.std_run_test);
+            std_buffer_Buffer_write_str(&this->out, std_format("  %s(%s, \"%s\");\n", run_test, compiler_ast_scopes_Symbol_out_name(f->sym), f->sym->display));
+          }
+        }
+      }
+    }
+  }
+  char *print_test_stats = compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.std_print_test_stats);
+  std_buffer_Buffer_write_str(&this->out, std_format("  %s();\n", print_test_stats));
+  std_buffer_Buffer_write_str(&this->out, "  return 0;\n");
+  std_buffer_Buffer_write_str(&this->out, "}\n");
+}
+
 char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code_generator_CodeGenerator *this) {
-  for (std_vector_Iterator__1 _i150 = std_vector_Vector__1_iter(this->o->program->c_includes); std_vector_Iterator__1_has_value(&_i150); std_vector_Iterator__1_next(&_i150)) {
-    char *include = std_vector_Iterator__1_cur(&_i150);
+  for (std_vector_Iterator__1 _i152 = std_vector_Vector__1_iter(this->o->program->c_includes); std_vector_Iterator__1_has_value(&_i152); std_vector_Iterator__1_next(&_i152)) {
+    char *include = std_vector_Iterator__1_cur(&_i152);
     {
       std_buffer_Buffer_write_str_f(&this->out, std_format("#include \"%s\"\n", include));
     }
   }
   std_buffer_Buffer_write_str(&this->out, "\n");
-  for (std_map_Iterator__6 _i151 = std_map_Map__6_iter(this->o->program->c_embeds); std_map_Iterator__6_has_value(&_i151); std_map_Iterator__6_next(&_i151)) {
-    std_map_Item__6 *it = std_map_Iterator__6_cur(&_i151);
+  for (std_map_Iterator__6 _i153 = std_map_Map__6_iter(this->o->program->c_embeds); std_map_Iterator__6_has_value(&_i153); std_map_Iterator__6_next(&_i153)) {
+    std_map_Item__6 *it = std_map_Iterator__6_cur(&_i153);
     {
       std_buffer_Buffer_write_str_f(&this->out, std_format("/* Embed: %s */\n", it->key));
       std_buffer_Buffer_write_str(&this->out, it->value);
@@ -11736,24 +11770,24 @@ char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code
   std_buffer_Buffer_write_str(&this->out, "/* Constants */\n");
   compiler_passes_code_generator_CodeGenerator_gen_constants(this, this->o->program->global);
   std_buffer_Buffer_write_str(&this->out, "/* Typedefs */\n");
-  for (std_vector_Iterator__9 _i152 = std_vector_Vector__9_iter(this->o->program->ordered_symbols); std_vector_Iterator__9_has_value(&_i152); std_vector_Iterator__9_next(&_i152)) {
-    compiler_ast_scopes_Symbol *sym = std_vector_Iterator__9_cur(&_i152);
+  for (std_vector_Iterator__9 _i154 = std_vector_Vector__9_iter(this->o->program->ordered_symbols); std_vector_Iterator__9_has_value(&_i154); std_vector_Iterator__9_next(&_i154)) {
+    compiler_ast_scopes_Symbol *sym = std_vector_Iterator__9_cur(&_i154);
     {
       compiler_passes_code_generator_CodeGenerator_gen_sym_typedef(this, sym);
     }
   }
   std_buffer_Buffer_write_str(&this->out, "\n");
   std_buffer_Buffer_write_str(&this->out, "/* Structs */\n");
-  for (std_vector_Iterator__9 _i153 = std_vector_Vector__9_iter(this->o->program->ordered_symbols); std_vector_Iterator__9_has_value(&_i153); std_vector_Iterator__9_next(&_i153)) {
-    compiler_ast_scopes_Symbol *sym = std_vector_Iterator__9_cur(&_i153);
+  for (std_vector_Iterator__9 _i155 = std_vector_Vector__9_iter(this->o->program->ordered_symbols); std_vector_Iterator__9_has_value(&_i155); std_vector_Iterator__9_next(&_i155)) {
+    compiler_ast_scopes_Symbol *sym = std_vector_Iterator__9_cur(&_i155);
     {
       compiler_passes_code_generator_CodeGenerator_gen_sym_def(this, sym);
     }
   }
   std_buffer_Buffer_write_str(&this->out, "/* function declarations */\n");
   compiler_passes_code_generator_CodeGenerator_gen_function_decls(this, this->o->program->global);
-  for (std_vector_Iterator__7 _i154 = std_vector_Vector__7_iter(this->o->program->closures); std_vector_Iterator__7_has_value(&_i154); std_vector_Iterator__7_next(&_i154)) {
-    compiler_ast_nodes_Function *clos = std_vector_Iterator__7_cur(&_i154);
+  for (std_vector_Iterator__7 _i156 = std_vector_Vector__7_iter(this->o->program->closures); std_vector_Iterator__7_has_value(&_i156); std_vector_Iterator__7_next(&_i156)) {
+    compiler_ast_nodes_Function *clos = std_vector_Iterator__7_cur(&_i156);
     {
       compiler_passes_code_generator_CodeGenerator_gen_closure_func_decl(this, clos);
     }
@@ -11761,29 +11795,14 @@ char *compiler_passes_code_generator_CodeGenerator_generate(compiler_passes_code
   compiler_passes_code_generator_CodeGenerator_gen_global_variables(this, this->o->program->global);
   std_buffer_Buffer_write_str(&this->out, "/* function implementations */\n");
   compiler_passes_code_generator_CodeGenerator_gen_functions(this, this->o->program->global);
-  for (std_vector_Iterator__7 _i155 = std_vector_Vector__7_iter(this->o->program->closures); std_vector_Iterator__7_has_value(&_i155); std_vector_Iterator__7_next(&_i155)) {
-    compiler_ast_nodes_Function *clos = std_vector_Iterator__7_cur(&_i155);
+  for (std_vector_Iterator__7 _i157 = std_vector_Vector__7_iter(this->o->program->closures); std_vector_Iterator__7_has_value(&_i157); std_vector_Iterator__7_next(&_i157)) {
+    compiler_ast_nodes_Function *clos = std_vector_Iterator__7_cur(&_i157);
     {
       compiler_passes_code_generator_CodeGenerator_gen_closure_func(this, clos);
     }
   }
   if (this->o->program->is_test_mode) {
-    std_buffer_Buffer_write_str(&this->out, "i32 main(void) {\n");
-    for (compiler_ast_program_NSIterator _i156 = compiler_ast_program_Program_iter_namespaces(this->o->program); compiler_ast_program_NSIterator_has_value(&_i156); compiler_ast_program_NSIterator_next(&_i156)) {
-      compiler_ast_program_Namespace *ns = compiler_ast_program_NSIterator_cur(&_i156);
-      {
-        for (std_vector_Iterator__7 _i157 = std_vector_Vector__7_iter(ns->functions); std_vector_Iterator__7_has_value(&_i157); std_vector_Iterator__7_next(&_i157)) {
-          compiler_ast_nodes_Function *f = std_vector_Iterator__7_cur(&_i157);
-          {
-            if (f->is_test_function) {
-              char *run_test = compiler_ast_scopes_Symbol_out_name(this->o->program->cached_symbols.std_run_test);
-              std_buffer_Buffer_write_str(&this->out, std_format("%s(%s, \"%s\");\n", run_test, compiler_ast_scopes_Symbol_out_name(f->sym), f->sym->display));
-            }
-          }
-        }
-      }
-    }
-    std_buffer_Buffer_write_str(&this->out, "}");
+    compiler_passes_code_generator_CodeGenerator_gen_test_mode_main(this);
   }
   return std_buffer_Buffer_str(this->out);
 }
