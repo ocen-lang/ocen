@@ -26,6 +26,8 @@ class Result(Enum):
     SKIP_REPORT = 6
     RUNTIME_FAIL = 7
     LSP = 8
+    TEST_MODE_PASS = 9
+    TEST_MODE_FAIL = 10
 
 @dataclass(frozen=True)
 class LSPTest:
@@ -54,6 +56,8 @@ def get_expected(filename) -> Optional[Expected]:
                 return Expected(Result.SKIP_SILENTLY, None)
             if line == "compile":
                 return Expected(Result.COMPILE_SUCCESS, None)
+            if line == "test_mode_pass":
+                return Expected(Result.TEST_MODE_PASS, None)
             if line == "":
                 continue
 
@@ -76,6 +80,8 @@ def get_expected(filename) -> Optional[Expected]:
                 is_lsp = True
                 lsp_flags = value
                 break
+            if name == "test_mode_fail":
+                return Expected(Result.TEST_MODE_FAIL, value)
 
             print(f'[-] Invalid parameter in {filename}: {line}')
             break
@@ -145,13 +151,48 @@ def handle_lsp_test(compiler: str, num: int, path: Path, expected: Expected, deb
 
     return False, f"Expected LSP output does not match\n  expected: {wanted}\n       got: {output}", path
 
-def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
+def handle_test_mode(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
     if debug:
         print(f"[{num}] {path} || {exec_name}", flush=True)
+    process = run(
+        [compiler, "test", "-s", str(path), '-o', exec_name],
+        stdout=PIPE,
+        stderr=PIPE
+    )
+    out = (process.stdout.decode("utf-8") + process.stderr.decode("utf-8")).strip()
+    stdout = textwrap.indent(process.stdout.decode("utf-8"), " "*10).strip()
+    stderr = textwrap.indent(process.stderr.decode("utf-8"), " "*10).strip()
+    if "Tests failed" not in out:
+        return False, f"Tests did not finish running\n  code: {process.returncode}\n  stdout: {stdout}\n  stderr: {stderr}", path
 
+    try:
+        num_failed = int(re.search(r"Tests failed: (\d+)", out).group(1))
+        if num_failed == 0:
+            if expected.type == Result.TEST_MODE_PASS:
+                return True, "(Success)", path
+            return False, f"Expected some tests to fail, but all passed\n  stdout: {stdout}\n  stderr: {stderr}", path
+        else:
+            if expected.type == Result.TEST_MODE_PASS:
+                return False, f"Expected all tests to pass, but {num_failed} failed\n  stdout: {stdout}\n  stderr: {stderr}", path
+            if expected.value in out:
+                return True, "(Success)", path
+            return False, f"Expected '{expected.value}' in output, but did not find it\n  stdout: {stdout}\n  stderr: {stderr}", path
+
+
+    except Exception as e:
+        return False, f"Failed to parse test output. {e}\n  stdout: {stdout}\n  stderr: {stderr}", path
+
+def handle_test(compiler: str, num: int, path: Path, expected: Expected, debug: bool) -> Tuple[bool, str, Path]:
     if expected.type == Result.LSP:
         return handle_lsp_test(compiler, num, path, expected, debug)
+
+    if expected.type in (Result.TEST_MODE_PASS, Result.TEST_MODE_FAIL):
+        return handle_test_mode(compiler, num, path, expected, debug)
+
+    exec_name = f'./build/tests/{path.stem}-{num}'
+    if debug:
+        print(f"[{num}] {path} || {exec_name}", flush=True)
 
     process = run(
         [compiler, str(path), '-o', exec_name],

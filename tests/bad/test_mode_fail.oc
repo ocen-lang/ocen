@@ -1,0 +1,11 @@
+/// test_mode_fail: 1 == 2
+
+[test]
+def foo() {
+    assert 1 == 1
+}
+
+[test]
+def bar() {
+    assert 1 == 2
+}

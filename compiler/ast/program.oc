@@ -355,6 +355,7 @@ struct CachedSymbols {
     std_result: &Symbol
     std_option: &Symbol
     std_run_test: &Symbol
+    std_print_test_stats: &Symbol
 }
 
 def Program::iter_namespaces(&this): NSIterator {

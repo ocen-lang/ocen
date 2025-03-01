@@ -1,0 +1,22 @@
+import std::process::{ get_output }
+
+
+let tests_passed: u64 = 0
+let tests_failed: u64 = 0
+
+def run_test(func: fn(), test_name: str) {
+    // TODO: Timeout test?
+    let res = get_output(callback: || => func())
+    if res.error {
+        tests_failed += 1
+        println(`[FAILED] {test_name}`)
+    } else {
+        tests_passed += 1
+        println(`[PASSED] {test_name}`)
+    }
+}
+
+def print_test_stats() {
+    println(`Tests passed: {tests_passed}`)
+    println(`Tests failed: {tests_failed}`)
+}

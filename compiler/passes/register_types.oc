@@ -286,9 +286,18 @@ def RegisterTypes::register_cached_types(&this) {
         assert some.u.enum_var.specific_fields[0].sym.name.eq("val")
     }
 
-    let std_test = (finder/"std"/"testing"/"run_test").sym
-    if std_test? {
-        assert std_test.type == Function
+    let std_run_test = (finder/"std"/"testing"/"run_test").sym
+    if .o.program.is_test_mode {
+        assert std_run_test?, "Did not import std::testing"
+        assert std_run_test.type == Function
+        assert std_run_test.u.func.params.size == 2
+    }
+
+    let std_print_test_stats = (finder/"std"/"testing"/"print_test_stats").sym
+    if .o.program.is_test_mode {
+        assert std_print_test_stats?, "Did not import std::testing"
+        assert std_print_test_stats.type == Function
+        assert std_print_test_stats.u.func.params.size == 0
     }
 
     .o.program.cached_symbols = CachedSymbols(
@@ -299,7 +308,8 @@ def RegisterTypes::register_cached_types(&this) {
         std_map: std_map,
         std_result: std_result,
         std_option: std_option,
-        std_run_test: std_test,
+        std_run_test: std_run_test,
+        std_print_test_stats: std_print_test_stats,
     )
 }
 

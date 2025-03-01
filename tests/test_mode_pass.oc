@@ -1,0 +1,18 @@
+/// test_mode_pass
+
+[test]
+def foo() {
+    assert 1 == 1
+}
+
+def baz(): i32 => 2
+
+[test]
+def bar() {
+    assert baz() == 2
+}
+
+// Should not run
+def main() {
+    assert false
+}
