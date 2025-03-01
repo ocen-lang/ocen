@@ -288,3 +288,13 @@ def DirectoryIterator::cur(&this): DirectoryEntry {
     }
     return DirectoryEntry(type, name)
 }
+
+[extern] let stdout: &File
+[extern] let stderr: &File
+[extern] let stdin: &File
+
+def flush_stdio() {
+    stdout.flush()
+    stderr.flush()
+    stdin.flush()
+}
