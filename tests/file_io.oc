@@ -3,8 +3,8 @@
 import std::fs
 
 def main() {
-    fs::write_file_str("hello.txt", "Hello, world!")
-    let s = fs::read_file("hello.txt")
+    fs::write_file_str("/tmp/hello.txt", "Hello, world!")
+    let s = fs::read_file("/tmp/hello.txt")
     println(`{s.str()}`)
     s.free()
 }

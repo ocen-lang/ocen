@@ -10,13 +10,63 @@ cat > compiler/doc.oc << EOF
 //*
 //* Nothing to see here
 
-import std::{ vector, map, compact_map, heap, deque, set, linkedlist, variadic, bencode }
-import std::{ buffer, image, json, math, complex, fft, random, curl, og, setjmp, huffman }
-import std::{ value, vec, glut, socket, sort, thread, video_renderer, sv, fs, zlib, time }
-import std::traits::{ hash, eq, compare }
-import std::{ image::draw, hash::sha1, hash::sha256 }
+import std::{
+    bencode,
+    bitio,
+    buffer,
+    bump_alloc,
+    compact_map,
+    complex,
+    curl,
+    deque,
+    disjoint_set,
+    fcntl,
+    fft,
+    fs,
+    gc,
+    glut,
+    hash::sha1,
+    hash::sha256,
+    heap,
+    huffman,
+    image::{ draw, png, ppm, qoi },
+    json,
+    linkedlist,
+    logging,
+    map,
+    math,
+    mem,
+    midi,
+    og,
+    option,
+    process,
+    random,
+    readline,
+    result,
+    set,
+    setjmp,
+    signal,
+    socket,
+    sort,
+    sv,
+    testing,
+    thread,
+    time,
+    traits::{ hash, eq, compare },
+    value,
+    variadic,
+    vec,
+    vector,
+    video_renderer,
+    zlib,
+}
 
-import std::sdl::{ ttf, image as sdl_img, mixer as sdl_mixer, gfx as sdl_gfx }
+import std::sdl::{
+    ttf,
+    image as sdl_img,
+    mixer as sdl_mixer,
+    gfx as sdl_gfx
+}
 
 // Compiler imports
 
