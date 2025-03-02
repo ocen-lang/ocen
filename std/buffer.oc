@@ -4,7 +4,7 @@
 //! It can be used as a string builder, or as a string itself. It is also useful
 //! to hold binary data.
 
-import std::libc::{ memcpy, memset, exit }
+import std::libc::{ memcpy, memset, exit, memmove }
 import std::mem
 import std::sv::{ SV }
 import std::{ Endian }
@@ -187,6 +187,15 @@ def Buffer::write_u8(&this, value: u8) {
     .resize_if_necessary(.size + 1)
     .data[.size] = value
     .size += 1
+}
+
+//* Inserts the contents of another buffer at the given index
+def Buffer::insert(&this, index: u32, buf: &Buffer) {
+    assert index <= .size, "Index out of bounds"
+    .resize_if_necessary(new_size: .size + buf.size)
+    memmove(.data + index + buf.size, .data + index, .size - index)
+    memcpy(.data + index, buf.data, buf.size)
+    .size += buf.size
 }
 
 //* Get a BytesReader object for reading Binary data

@@ -70,3 +70,5 @@ def directory_exists(path: str): bool {
     closedir(dir)
     return true
 }
+
+let current_executable_path: str = null

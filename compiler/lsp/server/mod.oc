@@ -2,6 +2,7 @@ import std::fs
 import std::time
 import std::sv::{ SV }
 import std::mem
+import std::libc
 import std::json
 import std::value::{ Value }
 import std::gc
@@ -10,6 +11,7 @@ import std::compact_map::{ Map }
 import std::process::{ this, Output }
 
 import @lsp::cli
+import @utils
 
 // TODO: put in stdlib
 [extern] def setvbuf(file: &fs::File, buffer: str, mode: i32, size: u64): i32
@@ -115,6 +117,8 @@ struct LSPServer {
     to_validate_req: &Value = null
 }
 
+const USE_CMD_MODE: bool = true
+let tmp_file_count: u32 = 0
 
 def LSPServer::run_lsp_backend_raw(
     &this,
@@ -126,29 +130,53 @@ def LSPServer::run_lsp_backend_raw(
     let uri = loc.uri
     let path = loc.path
 
-    let args = $["lsp", lsp_cmd]
-    if include_pos {
-        args += `{loc.row+1}`
-        args += `{loc.col+1}`
-    }
+    let cmd: str = null
 
-    let callback: @fn() = null
-
-    if .documents.contains(uri) {
-        let contents = .documents[uri].text.str()
-        args += "--show-path"
-        args += `{path}`
-        callback = || {
-            cli::main(args.size as i32, args.data, contents)
+    let proc_out = if USE_CMD_MODE {
+        let cmd_buf = Buffer::make()
+        cmd_buf += `{utils::current_executable_path} lsp {lsp_cmd} `
+        if include_pos {
+            cmd_buf += `{loc.row+1} `
+            cmd_buf += `{loc.col+1} `
         }
+
+        if .documents.contains(uri) {
+            let contents = .documents[uri].text
+            let tmp_path = `/tmp/tmp_file_{tmp_file_count++}.oc`
+            fs::write_file(tmp_path, contents)
+            cmd_buf += `{tmp_path} --show-path {path}`
+
+        } else {
+            cmd_buf += path
+        }
+
+        lsp_log(`Running command: {cmd_buf.str()}`)
+        // cmd_buf.
+        yield process::get_output(cmd: cmd_buf.str())
+
     } else {
-        args += `{path}`
-        callback = || {
-            cli::main(args.size as i32, args.data)
+        let callback: @fn() = null
+        let args = $["lsp", lsp_cmd]
+        if include_pos {
+            args += `{loc.row+1}`
+            args += `{loc.col+1}`
         }
-    }
 
-    let proc_out = process::get_output(callback: callback)
+        if .documents.contains(uri) {
+            let contents = .documents[uri].text.str()
+            args += "--show-path"
+            args += `{path}`
+            callback = || {
+                cli::main(args.size as i32, args.data, contents)
+            }
+        } else {
+            args += `{path}`
+            callback = || {
+                cli::main(args.size as i32, args.data)
+            }
+        }
+        yield process::get_output(callback: callback)
+    }
 
     if proc_out.error {
         lsp_log(f"Failed to run LSP CLI: {proc_out.error_code}")
@@ -233,7 +261,7 @@ def LSPServer::handle_initialize(&this, req: &Value) {
 
     let result = Value::new_dict(${
         "capabilities": Value::new_dict(${
-            "textDocumentSync": Value::new_int(1),  // Full sync
+            "textDocumentSync": Value::new_int(2),  // Incremental
             "completionProvider": Value::new_dict(${
                 "resolveProvider": Value::new_bool(false),
                 "triggerCharacters": Value::new_list($[
@@ -304,13 +332,15 @@ def LSPServer::handle_validate_document(&this) {
         if out.contains("extra_info") {
             let extra_info = out["extra_info"]
             let orig_uri = req["params"]["textDocument"]["uri"]
-            res["relatedInformation"] = Value::new_dict(${
-                "location": Value::new_dict(${
-                    "uri": get_uri(orig_uri, extra_info),
-                    "range": get_range(extra_info["span"]),
-                }),
-                "message": out["extra_info"]["message"],
-            })
+            res["relatedInformation"] = Value::new_list($[
+                Value::new_dict(${
+                    "location": Value::new_dict(${
+                        "uri": get_uri(orig_uri, extra_info),
+                        "range": get_range(extra_info["span"]),
+                    }),
+                    "message": out["extra_info"]["message"],
+                })
+            ])
         }
         diagnostics += res
     }
@@ -545,18 +575,76 @@ def LSPServer::handle_did_open(&this, req: &Value) {
     .to_validate_req = req
 }
 
+def LSPServer::handle_buffer_change(&this, buf: &Buffer, range: &Value, new_text: &Buffer) {
+    let start_line_idx = range["start"]["line"].as_int()      as u32
+    let start_col_idx  = range["start"]["character"].as_int() as u32
+    let end_line_idx   = range["end"]["line"].as_int()        as u32
+    let end_col_idx    = range["end"]["character"].as_int()   as u32
+
+    // Need to convert start / end positions to byte offsets
+    let cur_line = 0
+    let cur_col = 0
+    let start_idx = 0xdeadbeef
+    let end_idx = 0xdeadbeef
+    // FIXME: account for utf8 characters in column?
+    for let i = 0; i < buf.size; i++ {
+        let c = buf.data[i] as char
+        if cur_line == start_line_idx and cur_col == start_col_idx {
+            start_idx = i
+        }
+        if cur_line == end_line_idx and cur_col == end_col_idx {
+            end_idx = i
+            break
+        }
+        if c == '\n' {
+            cur_line++
+            cur_col = 0
+        } else {
+            cur_col++
+        }
+    }
+
+    if start_idx == 0xdeadbeef or end_idx == 0xdeadbeef {
+        lsp_log("Invalid range, ignoring change\n")
+        return
+    }
+
+    // Replace
+    let removed_size = end_idx - start_idx
+    let new_size = buf.size - removed_size + new_text.size
+
+    buf.resize_if_necessary(new_size)
+    let new_end_idx = start_idx + new_text.size
+
+    if new_text.size != removed_size {
+        libc::memmove(
+            buf.data + new_end_idx,
+            buf.data + end_idx,
+            buf.size - end_idx)
+    }
+    libc::memcpy(buf.data + start_idx, new_text.data, new_text.size)
+    buf.size = new_size
+}
+
 def LSPServer::handle_did_change(&this, req: &Value) {
-    lsp_log("Handling textDocument/didChange request\n");
+    lsp_log("Handling textDocument/didChange request\n")
     let params = req["params"]
     let uri = params["textDocument"]["uri"].as_str()
-    lsp_log(`[SERVER] Changing document: {uri}\n`);
+    lsp_log(`[SERVER] Changing document: {uri}\n`)
     assert params.is(Dictionary)
 
     let changes = params["contentChanges"].as_list()
-    assert changes.size == 1
-    let text = params["contentChanges"][0]["text"].as_str()
-    unescape_buf(&text)
-    .documents[uri.sv()] = TextDocument(text)
+    for change in changes.iter() {
+        let text = change["text"].as_str()
+        unescape_buf(&text)
+        let it = .documents.get_item(uri.sv())
+        if not it? {
+            lsp_log(`[SERVER] [INTERNAL_ERROR] Document not found: {uri}\n...`)
+            .to_validate_req = req
+            return
+        }
+        .handle_buffer_change(&it.value.text, change["range"], &text)
+    }
 
     .to_validate_req = req
 }
@@ -593,12 +681,12 @@ def LSPServer::handle_completion(&this, req: &Value) {
                     else       => Value::new_int(1), // Text
                 },
                 "data": Value::new_int(index++),
-                "labelDetails": if {
-                    comp.contains("labelDetails") => Value::new_dict(${
-                        "detail": comp["labelDetails"],
-                    }),
-                    else => Value::new(Null)
-                },
+                // "labelDetails": if {
+                //     comp.contains("labelDetails") => Value::new_dict(${
+                //         "description": comp["labelDetails"],
+                //     }),
+                //     else => Value::new(Null)
+                // },
                 "documentation": if {
                     comp.contains("documentation") => comp["documentation"],
                     else => Value::new(Null)
@@ -681,8 +769,11 @@ def main_loop() {
 
     while true {
         defer {
-            gc::collect()
-            gc::print_stats()
+            // Only run GC if we've allocated more than 10MB
+            if gc::impl::live_alloc_bytes > 10_000_000 {
+                gc::collect()
+                gc::print_stats()
+            }
         }
 
         // TODO: don't error, just continue
