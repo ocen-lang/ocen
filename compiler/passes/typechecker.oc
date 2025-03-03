@@ -3131,7 +3131,7 @@ def TypeChecker::resolve_doc_links(&this, sym: &Symbol) {
                     // FIXME: Handle the case where the symbol is templated, for instance `Vec2<f32>`
                     if typ.template_instance? {
                         .error(Error::new_note(
-                            span, `Cannot link directly to specialezed type '{part}'`,
+                            span, `Cannot link directly to specialized type '{part}'`,
                             "Try doing `{{A}}<{{B}}>` instead of `{{A<B>}}`"
                         ))
                         return

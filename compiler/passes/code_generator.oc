@@ -606,7 +606,6 @@ def CodeGenerator::gen_call(&this, node: &AST, is_expr: bool) {
         .out += "})"
     }
 
-    // FIXME: Re-do abomination of hacky-IO with some sort of variadics?
     if callee.type == Identifier {
         let matched = match callee.u.ident.name {
             "print" => .gen_internal_print(node, newline_after: false, is_stderr: false)

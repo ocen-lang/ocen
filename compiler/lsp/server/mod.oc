@@ -15,9 +15,6 @@ import @utils
 
 // TODO: put in stdlib
 [extern] def setvbuf(file: &fs::File, buffer: str, mode: i32, size: u64): i32
-[extern] const stdin: &fs::File
-[extern] const stdout: &fs::File
-[extern] const stderr: &fs::File
 [extern] const _IONBF: i32
 [extern] def fgets(buf: str, size: u32, file: &fs::File): str
 
@@ -25,7 +22,7 @@ def read_message(): str {
     let header: [char; 1024]
     let content_length = 0
 
-    while fgets(header, 1024, stdin)? {
+    while fgets(header, 1024, fs::stdin)? {
         let sv = SV::from_str(header)
         if sv.starts_with_str("Content-Length: ") {
             sv.chop_by_delim(' ')
@@ -41,7 +38,7 @@ def read_message(): str {
     }
 
     let msg = mem::alloc<char>(content_length+1)
-    stdin.read(msg, content_length)
+    fs::stdin.read(msg, content_length)
     msg[content_length] = '\0'
     return msg
 }
@@ -49,8 +46,8 @@ def read_message(): str {
 def send_message(content: &Value) {
     let content_str = json::serialize(content)
     let header = `Content-Length: {content_str.size}\r\n\r\n`
-    stdout.write(header, header.len())
-    stdout.write(content_str.str(), content_str.size)
+    fs::stdout.write(header, header.len())
+    fs::stdout.write(content_str.str(), content_str.size)
 }
 
 def send_response(req: &Value, result: &Value) {
@@ -117,7 +114,7 @@ struct LSPServer {
     to_validate_req: &Value = null
 }
 
-const USE_CMD_MODE: bool = true
+const USE_CMD_MODE: bool = false
 let tmp_file_count: u32 = 0
 
 def LSPServer::run_lsp_backend_raw(
@@ -307,10 +304,10 @@ def LSPServer::handle_validate_document(&this) {
     //       the next validate won't be called unless a user changes the file,
     //       which causes the errors to be unsynced with the file.
 
-    let cur_time = time::get_time_monotonic_ms()
-    if cur_time - .last_validated < .validate_throttle_ms {
-        return
-    }
+    // let cur_time = time::get_time_monotonic_ms()
+    // if cur_time - .last_validated < .validate_throttle_ms {
+    //     return
+    // }
 
     let loc = get_location(req)
     let out = .run_lsp_backend_raw(loc, "--validate", include_pos: false)
@@ -790,8 +787,8 @@ def main_loop() {
 def main(argc: i32, argv: &str): i32 {
     gc::init(&argv)
 
-    setvbuf(stdin, null, _IONBF, 0)
-    setvbuf(stdout, null, _IONBF, 0)
+    setvbuf(fs::stdin, null, _IONBF, 0)
+    setvbuf(fs::stdout, null, _IONBF, 0)
 
     main_loop()
 

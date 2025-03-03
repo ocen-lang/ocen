@@ -75,7 +75,6 @@ def display_message_span(type: MessageType, span: Span, msg: str, line_after: bo
     let max_line = span.end.line + around_offset
     max_line = max_line.min(min_line + 10)  // Don't print more than 10 lines
 
-    // TODO: Use SVs here instead of strsep
     let line_no = 1
     for line in contents.sv().lines() {
         if line_no > max_line break
