@@ -72,7 +72,7 @@ function update_shell() {
         fi
 
         echo "export OCEN_ROOT=$CLONE_DIR" >> $RC_FILE
-        echo "export PATH=\$OCEN_ROOT/bin:\$PATH" >> $RC_FILE
+        echo "export PATH=\$OCEN_ROOT/bootstrap/:\$PATH" >> $RC_FILE
     fi
 }
 
