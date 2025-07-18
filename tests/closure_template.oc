@@ -1,0 +1,30 @@
+/// out: "1 2 3 4 7"
+
+import std::sort::sort_by
+import std::vector::Vector
+import std::traits::compare
+
+struct Bar {
+    x: i32
+}
+
+struct Foo<T> {}
+
+def Foo::compare(a: T, b: T): i8 {
+    return a.x.compare(b.x)
+}
+
+struct Baz<T> {}
+
+def Baz::run(&this, vec: &Vector<T>) {
+    sort_by<T>(vec.data, vec.size, |a,b| => Foo<T>::compare(a, b))
+}
+
+def main() {
+    let vec = $[ Bar(7), Bar(1), Bar(2),Bar(3),Bar(4) ]
+    let baz = Baz<Bar>()
+    baz.run(vec)
+    for x in vec.iter() {
+        print(`{x.x} `)
+    }
+}

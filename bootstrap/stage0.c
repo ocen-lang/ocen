@@ -9157,9 +9157,7 @@ switch ((hint->base)) {
             if (cur_func->kind==compiler_ast_nodes_FunctionKind_Closure) {
               compiler_ast_scopes_Symbol *tmp = compiler_ast_scopes_Scope_lookup_recursive(scope->cur_func->closure_scope, name);
               if (!(((bool)tmp))) {
-              } else if (tmp->type != compiler_ast_scopes_SymbolType_Variable) {
-                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can't close over non-variable %s", name)));
-              } else {
+              } else if (tmp->type==compiler_ast_scopes_SymbolType_Variable) {
                 std_map_Item__5 *it = std_map_Map__5_get_item(cur_func->closed_vars, name);
                 if (((bool)it)) {
                   res=it->value;
@@ -9169,6 +9167,10 @@ switch ((hint->base)) {
                   std_map_Map__5_insert(cur_func->closed_vars, name, closed_sym);
                   res=closed_sym;
                 }
+              } else if (tmp->type==compiler_ast_scopes_SymbolType_TypeDef) {
+                res=tmp;
+              } else {
+                compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(node->span, std_format("Can't close over non-variable %s (%s)", name, compiler_ast_scopes_SymbolType_dbg(tmp->type))));
               }
             }
           }
@@ -9320,7 +9322,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_constructor(c
   node->u.call.call_type=compiler_ast_nodes_CallType_StructConstructor;
   compiler_ast_nodes_AST *callee = node->u.call.callee;
   compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
-  if(!(type_sym->type==compiler_ast_scopes_SymbolType_Structure)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:710:12: Assertion failed: `type_sym.type == Structure`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
+  if(!(type_sym->type==compiler_ast_scopes_SymbolType_Structure)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:714:12: Assertion failed: `type_sym.type == Structure`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
   compiler_ast_nodes_Structure *struc = type_sym->u.struc;
   std_vector_Vector__8 *params = struc->fields;
   if (struc->is_union) {
@@ -9335,7 +9337,7 @@ compiler_types_Type *compiler_passes_typechecker_TypeChecker_check_enum_construc
   node->u.call.call_type=compiler_ast_nodes_CallType_EnumConstructor;
   compiler_ast_nodes_AST *callee = node->u.call.callee;
   compiler_ast_scopes_Symbol *type_sym = compiler_ast_scopes_Symbol_remove_alias(callee->resolved_symbol);
-  if(!(type_sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:729:12: Assertion failed: `type_sym.type == EnumVariant`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
+  if(!(type_sym->type==compiler_ast_scopes_SymbolType_EnumVariant)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:733:12: Assertion failed: `type_sym.type == EnumVariant`", std_format("Got non-struct type in check_constructor: %s", compiler_ast_scopes_SymbolType_dbg(type_sym->type))); }
   compiler_ast_nodes_EnumVariant *variant = type_sym->u.enum_var;
   compiler_ast_nodes_Enum *enom = variant->parent;
   u32 num_expected_fields = compiler_ast_nodes_EnumVariant_num_fields(variant);
@@ -9398,7 +9400,7 @@ void compiler_passes_typechecker_TypeChecker_check_call_args_labelled(compiler_p
   }
   for (u32 i = start; i < params->size; i++) {
     compiler_ast_nodes_Variable *param = std_vector_Vector__8_at(params, i);
-    if(!(((bool)param->sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:809:16: Assertion failed: `param.sym?`", std_format("Expected a symbol for parameter %u", i)); }
+    if(!(((bool)param->sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:813:16: Assertion failed: `param.sym?`", std_format("Expected a symbol for parameter %u", i)); }
     std_map_Item__10 *item = std_map_Map__10_get_item(kwargs, param->sym->name);
     if (((bool)item)) {
       std_vector_Vector__11_push(new_args, item->value);
@@ -10805,7 +10807,7 @@ switch ((rhs_node->type)) {
         if (((bool)hint) && hint->base==compiler_types_BaseType_Pointer) {
           compiler_types_Type *ptr = hint->u.ptr;
           if ((((bool)ptr) && ((bool)ptr->template_instance)) && ptr->template_instance->parent==std_map) {
-            if(!(ptr->template_instance->args->size==2)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:1984:28: Assertion failed: `ptr.template_instance.args.size == 2`", NULL); }
+            if(!(ptr->template_instance->args->size==2)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:1988:28: Assertion failed: `ptr.template_instance.args.size == 2`", NULL); }
             key_hint_type=std_vector_Vector__0_at(ptr->template_instance->args, 0);
             value_hint_type=std_vector_Vector__0_at(ptr->template_instance->args, 1);
           }
@@ -10874,7 +10876,7 @@ switch ((rhs_node->type)) {
         if (((bool)hint) && hint->base==compiler_types_BaseType_Pointer) {
           compiler_types_Type *ptr = hint->u.ptr;
           if ((((bool)ptr) && ((bool)ptr->template_instance)) && ptr->template_instance->parent==std_vector) {
-            if(!(ptr->template_instance->args->size==1)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2066:28: Assertion failed: `ptr.template_instance.args.size == 1`", NULL); }
+            if(!(ptr->template_instance->args->size==1)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2070:28: Assertion failed: `ptr.template_instance.args.size == 1`", NULL); }
             hint_elem_type=std_vector_Vector__0_at(ptr->template_instance->args, 0);
           }
         }
@@ -11072,7 +11074,7 @@ switch ((node->etype->base)) {
 }
 
 void compiler_passes_typechecker_TypeChecker_check_match_case_enum(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *lhs_node, compiler_types_Type *enom_type, std_vector_Vector__1 *conds, std_map_Map__1 *mapping, std_map_Map__2 *current_args) {
-  if(!(enom_type->base==compiler_types_BaseType_Enum)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2272:12: Assertion failed: `enom_type.base == Enum`", NULL); }
+  if(!(enom_type->base==compiler_types_BaseType_Enum)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2276:12: Assertion failed: `enom_type.base == Enum`", NULL); }
   compiler_ast_nodes_Enum *enom = enom_type->u.enom;
   std_map_Map__2_clear(current_args);
   for (u32 i = 0; i < conds->size; i++) {
@@ -11390,7 +11392,7 @@ switch ((expr_type->base)) {
 }
 
 void compiler_passes_typechecker_TypeChecker_check_is_expr_in_if_condition(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *cond) {
-  if(!(cond->type==compiler_ast_nodes_ASTType_Is)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2616:12: Assertion failed: `cond.type == Is`", std_format("Expected 'Is' node, got '%s'", compiler_ast_nodes_ASTType_dbg(cond->type))); }
+  if(!(cond->type==compiler_ast_nodes_ASTType_Is)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:2620:12: Assertion failed: `cond.type == Is`", std_format("Expected 'Is' node, got '%s'", compiler_ast_nodes_ASTType_dbg(cond->type))); }
   compiler_ast_nodes_IsExpression *is_expr = &cond->u.is_expr;
   compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, is_expr->lhs, NULL);
   std_map_Map__1 *mapping = std_map_Map__1_new(8);
@@ -12467,8 +12469,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
         continue;
       }
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:3598:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
-      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:3602:16: Assertion failed: `sym.type == TypeDef`", NULL); }
+      if(!(((bool)sym))) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:3602:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
+      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/typechecker.oc:3606:16: Assertion failed: `sym.type == TypeDef`", NULL); }
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !(pre_import), true);
       if (!(((bool)res))) {
         continue;
@@ -19290,10 +19292,10 @@ bool compiler_lsp_cli_finder_Finder_find_in_call_args(compiler_lsp_cli_finder_Fi
   for (u32 i = 0; i < args->size; i+=1) {
     compiler_ast_nodes_Argument *arg = std_vector_Vector__11_at(args, i);
     if (((bool)arg->label) && std_span_Span_contains_loc(arg->label_span, this->loc)) {
-      compiler_types_Type *callee_type = node->u.call.callee->etype;
-      if (((bool)callee_type)) {
+      compiler_ast_scopes_Symbol *callee_sym = node->u.call.callee->resolved_symbol;
+      if (((bool)callee_sym) && ((bool)callee_sym->u.func)) {
         compiler_ast_nodes_Variable *found = NULL;
-        for (std_vector_Iterator__8 _i37 = std_vector_Vector__8_iter(callee_type->sym->u.func->params); std_vector_Iterator__8_has_value(&_i37); std_vector_Iterator__8_next(&_i37)) {
+        for (std_vector_Iterator__8 _i37 = std_vector_Vector__8_iter(callee_sym->u.func->params); std_vector_Iterator__8_has_value(&_i37); std_vector_Iterator__8_next(&_i37)) {
           compiler_ast_nodes_Variable *param = std_vector_Iterator__8_cur(&_i37);
           {
             if (str_eq(param->sym->name, arg->label)) {

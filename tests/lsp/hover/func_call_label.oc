@@ -1,0 +1,10 @@
+/// lsp: -h 9 10
+/// {"hover": "abc: i32"}
+
+def foo(abc: i32, foo: str): str {
+    return ""
+}
+
+def main() {
+    foo(abc: 45, foo: "Hello")
+}
