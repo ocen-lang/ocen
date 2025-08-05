@@ -127,12 +127,19 @@ def CharIterator::cur(&this): char => .data[.pos]
 def char::is_digit(this): bool => libc::isdigit(this)
 def char::is_hex_digit(this): bool => libc::isxdigit(this)
 def char::get_digit(this): u32 => this as u32 - '0' as u32
-def char::get_hex_digit(this): u8 {
+def char::value_from_hex(this): u8 {
     if '0' <= this <= '9' return this as u8 - '0' as u8
     if 'a' <= this <= 'f' return this as u8 - 'a' as u8 + 10
     if 'A' <= this <= 'F' return this as u8 - 'A' as u8 + 10
     panic(`[-] Invalid hex digit: '{this}' (0x{this:02x})`)
 }
+def char::hex_from_value(val: u8): char {
+    assert val < 16, f"Invalid value for hex char: {val}"
+    return "0123456789abcdef"[byte]
+}
+
+// Deprecated: Backwards compatibility
+def char::get_hex_digit(this): u8 => char::value_from_hex(this)
 
 def char::is_alpha(this): bool => libc::isalpha(this)
 def char::is_alnum(this): bool => libc::isalnum(this)
