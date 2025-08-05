@@ -539,22 +539,15 @@ def TypeChecker::resolve_scoped_identifier(&this, node: &AST, error: bool = true
                     let cur_func = scope.cur_func
                     if cur_func.kind == Closure {
                         let tmp = scope.cur_func.closure_scope.lookup_recursive(name)
-                        if {
-                            not tmp? => {}
-                            tmp.type != Variable => {
-                                // FIXME: Functions/globals?
-                                .error(Error::new(node.span, f"Can't close over non-variable {name}"))
-                            }
-                            else => {
-                                let it = cur_func.closed_vars.get_item(name)
-                                if it? {
-                                    res = it.value
-                                } else {
-                                    let closed_sym = Symbol::new(ClosedVariable, ns: null, name, name, name, node.span)
-                                    closed_sym.u.closed_var = ClosedVariable(tmp.u.var, cur_func)
-                                    cur_func.closed_vars.insert(name, closed_sym)
-                                    res = closed_sym
-                                }
+                        if tmp? {
+                            let it = cur_func.closed_vars.get_item(name)
+                            if it? {
+                                res = it.value
+                            } else {
+                                let closed_sym = Symbol::new(ClosedVariable, ns: null, name, name, name, node.span)
+                                closed_sym.u.closed_var = ClosedVariable(tmp.u.var, cur_func)
+                                cur_func.closed_vars.insert(name, closed_sym)
+                                res = closed_sym
                             }
                         }
                     }
