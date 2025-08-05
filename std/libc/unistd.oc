@@ -11,6 +11,7 @@
 [extern] def waitpid(a: i32, b: &i32, c: i32): i32
 [extern] def write(a: i32, b: untyped_ptr, c: u32): i32
 [extern] def read(a: i32, b: untyped_ptr, c: u32): i32
+[extern] def chdir(a: str): i32
 
 [extern] def WEXITSTATUS(a: i32): i32
 [extern] def WTERMSIG(a: i32): i32

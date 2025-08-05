@@ -51,7 +51,7 @@ namespace bindings {
 
     [extern] def opendir(path: str): &Dir
     [extern] def closedir(dir: &Dir)
-    [extern] def mkdir(path: str, mode: i32 = 0777): i32
+    [extern] def mkdir(path: str, mode: i32 = 0o777): i32
     [extern] def readdir(dir: &Dir): &dirent
     [extern] def realpath(path: str, resolved: str): str
 

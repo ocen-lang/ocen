@@ -112,3 +112,12 @@ def SHA1Hash::from(data: Buffer): SHA1Hash {
 
 def SHA1Hash::hex_dump(this) => hex_dump(.data, 20)
 def SHA1Hash::eq(this, other: SHA1Hash): bool => memcmp(.data, other.data, 20) == 0
+def SHA1Hash::stringify(this): str {
+    let result = std::mem::alloc<char>(41)
+    for let i = 0; i < 20; i += 1 {
+        result[i * 2] = char::hex_from_value(this.data[i] >> 4)
+        result[i * 2 + 1] = char::hex_from_value(this.data[i] & 0xf)
+    }
+    result[40] = '\0'
+    return result
+}
