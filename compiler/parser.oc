@@ -2177,6 +2177,12 @@ def Parser::parse_struct(&this): &Structure {
         }
     }
 
+    if .token_is(Colon) {
+        .consume(TokenType::Colon)
+        let parent_type = .parse_type()
+        struc.parsed_parent = parent_type
+    }
+
     // Extern structs don't need to have a body.
     if not struc.sym.is_extern or .token_is(TokenType::OpenCurly) {
         .consume(TokenType::OpenCurly)

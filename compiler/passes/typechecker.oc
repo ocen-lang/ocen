@@ -887,7 +887,7 @@ def TypeChecker::check_call_args(&this, node: &AST, params: &Vector<&Variable>, 
         if not arg_type? or not param.type? {
             continue
         }
-        if not arg_type.eq(param.type) {
+        if not param.type.can_assign(arg_type) {
             if param.sym? {
                 .error(Error::new_hint(
                     arg.expr.span, f"Expected `{param.sym.name}` with type {param.type.str()}, but got {arg_type.str()}",
@@ -1355,65 +1355,38 @@ def TypeChecker::check_member(&this, node: &AST,  is_being_called: bool, is_try:
     let rhs_name = node.u.member.rhs_name
     if not rhs_name? return hint
 
-    let res = match lhs.base {
-        Structure => {
-            let struc = lhs.u.struc
-            let field = struc.get_field(rhs_name)
-            yield if {
-                field? => {
-                    node.u.member.is_pointer = is_pointer
-                    .set_resolved_symbol(node, field.sym)
-                    yield field.type
-                }
-                else => null
-            }
-        }
-        Enum => {
-            let enom = lhs.u.enom
-            let field = enom.get_shared_field(rhs_name)
-            yield if {
-                field? => {
-                    node.u.member.is_pointer = is_pointer
-                    .set_resolved_symbol(node, field.sym)
-                    yield field.type
-                }
-                else => null
-            }
-        }
+    let member_sym = lhs.get_member(rhs_name)
+    let res = hint
 
-        // Fallthrough
-        else => null
-    }
-
-    if res? {
+    if member_sym? and member_sym.type == Variable {
+        res = member_sym.u.var.type
         if is_try and res.base != Pointer {
             .error(Error::new(node.u.member.lhs.span, f"Cannot use ?. with non-pointer member type {res.str()}"))
         }
-        return res
     }
 
-    // NOTE: `x?.y` syntax should only work for member access, not method calls
-    if not is_try and lhs.can_have_methods() {
-        let method = lhs.methods.get(rhs_name, null)
-        if method? {
-            if not is_being_called {
-                .error(Error::new(node.span, "Cannot access method without calling it"))
-                return hint
+    if member_sym? and member_sym.type == Function {
+        let func = member_sym.u.func
+        if {
+            is_try => .error(Error::new(node.u.member.lhs.span, f"Cannot call method with ?. on it: {func.sym.display}"))
+            not is_being_called => .error(Error::new(node.u.member.lhs.span, f"Cannot access method without calling it"))
+            func.is_static => .error(Error::new(node.u.member.lhs.span, f"Cannot call static method as instance method"))
+            else => {
+                res = func.type
             }
-            if method.is_static {
-                .error(Error::new(node.span, "Cannot call static method as instance method"))
-                return hint
-            }
-            node.u.member.is_pointer = is_pointer
-            .set_resolved_symbol(node, method.sym)
-            return method.type
         }
     }
 
-    .error(Error::new(
-        node.span, `Type {lhs.str()} has no member named '{rhs_name}'`
-    ))
-    return hint
+    node.u.member.is_pointer = is_pointer
+    if member_sym? {
+        .set_resolved_symbol(node, member_sym)
+    } else {
+        .error(Error::new(
+            node.span, `Type {lhs.str()} has no member named '{rhs_name}'`
+        ))
+    }
+
+    return res
 }
 
 
@@ -1461,7 +1434,7 @@ def TypeChecker::check_assignment(&this, node: &AST, lhs: &Type, rhs: &Type): &T
     if not node.u.binary.lhs.is_lvalue() {
         .error(Error::new(node.u.binary.lhs.span, "Must be an l-value"))
     }
-    if not lhs.eq(rhs) {
+    if not lhs.can_assign(rhs) {
         .error(Error::new(
             node.u.binary.rhs.span, `Variable type does not match assignment type, Expected type '{lhs.str()}', got '{rhs.str()}'`
         ))
@@ -2082,7 +2055,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     hint_elem_type = elem_type
                     first_span = elem.span
 
-                } else if not elem_type.eq(typ) {
+                } else if not elem_type.can_assign(typ) {
                     .error(Error::new_hint(
                         elem.span, `Expected type {elem_type.str()}, but got {typ.str()}`,
                         first_span, `First element was of type {elem_type.str()}`
@@ -2135,7 +2108,7 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
                     hint_elem_type = elem_type
                     first_span = elem.span
 
-                } else if not elem_type.eq(typ) {
+                } else if not elem_type.can_assign(typ) {
                     .error(Error::new_hint(
                         elem.span, `Expected type {elem_type.str()}, but got {typ.str()}`,
                         first_span, `First element was of type {elem_type.str()}`
@@ -2719,7 +2692,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
         .error(Error::new(start_span, `Must yield a value in this branch, body type is {body.type}`))
     } else if not node.etype? {
         node.etype = ret
-    } else if not node.etype.eq(ret) {
+    } else if not  ret.can_assign(node.etype) {
         let yield_stmt = if node.type == Block then node.u.block.final_stmt else body
         if not yield_stmt? yield_stmt = body
         .error(Error::new_note(
@@ -2804,7 +2777,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
                     .error(Error::new(ret_span, "Cannot return a value from a void function"))
                 }
             } else if child? {
-                if res? and not res.eq(expected) {
+                if res? and not expected.can_assign(res) {
                     .error(Error::new(ret_span, `Return type {res.str()} does not match function return type {expected.str()}`))
                 }
             } else {
@@ -2901,7 +2874,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
 
                 if is_inferred {
                     var.type = res
-                } else if not res.eq(var.type) {
+                } else if not var.type.can_assign(res) {
                     .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but initializer has type {res.str()}`))
                 }
             } else if is_inferred {
@@ -2954,7 +2927,7 @@ def TypeChecker::check_function(&this, func: &Function) {
             //       valid outside the scope of this function, which is where it will be evaluated.
             let default_type = .check_expression(default_expr, hint: param.type)
 
-            if default_type? and not default_type.eq(param.type) {
+            if default_type? and not param.type.can_assign(default_type) {
                 .error(Error::new(default_expr.span, `Default argument has type {default_type.str()} but expected {param.type.str()}`))
             }
         }
@@ -3029,7 +3002,7 @@ def TypeChecker::check_globals(&this, node: &AST, is_const: bool) {
         let init_type = .check_expression(init, hint: var.type)
         if not init_type? or not var.type? return
 
-        if not init_type.eq(var.type) {
+        if not var.type.can_assign(init_type) {
             .error(Error::new(init.span, `Variable {var.sym.name} has type {var.type.str()} but got {init_type.str()}`))
         }
     }
@@ -3426,6 +3399,18 @@ def TypeChecker::loosely_resolve_templated_enum(&this, enom: &Enum) {
 
 
 def TypeChecker::resolve_struct(&this, struc: &Structure) {
+
+    if struc.parsed_parent? {
+        let type = .resolve_type(struc.parsed_parent)
+        if {
+            not type? => {} // Already shown error
+            type.base != Structure => .o.error(Error::new(struc.parsed_parent.span, "Parent type must be a struct"))
+            else => {
+                struc.parent = type.u.struc
+            }
+        }
+    }
+
     let fields = struc.fields
     .resolve_doc_links(struc.sym)
 

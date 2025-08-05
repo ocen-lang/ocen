@@ -135,7 +135,7 @@ def char::value_from_hex(this): u8 {
 }
 def char::hex_from_value(val: u8): char {
     assert val < 16, f"Invalid value for hex char: {val}"
-    return "0123456789abcdef"[byte]
+    return "0123456789abcdef"[val]
 }
 
 // Deprecated: Backwards compatibility

@@ -131,6 +131,9 @@ struct Structure {
     is_union: bool
     span: Span
 
+    parsed_parent: &Type
+    parent: &Structure      // For inheritance
+
     format_spec: str
     format_args: str
 }

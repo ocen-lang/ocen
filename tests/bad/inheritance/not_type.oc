@@ -1,0 +1,5 @@
+/// fail: Unexpected token in parse_type: IntLiteral
+
+struct Foo : 45 {
+    
+}

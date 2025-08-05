@@ -1,0 +1,5 @@
+/// fail: Couldn't find this identifier: Bar
+
+struct Foo : Bar {
+
+}

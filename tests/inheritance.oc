@@ -1,0 +1,31 @@
+/// skip
+
+
+/// compile
+
+struct Foo {
+    x: i32
+    y: i32
+}
+
+def Foo::foo(&this) {
+    println("Foo method")
+}
+
+struct Bar : Foo{
+    z: i32
+}
+
+def Bar::bar(&this) {
+    println("Bar method")
+}
+
+
+def main() {
+    let foo = Foo(x: 1, y: 2);
+    foo.foo(); // Calls Foo's method
+
+    let bar = Bar(x: 3, y: 4, z: 5);
+    bar.foo(); // Calls Foo's method
+    bar.bar(); // Calls Bar's method
+}

@@ -166,6 +166,47 @@ def Type::is_numeric(&this): bool => match .base {
     else => false
 }
 
+def Type::is_pointer_to(&this, base: BaseType): bool => .base == Pointer and .u.ptr.base == base
+
+def Type::get_member(&this, name: str): &Symbol {
+    match .base {
+        Structure => {
+            let struc = .u.struc
+            let field = struc.get_field(name)
+            if {
+                field? => return field.sym
+                struc.parent? => {
+                    let parent_member = struc.parent.type.get_member(name)
+                    if parent_member? {
+                        return parent_member
+                    }
+                }
+                else => {}
+            }
+        }
+        Enum => {
+            let enom = .u.enom
+            let field = enom.get_shared_field(name)
+            if field? {
+                return field.sym
+            }
+        }
+
+        // Fallthrough
+        else => {}
+    }
+
+    // TODO: is_try?
+    if .can_have_methods() {
+        let method = .methods.get(name, null)
+        if method? {
+            return method.sym
+        }
+    }
+
+    return null
+}
+
 def Type::is_numeric_or_char(&this): bool => .is_numeric() or .base == BaseType::Char
 
 def Type::can_have_methods(&this): bool => match .base {
@@ -242,6 +283,32 @@ def Type::eq(&this, other: &Type, strict: bool = false): bool {
             assert false, `Unhandled case in Type::eq(), base = {.base}`
         }
     }
+}
+
+// TODO: Move implicit cast <=> void* logic in here
+def Type::can_assign(&this, rhs: &Type): bool {
+    if .eq(rhs) return true
+
+    if (this == null or rhs == null) return false
+
+    let lhs = .unaliased()
+    rhs = rhs.unaliased()
+
+    // Polymorphic assignment
+    if lhs.base == rhs.base {
+        if lhs.is_pointer_to(Structure) and rhs.is_pointer_to(Structure) {
+            let lhs_struc = lhs.u.ptr
+            let cur = rhs.u.ptr
+            while cur? {
+                if cur == lhs_struc {
+                    return true
+                }
+                cur = cur.u.struc.parent?.type
+            }
+        }
+    }
+
+    return false
 }
 
 def Type::is_str(&this): bool {
