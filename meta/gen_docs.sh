@@ -58,6 +58,7 @@ import std::{
     vec,
     vector,
     video_renderer,
+    argparse,
     zlib,
 }
 
