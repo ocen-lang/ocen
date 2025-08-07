@@ -79,6 +79,9 @@ def Parser::_add(
     arg.help = help
     assert arg.flags.size > 0, "Flag names must not be empty"
     arg.is_positional = (arg.flags.size == 1 and not arg.flags[0].starts_with_str("-"))
+    if arg.is_positional {
+        arg.required = true  // Positional arguments are always required
+    }
     .args.push(arg)
     return arg
 }
@@ -192,6 +195,7 @@ def Parser::parse(&this, argc: i32, argv: &str) {
         if arg? {
             if arg.is_positional {
                 arg.save_val(cur)
+                arg.parsed = true
                 i += 1
                 continue
             }
@@ -217,7 +221,11 @@ def Parser::parse(&this, argc: i32, argv: &str) {
     for arg in this.args.iter() {
         if arg.required and not arg.parsed {
             let flag = arg.flags[0]
-            std::panic(f"Missing required argument: {flag}")
+            if arg.is_positional {
+                std::panic(f"Missing required positional argument: {flag}")
+            } else {
+                std::panic(f"Missing required flag: {flag}")
+            }
         }
     }
 }
