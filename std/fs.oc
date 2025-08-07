@@ -54,6 +54,9 @@ namespace bindings {
     [extern] def mkdir(path: str, mode: i32 = 0o777): i32
     [extern] def readdir(dir: &Dir): &dirent
     [extern] def realpath(path: str, resolved: str): str
+    [extern] def remove(path: str): i32
+    [extern] def rename(old_filename: str, new_filename: str): i32
+
 
     [extern] def fileno(file: &File): i32
     [extern] def ftruncate(fd: i32, size: i64): i32
@@ -150,6 +153,20 @@ def file_info(path: str): FileMetadata {
         dev: s.st_dev,
         mode: s.st_mode
     )
+}
+
+def remove(path: str) {
+    let res = bindings::remove(path)
+    if res != 0 {
+        std::panic(`[-] Failed to remove file: '{path}': {get_err()}`)
+    }
+}
+
+def rename(old_filename: str, new_filename: str) {
+    let res = bindings::rename(old_filename, new_filename)
+    if res != 0 {
+        std::panic(`[-] Failed to rename file '{old_filename}' to '{new_filename}': {get_err()}`)
+    }
 }
 
 def file_exists(path: str): bool {
