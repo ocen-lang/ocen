@@ -1,0 +1,223 @@
+import std::mem
+import std::sv::SV
+import std::shift_args
+
+enum ArgType {
+    String
+    Int
+    Bool
+    Float
+}
+
+struct ArgUnion {
+    as_str: str
+    as_int: i64
+    as_bool: bool
+    as_float: f64
+}
+
+
+struct Arg {
+    flags: $[SV]
+    is_positional: bool = false
+    required: bool
+    help: str
+    type: ArgType
+    val: ArgUnion
+    defolt: ArgUnion
+
+    // parsing state
+    parsed: bool = false
+}
+
+def Arg::save_val(&this, s: str) {
+    let sv = SV::from_str(s)
+    match .type {
+        ArgType::String => this.val.as_str = s
+        ArgType::Int => this.val.as_int = sv.chop_i64()
+        ArgType::Bool => this.val.as_bool = match s {
+            "true" | "1" => true
+            "false" | "0" => false
+            else => {
+                let flag = .flags[0]
+                std::panic(f"Invalid boolean value: {s} for arg {flag}")
+            }
+        }
+        ArgType::Float => this.val.as_float = sv.chop_f32() as f64
+    }
+}
+
+
+struct Parser {
+    description: str
+    args: $[&Arg] = $[]
+    program_name: str
+}
+
+def Parser::make(description: str): Parser => Parser(
+    description: description,
+    args: $[],
+    program_name: ""  // Will be set in parse()
+)
+
+def Parser::_add(
+    &this,
+    flags: str,
+    required: bool = false,
+    help: str = ""
+): &Arg {
+    let arg = mem::alloc<Arg>()
+    arg.flags = $[]
+    for flag in SV::from_str(flags).split_str("/") {
+        if flag.len > 0 {
+            arg.flags.push(flag)
+        } else {
+            std::panic("Flag names must not be empty")
+        }
+    }
+    arg.required = required
+    arg.help = help
+    assert arg.flags.size > 0, "Flag names must not be empty"
+    arg.is_positional = (arg.flags.size == 1 and not arg.flags[0].starts_with_str("-"))
+    .args.push(arg)
+    return arg
+}
+
+
+def Parser::add_str(
+    &this,
+    flags: str,
+    defolt: str = "",
+    required: bool = false,
+    help: str = ""
+): &str {
+    let arg = ._add(flags, required, help)
+    arg.type = ArgType::String
+    arg.defolt.as_str = defolt
+    arg.val.as_str = defolt
+    return &arg.val.as_str
+}
+
+def Parser::add_int(
+    &this,
+    flags: str,
+    defolt: i64 = 0,
+    required: bool = false,
+    help: str = ""
+): &i64 {
+    let arg = ._add(flags, required, help)
+    arg.type = ArgType::Int
+    arg.defolt.as_int = defolt
+    arg.val.as_int = defolt
+    return &arg.val.as_int
+}
+
+enum BoolAction {
+    StoreTrue
+    StoreFalse
+}
+
+def Parser::add_bool(
+    &this,
+    flags: str,
+    action: BoolAction = StoreTrue,
+    help: str = ""
+): &bool {
+    let arg = ._add(flags, required: false, help)
+    arg.type = ArgType::Bool
+
+    // If action is StoreTrue, we set the defolt to false
+    arg.defolt.as_bool = match action {
+        StoreTrue => false
+        StoreFalse => true
+    }
+    arg.val.as_bool = arg.defolt.as_bool
+    return &arg.val.as_bool
+}
+
+def Parser::add_float(
+    &this,
+    flags: str,
+    defolt: f64 = 0.0,
+    required: bool = false,
+    help: str = ""
+): &f64 {
+    let arg = ._add(flags, required, help)
+    arg.type = ArgType::Float
+    arg.defolt.as_float = defolt
+    arg.val.as_float = defolt
+    return &arg.val.as_float
+}
+
+def find_arg(parser: &Parser, _flag: str, positional_idx: &i32): &Arg {
+    let flag = SV::from_str(_flag)
+    let cur_positional_idx = 0i
+    for arg in parser.args.iter() {
+        if arg.is_positional {
+            if not flag.starts_with_str("-") {
+                if cur_positional_idx == *positional_idx {
+                    *positional_idx += 1
+                    return arg
+                }
+                cur_positional_idx += 1
+
+            }
+        } else {
+            for f in arg.flags.iter() {
+                if flag.starts_with_str("-") {
+                    if f == flag {
+                        return arg
+                    }
+                    if flag.starts_with_sv(f) and flag[f.len] == '=' {
+                        return arg
+                    }
+                }
+            }
+        }
+
+
+    }
+    return null
+}
+
+
+def Parser::parse(&this, argc: i32, argv: &str) {
+    .program_name = argv[0]
+    let positional_idx = 0i
+    let i = 1i
+
+    while i < argc {
+        let cur = argv[i]
+        let arg = find_arg(this, cur, &positional_idx)
+        if arg? {
+            if arg.is_positional {
+                arg.save_val(cur)
+                i += 1
+                continue
+            }
+
+            if arg.parsed {
+                std::panic(f"Argument {cur} is already parsed")
+            }
+
+            if i >= argc - 1 {
+                std::panic(f"Argument {cur} requires a value, but none was provided")
+            }
+            i += 1
+            let next = argv[i]
+
+            arg.save_val(next)
+            arg.parsed = true
+            i += 1
+        } else {
+            std::panic(f"Unknown argument: {cur}")
+        }
+    }
+
+    for arg in this.args.iter() {
+        if arg.required and not arg.parsed {
+            let flag = arg.flags[0]
+            std::panic(f"Missing required argument: {flag}")
+        }
+    }
+}

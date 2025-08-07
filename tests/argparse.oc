@@ -1,0 +1,15 @@
+/// compile
+
+import std::argparse
+
+def main(argc: i32, argv: &str) {
+    let parser = argparse::Parser::make("My Program")
+    let foo = parser.add_str("--foo", defolt: "default_foo", help: "A foo argument")
+    let bar = parser.add_int("-b/--bar", required: true, help: "A bar argument")
+    let baz = parser.add_bool("-c/--color", action: StoreTrue, help: "Show Color")
+    parser.parse(argc, argv)
+
+    println(f"Foo: {*foo}, Bar: {*bar}, Color: {*baz}")
+}
+
+

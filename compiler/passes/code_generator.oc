@@ -1453,6 +1453,8 @@ def CodeGenerator::gen_statement(&this, node: &AST) {
     .gen_debug_info(node.span)
     match node.type {
         ASTType::Return => {
+            // TODO: In `return foo()` for eg:, we need to run the defers _AFTER_ evaluating
+            //       foo()
             let upto = .scope()
             for let cur = .scope(); cur? and cur.cur_func?; cur = cur.parent {
                 upto = cur
