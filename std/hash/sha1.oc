@@ -110,6 +110,15 @@ def SHA1Hash::from(data: Buffer): SHA1Hash {
     return sha
 }
 
+def SHA1Hash::parse_string_hash(hash_str: str): SHA1Hash {
+    assert hash_str.len() == 40
+    let hash: SHA1Hash
+    for let i = 0; i < 20; i += 1 {
+        hash.data[i] = (hash_str[i * 2].value_from_hex() << 4) | hash_str[i * 2 + 1].value_from_hex()
+    }
+    return hash
+}
+
 def SHA1Hash::hex_dump(this) => hex_dump(.data, 20)
 def SHA1Hash::eq(this, other: SHA1Hash): bool => memcmp(.data, other.data, 20) == 0
 def SHA1Hash::stringify(this): str {
