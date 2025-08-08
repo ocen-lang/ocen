@@ -19,6 +19,7 @@ struct ArgUnion {
 
 struct Arg {
     flags: $[SV]
+    flags_display: str
     is_positional: bool = false
     required: bool
     help: str
@@ -75,6 +76,7 @@ def Parser::_add(
             std::panic("Flag names must not be empty")
         }
     }
+    arg.flags_display = flags
     arg.required = required
     arg.help = help
     assert arg.flags.size > 0, "Flag names must not be empty"
@@ -183,6 +185,67 @@ def find_arg(parser: &Parser, _flag: str, positional_idx: &i32): &Arg {
     return null
 }
 
+def Parser::usage_and_exit(&this, code: i32) {
+    let has_options = false
+
+    // List arguments, and their descriptions
+    print(f"Usage: {.program_name} ")
+
+    let help_flags = "-h/--help"
+    let max_len = help_flags.len()
+    for arg in this.args.iter() {
+        max_len = max_len.max(arg.flags_display.len())
+        if not arg.is_positional {
+            has_options = true
+        } else {
+            let name = arg.flags[0]
+            print(f"<{name}> ")
+        }
+    }
+    if has_options {
+        print("[options]\n")
+    } else {
+        print("\n")
+    }
+
+    // padding
+    max_len += 2
+
+    println(f"\n{this.description}\n")
+    println(f"Arguments:")
+
+    let print_arg = |arg: &Arg| {
+        println(
+            "    %s%*s  %s%s",
+            arg.flags_display,
+            (max_len - arg.flags_display.len()) as i32, "",
+            arg.help,
+            if arg.required then f" ({arg.type}, required)" else f" ({arg.type})",
+        )
+    }
+
+    for arg in this.args.iter() {
+        if arg.is_positional {
+            print_arg(arg)
+        }
+    }
+    for arg in this.args.iter() {
+        if not arg.is_positional {
+            print_arg(arg)
+        }
+    }
+
+
+    println(
+        "    %s%*s  %s%s",
+        help_flags,
+        (max_len - help_flags.len()) as i32, "",
+        "Show this help message and exit",
+        " (Bool)",
+    )
+    println("")
+    std::exit(code)
+}
 
 def Parser::parse(&this, argc: i32, argv: &str) {
     .program_name = argv[0]
@@ -191,6 +254,10 @@ def Parser::parse(&this, argc: i32, argv: &str) {
 
     while i < argc {
         let cur = argv[i]
+        if cur == "-h" or cur == "--help" {
+            .usage_and_exit(0)
+        }
+
         let arg = find_arg(this, cur, &positional_idx)
         if arg? {
             if arg.is_positional {
@@ -201,11 +268,13 @@ def Parser::parse(&this, argc: i32, argv: &str) {
             }
 
             if arg.parsed {
-                std::panic(f"Argument {cur} is already parsed")
+                println(f"Argument {cur} is already parsed")
+                .usage_and_exit(1)
             }
 
             if i >= argc - 1 {
-                std::panic(f"Argument {cur} requires a value, but none was provided")
+                println(f"Argument {cur} requires a value, but none was provided")
+                .usage_and_exit(1)
             }
             i += 1
             let next = argv[i]
@@ -214,7 +283,8 @@ def Parser::parse(&this, argc: i32, argv: &str) {
             arg.parsed = true
             i += 1
         } else {
-            std::panic(f"Unknown argument: {cur}")
+            println(f"Unknown argument: {cur}")
+            .usage_and_exit(1)
         }
     }
 
@@ -222,10 +292,12 @@ def Parser::parse(&this, argc: i32, argv: &str) {
         if arg.required and not arg.parsed {
             let flag = arg.flags[0]
             if arg.is_positional {
-                std::panic(f"Missing required positional argument: {flag}")
+                // std::panic(f"Missing required positional argument: {flag}")
+                println(f"Missing required positional argument: {flag}")
             } else {
-                std::panic(f"Missing required flag: {flag}")
+                println(f"Missing required argument: {flag}")
             }
+            .usage_and_exit(1)
         }
-    }
 }
+    }
