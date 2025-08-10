@@ -247,10 +247,13 @@ def Parser::usage_and_exit(&this, code: i32) {
     std::exit(code)
 }
 
-def Parser::parse(&this, argc: i32, argv: &str) {
-    .program_name = argv[0]
+def Parser::parse(&this, argc: i32, argv: &str, consume_first: bool = true) {
     let positional_idx = 0i
-    let i = 1i
+    let i = 0i
+    if consume_first {
+        .program_name = argv[0]
+        i = 1i
+    }
 
     while i < argc {
         let cur = argv[i]

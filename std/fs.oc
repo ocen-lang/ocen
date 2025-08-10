@@ -9,6 +9,7 @@ import std::libc::errno::{ get_err}
 import std::sv::{ SV }
 import std::mem
 import std::buffer::{ Buffer }
+import std::time::TimeSpec
 
 
 [extern "FILE"] struct File
@@ -25,9 +26,9 @@ namespace bindings {
         st_size: u64
         st_blksize: u64
         st_blocks: u64
-        st_atime: u64
-        st_mtime: u64
-        st_ctime: u64
+        st_atim: TimeSpec
+        st_mtim: TimeSpec
+        st_ctim: TimeSpec
     }
 
     [extern] def fopen(path: str, mode: str = "r"): &File
@@ -73,9 +74,10 @@ enum SeekMode {
 
 struct FileMetadata {
     size: u64
-    atime: u64
-    mtime: u64
-    ctime: u64
+    atime: TimeSpec
+    mtime: TimeSpec
+    ctime: TimeSpec
+    ino: u64
     uid: u32
     gid: u32
     dev: u64
@@ -145,9 +147,10 @@ def file_info(path: str): FileMetadata {
     }
     return FileMetadata(
         size: s.st_size,
-        atime: s.st_atime,
-        mtime: s.st_mtime,
-        ctime: s.st_ctime,
+        atime: s.st_atim,
+        mtime: s.st_mtim,
+        ctime: s.st_ctim,
+        ino: s.st_ino,
         uid: s.st_uid,
         gid: s.st_gid,
         dev: s.st_dev,
