@@ -1,0 +1,105 @@
+import std::net::tcp::{ TcpListener, TcpStream }
+import std::net::udp::{ UdpSocket }
+import std::buffer::Buffer
+import std::shift_args
+import std::argparse::Parser
+
+
+def main(argc: i32, argv: &str) {
+    if argc < 2 {
+        println("Usage: ./server <tcp|udp>")
+        return 0
+    }
+
+    shift_args(&argc, &argv)
+    let server_type = shift_args(&argc, &argv)
+
+    match server_type {
+        "tcp" => run_tcp_echo_server("127.0.0.1", 9000)
+        "udp" => run_udp_echo_server("127.0.0.1", 9001)
+        else => println(f"Unknown server type: {server_type}")
+    }
+}
+
+def handle_tcp_client(stream: &TcpStream) {
+    defer stream.close()
+    
+    let buf = Buffer::make()
+    defer buf.free()
+
+    while true {
+        buf.clear()
+        
+        let bytes_read = stream.read(&buf)
+        
+        if bytes_read == 0 {
+            println("Client disconnected")
+            break
+        }
+        
+        if bytes_read > 0 {
+            let received_data = buf.sv()
+            print(f"TCP received: {received_data}")
+            stream.write(&buf)
+        }
+    }
+    
+    println("Closed TCP connection.")
+}
+
+def run_tcp_echo_server(host: str, port: i32) {
+    let listener_res = TcpListener::bind(host, port)
+    
+    let listener = match listener_res {
+        Ok(val) => val
+        Error(err) => std::panic(f"Failed to bind TCP listener: {err}")
+    }
+    defer listener.close()
+
+    println(f"TCP server listening on {host}:{port}")
+
+    while true {
+        println("Waiting for TCP connection...")
+        let stream_res = listener.accept()
+
+        match stream_res {
+            Ok(val) => {
+                println(f"TCP connection accepted")
+                handle_tcp_client(val)
+            }
+            Error(err) => std::panic(f"Failed to accept TCP connection: {err}")
+        }
+    }
+}
+
+def run_udp_echo_server(host: str, port: i32) {
+    let socket_res = UdpSocket::bind(host, port)
+    let socket = match socket_res {
+        Ok(val) => val
+        Error(err) => std::panic(f"Failed to bind UDP socket: {err}")
+    }
+
+    defer socket.close()
+
+    let buf = Buffer::make()
+    defer buf.free()
+
+    println(f"UDP server listening on {host}:{port}")
+
+    while true {
+        buf.clear()
+        
+        let recv_res = socket.recv_from(&buf)
+        match recv_res {
+            Ok(val) => {
+                let received_data = buf.sv()
+                print(f"UDP received {val.bytes_read} bytes from {val.source_addr}: {received_data}")
+
+                socket.send_to(&buf, val.source_addr)
+
+                val.free()
+            }
+            Error(err) => std::panic(f"Failed to receive UDP data: {err}")
+        }
+    }
+}
