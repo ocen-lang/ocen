@@ -4,6 +4,7 @@ import std::buffer::Buffer
 import std::libc::{ exit, strerror }
 import std::fcntl
 import std::time::{ TimeVal }
+import std::result::Result
 
 struct Socket {
     fd: i32
@@ -20,6 +21,16 @@ enum SocketStatus {
     HostError
     InetPtonError
     ConnectError
+}
+
+struct RecvFromResult {
+    bytes_read: i64
+    source_addr: str
+}
+
+def RecvFromResult::free(&this) {
+    .source_addr.free()
+    std::mem::free(this)
 }
 
 def Socket::try_connect(host: str, port: i32, mode: SocketMode, out_sock: &Socket, timeout_secs: i32 = -1): SocketStatus {
@@ -40,10 +51,14 @@ def Socket::try_connect(host: str, port: i32, mode: SocketMode, out_sock: &Socke
 	server_address.sin_port = htons(port);
 
     let hostm = gethostbyname(host)
-    if not hostm? or not hostm.h_addr? {
+    if not hostm? or not hostm.h_addr_list? {
         return HostError
     }
-    server_address.sin_addr.s_addr = *(hostm.h_addr as &i32)
+    let addr_ptr = hostm.h_addr_list[0] as &i32
+    if not addr_ptr? {
+        return HostError
+    }
+    server_address.sin_addr.s_addr = *addr_ptr
 
 	// Assigning IP address to struct
 	if (inet_pton(AF_INET, host, &server_address.sin_addr) < 0) {
@@ -120,6 +135,49 @@ def Socket::read_exactly(&this, buf: &Buffer, size: u32): u32 {
     return buf.size
 }
 
+def Socket::recvfrom(&this, buf: &Buffer, max_size: u32): Result<&RecvFromResult, SocketStatus> {
+    buf.resize_if_necessary(max_size)
+    
+    let client_addr: SockAddrIn
+    let addr_len: u32 = sizeof(SockAddrIn) as u32
+    
+    let bytes_read = recvfrom(.fd, buf.data, max_size, 0, &client_addr as &SockAddr, &addr_len)
+    if bytes_read < 0 {
+        println(f"recvfrom failed with errno: {errno}")
+        return Error(ConnectError)
+    }
+
+    buf.size = bytes_read as u32
+
+    let addr_buf = Buffer::make()
+    defer addr_buf.free()
+    inet_ntop(AF_INET, &client_addr.sin_addr, addr_buf.data as str, INET_ADDRSTRLEN)
+    
+    let port = ntohs(client_addr.sin_port)
+    let final_addr = f"{addr_buf.str()}:{port}"
+    
+    let result = @new RecvFromResult(bytes_read, final_addr)
+    return Ok(result)
+}
+
+def Socket::sendto(&this, buf: &Buffer, host: str, port: i32): i64 {
+    let dest_addr: SockAddrIn
+    dest_addr.sin_family = AF_INET
+    dest_addr.sin_port = htons(port)
+    
+    let hostm = gethostbyname(host)
+    if not hostm? or not hostm.h_addr_list? {
+        return -1
+    }
+    let addr_ptr = hostm.h_addr_list[0] as &i32
+    if not addr_ptr? {
+        return -1
+    }
+    dest_addr.sin_addr.s_addr = *addr_ptr
+
+    return sendto(.fd, buf.data, buf.size, 0, &dest_addr as &SockAddr, sizeof(SockAddrIn))
+}
+
 def Socket::write(&this, buf: &Buffer): u32 => write(this.fd, buf.data, buf.size)
 
 
@@ -132,13 +190,18 @@ def Socket::write(&this, buf: &Buffer): u32 => write(this.fd, buf.data, buf.size
 @compiler c_include "errno.h"
 @compiler c_include "sys/types.h"
 @compiler c_include "time.h"
+@compiler c_include "sys/time.h"
 @compiler c_include "netdb.h"
 
 [extern "struct sockaddr"] struct SockAddr
 
 [extern "struct hostent"]
 struct HostEnt {
-    h_addr: &u8 // this type is a lie
+    h_name: str
+    h_aliases: &&str
+    h_addrtype: i32
+    h_length: i32
+    h_addr_list: &&u8
 }
 
 [extern "struct in_addr"]
@@ -153,8 +216,10 @@ struct SockAddrIn {
     sin_addr: SinAddr
 }
 
-[extern] def htons(val: i32): i32
 [extern] def htonl(val: i32): i32
+[extern] def htons(val: i32): i32
+[extern] def ntohl(val: i32): i32
+[extern] def ntohs(val: i32): i32
 
 [extern] let errno: i32
 [extern] let AF_INET: i32
@@ -163,15 +228,22 @@ struct SockAddrIn {
 [extern] let IPPROTO_UDP: i32
 [extern] let IPPROTO_TCP: i32
 [extern] let SOCK_DGRAM: i32
+[extern] let INET_ADDRSTRLEN: i32
+[extern] let SOL_SOCKET: i32
+[extern] let SO_REUSEADDR: i32
 
 [extern] def socket(domain: i32, type: i32, protocol: i32): i32
+[extern] def setsockopt(sockfd: i32, level: i32, optname: i32, optval: untyped_ptr, optlen: i32): i32
 [extern] def bind(sockfd: i32, addr: &SockAddr, addrlen: i32): i32
 [extern] def listen(sockfd: i32, backlog: i32): i32
 [extern] def accept(sockfd: i32, addr: &SockAddr, addrlen: &i32): i32
 [extern] def inet_pton(af: i32, src: str, dst: untyped_ptr): i32
+[extern] def inet_ntop(af: i32, src: untyped_ptr, dst: str, size: i32): str
 [extern] def connect(sockfd: i32, addr: &SockAddr, addrlen: u32): i32
 [extern] def gethostbyname(name: str): &HostEnt
 
+[extern] def recvfrom(sockfd: i32, buf: untyped_ptr, len: u32, flags: i32, src_addr: &SockAddr, addrlen: &u32): i64
+[extern] def sendto(sockfd: i32, buf: untyped_ptr, len: u32, flags: i32, dest_addr: &SockAddr, addrlen: u32): i64
 [extern] def read(fd: i32, buf: untyped_ptr, count: u32): u32
 [extern] def write(fd: i32, buf: untyped_ptr, count: u32): u32
 [extern] def close(fd: i32): i32
