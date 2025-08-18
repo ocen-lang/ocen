@@ -27,6 +27,7 @@ enum SocketStatus {
     InetPtonError
     ConnectError
     RecvError
+    SocketOptionError
 }
 
 //* Result of receiving a datagram
@@ -84,7 +85,7 @@ def Socket::try_bind_udp(host: str, port: i32, out_sock: &Socket): SocketStatus 
     let reuse: i32 = 1
     if setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &reuse as untyped_ptr, sizeof(i32) as i32) < 0 {
         close(sock_fd)
-        return ConnectError
+        return SocketOptionError
     }
 
     let server_addr: SockAddrIn
@@ -94,7 +95,7 @@ def Socket::try_bind_udp(host: str, port: i32, out_sock: &Socket): SocketStatus 
 
     if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn) as i32) < 0 {
         close(sock_fd)
-        return ConnectError
+        return BindError
     }
 
     out_sock.fd = sock_fd
@@ -177,6 +178,7 @@ def Socket::connect(host: str, port: i32, mode: SocketMode, timeout_secs: i32 = 
         ConnectError => std::panic(f"Error connecting to host: {strerror(errno)}")
         RecvError => std::panic(f"Error receiving from address: {strerror(errno)}")
         BindError => std::panic(f"Error binding socket: {strerror(errno)}")
+        SocketOptionError => std::panic(f"Error adding options to socket: {strerror(errno)}")
     }
     return sock
 }
@@ -213,7 +215,6 @@ def Socket::recvfrom(&this, buf: &Buffer, max_size: u32): Result<&RecvFromResult
     
     let bytes_read = recvfrom(.fd, buf.data, max_size, 0, &client_addr as &SockAddr, &addr_len)
     if bytes_read < 0 {
-        println(f"recvfrom failed with errno: {errno}")
         return Error(RecvError)
     }
 
@@ -261,9 +262,9 @@ struct UdpSocket {
 }
 
 //* Creates a UdpSocket from the given address
-def UdpSocket::bind(host: str, port: i32, quick_restart: bool = true): Result<&UdpSocket, SocketStatus> {
+def UdpSocket::bind(host: str, port: i32): Result<&UdpSocket, SocketStatus> {
     let sock: Socket
-    let status = Socket::try_bind(host, port, SocketMode::UDP, &sock)
+    let status = Socket::try_bind(host, port, UDP, &sock)
     if status != SocketStatus::Ok {
         return Error(status)
     }
