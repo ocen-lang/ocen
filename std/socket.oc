@@ -1,28 +1,35 @@
 //! Bindings to the C socket library
 
 import std::buffer::Buffer
-import std::libc::{ exit, strerror }
+import std::libc::{ strerror }
 import std::fcntl
 import std::time::{ TimeVal }
 import std::result::Result
+import std::sv::SV
 
+//* A TCP or UDP socket
 struct Socket {
     fd: i32
 }
 
+// Socket type
 enum SocketMode {
     UDP
     TCP
 }
 
+//* Socket status codes
 enum SocketStatus {
     Ok
+    BindError
     CreateError
     HostError
     InetPtonError
     ConnectError
+    RecvError
 }
 
+//* Result of receiving a datagram
 struct RecvFromResult {
     bytes_read: i64
     source_addr: str
@@ -33,37 +40,98 @@ def RecvFromResult::free(&this) {
     std::mem::free(this)
 }
 
-def Socket::try_connect(host: str, port: i32, mode: SocketMode, out_sock: &Socket, timeout_secs: i32 = -1): SocketStatus {
-    let sock: Socket
-
-	// Creating socket
-	sock.fd = match mode {
-        UDP => socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP),
-        TCP => socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+//* Socket binding
+def Socket::try_bind(host: str, port: i32, mode: SocketMode, out_sock: &Socket): SocketStatus {
+    return match mode {
+        TCP => Socket::try_bind_tcp(host, port, out_sock)
+        UDP => Socket::try_bind_udp(host, port, out_sock)
     }
-	if (sock.fd < 0) {
-        return CreateError
-	}
+}
 
-	// Adding server address info. to struct
-	let server_address: SockAddrIn
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(port);
+//* Tries to bind a TCP socket
+def Socket::try_bind_tcp(host: str, port: i32, out_sock: &Socket): SocketStatus {
+    let sock_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+    if sock_fd < 0 {
+        return CreateError
+    }
+
+    let server_addr: SockAddrIn
+    server_addr.sin_family = AF_INET
+    server_addr.sin_port = htons(port)
+    server_addr.sin_addr.s_addr = INADDR_ANY as i32
+
+    if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn) as i32) < 0 {
+        close(sock_fd)
+        return BindError
+    }
+
+    if listen(sock_fd, 128) < 0 {
+        close(sock_fd)
+        return ConnectError
+    }
+
+    out_sock.fd = sock_fd
+    return Ok
+}
+
+//* Tries to bind a UDP socket
+def Socket::try_bind_udp(host: str, port: i32, out_sock: &Socket): SocketStatus {
+    let sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+    if sock_fd < 0 {
+        return CreateError
+    }
+
+    let reuse: i32 = 1
+    if setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &reuse as untyped_ptr, sizeof(i32) as i32) < 0 {
+        close(sock_fd)
+        return ConnectError
+    }
+
+    let server_addr: SockAddrIn
+    server_addr.sin_family = AF_INET
+    server_addr.sin_port = htons(port)
+    server_addr.sin_addr.s_addr = INADDR_ANY as i32
+
+    if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn) as i32) < 0 {
+        close(sock_fd)
+        return ConnectError
+    }
+
+    out_sock.fd = sock_fd
+    return Ok
+}
+
+//* Tries to connect to a TCP server
+def Socket::try_connect_tcp(host: str, port: i32, out_sock: &Socket, timeout_secs: i32 = -1): SocketStatus {
+
+    // Creating socket
+    let sock_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+    if sock_fd < 0 {
+        return CreateError
+    }
+
+    // Adding server address info to struct
+    let server_address: SockAddrIn
+    server_address.sin_family = AF_INET
+    server_address.sin_port = htons(port)
 
     let hostm = gethostbyname(host)
-    if not hostm? or not hostm.h_addr_list? {
+    if not hostm? or not hostm.h_addr_list? or not hostm.h_addr_list[0]? {
+        close(sock_fd)
         return HostError
     }
     let addr_ptr = hostm.h_addr_list[0] as &i32
     if not addr_ptr? {
+        close(sock_fd)
         return HostError
     }
     server_address.sin_addr.s_addr = *addr_ptr
 
-	// Assigning IP address to struct
-	if (inet_pton(AF_INET, host, &server_address.sin_addr) < 0) {
+    // Assigning IP address to struct
+    if inet_pton(AF_INET, host, &server_address.sin_addr) < 0 {
+        close(sock_fd)
         return InetPtonError
-  	}
+    }
 
     let should_timeout = (timeout_secs > 0)
     let set: fcntl::FdSet
@@ -71,55 +139,62 @@ def Socket::try_connect(host: str, port: i32, mode: SocketMode, out_sock: &Socke
     if should_timeout {
         // Setting the socket to non-blocking
         set.zero()
-        set.set(sock.fd)
-        fcntl::fcntl(sock.fd, fcntl::F_SETFL, fcntl::O_NONBLOCK)
+        set.set(sock_fd)
+        fcntl::fcntl(sock_fd, fcntl::F_SETFL, fcntl::O_NONBLOCK)
     }
 
     // Connecting to the socket
-  	if (connect(sock.fd, (&server_address) as &SockAddr, sizeof(SockAddrIn)) < 0) {
+    if connect(sock_fd, (&server_address) as &SockAddr, sizeof(SockAddrIn)) < 0 {
         if should_timeout and errno != fcntl::EINPROGRESS {
+            close(sock_fd)
             return ConnectError
         }
     }
 
     if should_timeout {
         let timeout: TimeVal
-        timeout.tv_sec = timeout_secs as i64;
-        timeout.tv_usec = 0;
+        timeout.tv_sec = timeout_secs as i64
+        timeout.tv_usec = 0
 
-        let ret = fcntl::select(sock.fd + 1, null, &set, null, &timeout);
-        if (ret <= 0) {
+        let ret = fcntl::select(sock_fd + 1, null, &set, null, &timeout)
+        if ret <= 0 {
+            close(sock_fd)
             return ConnectError
         }
 
-        // After connecting
-        let flags = fcntl::fcntl(sock.fd, fcntl::F_GETFL, 0);
-        fcntl::fcntl(sock.fd, fcntl::F_SETFL, flags & ~fcntl::O_NONBLOCK);
+        // After connecting, set back to blocking
+        let flags = fcntl::fcntl(sock_fd, fcntl::F_GETFL, 0)
+        fcntl::fcntl(sock_fd, fcntl::F_SETFL, flags & ~fcntl::O_NONBLOCK)
     }
 
-    *out_sock = sock
+    out_sock.fd = sock_fd
     return Ok
 }
 
-def Socket::connect(host: str, port: i32, mode: SocketMode, timeout_secs: i32 = -1): Socket {
+//* Connects to a TCP server
+def Socket::connect_tcp(host: str, port: i32, timeout_secs: i32 = -1): Socket {
     let sock: Socket
-    let res = Socket::try_connect(host, port, mode, &sock, timeout_secs)
+    let res = Socket::try_connect_tcp(host, port, &sock, timeout_secs)
     match res {
         Ok => {}
         CreateError => std::panic(f"Error creating socket: {strerror(errno)}")
         HostError => std::panic(f"Error getting host by name: {strerror(errno)}: ({host})")
         InetPtonError => std::panic(f"Error converting host to IP address: {strerror(errno)}: ({host})")
         ConnectError => std::panic(f"Error connecting to host: {strerror(errno)}")
+        RecvError => std::panic(f"Error receiving from address: {strerror(errno)}")
+        BindError => std::panic(f"Error binding socket: {strerror(errno)}")
     }
     return sock
 }
 
+//* Reads data from the socket into `buf`
 def Socket::read(&this, buf: &Buffer, max_size: u32): u32 {
     buf.resize_if_necessary(max_size)
     buf.size = read(this.fd, buf.data, max_size)
     return buf.size
 }
 
+//* Reads exactly `size` bytes from the socket into `buf`
 def Socket::read_exactly(&this, buf: &Buffer, size: u32): u32 {
     buf.resize_if_necessary(size)
     buf.size = 0
@@ -135,6 +210,7 @@ def Socket::read_exactly(&this, buf: &Buffer, size: u32): u32 {
     return buf.size
 }
 
+//* Receives a single datagram message on the socket. Returns the number of bytes read and the origin address.
 def Socket::recvfrom(&this, buf: &Buffer, max_size: u32): Result<&RecvFromResult, SocketStatus> {
     buf.resize_if_necessary(max_size)
     
@@ -144,7 +220,7 @@ def Socket::recvfrom(&this, buf: &Buffer, max_size: u32): Result<&RecvFromResult
     let bytes_read = recvfrom(.fd, buf.data, max_size, 0, &client_addr as &SockAddr, &addr_len)
     if bytes_read < 0 {
         println(f"recvfrom failed with errno: {errno}")
-        return Error(ConnectError)
+        return Error(RecvError)
     }
 
     buf.size = bytes_read as u32
@@ -160,13 +236,14 @@ def Socket::recvfrom(&this, buf: &Buffer, max_size: u32): Result<&RecvFromResult
     return Ok(result)
 }
 
+//* Sends data on the socket to the given address. Returns the number of bytes written.
 def Socket::sendto(&this, buf: &Buffer, host: str, port: i32): i64 {
     let dest_addr: SockAddrIn
     dest_addr.sin_family = AF_INET
     dest_addr.sin_port = htons(port)
     
     let hostm = gethostbyname(host)
-    if not hostm? or not hostm.h_addr_list? {
+    if not hostm? or not hostm.h_addr_list? or not hostm.h_addr_list[0]? {
         return -1
     }
     let addr_ptr = hostm.h_addr_list[0] as &i32
@@ -178,7 +255,122 @@ def Socket::sendto(&this, buf: &Buffer, host: str, port: i32): i64 {
     return sendto(.fd, buf.data, buf.size, 0, &dest_addr as &SockAddr, sizeof(SockAddrIn))
 }
 
+//* Writes data to the socket
 def Socket::write(&this, buf: &Buffer): u32 => write(this.fd, buf.data, buf.size)
+
+
+// UDP abstraction
+
+//* A UDP socket
+struct UdpSocket {
+    sock: Socket
+}
+
+//* Creates a UdpSocket from the given address
+def UdpSocket::bind(host: str, port: i32, quick_restart: bool = true): Result<&UdpSocket, SocketStatus> {
+    let sock: Socket
+    let status = Socket::try_bind(host, port, SocketMode::UDP, &sock)
+    if status != SocketStatus::Ok {
+        return Error(status)
+    }
+    let udp_socket = @new UdpSocket(sock)
+    return Ok(udp_socket)
+}
+
+//* Receives a single datagram message on the socket. Returns the number of bytes read and the origin address
+def UdpSocket::recv_from(&this, buf: &Buffer, max_size: u32 = 65535): Result<&RecvFromResult, SocketStatus> {
+    return .sock.recvfrom(buf, max_size)
+}
+
+//* Sends data on the socket to the given address. Returns the number of bytes written
+def UdpSocket::send_to(&this, buf: &Buffer, target: str): Result<i64, SocketStatus> {
+    let sv = SV::from_str(target)
+    let host = sv.chop_by_delim(':').copy_data_to_cstr()
+    defer host.free()
+    let port = sv.chop_i32()
+
+    let bytes_written = .sock.sendto(buf, host, port)
+    if bytes_written < 0 {
+        return Error(SocketStatus::ConnectError)
+    }
+    return Ok(bytes_written)
+}
+
+//* Closes the UDP socket
+def UdpSocket::close(&this) {
+    close(.sock.fd)
+}
+
+
+// TCP abstraction
+
+//* Represents a TCP socket that is listening for incoming connections
+struct TcpListener {
+    sock: Socket
+}
+
+//* Represents a TCP stream between a local and a remote socket
+struct TcpStream {
+    sock: Socket
+}
+
+//* Creates a new TcpListener which will be bound to the specified address
+def TcpListener::bind(host: str, port: i32): Result<&TcpListener, SocketStatus> {
+    let sock: Socket
+    let status = Socket::try_bind(host, port, SocketMode::TCP, &sock)
+    if status != SocketStatus::Ok {
+        return Error(status)
+    }
+    let listener = @new TcpListener(sock)
+    return Ok(listener)
+}
+
+//* Accepts a new connection on this listener
+def TcpListener::accept(&this): Result<&TcpStream, SocketStatus> {
+    let client_addr: SockAddrIn
+    let addr_len: i32 = sizeof(SockAddrIn) as i32
+    
+    let client_fd = accept(.sock.fd, &client_addr as &SockAddr, &addr_len)
+
+    if client_fd < 0 {
+        return Error(SocketStatus::ConnectError)
+    }
+
+    let stream_sock = Socket(client_fd)
+    let stream = @new TcpStream(stream_sock)
+    return Ok(stream)
+}
+
+//* Closes the listener
+def TcpListener::close(&this) {
+    close(.sock.fd)
+}
+
+//* Opens a TCP connection to a remote host
+def TcpStream::connect(host: str, port: i32, timeout_secs: i32 = -1): Result<&TcpStream, SocketStatus> {
+    let sock: Socket
+    let status = Socket::try_connect_tcp(host, port, &sock, timeout_secs)
+    if status != SocketStatus::Ok {
+        return Error(status)
+    }
+    let stream = @new TcpStream(sock)
+    return Ok(stream)
+}
+
+//* Reads data from the stream. Returns the number of bytes read
+def TcpStream::read(&this, buf: &Buffer): u32 {
+    return .sock.read(buf, buf.capacity)
+}
+
+//* Writes data to the stream. Returns the number of bytes written
+def TcpStream::write(&this, buf: &Buffer): u32 {
+    return .sock.write(buf)
+}
+
+//* Closes the connection
+def TcpStream::close(&this) {
+    close(.sock.fd)
+}
 
 
 /// Internal stuff

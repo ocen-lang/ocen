@@ -1,5 +1,4 @@
-import std::net::tcp::{ TcpListener, TcpStream }
-import std::net::udp::{ UdpSocket }
+import std::socket::{ TcpListener, TcpStream, UdpSocket }
 import std::buffer::Buffer
 import std::shift_args
 import std::argparse::Parser
