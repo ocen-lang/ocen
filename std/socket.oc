@@ -102,36 +102,33 @@ def Socket::try_bind_udp(host: str, port: i32, out_sock: &Socket): SocketStatus 
 }
 
 //* Tries to connect to a TCP server
-def Socket::try_connect_tcp(host: str, port: i32, out_sock: &Socket, timeout_secs: i32 = -1): SocketStatus {
+def Socket::try_connect(host: str, port: i32, mode: SocketMode, out_sock: &Socket, timeout_secs: i32 = -1): SocketStatus {
+    let sock: Socket
 
-    // Creating socket
-    let sock_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-    if sock_fd < 0 {
-        return CreateError
+	// Creating socket
+	sock.fd = match mode {
+        UDP => socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP),
+        TCP => socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
     }
+	if (sock.fd < 0) {
+        return CreateError
+	}
 
-    // Adding server address info to struct
-    let server_address: SockAddrIn
-    server_address.sin_family = AF_INET
-    server_address.sin_port = htons(port)
+	// Adding server address info. to struct
+	let server_address: SockAddrIn
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(port);
 
     let hostm = gethostbyname(host)
     if not hostm? or not hostm.h_addr_list? or not hostm.h_addr_list[0]? {
-        close(sock_fd)
         return HostError
     }
-    let addr_ptr = hostm.h_addr_list[0] as &i32
-    if not addr_ptr? {
-        close(sock_fd)
-        return HostError
-    }
-    server_address.sin_addr.s_addr = *addr_ptr
+    server_address.sin_addr.s_addr = *(hostm.h_addr_list[0] as &i32)
 
-    // Assigning IP address to struct
-    if inet_pton(AF_INET, host, &server_address.sin_addr) < 0 {
-        close(sock_fd)
+	// Assigning IP address to struct
+	if (inet_pton(AF_INET, host, &server_address.sin_addr) < 0) {
         return InetPtonError
-    }
+  	}
 
     let should_timeout = (timeout_secs > 0)
     let set: fcntl::FdSet
@@ -139,42 +136,39 @@ def Socket::try_connect_tcp(host: str, port: i32, out_sock: &Socket, timeout_sec
     if should_timeout {
         // Setting the socket to non-blocking
         set.zero()
-        set.set(sock_fd)
-        fcntl::fcntl(sock_fd, fcntl::F_SETFL, fcntl::O_NONBLOCK)
+        set.set(sock.fd)
+        fcntl::fcntl(sock.fd, fcntl::F_SETFL, fcntl::O_NONBLOCK)
     }
 
     // Connecting to the socket
-    if connect(sock_fd, (&server_address) as &SockAddr, sizeof(SockAddrIn)) < 0 {
+  	if (connect(sock.fd, (&server_address) as &SockAddr, sizeof(SockAddrIn)) < 0) {
         if should_timeout and errno != fcntl::EINPROGRESS {
-            close(sock_fd)
             return ConnectError
         }
     }
 
     if should_timeout {
         let timeout: TimeVal
-        timeout.tv_sec = timeout_secs as i64
-        timeout.tv_usec = 0
+        timeout.tv_sec = timeout_secs as i64;
+        timeout.tv_usec = 0;
 
-        let ret = fcntl::select(sock_fd + 1, null, &set, null, &timeout)
-        if ret <= 0 {
-            close(sock_fd)
+        let ret = fcntl::select(sock.fd + 1, null, &set, null, &timeout);
+        if (ret <= 0) {
             return ConnectError
         }
 
-        // After connecting, set back to blocking
-        let flags = fcntl::fcntl(sock_fd, fcntl::F_GETFL, 0)
-        fcntl::fcntl(sock_fd, fcntl::F_SETFL, flags & ~fcntl::O_NONBLOCK)
+        // After connecting
+        let flags = fcntl::fcntl(sock.fd, fcntl::F_GETFL, 0);
+        fcntl::fcntl(sock.fd, fcntl::F_SETFL, flags & ~fcntl::O_NONBLOCK);
     }
 
-    out_sock.fd = sock_fd
+    *out_sock = sock
     return Ok
 }
 
-//* Connects to a TCP server
-def Socket::connect_tcp(host: str, port: i32, timeout_secs: i32 = -1): Socket {
+def Socket::connect(host: str, port: i32, mode: SocketMode, timeout_secs: i32 = -1): Socket {
     let sock: Socket
-    let res = Socket::try_connect_tcp(host, port, &sock, timeout_secs)
+    let res = Socket::try_connect(host, port, mode, &sock, timeout_secs)
     match res {
         Ok => {}
         CreateError => std::panic(f"Error creating socket: {strerror(errno)}")
@@ -349,7 +343,7 @@ def TcpListener::close(&this) {
 //* Opens a TCP connection to a remote host
 def TcpStream::connect(host: str, port: i32, timeout_secs: i32 = -1): Result<&TcpStream, SocketStatus> {
     let sock: Socket
-    let status = Socket::try_connect_tcp(host, port, &sock, timeout_secs)
+    let status = Socket::try_connect(host, port, TCP, &sock, timeout_secs)
     if status != SocketStatus::Ok {
         return Error(status)
     }
