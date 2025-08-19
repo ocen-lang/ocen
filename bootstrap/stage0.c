@@ -5056,7 +5056,7 @@ _l___yv_354:
 f64 compiler_parser_Parser_parse_num_literal_float(compiler_parser_Parser *this, char *text) {
   u32 len = strlen(text);
   char buf[32] = {0};
-  if(!(len < 32)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:765:12: Assertion failed: `len < 32`", NULL); }
+  if(!(len < 32)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:766:12: Assertion failed: `len < 32`", NULL); }
   u32 j = 0;
   for (u32 i = 0; i < len; i+=1) {
     char c = text[i];
@@ -5650,7 +5650,7 @@ compiler_ast_nodes_AST *compiler_parser_Parser_parse_is(compiler_parser_Parser *
   if (!(compiler_parser_Parser_token_is_identifier(this, "is"))) {
     return lhs;
   }
-  if(!(str_eq(compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier)->text, "is"))) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:1251:12: Assertion failed: `.consume(Identifier).text.eq(\"is\")`", NULL); }
+  if(!(str_eq(compiler_parser_Parser_consume(this, compiler_tokens_TokenType_Identifier)->text, "is"))) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:1252:12: Assertion failed: `.consume(Identifier).text.eq(\"is\")`", NULL); }
   std_vector_Vector__1 *conds = compiler_parser_Parser_parse_match_case_conds(this, end_type);
   std_span_Span prev_tok_span = std_vector_Vector__3_at(this->tokens, (this->curr - 1))->span;
   compiler_ast_nodes_AST *node = compiler_ast_nodes_AST_new(compiler_ast_nodes_ASTType_Is, std_span_Span_join(lhs->span, prev_tok_span));
@@ -6347,7 +6347,7 @@ void compiler_parser_Parser_parse_extern_into_symbol(compiler_parser_Parser *thi
 }
 
 void compiler_parser_Parser_get_extern_from_attr(compiler_parser_Parser *this, compiler_ast_scopes_Symbol *sym, compiler_attributes_Attribute *attr) {
-  if(!(attr->type==compiler_attributes_AttributeType_Extern)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:1941:12: Assertion failed: `attr.type == Extern`", NULL); }
+  if(!(attr->type==compiler_attributes_AttributeType_Extern)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:1942:12: Assertion failed: `attr.type == Extern`", NULL); }
   sym->is_extern=true;
   if (attr->args->size > 0) {
     sym->extern_name=std_vector_Vector__5_at(attr->args, 0);
@@ -7085,8 +7085,8 @@ switch ((path->type)) {
       m_395_0:
         {
           std_vector_Vector__2 *parts = path->parts;
-          if(!(parts->size > 0)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:2671:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path"); }
-          if(!(std_vector_Vector__2_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:2672:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import"); }
+          if(!(parts->size > 0)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:2672:20: Assertion failed: `parts.size > 0`", "Expected at least one part in import path"); }
+          if(!(std_vector_Vector__2_at(parts, 0)->type==compiler_ast_nodes_ImportPartType_Single)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/parser.oc:2673:20: Assertion failed: `parts.at(0).type == Single`", "Expected first part to be a single import"); }
           compiler_ast_nodes_ImportPartSingle first_part = std_vector_Vector__2_at(parts, 0)->u.single;
           char *lib_name = first_part.name;
           if (!(std_map_Map__4_contains(this->program->global->namespaces, lib_name))) {
@@ -11089,6 +11089,14 @@ switch ((expr->type)) {
               arg->is_shared=true;
               __yv_474 = sh_field;
               goto _l___yv_474;
+            } else if (((args->size==1 && !(((bool)arg->alias))) && compiler_ast_nodes_EnumVariant_num_fields(variant)==1) && enom->shared_fields->size==0) {
+              compiler_ast_nodes_Variable *field = std_vector_Vector__8_at(variant->specific_fields, 0);
+              compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(field->type);
+              var->sym=compiler_ast_scopes_Symbol_from_local_variable(field->sym->name, var, arg->var->sym->span);
+              arg->alias=arg->var;
+              arg->var=var;
+              __yv_474 = field;
+              goto _l___yv_474;
             } else {
               compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->var->sym->span, std_format("Field `%s` does not exist in enum variant %s", arg->var->sym->name, variant->sym->display)));
               __yv_474 = NULL;
@@ -11117,6 +11125,14 @@ _l___yv_474:
           } else if (((bool)sh_field)) {
             arg->is_shared=true;
             __yv_475 = sh_field;
+            goto _l___yv_475;
+          } else if (((args->size==1 && !(((bool)arg->alias))) && compiler_ast_nodes_EnumVariant_num_fields(variant)==1) && enom->shared_fields->size==0) {
+            compiler_ast_nodes_Variable *field = std_vector_Vector__8_at(variant->specific_fields, 0);
+            compiler_ast_nodes_Variable *var = compiler_ast_nodes_Variable_new(field->type);
+            var->sym=compiler_ast_scopes_Symbol_from_local_variable(field->sym->name, var, arg->var->sym->span);
+            arg->alias=arg->var;
+            arg->var=var;
+            __yv_475 = field;
             goto _l___yv_475;
           } else {
             compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(arg->var->sym->span, "Field does not exist in enum variant"));
@@ -11361,7 +11377,7 @@ switch ((expr_type->base)) {
 }
 
 void compiler_passes_typechecker_TypeChecker_check_is_expr_in_if_condition(compiler_passes_typechecker_TypeChecker *this, compiler_ast_nodes_AST *cond) {
-  if(!(cond->type==compiler_ast_nodes_ASTType_Is)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/passes/typechecker.oc:2584:12: Assertion failed: `cond.type == Is`", std_format("Expected 'Is' node, got '%s'", compiler_ast_nodes_ASTType_dbg(cond->type))); }
+  if(!(cond->type==compiler_ast_nodes_ASTType_Is)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/passes/typechecker.oc:2615:12: Assertion failed: `cond.type == Is`", std_format("Expected 'Is' node, got '%s'", compiler_ast_nodes_ASTType_dbg(cond->type))); }
   compiler_ast_nodes_IsExpression *is_expr = &cond->u.is_expr;
   compiler_types_Type *lhs = compiler_passes_typechecker_TypeChecker_check_expression(this, is_expr->lhs, NULL);
   std_map_Map__1 *mapping = std_map_Map__1_new(8);
@@ -12447,8 +12463,8 @@ void compiler_passes_typechecker_TypeChecker_try_resolve_typedefs_in_namespace(c
         continue;
       }
       compiler_ast_scopes_Symbol *sym = compiler_ast_scopes_Scope_lookup_recursive(compiler_passes_generic_pass_GenericPass_scope(this->o), it->key);
-      if(!(((bool)sym))) { ae_assert_fail("/home/mindful-dev/ocen/compiler/passes/typechecker.oc:3578:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
-      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/passes/typechecker.oc:3582:16: Assertion failed: `sym.type == TypeDef`", NULL); }
+      if(!(((bool)sym))) { ae_assert_fail("/home/mindful-dev/ocen/compiler/passes/typechecker.oc:3609:16: Assertion failed: `sym?`", "Should have added the symbol into scope already"); }
+      if(!(sym->type==compiler_ast_scopes_SymbolType_TypeDef)) { ae_assert_fail("/home/mindful-dev/ocen/compiler/passes/typechecker.oc:3613:16: Assertion failed: `sym.type == TypeDef`", NULL); }
       compiler_types_Type *res = compiler_passes_typechecker_TypeChecker_resolve_type(this, it->value, false, !(pre_import), true);
       if (!(((bool)res))) {
         continue;

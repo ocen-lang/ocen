@@ -61,7 +61,7 @@ def Socket::try_bind_tcp(host: str, port: i32, out_sock: &Socket): SocketStatus 
     server_addr.sin_port = htons(port)
     server_addr.sin_addr.s_addr = INADDR_ANY as i32
 
-    if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn) as i32) < 0 {
+    if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn)) < 0 {
         close(sock_fd)
         return BindError
     }
@@ -93,7 +93,7 @@ def Socket::try_bind_udp(host: str, port: i32, out_sock: &Socket): SocketStatus 
     server_addr.sin_port = htons(port)
     server_addr.sin_addr.s_addr = INADDR_ANY as i32
 
-    if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn) as i32) < 0 {
+    if bind(sock_fd, &server_addr as &SockAddr, sizeof(SockAddrIn)) < 0 {
         close(sock_fd)
         return BindError
     }
@@ -323,7 +323,7 @@ def TcpListener::bind(host: str, port: i32): Result<&TcpListener, SocketStatus> 
 //* Accepts a new connection on this listener
 def TcpListener::accept(&this): Result<&TcpStream, SocketStatus> {
     let client_addr: SockAddrIn
-    let addr_len: i32 = sizeof(SockAddrIn) as i32
+    let addr_len = sizeof(SockAddrIn)
     
     let client_fd = accept(.sock.fd, &client_addr as &SockAddr, &addr_len)
 
@@ -369,68 +369,71 @@ def TcpStream::close(&this) {
 
 
 /// Internal stuff
+import ::c::*
 
-@compiler c_include "sys/socket.h"
-@compiler c_include "netinet/in.h"
-@compiler c_include "arpa/inet.h"
-@compiler c_include "unistd.h"
-@compiler c_include "errno.h"
-@compiler c_include "sys/types.h"
-@compiler c_include "time.h"
-@compiler c_include "sys/time.h"
-@compiler c_include "netdb.h"
+namespace c {
+    @compiler c_include "sys/socket.h"
+    @compiler c_include "netinet/in.h"
+    @compiler c_include "arpa/inet.h"
+    @compiler c_include "unistd.h"
+    @compiler c_include "errno.h"
+    @compiler c_include "sys/types.h"
+    @compiler c_include "time.h"
+    @compiler c_include "sys/time.h"
+    @compiler c_include "netdb.h"
 
-[extern "struct sockaddr"] struct SockAddr
+    [extern "struct sockaddr"] struct SockAddr
 
-[extern "struct hostent"]
-struct HostEnt {
-    h_name: str
-    h_aliases: &&str
-    h_addrtype: i32
-    h_length: i32
-    h_addr_list: &&u8
+    [extern "struct hostent"]
+    struct HostEnt {
+        h_name: str
+        h_aliases: &&str
+        h_addrtype: i32
+        h_length: i32
+        h_addr_list: &&u8
+    }
+
+    [extern "struct in_addr"]
+    struct SinAddr {
+        s_addr: i32
+    }
+
+    [extern "struct sockaddr_in"]
+    struct SockAddrIn {
+        sin_family: i32
+        sin_port: i32
+        sin_addr: SinAddr
+    }
+
+    [extern] def htonl(val: i32): i32
+    [extern] def htons(val: i32): i32
+    [extern] def ntohl(val: i32): i32
+    [extern] def ntohs(val: i32): i32
+
+    [extern] let errno: i32
+    [extern] let AF_INET: i32
+    [extern] let SOCK_STREAM: i32
+    [extern] let INADDR_ANY: i32
+    [extern] let IPPROTO_UDP: i32
+    [extern] let IPPROTO_TCP: i32
+    [extern] let SOCK_DGRAM: i32
+    [extern] let INET_ADDRSTRLEN: i32
+    [extern] let SOL_SOCKET: i32
+    [extern] let SO_REUSEADDR: i32
+
+    [extern] def socket(domain: i32, type: i32, protocol: i32): i32
+    [extern] def setsockopt(sockfd: i32, level: i32, optname: i32, optval: untyped_ptr, optlen: i32): i32
+    [extern] def bind(sockfd: i32, addr: &SockAddr, addrlen: u32): i32
+    [extern] def listen(sockfd: i32, backlog: i32): i32
+    [extern] def accept(sockfd: i32, addr: &SockAddr, addrlen: &u32): i32
+    [extern] def inet_pton(af: i32, src: str, dst: untyped_ptr): i32
+    [extern] def inet_ntop(af: i32, src: untyped_ptr, dst: str, size: i32): str
+    [extern] def connect(sockfd: i32, addr: &SockAddr, addrlen: u32): i32
+    [extern] def gethostbyname(name: str): &HostEnt
+
+    [extern] def recvfrom(sockfd: i32, buf: untyped_ptr, len: u32, flags: i32, src_addr: &SockAddr, addrlen: &u32): i64
+    [extern] def sendto(sockfd: i32, buf: untyped_ptr, len: u32, flags: i32, dest_addr: &SockAddr, addrlen: u32): i64
+    [extern] def read(fd: i32, buf: untyped_ptr, count: u32): u32
+    [extern] def write(fd: i32, buf: untyped_ptr, count: u32): u32
+    [extern] def close(fd: i32): i32
 }
-
-[extern "struct in_addr"]
-struct SinAddr {
-    s_addr: i32
-}
-
-[extern "struct sockaddr_in"]
-struct SockAddrIn {
-    sin_family: i32
-    sin_port: i32
-    sin_addr: SinAddr
-}
-
-[extern] def htonl(val: i32): i32
-[extern] def htons(val: i32): i32
-[extern] def ntohl(val: i32): i32
-[extern] def ntohs(val: i32): i32
-
-[extern] let errno: i32
-[extern] let AF_INET: i32
-[extern] let SOCK_STREAM: i32
-[extern] let INADDR_ANY: i32
-[extern] let IPPROTO_UDP: i32
-[extern] let IPPROTO_TCP: i32
-[extern] let SOCK_DGRAM: i32
-[extern] let INET_ADDRSTRLEN: i32
-[extern] let SOL_SOCKET: i32
-[extern] let SO_REUSEADDR: i32
-
-[extern] def socket(domain: i32, type: i32, protocol: i32): i32
-[extern] def setsockopt(sockfd: i32, level: i32, optname: i32, optval: untyped_ptr, optlen: i32): i32
-[extern] def bind(sockfd: i32, addr: &SockAddr, addrlen: i32): i32
-[extern] def listen(sockfd: i32, backlog: i32): i32
-[extern] def accept(sockfd: i32, addr: &SockAddr, addrlen: &i32): i32
-[extern] def inet_pton(af: i32, src: str, dst: untyped_ptr): i32
-[extern] def inet_ntop(af: i32, src: untyped_ptr, dst: str, size: i32): str
-[extern] def connect(sockfd: i32, addr: &SockAddr, addrlen: u32): i32
-[extern] def gethostbyname(name: str): &HostEnt
-
-[extern] def recvfrom(sockfd: i32, buf: untyped_ptr, len: u32, flags: i32, src_addr: &SockAddr, addrlen: &u32): i64
-[extern] def sendto(sockfd: i32, buf: untyped_ptr, len: u32, flags: i32, dest_addr: &SockAddr, addrlen: u32): i64
-[extern] def read(fd: i32, buf: untyped_ptr, count: u32): u32
-[extern] def write(fd: i32, buf: untyped_ptr, count: u32): u32
-[extern] def close(fd: i32): i32
