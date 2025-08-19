@@ -1103,7 +1103,8 @@ def CodeGenerator::gen_match_enum_cases_body(
         for arg in args.iter() {
             if not arg.var.sym.name.eq("_") {
                 .gen_indent()
-                .gen_type_and_name(arg.var.type, arg.var.sym.out_name())
+                let sym = arg.var_or_alias_symbol()
+                .gen_type_and_name(arg.var.type, sym.out_name())
                 .out += ";\n"
             }
         }
@@ -1128,8 +1129,7 @@ def CodeGenerator::gen_match_enum_cases_body(
                 let arg = args.at(i)
                 if arg.is_shared {
                     .gen_indent()
-                    // TODO: Allow different variable name here
-                    .out += arg.var.sym.out_name()
+                    .out += arg.var_or_alias_symbol().out_name()
                     .out += " = "
                     .out += var_name
                     .out += "."
@@ -1141,7 +1141,7 @@ def CodeGenerator::gen_match_enum_cases_body(
 
                 } else {
                     .gen_indent()
-                    .out += arg.var.sym.out_name()
+                    .out += arg.var_or_alias_symbol().out_name()
                     .out += " = "
                     .out += var_name
                     .out += "."
