@@ -519,7 +519,13 @@ def Parser::parse_match_case_conds(&this, end_type: TokenType): &Vector<&MatchCo
                 let name = .consume(Identifier)
                 let var = Variable::new(null)
                 var.sym = Symbol::from_local_variable(name.text, var, name.span)
-                args.push(@new MatchCondArg(var))
+                let alias: &Variable = null
+                if .consume_if(Colon) {
+                    let alias_name = .consume(Identifier)
+                    alias = Variable::new(null)
+                    alias.sym = Symbol::from_local_variable(alias_name.text, var, alias_name.span)
+                }
+                args.push(@new MatchCondArg(var, alias))
 
                 if not .consume_if(Comma) {
                     break

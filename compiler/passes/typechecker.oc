@@ -2300,7 +2300,8 @@ def TypeChecker::check_match_case_enum(
                     }
                     if field? {
                         arg.var.type = field.type
-                        current_args[arg.var.sym.name] = field.type
+                        let name = arg.var_or_alias_symbol().name
+                        current_args[name] = field.type
                     }
                 }
             }
@@ -2334,7 +2335,8 @@ def TypeChecker::check_match_case_enum(
                     arg.var.type = field.type
                 }
 
-                let item = current_args.get_item(arg.var.sym.name)
+                let name = arg.var_or_alias_symbol().name
+                let item = current_args.get_item(name)
                 if not item? {
                     .error(Error::new(
                         arg.var.sym.span, "All conditions in this branch must have the same fields"

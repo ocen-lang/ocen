@@ -484,7 +484,12 @@ struct FormatString {
 
 struct MatchCondArg {
     var: &Variable
+    alias: &Variable
     is_shared: bool = false
+}
+
+def MatchCondArg::var_or_alias_symbol(&this): &Symbol {
+    return if .alias? then .alias.sym else .var.sym
 }
 
 struct MatchCond {
