@@ -1,0 +1,29 @@
+/// out: "0|1 [42] => 42\n0|1 [43] => 43\n2 [5] => world\n3 [0] => ()"
+
+enum Foo {
+    Case0(x: i32)
+    Case1(z: str, x: i32)
+    Case2(z: str)
+    Case3
+}
+
+def Foo::bar(this): i32 => match this {
+    Case0(x) | Case1(x) => x
+    Case2(z) => z.len() as i32
+    Case3 => 0
+}
+
+def run(foo: Foo) {
+    match foo {
+        Case0(x) | Case1(x) => println(`0|1 [{foo.bar()}] => {x}`)
+        Case2(baz) => println(`2 [{foo.bar()}] => {baz}`)
+        Case3 => println(`3 [{foo.bar()}] => ()`)
+    }
+}
+
+def main() {
+    run(Case0(42))
+    run(Foo::Case1("hello", 43))
+    run(Foo::Case2("world"))
+    run(Case3)
+}
