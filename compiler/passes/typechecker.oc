@@ -2280,7 +2280,6 @@ def TypeChecker::check_match_case_enum(
                     let arg = args[j]
 
 
-                    // TODO: Allow binding name to be different from variable name in scope
                     // TODO: Maybe use a map inside enum to save the linear lookups in get_*_field
 
                     let sp_field = variant.get_specific_field(arg.var.sym.name)
@@ -2291,6 +2290,22 @@ def TypeChecker::check_match_case_enum(
                             arg.is_shared = true
                             yield sh_field
                         }
+                        // When the variant has only one field and we've specified only one argument, we're just going to assume that
+                        // it's referring to the correct field and treat it as an alias. This is particularly useful for the built-in
+                        // Result and Option types
+                        (
+                            args.size == 1
+                            and not arg.alias?
+                            and variant.num_fields() == 1
+                            and enom.shared_fields.size == 0
+                        ) => {
+                            let field = variant.specific_fields[0]
+                            let var = Variable::new(field.type)
+                            var.sym = Symbol::from_local_variable(field.sym.name, var, arg.var.sym.span)
+                            arg.alias = arg.var
+                            arg.var = var
+                            yield field
+                        }
                         else => {
                             .error(Error::new(
                                 arg.var.sym.span, f"Field `{arg.var.sym.name}` does not exist in enum variant {variant.sym.display}"
@@ -2298,6 +2313,7 @@ def TypeChecker::check_match_case_enum(
                             yield null
                         }
                     }
+
                     if field? {
                         arg.var.type = field.type
                         let name = arg.var_or_alias_symbol().name
@@ -2322,6 +2338,22 @@ def TypeChecker::check_match_case_enum(
                         arg.is_shared = true
                         yield sh_field
                     }
+                    // When the variant has only one field and we've specified only one argument, we're just going to assume that
+                    // it's referring to the correct field and treat it as an alias. This is particularly useful for the built-in
+                    // Result and Option types
+                    (
+                        args.size == 1
+                        and not arg.alias?
+                        and variant.num_fields() == 1
+                        and enom.shared_fields.size == 0
+                    ) => {
+                        let field = variant.specific_fields[0]
+                        let var = Variable::new(field.type)
+                        var.sym = Symbol::from_local_variable(field.sym.name, var, arg.var.sym.span)
+                        arg.alias = arg.var
+                        arg.var = var
+                        yield field
+                    }
                     else => {
                         .error(Error::new(
                             arg.var.sym.span, "Field does not exist in enum variant"
@@ -2329,7 +2361,6 @@ def TypeChecker::check_match_case_enum(
                         yield null
                     }
                 }
-
 
                 if field? {
                     arg.var.type = field.type

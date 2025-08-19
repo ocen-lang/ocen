@@ -516,6 +516,7 @@ def Parser::parse_match_case_conds(&this, end_type: TokenType): &Vector<&MatchCo
         if .consume_if(OpenParen) {
             args = Vector<&MatchCondArg>::new()
             while not .token_is_eof_or(CloseParen) {
+                // TODO: Support Foo(:bar, :baz) for enforced ordered bindings instead of just named bindings
                 let name = .consume(Identifier)
                 let var = Variable::new(null)
                 var.sym = Symbol::from_local_variable(name.text, var, name.span)
