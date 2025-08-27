@@ -127,7 +127,7 @@ def Vec3::normalized(this): Vec3f {
 //! Only intended for {{Vec3}}<{{f32}}>
 def Vec3::reflect(this, normal: Vec3<T>): Vec3<T> => .sub(normal.mults(2 as T * .dot(normal)))
 
-def Vec3::rotateX(&this, angle: f32): Vec3f {
+def Vec3::rotateX(this, angle: f32): Vec3f {
     let c = angle.cos()
     let s = angle.sin()
     let y = .y as f32 * c - .z as f32 * s
@@ -135,7 +135,7 @@ def Vec3::rotateX(&this, angle: f32): Vec3f {
     return Vec3f(.x as f32, y, z)
 }
 
-def Vec3::rotateY(&this, angle: f32): Vec3f {
+def Vec3::rotateY(this, angle: f32): Vec3f {
     let c = angle.cos()
     let s = angle.sin()
     let z = .z as f32 * c - .x as f32 * s
@@ -143,7 +143,7 @@ def Vec3::rotateY(&this, angle: f32): Vec3f {
     return Vec3f(x, .y as f32, z)
 }
 
-def Vec3::rotateZ(&this, angle: f32): Vec3f {
+def Vec3::rotateZ(this, angle: f32): Vec3f {
     let c = angle.cos()
     let s = angle.sin()
     let x = .x as f32 * c - .y as f32 * s

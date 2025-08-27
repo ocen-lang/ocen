@@ -24,10 +24,7 @@ def RandomState::seed(&this, s: u32) {
 
 def RandomState::make(s: u32 = 0): RandomState {
     let rs: RandomState
-    rs.x = c::rand()
-    rs.y = c::rand()
-    rs.z = c::rand()
-    rs.w = c::rand()
+    rs.seed(s)
     return rs
 }
 
