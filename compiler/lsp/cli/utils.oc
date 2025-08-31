@@ -396,6 +396,10 @@ def gen_namespace_json(ns: &Namespace): &Value {
         children += gen_struct_json(struc)
     }
 
+    for enom in ns.enums.iter() {
+        children += gen_enum_json(enom)
+    }
+
     for var in ns.variables.iter() {
         children += gen_variable_json(var.u.var_decl)
     }
