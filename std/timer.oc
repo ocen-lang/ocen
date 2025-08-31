@@ -1,0 +1,18 @@
+import std::time
+
+
+struct Timer {
+    msg: str
+    start_time: f64
+}
+
+def Timer::make(msg: str): Timer {
+    let start_time = time::get_time_monotonic_ms()
+    return Timer(msg, start_time)
+}
+
+def Timer::stop(&this) {
+    let end_time = time::get_time_monotonic_ms()
+    let delta = end_time - .start_time
+    println(`[timer] {.msg} took {delta} ms`)
+}

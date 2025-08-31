@@ -128,7 +128,7 @@ def Error::display(&this) {
 [exits]
 def Error::panic(&this) {
     .display()
-    std::exit(1)
+    assert false
 }
 
 def Error::new(span: Span, msg: str): &Error {

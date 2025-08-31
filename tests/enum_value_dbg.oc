@@ -1,0 +1,20 @@
+
+enum Foo {
+    Val0(x: i32)
+    Val1(y: str)
+}
+
+enum Bar<T> {
+    Val0(x: T)
+    Val1(y: str, z: T)
+}
+
+def main() {
+    let foo = Foo::Val0(5)
+    let bar = Bar<str>::Val0(x: "hi")
+    println(`foo={foo}`)
+
+    // FIXME: Debug printing for templated enums...
+    //        Problem: since we only inject the .dbg() method signature in register_types without an implementation,
+    //        when instantiating the template, we call deep_copy_function, which doesn't know how to deep-copy this placeholder.
+}

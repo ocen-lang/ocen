@@ -312,7 +312,9 @@ def get_deep_copy<T>(
     // and re-parse it. This is obviously not ideal.
 
     let obj_text = program.get_source_text(old.span)
-    if not obj_text? return null
+    if not obj_text? {
+        program.error(Error::new(old.span, f"Internal compiler error, couldn't get source text for deep copy, span: {old.span}")).panic()
+    }
 
     let lexer = Lexer::make(obj_text, old.span.start.filename)
     lexer.loc = old.span.start

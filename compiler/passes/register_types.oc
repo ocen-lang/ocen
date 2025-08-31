@@ -59,7 +59,7 @@ def RegisterTypes::add_dbg_method_for_enum(&this, enom: &Enum) {
     let span = enom.sym.span
 
     // We can't add a print these trivially
-    if enom.has_values or enom.sym.is_templated() {
+    if enom.sym.is_templated() {
         return
     }
 

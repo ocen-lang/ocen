@@ -14,6 +14,7 @@
 [extern "log2f"] def f32::log2(this): f32
 [extern "ceilf"] def f32::ceil(this): f32
 [extern "floorf"] def f32::floor(this): f32
+[extern "isnan"] def f32::isnan(this): bool
 
 [extern "INFINITY"] const INFINITY: f64
 def f32::inf(): f32 => INFINITY as f32
