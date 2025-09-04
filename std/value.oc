@@ -92,7 +92,7 @@ def Value::new_dict(map: &Map<str, &Value>): &Value {
 
 def Value::ensure(&this, type: ValueType) {
     if .type != type {
-        println(`{.span.start}: Value type mismatch, expected {.type} but got {type}`)
+        println(`{.span.start}: Value type mismatch, expected {type} but got {.type}`)
         std::exit(1)
     }
 }
@@ -213,6 +213,8 @@ def Value::as_str(&this): Buffer {
     .ensure(String)
     return .u.as_str
 }
+
+def Value::as_cstr(&this): str => .as_str().str()
 
 def Value::as_list(&this): &Vector<&Value> {
     .ensure(List)

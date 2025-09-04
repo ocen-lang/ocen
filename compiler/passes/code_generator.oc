@@ -1880,7 +1880,11 @@ def CodeGenerator::gen_enum_dbg_method(&this, enom: &Enum) {
         .gen_indent()
         .out += "case "
         .out += variant.sym.out_name()
-        .out <<= `: return "{variant.sym.name}";\n`
+        .out <<= `: return "{variant.sym.name}`
+        if variant.num_fields() > 0 {
+            .out += "(...)"
+        }
+        .out += "\";\n"
     }
     // This is mostly for extern enums, but is also useful for cases
     // where a perhaps incorrect value was cast to the enum type.

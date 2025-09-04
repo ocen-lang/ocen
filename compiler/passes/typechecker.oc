@@ -220,7 +220,7 @@ def TypeChecker::resolve_type(
                     }
                     else => {
                         if error {
-                            .error(Error::new(res.span, `Cannot use {res.display} as a type`))
+                            .error(Error::new(res.span, `Cannot use {res.display} as a type ({res.type})`))
                             resolved = null
                         }
                     }

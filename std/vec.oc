@@ -151,6 +151,16 @@ def Vec3::rotateZ(this, angle: f32): Vec3f {
     return Vec3f(x, y, .z as f32)
 }
 
+def Vec3::clamp01(this): Vec3<T> {
+  let zt = 0.0 as T
+  let ot = 1.0 as T
+  return Vec3<T>(
+    if .x < zt then zt else if .x > ot then ot else .x,
+    if .y < zt then zt else if .y > ot then ot else .y,
+    if .z < zt then zt else if .z > ot then ot else .z,
+  )
+}
+
 [operator "=="]
 def Vec3::eq(this, other: Vec3<T>): bool => .x == other.x and .y == other.y and .z == other.z
 def Vec3::hash(this): u32 => pair_hash(.x.hash(), pair_hash(.y.hash(), .z.hash()))

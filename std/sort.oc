@@ -89,3 +89,25 @@ def partition_by<T>(data: &T, size: u32, cmp: fn(T): bool): u32 {
 
     return first
 }
+
+// TODO: Modify above to use closures
+def partition_by_closure<T>(data: &T, size: u32, cmp: @fn(T): bool): u32 {
+    let first = size
+    for let i = 0; i < size; i += 1 {
+        if not cmp(data[i]) {
+            first = i
+            break
+        }
+    }
+
+    for let i = first; i < size; i += 1 {
+        if cmp(data[i]) {
+            let tmp = data[i]
+            data[i] = data[first]
+            data[first] = tmp
+            first += 1
+        }
+    }
+
+    return first
+}
