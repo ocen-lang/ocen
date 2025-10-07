@@ -277,3 +277,27 @@ def Texture::write_image(&this, img: &Image) {
 
     .unlock()
 }
+
+def run_main_loop(callback: @fn(): bool) {
+    let quit = false
+    let e: Event
+    while not quit {
+        let modified = false
+        while poll_event(&e) {
+            match e.type {
+                Quit => quit = true
+                KeyDown => {
+                    match e.key.keysym.scancode {
+                        Escape => quit = true
+                        else => {}
+                    }
+                }
+                else => {} // Just pump all the events
+            }
+        }
+
+        if not callback() {
+            quit = true
+        }
+    }
+}

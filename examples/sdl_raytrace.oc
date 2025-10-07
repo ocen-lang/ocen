@@ -2,6 +2,7 @@ import std::sdl::{this, ttf::{this, Font}}
 import std::vec::{ Vec3f as Vec }
 import std::vector::Vector
 import std::math::{ rand01 }
+import std::image::{ Image, Color }
 import std::mem
 
 // Make raytracer go brrr
@@ -140,7 +141,7 @@ struct Camera {
     w: Vec
 }
 
-let img: [[Vec; HEIGHT]; WIDTH]
+let img: [[Vec; WIDTH]; HEIGHT]
 let objs: &Vector<&Sphere>
 let samples: u32 = 0
 
@@ -180,27 +181,23 @@ def Camera::ray(&this, x: u32, y: u32): Ray {
 
 let camera: Camera
 
-def draw(screen: &u8, pitch: u32) {
+def draw(out: &Image) {
     samples += 1
-    for let x = 0; x < WIDTH; x += 1 {
-        for let y = 0; y < HEIGHT; y += 1 {
+    for let y = 0; y < HEIGHT; y += 1 {
+        for let x = 0; x < WIDTH; x += 1 {
             let ray = camera.ray(x, y)
             let color = raytrace(&ray, objs, 5)
 
-            let prev_color = img[x][y]
+            let prev_color = img[y][x]
             let new_color = prev_color.add(color)
-            img[x][y] = new_color
+            img[y][x] = new_color
 
             // Save to screen
             let r = (new_color.x / samples as f32) * 255.0
             let g = (new_color.y / samples as f32) * 255.0
             let b = (new_color.z / samples as f32) * 255.0
 
-            let offset = (y * pitch) + (x * 4)
-            screen[offset + 0] = r as u8
-            screen[offset + 1] = g as u8
-            screen[offset + 2] = b as u8
-            screen[offset + 3] = 255 as u8
+            out.set(x, y, Color(r as u8, g as u8, b as u8))
         }
     }
 }
@@ -262,30 +259,17 @@ def main() {
         Right: || => direction = direction.rotateY(0.1),
         Up: || => direction = direction.rotateX(-0.1),
         Down: || => direction = direction.rotateX(0.1),
+        R: || {
+            origin = Vec(0.0, 0.0, 0.0)
+            direction = Vec(0.0, 0.0, 1.0)
+        }
     }
 
-    let quit = false
-    while not quit {
-        let modified = false
-        while sdl::poll_event(&e) {
-            match e.type {
-                Quit => quit = true
-                KeyDown => {
-                    let cur_modified = true
-                    match e.key.keysym.scancode {
-                        Q | Escape => quit = true
-                        R => {
-                            origin = Vec(0.0, 0.0, 0.0)
-                            direction = Vec(0.0, 0.0, 1.0)
-                            modified = true
-                        }
-                        else => {}
-                    }
-                }
-                else => {}
-            }
-        }
+    let out = Image::new(WIDTH, HEIGHT)
+    sdl::set_relative_mouse_mode(true)
 
+    sdl::run_main_loop(|| {
+        let modified = false
         let kss = sdl::get_keyboard_state()
         for it in key_ev_callbacks.iter() {
             if kss[it.key as u32] != 0 {
@@ -294,31 +278,31 @@ def main() {
             }
         }
 
+        let mx = 0i
+        let my = 0i
+        let mb = sdl::get_relative_mouse_state(&mx, &my)
+
+        if mx != 0 {
+            direction = direction.rotateY(mx as f32 * 0.002)
+            modified = true
+        }
+
+        if my != 0 {
+            direction = direction.rotateX(my as f32 * 0.002)
+            modified = true
+        }
+
         if modified {
             camera = Camera::make(origin, direction)
-            std::libc::memset(img, 0, sizeof(Vec) * WIDTH * HEIGHT)
+            std::libc::memset(img, 0, WIDTH * HEIGHT * sizeof(Vec))
             samples = 0
         }
 
-        let pixels: &u8
-        let pitch = 0i32
-        buffer.lock(null, (&pixels) as &untyped_ptr, &pitch)
-
-        draw(pixels, pitch as u32)
-
-        buffer.unlock()
-        renderer.copy(buffer, null, null)
-
-        let text = `Samples: {samples}`
-        draw_text(font, text, 10, 10)
-        mem::free(text)
-
-        renderer.present()
-    }
-
-    renderer.destroy()
-    window.destroy()
-    sdl::quit()
+        draw(out)
+        buffer.write_image(out)
+        renderer.copy_and_display(buffer)
+        return true
+    })
 
     return 0
 }
