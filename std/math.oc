@@ -15,6 +15,7 @@
 [extern "ceilf"] def f32::ceil(this): f32
 [extern "floorf"] def f32::floor(this): f32
 [extern "isnan"] def f32::isnan(this): bool
+[extern "exp"] def f32::exp(this): f32
 
 [extern "INFINITY"] const INFINITY: f64
 def f32::inf(): f32 => INFINITY as f32
@@ -38,8 +39,8 @@ def f64::inf(): f64 => INFINITY
 [extern "powf"] def f32::pow(this, exp: f32): f32
 [extern "pow"] def f64::pow(this, exp: f64): f64
 
-[extern "fmodf"] def f32::mod(this, b: f32): f32
-[extern "fmod"] def f64::mod(this, b: f64): f64
+[operator "%"] [extern "fmodf"] def f32::mod(this, b: f32): f32
+[operator "%"] [extern "fmod"] def f64::mod(this, b: f64): f64
 
 def f32::min(this, b: f32): f32 => if this < b then this else b
 def f32::max(this, b: f32): f32 => if this > b then this else b

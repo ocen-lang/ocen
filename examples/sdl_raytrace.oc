@@ -118,6 +118,7 @@ def raytrace(ray: &Ray, objs: &Vector<&Sphere>, depth: i32): Vec {
         Diffuse => ray.dir = random_vec_unit().add(n).normalized().normalized()
         Mirror => ray.dir = ray.dir.reflect(n).add(random_vec_unit().mults(obj.fuzz)).normalized()
     }
+    ray.ori = ray.ori + ray.dir * TOL
 
     let rec_col = raytrace(ray, objs, depth - 1)
     return rec_col.mult(obj.color)
@@ -250,6 +251,19 @@ def main() {
 
     let e: sdl::Event
 
+    let key_ev_callbacks: ${sdl::Key: @fn()} = ${
+        W: || => origin = origin + camera.w * -0.1,
+        S: || => origin = origin + camera.w *  0.1,
+        A: || => origin = origin + camera.u *  0.1,
+        D: || => origin = origin + camera.u * -0.1,
+        Z: || => origin = origin + camera.v * -0.1,
+        X: || => origin = origin + camera.v *  0.1,
+        Left: || => direction = direction.rotateY(-0.1),
+        Right: || => direction = direction.rotateY(0.1),
+        Up: || => direction = direction.rotateX(-0.1),
+        Down: || => direction = direction.rotateX(0.1),
+    }
+
     let quit = false
     while not quit {
         let modified = false
@@ -260,27 +274,23 @@ def main() {
                     let cur_modified = true
                     match e.key.keysym.scancode {
                         Q | Escape => quit = true
-                        W => origin = origin + camera.w * -0.1
-                        S => origin = origin + camera.w *  0.1
-                        A => origin = origin + camera.u *  0.1
-                        D => origin = origin + camera.u * -0.1
-                        Z => origin = origin + camera.v * -0.1
-                        X => origin = origin + camera.v *  0.1
-
-                        Left => direction = direction.rotateY(-0.1)
-                        Right => direction = direction.rotateY(0.1)
-                        Up => direction = direction.rotateX(-0.1)
-                        Down => direction = direction.rotateX(0.1)
-
                         R => {
                             origin = Vec(0.0, 0.0, 0.0)
                             direction = Vec(0.0, 0.0, 1.0)
+                            modified = true
                         }
-                        else => cur_modified = false
+                        else => {}
                     }
-                    modified = modified or cur_modified
                 }
                 else => {}
+            }
+        }
+
+        let kss = sdl::get_keyboard_state()
+        for it in key_ev_callbacks.iter() {
+            if kss[it.key as u32] != 0 {
+                it.value()
+                modified = true
             }
         }
 

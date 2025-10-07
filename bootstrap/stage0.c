@@ -8854,7 +8854,7 @@ switch ((res->type)) {
             default:
               {
                 if (error) {
-                  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(res->span, std_format("Cannot use %s as a type", res->display)));
+                  compiler_passes_typechecker_TypeChecker_error(this, compiler_errors_Error_new(res->span, std_format("Cannot use %s as a type (%s)", res->display, compiler_ast_scopes_SymbolType_dbg(res->type))));
                   resolved=NULL;
                 }
               } break;
@@ -14757,7 +14757,11 @@ void compiler_passes_code_generator_CodeGenerator_gen_enum_dbg_method(compiler_p
       compiler_passes_code_generator_CodeGenerator_gen_indent(this);
       std_buffer_Buffer_write_str(&this->out, "case ");
       std_buffer_Buffer_write_str(&this->out, compiler_ast_scopes_Symbol_out_name(variant->sym));
-      std_buffer_Buffer_write_str_f(&this->out, std_format(": return \"%s\";\n", variant->sym->name));
+      std_buffer_Buffer_write_str_f(&this->out, std_format(": return \"%s", variant->sym->name));
+      if (compiler_ast_nodes_EnumVariant_num_fields(variant) > 0) {
+        std_buffer_Buffer_write_str(&this->out, "(...)");
+      }
+      std_buffer_Buffer_write_str(&this->out, "\";\n");
     }
   }
   compiler_passes_code_generator_CodeGenerator_gen_indent(this);
@@ -14828,7 +14832,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_closure_def(compiler_passe
     std_map_Item__5 *it = std_map_Iterator__5_cur(&_i149);
     {
       compiler_ast_scopes_Symbol *sym = it->value;
-      if(!(sym->type==compiler_ast_scopes_SymbolType_ClosedVariable)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1953:16: Assertion failed: `sym.type == ClosedVariable`", NULL); }
+      if(!(sym->type==compiler_ast_scopes_SymbolType_ClosedVariable)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:1957:16: Assertion failed: `sym.type == ClosedVariable`", NULL); }
       std_buffer_Buffer_write_str(&this->out, "  ");
       compiler_ast_nodes_Variable *var = sym->u.closed_var.orig;
       dummy_ptr_type.u.ptr=var->type;
@@ -14890,7 +14894,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_sym_typedef(compiler_passe
       } break;
     default:
       {
-        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:2010:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_typedef: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
+        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:2014:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_typedef: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
       } break;
   }}
 
@@ -14918,7 +14922,7 @@ void compiler_passes_code_generator_CodeGenerator_gen_sym_def(compiler_passes_co
       } break;
     default:
       {
-        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:2018:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_def: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
+        if(!(false)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/compiler/passes/code_generator.oc:2022:20: Assertion failed: `false`", std_format("Unhandled symbol type in CodeGenerator::gen_def: %s", compiler_ast_scopes_SymbolType_dbg(sym->type))); exit(1); }
       } break;
   }}
 
@@ -23504,7 +23508,7 @@ std_value_Value *std_value_Value_new_dict(std_compact_map_Map__1 *map) {
 
 void std_value_Value_ensure(std_value_Value *this, std_value_ValueType type) {
   if (this->type != type) {
-    printf("%s:%u:%u: Value type mismatch, expected %s but got %s\n", (this->span.start).filename, (this->span.start).line, (this->span.start).col, std_value_ValueType_dbg(this->type), std_value_ValueType_dbg(type));
+    printf("%s:%u:%u: Value type mismatch, expected %s but got %s\n", (this->span.start).filename, (this->span.start).line, (this->span.start).col, std_value_ValueType_dbg(type), std_value_ValueType_dbg(this->type));
     exit(1);
   }
 }
@@ -25488,7 +25492,7 @@ std_vector_Iterator__0 std_vector_Iterator__0_make(std_vector_Vector__0 *vec) {
   return (std_vector_Iterator__0){.vec=vec, .index=0};}
 
 compiler_types_Type *std_vector_Vector__0_at(std_vector_Vector__0 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25536,7 +25540,7 @@ std_vector_Iterator__1 std_vector_Iterator__1_make(std_vector_Vector__1 *vec) {
   return (std_vector_Iterator__1){.vec=vec, .index=0};}
 
 compiler_ast_nodes_MatchCond *std_vector_Vector__1_at(std_vector_Vector__1 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25584,7 +25588,7 @@ std_vector_Iterator__2 std_vector_Iterator__2_make(std_vector_Vector__2 *vec) {
   return (std_vector_Iterator__2){.vec=vec, .index=0};}
 
 compiler_ast_nodes_ImportPart *std_vector_Vector__2_at(std_vector_Vector__2 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25613,7 +25617,7 @@ void std_vector_Vector__2_push(std_vector_Vector__2 *this, compiler_ast_nodes_Im
 }
 
 compiler_tokens_Token *std_vector_Vector__3_at(std_vector_Vector__3 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25739,7 +25743,7 @@ std_vector_Iterator__5 std_vector_Iterator__5_make(std_vector_Vector__5 *vec) {
   return (std_vector_Iterator__5){.vec=vec, .index=0};}
 
 char *std_vector_Vector__5_at(std_vector_Vector__5 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25785,7 +25789,7 @@ compiler_ast_scopes_Scope *std_vector_Vector__6_back(std_vector_Vector__6 *this,
 }
 
 compiler_ast_scopes_Scope *std_vector_Vector__6_at(std_vector_Vector__6 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25820,7 +25824,7 @@ compiler_ast_program_Namespace *std_vector_Vector__7_pop(std_vector_Vector__7 *t
 }
 
 compiler_ast_program_Namespace *std_vector_Vector__7_at(std_vector_Vector__7 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -25887,7 +25891,7 @@ std_vector_Iterator__8 std_vector_Iterator__8_make(std_vector_Vector__8 *vec) {
   return (std_vector_Iterator__8){.vec=vec, .index=0};}
 
 compiler_ast_nodes_Variable *std_vector_Vector__8_at(std_vector_Vector__8 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26054,7 +26058,7 @@ std_vector_Iterator__11 std_vector_Iterator__11_make(std_vector_Vector__11 *vec)
   return (std_vector_Iterator__11){.vec=vec, .index=0};}
 
 compiler_ast_nodes_Argument *std_vector_Vector__11_at(std_vector_Vector__11 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26107,7 +26111,7 @@ std_vector_Iterator__12 std_vector_Iterator__12_make(std_vector_Vector__12 *vec)
   return (std_vector_Iterator__12){.vec=vec, .index=0};}
 
 compiler_ast_scopes_Symbol *std_vector_Vector__12_at(std_vector_Vector__12 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26261,7 +26265,7 @@ std_vector_Iterator__15 std_vector_Iterator__15_make(std_vector_Vector__15 *vec)
   return (std_vector_Iterator__15){.vec=vec, .index=0};}
 
 compiler_ast_nodes_AST *std_vector_Vector__15_at(std_vector_Vector__15 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26317,7 +26321,7 @@ std_vector_Iterator__16 std_vector_Iterator__16_make(std_vector_Vector__16 *vec)
   return (std_vector_Iterator__16){.vec=vec, .index=0};}
 
 compiler_errors_Error *std_vector_Vector__16_at(std_vector_Vector__16 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26433,7 +26437,7 @@ std_vector_Iterator__19 std_vector_Iterator__19_make(std_vector_Vector__19 *vec)
   return (std_vector_Iterator__19){.vec=vec, .index=0};}
 
 compiler_ast_nodes_MatchCondArg *std_vector_Vector__19_at(std_vector_Vector__19 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26567,7 +26571,7 @@ std_vector_Iterator__22 std_vector_Iterator__22_make(std_vector_Vector__22 *vec)
   return (std_vector_Iterator__22){.vec=vec, .index=0};}
 
 std_vector_Vector__2 *std_vector_Vector__22_at(std_vector_Vector__22 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26615,7 +26619,7 @@ std_vector_Iterator__23 std_vector_Iterator__23_make(std_vector_Vector__23 *vec)
   return (std_vector_Iterator__23){.vec=vec, .index=0};}
 
 compiler_ast_nodes_IfBranch std_vector_Vector__23_at(std_vector_Vector__23 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26663,7 +26667,7 @@ std_vector_Iterator__24 std_vector_Iterator__24_make(std_vector_Vector__24 *vec)
   return (std_vector_Iterator__24){.vec=vec, .index=0};}
 
 compiler_ast_nodes_MatchCase std_vector_Vector__24_at(std_vector_Vector__24 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26746,7 +26750,7 @@ std_compact_map_Item__0 std_vector_Vector__26_pop(std_vector_Vector__26 *this) {
 }
 
 std_compact_map_Item__0 std_vector_Vector__26_at(std_vector_Vector__26 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26842,7 +26846,7 @@ std_vector_Iterator__28 std_vector_Iterator__28_make(std_vector_Vector__28 *vec)
   return (std_vector_Iterator__28){.vec=vec, .index=0};}
 
 std_value_Value *std_vector_Vector__28_at(std_vector_Vector__28 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26890,7 +26894,7 @@ std_vector_Iterator__29 std_vector_Iterator__29_make(std_vector_Vector__29 *vec)
   return (std_vector_Iterator__29){.vec=vec, .index=0};}
 
 std_compact_map_Item__1 std_vector_Vector__29_at(std_vector_Vector__29 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26919,7 +26923,7 @@ void std_vector_Vector__29_push(std_vector_Vector__29 *this, std_compact_map_Ite
 }
 
 u32 std_vector_Vector__30_at(std_vector_Vector__30 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 
@@ -26953,7 +26957,7 @@ void std_vector_Vector__30_push(std_vector_Vector__30 *this, u32 value) {
 }
 
 std_compact_map_Item__2 std_vector_Vector__31_at(std_vector_Vector__31 *this, u32 i) {
-  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", "Out of bounds in Vector::at"); }
+  if(!(i < this->size)) { ae_assert_fail("/Users/mustafa/ocen-lang/ocen/std/vector.oc:122:12: Assertion failed: `i < .size`", std_format("Out of bounds in Vector::at, %u >= %u", i, this->size)); }
   return this->data[i];
 }
 

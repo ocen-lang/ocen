@@ -3,6 +3,8 @@
 @compiler c_include "SDL2/SDL.h"
 @compiler c_flag "-lSDL2"
 
+import std::traits::hash
+
 [extern "SDL_Window"] struct Window
 [extern "SDL_Renderer"] struct Renderer
 
@@ -70,6 +72,9 @@ enum Key extern("SDL_Scancode") {
     Comma = extern("SDL_SCANCODE_COMMA")
     Dot = extern("SDL_SCANCODE_PERIOD")
 }
+
+def Key::hash(this): u32 => (this as u32).hash()
+def Key::eq(this, other: Key): bool => this == other
 
 enum MouseButton extern("u8") {
     Left = extern("SDL_BUTTON_LEFT")
@@ -162,6 +167,13 @@ enum BlendMode extern("SDL_BlendMode") {
 [extern "SDL_GetWindowSurface"]        def Window::get_surface(&this): &Surface
 [extern "SDL_SetWindowFullscreen"]     def Window::set_fullscreen(&this, fullscreen: i32): i32
 
+namespace impl {
+    // FIXME: This is a hack since we don't support const pointers - and get C compiler warnings
+    [extern "const Uint8 *"]          struct ConstU8Ptr
+    [extern "SDL_GetKeyboardState"]   def get_keyboard_state(numkeys: &i32 = null): ConstU8Ptr
+}
+
+def get_keyboard_state(): &u8 => impl::get_keyboard_state() as &u8
 
 [extern "SDL_CreateTextureFromSurface"] def Renderer::create_texture_from_surface(&this, surface: &Surface): &Texture
 [extern "SDL_CreateWindowAndRenderer"]  def create_window_renderer(width: i32, height: i32, flags: i32, window: &&Window, renderer: &&Renderer)
@@ -180,6 +192,12 @@ enum BlendMode extern("SDL_BlendMode") {
 [extern "SDL_RenderDrawLine"]  def Renderer::draw_line(&this, x1: i32, y1: i32, x2: i32, y2: i32)
 [extern "SDL_RenderDrawRect"]  def Renderer::draw_rect(&this, rect: &Rect)
 [extern "SDL_RenderFillRect"]  def Renderer::fill_rect(&this, rect: &Rect)
+
+def Renderer::copy_and_display(&this, texture: &Texture, src: &Rect = null, dst: &Rect = null) {
+    .clear()
+    .copy(texture, src, dst)
+    .present()
+}
 
 enum WindowMode extern("int") {
     Windowed = extern("0") // This is a hack to hardcode in '0'
@@ -231,3 +249,31 @@ struct Cursor
 [extern "SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT"] const HINT_EMSCRIPTEN_KEYBOARD_ELEMENT: str
 
 [extern "SDL_SetHint"] def set_hint(hint: str, value: str): bool
+
+import std::image::{ Image }
+
+def Texture::write_image(&this, img: &Image) {
+    let data: &u8
+    let i_pitch = 0i32
+
+    let tw = 0i32
+    let th = 0i32
+
+    .query(null, null, &tw, &th)
+    assert tw as u32 == img.width and th as u32 == img.height, "Texture and Image sizes do not match"
+
+    .lock(null, (&data) as &untyped_ptr, &i_pitch)
+
+    for let y = 0; y < img.height; y += 1 {
+        for let x = 0; x < img.width; x += 1 {
+            let c = img.get(x, y)
+            let offset = y * i_pitch as u32 + x * 4
+            data[offset + 0] = c.r
+            data[offset + 1] = c.g
+            data[offset + 2] = c.b
+            data[offset + 3] = 255
+        }
+    }
+
+    .unlock()
+}

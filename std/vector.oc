@@ -119,7 +119,7 @@ def Vector::at_ptr(&this, i: u32 = 0): &T {
 [operator "[]"]
 //* Returns the element at the given index
 def Vector::at(&this, i: u32): T {
-    assert i < .size, "Out of bounds in Vector::at"
+    assert i < .size, f"Out of bounds in Vector::at, {i} >= {.size}"
     return .data[i]
 }
 
