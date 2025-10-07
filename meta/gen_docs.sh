@@ -35,6 +35,7 @@ import std::{
     logging,
     map,
     math,
+    matrix,
     mem,
     midi,
     og,
