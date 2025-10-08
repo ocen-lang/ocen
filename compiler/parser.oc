@@ -1906,6 +1906,7 @@ def Parser::parse_function(&this): &Function {
             }
             Alive => .program.explicit_alive_symbols.push(func.sym)
             Test => func.is_test_function = true
+            Flatten => func.flatten_attr = true
             else => .error(Error::new(attr.span, f"Invalid attribute for function: {attr.type}"))
         }
     }

@@ -1774,6 +1774,9 @@ def CodeGenerator::gen_function(&this, func: &Function) {
     if func.sym.is_dead then return
 
     .gen_debug_info(func.sym.span)
+    if func.flatten_attr {
+        .out += "__attribute__((flatten))\n"
+    }
     .gen_function_decl(func)
     .out += " "
     .gen_function_body(func)

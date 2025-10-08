@@ -19,6 +19,7 @@ enum AttributeType {
     Atomic          // [atomic]                                 to mark a type as Atomic
     Alive           // [alive]                                  to explicitly mark a function as not dead
     Test            // [test]                                   to mark a function as a test function
+    Flatten         // [flatten]                                to tell the C compiler to flatten this function
 
     Invalid         // used for error reporting
 }
@@ -36,6 +37,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "atomic" => Atomic
     "alive" => Alive
     "test" => Test
+    "flatten" => Flatten
     else => Invalid
 }
 
@@ -99,7 +101,7 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 .args.push("$")
             }
         }
-        Exits | VariadicFormat | Export | Atomic | Alive | Test => {
+        Exits | VariadicFormat | Export | Atomic | Alive | Test | Flatten => {
             if .args.size > 0 {
                 parser_for_errors.error(Error::new(
                     this.span,
