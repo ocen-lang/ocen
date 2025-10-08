@@ -2,6 +2,7 @@
 
 import std::sdl
 import std::vec::{ Vec2f, Vec2i }
+import std::image::{ Image }
 [export] import std::sdl::{ Color, Key, MouseButton }
 
 import .state
@@ -226,6 +227,11 @@ def draw_buffer() {
     state::renderer.copy(state::buffer.tx, null, null)
 }
 
+def display_image(img: &Image) {
+    let tx = get_buffer()
+    tx.tx.write_image(img)
+    draw_buffer()
+}
 
 namespace internal {
     @compiler c_embed "interface.c"
