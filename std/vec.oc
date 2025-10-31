@@ -151,6 +151,22 @@ def Vec3::rotateZ(this, angle: f32): Vec3f {
     return Vec3f(x, y, .z as f32)
 }
 
+def Vec3::rotate_axis(this, axis: Vec3f, angle: f32): Vec3f {
+    let c = angle.cos()
+    let s = angle.sin()
+    let t = 1.0 - c
+
+    axis = axis.normalized()
+
+    let f = this.to_f32()
+
+    return Vec3f(
+        f.x * (t * axis.x * axis.x + c) + f.y * (t * axis.x * axis.y - s * axis.z) + f.z * (t * axis.x * axis.z + s * axis.y),
+        f.x * (t * axis.y * axis.x + s * axis.z) + f.y * (t * axis.y * axis.y + c) + f.z * (t * axis.y * axis.z - s * axis.x),
+        f.x * (t * axis.z * axis.x - s * axis.y) + f.y * (t * axis.z * axis.y + s * axis.x) + f.z * (t * axis.z * axis.z + c)
+    )
+}
+
 def Vec3::clamp01(this): Vec3<T> {
   let zt = 0.0 as T
   let ot = 1.0 as T

@@ -49,6 +49,9 @@ def f64::min(this, b: f64): f64 => if this < b then this else b
 def f64::max(this, b: f64): f64 => if this > b then this else b
 
 
+def i32::clamp(this, min: i32, max: i32): i32 => i32::max(i32::min(this, max), min)
+def u32::clamp(this, min: u32, max: u32): u32 => u32::max(u32::min(this, max), min)
+
 def f32::clamp(this, min: f32, max: f32): f32 => f32::max(f32::min(this, max), min)
 def f32::clamp01(this): f32 => this.clamp(0.0, 1.0)
 

@@ -192,13 +192,15 @@ def Texture::draw_pixel_v(this, pos: Vec2i, col: Color) {
 
 
 def get_buffer(): &Texture {
+    return get_buffer_sized(state::window_size.x, state::window_size.y)
+}
+
+def get_buffer_sized(w: i32, h: i32): &Texture {
     let matches = true
-    if not state::buffer.tx? {
-        matches = false
-    } else if (
-        state::buffer.w != state::window_size.x or 
-        state::buffer.h != state::window_size.y
-     ) {
+    if (
+        state::buffer.w != w or
+        state::buffer.h != h
+    ) {
         state::buffer.tx.destroy()
         matches = false
     }
@@ -208,11 +210,11 @@ def get_buffer(): &Texture {
         buf.tx = state::renderer.create_texture(
             sdl::PIXELFORMAT_ABGR8888,
             sdl::TEXTUREACCESS_STREAMING,
-            state::window_size.x,
-            state::window_size.y
+            w,
+            h
         )
-        buf.w = state::window_size.x
-        buf.h = state::window_size.y
+        buf.w = w
+        buf.h = h
         state::buffer = buf
     }
 
@@ -228,7 +230,7 @@ def draw_buffer() {
 }
 
 def display_image(img: &Image) {
-    let tx = get_buffer()
+    let tx = get_buffer_sized(img.width as i32, img.height as i32)
     tx.tx.write_image(img)
     draw_buffer()
 }
