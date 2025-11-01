@@ -1,0 +1,6 @@
+/// fail: Enums with values cannot be flag enums
+
+[flags]
+enum Foo {
+    x: i32
+}

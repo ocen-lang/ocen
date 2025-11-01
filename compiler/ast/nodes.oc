@@ -2,7 +2,7 @@
 
 import std::vector::Vector
 import std::mem
-import std::map::Map
+import std::compact_map::Map
 import std::span::Span
 import @tokens::{ TokenType, Token }
 import @ast::scopes::{ Scope, Symbol }
@@ -166,6 +166,7 @@ struct Enum {
 
     // To quickly check if this is a "normal" enum with no values stored
     has_values: bool
+    is_flag_enum: bool
 }
 
 def Enum::get_variant(&this, name: str): &EnumVariant {

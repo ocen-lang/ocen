@@ -144,8 +144,15 @@ def Image::rotate(&this, dir: RotationDirection = RotationDirection::Clockwise):
     return rotated
 }
 
-def Image::clear(&this) {
-    std::libc::memset(.data, 0, .width * .height * sizeof(Color))
+def Image::clear(&this, col: Color = Color(0, 0, 0)) {
+    // Fast-path for black
+    if col.r == 0 and col.g == 0 and col.b == 0 {
+        std::libc::memset(.data, 0, .width * .height * sizeof(Color))
+    } else {
+        for let i = 0; i < .width * .height; ++i {
+            .data[i] = col
+        }
+    }
 }
 
 def Image::copy(&this): &Image {

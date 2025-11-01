@@ -69,6 +69,15 @@ enum Key extern("SDL_Scancode") {
     Space = extern("SDL_SCANCODE_SPACE")
     Escape = extern("SDL_SCANCODE_ESCAPE")
 
+    LShift = extern("SDL_SCANCODE_LSHIFT")
+    RShift = extern("SDL_SCANCODE_RSHIFT")
+    LCtrl = extern("SDL_SCANCODE_LCTRL")
+    RCtrl = extern("SDL_SCANCODE_RCTRL")
+    LAlt = extern("SDL_SCANCODE_LALT")
+    RAlt = extern("SDL_SCANCODE_RALT")
+    Backspace = extern("SDL_SCANCODE_BACKSPACE")
+    Return = extern("SDL_SCANCODE_RETURN")
+
     Comma = extern("SDL_SCANCODE_COMMA")
     Dot = extern("SDL_SCANCODE_PERIOD")
 }
@@ -100,6 +109,7 @@ enum EventType extern("SDL_EventType") {
     Wheel = extern("SDL_MOUSEWHEEL")
     Window = extern("SDL_WINDOWEVENT")
     User = extern("SDL_USEREVENT")
+    TextInput = extern("SDL_TEXTINPUT")
 }
 
 [extern "SDL_KeyboardEvent"]
@@ -124,12 +134,18 @@ struct MouseButtonEvent {
     y: i32
 }
 
+[extern "SDL_TextInputEvent"]
+struct TextInputEvent {
+    text: str
+}
+
 [extern "SDL_Event"]
 struct Event {
     type: EventType
     key: KeyboardEvent
     wheel: MouseWheelEvent
     button: MouseButtonEvent
+    text: TextInputEvent
 }
 
 [extern "SDL_Scancode"]

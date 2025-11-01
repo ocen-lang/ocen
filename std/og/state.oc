@@ -1,7 +1,7 @@
 import std::sdl
 import std::vec::{ Vec2i }
 
-import .{ Texture }
+import .{ Texture } 
 
 let window: &sdl::Window = null
 let renderer: &sdl::Renderer = null
@@ -13,6 +13,9 @@ let title: str = "Window"
 
 let cursor_type: sdl::CursorType = Arrow
 let cursor: &sdl::Cursor = null
+
+let text_input: [char; 1024]
+let text_input_sz: u32 = 0
 
 struct KeyState {
     keys: [bool; sdl::NUM_SCANCODES] // Hopefully this is enough

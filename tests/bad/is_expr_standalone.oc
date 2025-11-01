@@ -1,4 +1,4 @@
-/// fail: Can only use `is` inside an if statement condition. Use `==` for standalone enum comparison
+/// fail: Can only use `is` with non-trivial enums in an if statement condition
 
 enum Foo {
     Bar(val: i32)

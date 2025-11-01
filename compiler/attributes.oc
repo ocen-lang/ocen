@@ -20,6 +20,7 @@ enum AttributeType {
     Alive           // [alive]                                  to explicitly mark a function as not dead
     Test            // [test]                                   to mark a function as a test function
     Flatten         // [flatten]                                to tell the C compiler to flatten this function
+    Flags           // [flags]                                  to specify that an enum values are flags (ie, allowing bitwise operations)
 
     Invalid         // used for error reporting
 }
@@ -38,6 +39,7 @@ def AttributeType::from_str(s: str): AttributeType => match s {
     "alive" => Alive
     "test" => Test
     "flatten" => Flatten
+    "flags" => Flags
     else => Invalid
 }
 
@@ -101,7 +103,7 @@ def Attribute::validate(&this, parser_for_errors: &Parser): bool {
                 .args.push("$")
             }
         }
-        Exits | VariadicFormat | Export | Atomic | Alive | Test | Flatten => {
+        Exits | VariadicFormat | Export | Atomic | Alive | Test | Flatten | Flags => {
             if .args.size > 0 {
                 parser_for_errors.error(Error::new(
                     this.span,

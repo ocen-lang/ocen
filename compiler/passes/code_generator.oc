@@ -948,7 +948,36 @@ def CodeGenerator::gen_expression(&this, node: &AST, is_top_level: bool = false,
             }
             else => .error(Error::new(node.span, `Unhandled binary op type in CodeGenerator: {node.u.binary.op}`))
         }
+        Is => {
+            let lhs = node.u.is_expr.lhs
+            let cond = node.u.is_expr.conds[0]
 
+            if lhs.etype.base != Enum {
+                .error(Error::new(lhs.span, `Cannot use 'is' with non-enum type {lhs.etype}`))
+                return
+            }
+            let enom = lhs.etype.u.enom
+
+            if {
+                enom.has_values => .error(Error::new(
+                    node.span, `Codegen internal error, should not be possible from typechecker.`
+                ))
+                enom.is_flag_enum => {
+                    .out += "(("
+                    .gen_expression(lhs)
+                    .out += " & "
+                    .gen_expression(cond.expr)
+                    .out += ") != 0)"
+                }
+                else => {
+                    .out += "("
+                    .gen_expression(lhs)
+                    .out += " == "
+                    .gen_expression(cond.expr)
+                    .out += ")"
+                }
+            }
+        }
         else => .error(Error::new(node.span, `Unhandled expression type in CodeGenerator: {node.type}`))
     }
 }
@@ -1360,6 +1389,18 @@ def CodeGenerator::gen_if_is_expr_branch(
     """
     assert branch.cond.type == Is
     let is_expr = &branch.cond.u.is_expr
+    let lhs_type = is_expr.lhs.etype
+
+    if {
+        lhs_type.base != Enum => .error(Error::new(is_expr.lhs.span, "Codegen error, expected enum from typechecker"))
+        not lhs_type.u.enom.has_values => {
+            .out += "if ("
+            .gen_expression(branch.cond, is_top_level: true)
+            .out += ")"
+            .gen_control_body(node, branch.body)
+            return
+        }
+    }
 
     .out += "if ( ({\n"
     .indent += 1
@@ -2074,8 +2115,14 @@ def CodeGenerator::gen_enum_def(&this, enom: &Enum) {
     } else {
         .out <<= f"enum {name} \{\n"
     }
+
+    let counter = 0
     for variant in enom.variants.iter() {
-        .out <<= f"  {variant.sym.out_name()},\n"
+        if enom.is_flag_enum {
+            .out <<= f"  {variant.sym.out_name()} = (1 << {counter++}),\n"
+        } else {
+            .out <<= f"  {variant.sym.out_name()},\n"
+        }
     }
     .out += "};\n\n"
 

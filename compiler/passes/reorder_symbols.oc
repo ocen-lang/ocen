@@ -10,6 +10,7 @@ import std::set::{ Set }
 import @ast::program::{ Program, Namespace }
 import @ast::nodes::{ Structure, Variable }
 import @ast::scopes::{ TemplateInstance, Symbol }
+import @types::{ Type }
 
 struct ReorderSymbols {
     o: &GenericPass
@@ -81,6 +82,17 @@ def ReorderSymbols::collect_all_symbols(&this) {
     }
 }
 
+def ReorderSymbols::dfs_type(&this, typ: &Type) {
+    if not typ? or .done.contains(typ) return
+    .done.add(typ)
+
+    match typ.base {
+        Array => .dfs_type(typ.u.arr.elem_type)
+        Structure | Enum => .dfs(typ.sym)
+        else => return
+    }
+}
+
 def ReorderSymbols::dfs(&this, sym: &Symbol) {
     if not sym? or .done.contains(sym) return
     .done.add(sym)
@@ -90,6 +102,7 @@ def ReorderSymbols::dfs(&this, sym: &Symbol) {
             for field in sym.u.struc.fields.iter() {
                 if field.type? {
                     .dfs(field.type.sym)
+                    .dfs_type(field.type)
                 }
             }
         }
@@ -97,6 +110,7 @@ def ReorderSymbols::dfs(&this, sym: &Symbol) {
             for field in sym.u.enom.shared_fields.iter() {
                 if field.type? {
                     .dfs(field.type.sym)
+                    .dfs_type(field.type)
                 }
             }
             for variant in sym.u.enom.variants.iter() {

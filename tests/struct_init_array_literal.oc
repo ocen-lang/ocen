@@ -1,0 +1,13 @@
+/// compile
+
+struct Foo {
+    foo: str
+    bar: [i32; 3],
+}
+
+def main() {
+    let foo = Foo(
+        foo: "hello",
+        bar: [1, 2, 3]
+    )
+}

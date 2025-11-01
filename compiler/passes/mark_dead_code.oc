@@ -76,7 +76,10 @@ def MarkDeadCode::mark_type(&this, typ: &Type) {
     if not typ? return
     match typ.base {
         Pointer | Alias => .mark_type(typ.u.ptr)
-        Array => .mark_type(typ.u.arr.elem_type)
+        Array => {
+            .mark_type(typ.u.arr.elem_type)
+            .mark(typ.u.arr.size_expr)
+        }
         FunctionPtr | Closure => {
             let ft = typ.u.func
             .mark_type(ft.return_type)

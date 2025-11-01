@@ -1,0 +1,33 @@
+/// out: "Option1 is set\nOption2 is not set\nOption3 is set\n"
+
+[flags]
+enum Flags {
+    None
+    Option0
+    Option1
+    Option2
+    Option3
+}
+
+def main() {
+    let f: Flags = Option1 | Option3
+
+    let bar = f is Option1
+    if f is Option1 {
+        println("Option1 is set")
+    } else {
+        println("Option1 is not set")
+    }
+
+    if f is Option2 {
+        println("Option2 is set")
+    } else {
+        println("Option2 is not set")
+    }
+
+    if f is Option3 {
+        println("Option3 is set")
+    } else {
+        println("Option3 is not set")
+    }
+}

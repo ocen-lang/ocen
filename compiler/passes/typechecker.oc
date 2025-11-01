@@ -5,7 +5,7 @@
 
 import std::mem
 import std::buffer::{ Buffer }
-import std::map::{ Map }
+import std::compact_map::{ Map }
 import std::span::{ Span }
 import std::vector::{ Vector }
 
@@ -1211,7 +1211,27 @@ def TypeChecker::check_binary_op(&this, node: &AST, lhs: &Type, rhs: &Type): &Ty
             }
             return lhs
         }
-        Modulus | BitwiseOr | BitwiseAnd | LeftShift | RightShift | LeftShiftEquals | RightShiftEquals => {
+        BitwiseOr | BitwiseAnd => {
+            let valid_type = if {
+                lhs.is_integer() and rhs.is_integer() => true
+                lhs.is_enum_flag() and rhs.is_enum_flag() => true
+                else => false
+            }
+            if not valid_type {
+                .error(Error::new(node.span,
+                    f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
+                ))
+                return null
+            }
+            if not lhs.eq(rhs) {
+                .error(Error::new_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                ))
+            }
+            return lhs
+        }
+        Modulus | LeftShift | RightShift | LeftShiftEquals | RightShiftEquals => {
             if not lhs.is_integer() or not rhs.is_integer() {
                 .error(Error::new(node.span,
                     f"Operator `{op}` does not support `{lhs.str()}` and `{rhs.str()}`"
@@ -1621,8 +1641,13 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             if node.u.num_literal.suffix? {
                 return .resolve_type(node.u.num_literal.suffix)
             }
-            if hint? and hint.is_integer() then return hint
-            return .get_base_type(BaseType::U32, node.span)
+            return if {
+                not hint? => .get_base_type(BaseType::U32, node.span)
+                hint.is_integer() => hint
+                // We implicitly want to allow `0` to be used as a valid Flags Enum.
+                hint.is_enum_flag() and node.u.num_literal.as_int == 0 => hint
+                else => .get_base_type(BaseType::U32, node.span)
+            }
         }
         ASTType::FloatLiteral => {
             if node.u.num_literal.suffix? {
@@ -1690,8 +1715,14 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             BitwiseNot => {
                 let typ = .check_expression(node.u.unary.expr, hint)
                 if not typ? return null
-                if not typ.is_integer() {
-                    .error(Error::new(node.span, `Cannot do bitwise-not on non-integer type: {typ.str()}`))
+
+                let valid_type = if {
+                    typ.is_integer() => true
+                    typ.is_enum_flag() => true
+                    else => false
+                }
+                if not valid_type {
+                    .error(Error::new(node.span, `Cannot do bitwise-not on type: {typ.str()}`))
                     return null
                 }
                 return typ
@@ -2192,7 +2223,36 @@ def TypeChecker::check_expression_helper(&this, node: &AST, hint: &Type): &Type 
             return hint
         }
         Is => {
-            .error(Error::new(node.span, "Can only use `is` inside an if statement condition. Use `==` for standalone enum comparison"))
+            let is_expr = node.u.is_expr
+            let lhs_type = .check_expression(is_expr.lhs)
+            let mapping: ${str: &MatchCond} = ${} // Initialize the mapping
+            let current_args: ${str: &Type} = ${} // Cache to avoid excessive allocations
+            .check_match_case_enum(
+                lhs_node: is_expr.lhs,
+                enom_type: lhs_type,
+                conds: is_expr.conds,
+                mapping,
+                current_args
+            )
+
+            // TODO: Should this be allowed for normal enums?
+            // TODO: This is a little confusing... How do we differentiate between:
+            //                  x is (Foo | Bar)  ie: x == Foo | Bar)
+            //       and        x is Foo | Bar    ie: x == Foo or x is Bar
+            if is_expr.conds.size > 1 {
+                .error(Error::new(node.span, "Standalone `is` expression doesn't support multiple conditions"))
+            }
+
+            if {
+                lhs_type.base != Enum => {
+                    .error(Error::new(node.span, "Can only use `is` with enum types"))
+                }
+                lhs_type.u.enom.has_values => {
+                    .error(Error::new(node.span, "Can only use `is` with non-trivial enums in an if statement condition"))
+                }
+            }
+            mapping.free()
+            current_args.free()
             return .get_base_type(BaseType::Bool, node.span)
         }
         else => {
@@ -2232,8 +2292,8 @@ def TypeChecker::check_match_case_enum(
     lhs_node: &AST,
     enom_type: &Type,
     conds: $[&MatchCond],
-    mapping: &Map<str, &MatchCond>,
-    current_args: &Map<str, &Type>  // This is just a cache to avoid excessive allocations
+    mapping: ${str: &MatchCond},
+    current_args: ${str: &Type}  // This is just a cache to avoid excessive allocations
 ) {
     assert enom_type.base == Enum
     let enom = enom_type.u.enom
@@ -2383,7 +2443,7 @@ def TypeChecker::check_match_case_enum(
                     continue
                 }
             }
-            if found_args != current_args.size {
+            if found_args != current_args.size() {
                 .error(Error::new(
                     expr.span, "All conditions in this branch must have the same fields"
                 ))
@@ -2436,7 +2496,7 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
     }
 
     let defolt = node.u.match_stmt.defolt
-    if mapping.size != enom.variants.size {
+    if mapping.size() != enom.variants.size {
         let buf = Buffer::make()
         buf += "Remaining fields: "
         let first = true
@@ -2449,7 +2509,7 @@ def TypeChecker::check_match_for_enum(&this, enom: &Enum, node: &AST, is_expr: b
         }
         if not defolt? {
             .error(Error::new_note(
-                node.u.match_stmt.expr.span, f"Match does not cover all cases (Only {mapping.size} of {enom.variants.size})",
+                node.u.match_stmt.expr.span, f"Match does not cover all cases (Only {mapping.size()} of {enom.variants.size})",
                 buf.str()
             ))
         } else {

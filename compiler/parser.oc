@@ -644,21 +644,25 @@ def Parser::parse_call(&this, callee: &AST): &AST {
     return call
 }
 
+def Parser::parse_array_literal(&this): &AST {
+    let start = .consume(TokenType::OpenSquare)
+    let elements = Vector<&AST>::new()
+    while not .token_is_eof_or(TokenType::CloseSquare) {
+        elements.push(.parse_expression(end_type: TokenType::Comma))
+        if not .token_is(TokenType::CloseSquare) {
+            .consume(TokenType::Comma)
+        }
+    }
+    let close = .consume(TokenType::CloseSquare)
+    let node = AST::new(ArrayLiteral, start.span.join(close.span))
+    node.u.array_literal.elements = elements
+    return node
+}
+
 //* We also allow array literals when initializing a variable, so treat them separately.
 def Parser::parse_var_initializer(&this): &AST {
     if .token_is(TokenType::OpenSquare) {
-        let start = .consume(TokenType::OpenSquare)
-        let elements = Vector<&AST>::new()
-        while not .token_is_eof_or(TokenType::CloseSquare) {
-            elements.push(.parse_var_initializer())
-            if not .token_is(TokenType::CloseSquare) {
-                .consume(TokenType::Comma)
-            }
-        }
-        let close = .consume(TokenType::CloseSquare)
-        let node = AST::new(ArrayLiteral, start.span.join(close.span))
-        node.u.array_literal.elements = elements
-        return node
+        return .parse_array_literal()
     }
     return .parse_expression(TokenType::Newline)
 }
@@ -827,6 +831,9 @@ def Parser::parse_atom(&this, end_type: TokenType): &AST {
             node = .parse_expression(end_type: TokenType::CloseParen)
             let end = .consume(TokenType::CloseParen)
             node.span = start.span.join(end.span)
+        }
+        TokenType::OpenSquare => {
+            node = .parse_array_literal()
         }
         TokenType::Dot => {
             let tok = .consume(TokenType::Dot)
@@ -2230,6 +2237,7 @@ def Parser::parse_enum(&this): &Enum {
                 .get_extern_from_attr(enom.sym, attr)
                 is_extern = true
             }
+            Flags => enom.is_flag_enum = true
             else => .error(Error::new(attr.span, "Invalid attribute for value enum"))
         }
     }
@@ -2315,6 +2323,11 @@ def Parser::parse_enum(&this): &Enum {
         enom.variants += variant
         .consume_if(Comma)
     }
+
+    if enom.has_values and enom.is_flag_enum {
+        .error(Error::new(enom.sym.span, "Enums with values cannot be flag enums"))
+    }
+
     let end_tok =.consume(CloseCurly)
     enom.span = start.span + end_tok.span
     return enom

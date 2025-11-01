@@ -2,17 +2,23 @@
 import .state
 import std::sdl
 import std::vec::{ Vec2i }
+import std::libc::strcpy
 
 def handle_sdl_events() {
-    import .state::{ prev_keys, keys, prev_mouse, mouse, MouseWheel }
+    import .state::{ prev_keys, keys, prev_mouse, mouse, MouseWheel, text_input, text_input_sz }
     prev_mouse = mouse
     prev_keys = keys
     mouse.scroll = Vec2i(0, 0)
 
+    text_input_sz = 0
     let event: sdl::Event
     while sdl::poll_event(&event) {
         match event.type {
             Quit => state::running = false
+            TextInput => {
+                strcpy(text_input + text_input_sz, event.text.text)
+                text_input_sz += event.text.text.len()
+            }
             KeyDown => {
                 // println("got keydown %d", event.key.keysym.sym)
                 let k = event.key.keysym.scancode

@@ -157,6 +157,8 @@ def Type::is_integer(&this): bool => match .base {
     else => false
 }
 
+def Type::is_enum_flag(&this): bool => .base == BaseType::Enum and .u.enom.is_flag_enum
+
 def Type::is_float(&this): bool => .base == BaseType::F32 or .base == BaseType::F64
 
 def Type::is_numeric(&this): bool => match .base {

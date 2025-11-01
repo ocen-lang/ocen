@@ -1,0 +1,6 @@
+/// compile
+
+[flatten]
+def foo(): i32 => 0
+
+def main() => foo()
