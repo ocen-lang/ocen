@@ -1,0 +1,165 @@
+//! Atlas data for microui - contains font glyphs and icons
+//! This should be populated with the actual atlas texture and rectangle data
+
+import std::mui::{ Rect }
+import std::image::Image
+
+const ATLAS_WIDTH: i32 = 128
+const ATLAS_HEIGHT: i32 = 128
+const ATLAS_WHITE: i32 = 4  // Icon::Max
+const ATLAS_FONT: i32 = 5   // First font character
+
+// Icon indices matching mui::Icon enum
+const ICON_CLOSE: i32 = 0
+const ICON_CHECK: i32 = 1
+const ICON_COLLAPSED: i32 = 2
+const ICON_EXPANDED: i32 = 3
+
+// Get atlas rectangle for an icon or font character
+def get_atlas_rect(idx: i32): Rect {
+    // Icons
+    if idx == ICON_CLOSE then return Rect(88, 68, 16, 16)
+    if idx == ICON_CHECK then return Rect(0, 0, 18, 18)
+    if idx == ICON_COLLAPSED then return Rect(113, 68, 5, 7)
+    if idx == ICON_EXPANDED then return Rect(118, 68, 7, 5)
+    if idx == ATLAS_WHITE then return Rect(125, 68, 3, 3)
+
+    // Font characters - index is ATLAS_FONT + (ascii - 32)
+    // For ASCII 32 (space) to 127
+    let font_idx = idx - ATLAS_FONT
+
+    // Map font index to atlas rectangle
+    match font_idx {
+        0 => return Rect(84, 68, 2, 17)    // space
+        1 => return Rect(39, 68, 3, 17)    // !
+        2 => return Rect(114, 51, 5, 17)   // "
+        3 => return Rect(34, 17, 7, 17)    // #
+        4 => return Rect(28, 34, 6, 17)    // $
+        5 => return Rect(58, 0, 9, 17)     // %
+        6 => return Rect(103, 0, 8, 17)    // &
+        7 => return Rect(86, 68, 2, 17)    // '
+        8 => return Rect(42, 68, 3, 17)    // (
+        9 => return Rect(45, 68, 3, 17)    // )
+        10 => return Rect(34, 34, 6, 17)   // *
+        11 => return Rect(40, 34, 6, 17)   // +
+        12 => return Rect(48, 68, 3, 17)   // ,
+        13 => return Rect(51, 68, 3, 17)   // -
+        14 => return Rect(54, 68, 3, 17)   // .
+        15 => return Rect(124, 34, 4, 17)  // /
+        16 => return Rect(46, 34, 6, 17)   // 0
+        17 => return Rect(52, 34, 6, 17)   // 1
+        18 => return Rect(58, 34, 6, 17)   // 2
+        19 => return Rect(64, 34, 6, 17)   // 3
+        20 => return Rect(70, 34, 6, 17)   // 4
+        21 => return Rect(76, 34, 6, 17)   // 5
+        22 => return Rect(82, 34, 6, 17)   // 6
+        23 => return Rect(88, 34, 6, 17)   // 7
+        24 => return Rect(94, 34, 6, 17)   // 8
+        25 => return Rect(100, 34, 6, 17)  // 9
+        26 => return Rect(57, 68, 3, 17)   // :
+        27 => return Rect(60, 68, 3, 17)   // ;
+        28 => return Rect(106, 34, 6, 17)  // <
+        29 => return Rect(112, 34, 6, 17)  // =
+        30 => return Rect(118, 34, 6, 17)  // >
+        31 => return Rect(119, 51, 5, 17)  // ?
+        32 => return Rect(18, 0, 10, 17)   // @
+        33 => return Rect(41, 17, 7, 17)   // A
+        34 => return Rect(48, 17, 7, 17)   // B
+        35 => return Rect(55, 17, 7, 17)   // C
+        36 => return Rect(111, 0, 8, 17)   // D
+        37 => return Rect(0, 35, 6, 17)    // E
+        38 => return Rect(6, 35, 6, 17)    // F
+        39 => return Rect(119, 0, 8, 17)   // G
+        40 => return Rect(18, 17, 8, 17)   // H
+        41 => return Rect(63, 68, 3, 17)   // I
+        42 => return Rect(66, 68, 3, 17)   // J
+        43 => return Rect(62, 17, 7, 17)   // K
+        44 => return Rect(12, 51, 6, 17)   // L
+        45 => return Rect(28, 0, 10, 17)   // M
+        46 => return Rect(67, 0, 9, 17)    // N
+        47 => return Rect(76, 0, 9, 17)    // O
+        48 => return Rect(69, 17, 7, 17)   // P
+        49 => return Rect(85, 0, 9, 17)    // Q
+        50 => return Rect(76, 17, 7, 17)   // R
+        51 => return Rect(18, 51, 6, 17)   // S
+        52 => return Rect(24, 51, 6, 17)   // T
+        53 => return Rect(26, 17, 8, 17)   // U
+        54 => return Rect(83, 17, 7, 17)   // V
+        55 => return Rect(38, 0, 10, 17)   // W
+        56 => return Rect(90, 17, 7, 17)   // X
+        57 => return Rect(30, 51, 6, 17)   // Y
+        58 => return Rect(36, 51, 6, 17)   // Z
+        59 => return Rect(69, 68, 3, 17)   // [
+        60 => return Rect(124, 51, 4, 17)  // \
+        61 => return Rect(72, 68, 3, 17)   // ]
+        62 => return Rect(42, 51, 6, 17)   // ^
+        63 => return Rect(15, 68, 4, 17)   // _
+        64 => return Rect(48, 51, 6, 17)   // `
+        65 => return Rect(54, 51, 6, 17)   // a
+        66 => return Rect(97, 17, 7, 17)   // b
+        67 => return Rect(0, 52, 5, 17)    // c
+        68 => return Rect(104, 17, 7, 17)  // d
+        69 => return Rect(60, 51, 6, 17)   // e
+        70 => return Rect(19, 68, 4, 17)   // f
+        71 => return Rect(66, 51, 6, 17)   // g
+        72 => return Rect(111, 17, 7, 17)  // h
+        73 => return Rect(75, 68, 3, 17)   // i
+        74 => return Rect(78, 68, 3, 17)   // j
+        75 => return Rect(72, 51, 6, 17)   // k
+        76 => return Rect(81, 68, 3, 17)   // l
+        77 => return Rect(48, 0, 10, 17)   // m
+        78 => return Rect(118, 17, 7, 17)  // n
+        79 => return Rect(0, 18, 7, 17)    // o
+        80 => return Rect(7, 18, 7, 17)    // p
+        81 => return Rect(14, 34, 7, 17)   // q
+        82 => return Rect(23, 68, 4, 17)   // r
+        83 => return Rect(5, 52, 5, 17)    // s
+        84 => return Rect(27, 68, 4, 17)   // t
+        85 => return Rect(21, 34, 7, 17)   // u
+        86 => return Rect(78, 51, 6, 17)   // v
+        87 => return Rect(94, 0, 9, 17)    // w
+        88 => return Rect(84, 51, 6, 17)   // x
+        89 => return Rect(90, 51, 6, 17)   // y
+        90 => return Rect(10, 68, 5, 17)   // z
+        91 => return Rect(31, 68, 4, 17)   // {
+        92 => return Rect(96, 51, 6, 17)   // |
+        93 => return Rect(35, 68, 4, 17)   // }
+        94 => return Rect(102, 51, 6, 17)  // ~
+        else => return Rect(108, 51, 6, 17) // 127 (fallback)
+    }
+}
+
+// Get atlas rectangle for a character (ASCII only, 32-127)
+def get_char_rect(chr: char): Rect {
+    let ch = chr as i32
+    if ch < 32 or ch > 127 {
+        ch = 127  // Use last character as fallback
+    }
+    return get_atlas_rect(ATLAS_FONT + (ch - 32))
+}
+
+// Calculate text width based on atlas character widths
+def calculate_text_width(text: str, len: i32): i32 {
+    let width: i32 = 0
+    let text_len = if len < 0 then text.len() as i32 else len
+
+    for let i = 0i32; i < text_len and i < (text.len() as i32); i += 1 {
+        let ch = text[i as u32]
+        // Skip UTF-8 continuation bytes
+        if ((ch as u8) & 0xc0u8) == 0x80u8 then continue
+
+        let chr = min_i32(ch as i32, 127)
+        let rect = get_char_rect(chr as char)
+        width = width + rect.width
+    }
+
+    return width
+}
+
+def min_i32(a: i32, b: i32): i32 => if a < b then a else b
+
+// Get text height
+def get_text_height(): i32 => 18
+
+// Load atlas texture (placeholder - you'll implement this based on your format)
+def load_atlas_texture(): &Image => Image::load(f"{@current_dir}/atlas.png")

@@ -1,0 +1,1195 @@
+// Heavily inpired from microui.h: github.com:rxi/microui
+
+[export] import std::vec::Vec2i
+[export] import std::image::{Image, Color}
+import std::mem
+import std::vector::Vector
+import std::libc::{memset, memcpy, strlen, sprintf_unsafe, strtod}
+import std::sort::sort_by
+
+const LAYOUTSTACK_SIZE: u32 = 16
+const CONTAINERPOOL_SIZE: u32 = 48
+const TREENODEPOOL_SIZE: u32 = 48
+const MAX_WIDTHS: u32 = 16
+const REAL_FMT: str = "%.3g"
+const SLIDER_FMT: str = "%.2f"
+const MAX_FMT: u32 = 127
+const INPUT_TEXT_SIZE: u32 = 128
+const TMP_TEXT_SIZE: u32 = (1024 * 1024)  // For text output, temporary buffer
+
+enum Clip {
+    None
+    Part
+    All
+}
+
+enum ColorStyle {
+    Text          // 1
+    Border       // 2
+    Windowbg     // 3
+    Titlebg      // 4
+    Titletext    // 5
+    Panelbg      // 6
+    Button       // 7
+    Buttonhover  // 8
+    Buttonfocus  // 9
+    Base        // 10
+    Basehover   // 11
+    Basefocus   // 12
+    Scrollbase  // 13
+    Scrollthumb // 14
+}
+const COLORSTYLE_MAX: u32 = 14
+
+enum Icon {
+    Close
+    Check
+    Collapsed
+    Expanded
+    Max
+}
+
+
+[flags]
+enum Res {
+    Active
+    Submit
+    Change
+}
+
+[flags]
+enum Opt {
+    AlignCenter
+    AlignRight
+    NoInteract
+    NoFrame
+    NoResize
+    NoScroll
+    NoClose
+    NoTitle
+    HoldFocus
+    AutoSize
+    Popup
+    Closed
+    Expanded
+}
+
+[flags]
+enum Mouse {
+    Left
+    Right
+    Middle
+}
+
+[flags]
+enum Key {
+    Shift
+    Ctrl
+    Alt
+    Backspace
+    Return
+}
+
+typedef Font = untyped_ptr
+
+[formatting "Rect(%d, %d, %d, %d)" "$.x,$.y,$.width,$.height"]
+struct Rect {
+    x: i32
+    y: i32
+    width: i32
+    height: i32
+}
+
+def Rect::pos(this): Vec2i => Vec2i(.x, .y)
+def Rect::size(this): Vec2i => Vec2i(.width, .height)
+
+struct PoolItem {
+    id: u32,
+    last_update: i32
+}
+
+enum Command {
+    Clip(rect: Rect)
+    Rect(rect: Rect, color: Color)
+    Text(font: Font, pos: Vec2i, color: Color, text: str, len: u32)
+    Icon(id: u32, color: Color, rect: Rect)
+    Image(image: &Image, rect: Rect)
+}
+
+
+enum PositionType {
+    None
+    Relative
+    Absolute
+}
+
+struct Layout {
+    body: Rect
+    next: Rect
+    position: Vec2i
+    size: Vec2i
+    max: Vec2i
+    widths: [i32; MAX_WIDTHS]
+    items: i32
+    item_index: i32
+    next_row: i32
+    next_type: PositionType
+    indent: i32
+}
+
+struct Container {
+    head: &Command
+    tail: &Command
+    rect: Rect
+    body: Rect
+    content_size: Vec2i
+    scroll: Vec2i
+    zindex: i32
+    open: bool
+}
+
+struct Style {
+    font: Font
+    size: Vec2i
+    padding: i32
+    spacing: i32
+    indent: i32
+    title_height: i32
+    scrollbar_size: i32
+    thumb_size: i32
+    colors: [Color; COLORSTYLE_MAX]
+}
+
+def Style::get(this, colorid: ColorStyle): Color => .colors[colorid as i32]
+
+struct Context {
+  // callbacks
+    text_width: fn(Font, str, i32): i32
+    text_height: fn(Font): i32
+    draw_frame: fn(&Context, Rect, ColorStyle)
+
+    // core state
+    _style: Style
+    style: &Style
+    hover: u32
+    focus: u32
+    last_id: u32
+    last_rect: Rect
+    last_zindex: i32
+    updated_focus: bool
+    frame: i32
+    hover_root: &Container
+    next_hover_root: &Container
+    scroll_target: &Container
+    number_edit_buf: [char; MAX_FMT]
+    number_edit: u32
+
+    // stacks
+    command_list: $[Command]
+    root_list: $[&Container]
+    container_stack: $[&Container]
+    clip_stack: $[Rect]
+    id_stack: $[u32]
+    layout_stack: $[Layout]
+
+    // retained state pools
+    container_pool: [PoolItem; CONTAINERPOOL_SIZE]
+    containers: [Container; CONTAINERPOOL_SIZE]
+    treenode_pool: [PoolItem; TREENODEPOOL_SIZE]
+
+    // input state
+    mouse_pos: Vec2i
+    last_mouse_pos: Vec2i
+    mouse_delta: Vec2i
+    scroll_delta: Vec2i
+    mouse_down: Mouse
+    mouse_pressed: Mouse
+    key_down: Key
+    key_pressed: Key
+    input_text_buf: [char; INPUT_TEXT_SIZE]
+
+    tmp_text_buf: [char; TMP_TEXT_SIZE]
+    tmp_text_size: u32
+}
+
+def Context::tmp_copy_str(&this, s: str): str {
+    let res = .tmp_text_buf + .tmp_text_size
+    let len = s.len()
+    memcpy(res, s, len)
+    res[len] = '\0'
+    .tmp_text_size += len + 1
+    return res
+}
+
+let unclipped_rect: Rect = Rect(0, 0, 0x1000000, 0x1000000)
+let default_style: Style = Style(
+    font: null,
+    size: Vec2i(68, 10),
+    padding: 5,
+    spacing: 4,
+    indent: 24,
+    title_height: 24,
+    scrollbar_size: 12,
+    thumb_size: 8,
+    colors: [
+        Color(230, 230, 230), // Text
+        Color(25,  25,  25 ), // Border
+        Color(50,  50,  50 ), // Windowbg
+        Color(25,  25,  25 ), // Titlebg
+        Color(240, 240, 240), // Titletext
+        Color(0,   0,   0  ), // Panelbg
+        Color(75,  75,  75 ), // Button
+        Color(95,  95,  95 ), // Buttonhover
+        Color(115, 115, 115), // Buttonfocus
+        Color(30,  30,  30 ), // Base
+        Color(35,  35,  35 ), // Basehover
+        Color(40,  40,  40 ), // Basefocus
+        Color(43,  43,  43 ), // Scrollbase
+        Color(30,  30,  30 )  // Scrollthumb
+    ]
+)
+
+def Rect::expand(this, n: i32): Rect => Rect(.x - n, .y - n, .width + n * 2, .height + n * 2)
+
+def Rect::intersect(this, other: Rect): Rect {
+    let x1 = .x.max(other.x)
+    let y1 = .y.max(other.y)
+    let x2 = (.x + .width).min(other.x + other.width)
+    let y2 = (.y + .height).min(other.y + other.height)
+    if x2 < x1 then x2 = x1
+    if y2 < y1 then y2 = y1
+    return Rect(x1, y1, x2 - x1, y2 - y1)
+}
+
+def Rect::overlaps_vec(this, other: Vec2i): bool {
+    return .x <= other.x < .x + .width and
+           .y <= other.y < .y + .height
+}
+
+def draw_frame(ctx: &Context, rect: Rect, colorid: ColorStyle) {
+    ctx.draw_rect(rect, ctx.style.get(colorid))
+    match colorid {
+        Scrollbase | Scrollthumb | Titlebg => return
+        else => {}
+    }
+    // TODO: Transparency?
+    ctx.draw_box(rect.expand(1), ctx.style.get(Border))
+}
+
+def init(): &Context {
+    let ctx = mem::alloc<Context>()
+    memset(ctx, 0, sizeof(Context))
+    ctx.draw_frame = draw_frame
+    ctx._style = default_style
+    ctx.style = &ctx._style
+
+    ctx.command_list = $[]
+    ctx.root_list = $[]
+    ctx.container_stack = $[]
+    ctx.clip_stack = $[]
+    ctx.id_stack = $[]
+    ctx.layout_stack = $[]
+    return ctx
+}
+
+def Context::begin(&this) {
+    assert .text_width? and .text_height?
+    .tmp_text_size = 0
+    .command_list.clear()
+    .root_list.clear()
+    .scroll_target = null
+    .hover_root = .next_hover_root
+    .next_hover_root = null
+    .mouse_delta.x = .mouse_pos.x - .last_mouse_pos.x
+    .mouse_delta.y = .mouse_pos.y - .last_mouse_pos.y
+    .frame++
+}
+
+def Context::end(&this) {
+    // Check stacks
+    assert .container_stack.size == 0
+    assert .clip_stack.size == 0
+    assert .id_stack.size == 0
+    assert .layout_stack.size == 0
+
+    // Handle scrolling
+    if .scroll_target? {
+        .scroll_target.scroll.x += .scroll_delta.x
+        .scroll_target.scroll.y += .scroll_delta.y
+    }
+
+    // Unset focus if focus id was not touched
+    if not .updated_focus then .focus = 0
+    .updated_focus = false
+
+    // bring hover root to front if mouse was pressed
+    if (
+        .mouse_pressed as bool and .next_hover_root? and
+        0i <= .next_hover_root.zindex < .last_zindex
+    ) {
+        .bring_to_front(.next_hover_root)
+    }
+
+    // reset input state
+    .mouse_pressed = 0
+    .key_pressed = 0
+
+    memset(.input_text_buf, 0, INPUT_TEXT_SIZE)
+    .scroll_delta = Vec2i(0, 0)
+    .last_mouse_pos = .mouse_pos
+
+    // sort by z
+    let n = .root_list.size
+    sort_by<&Container>(.root_list.data, n, |a,b| => a.zindex.compare(b.zindex))
+}
+
+def Context::set_focus(&this, id: u32) {
+    .focus = id
+    .updated_focus = true
+}
+
+const HASH_INITIAL: u32 = 2166136261
+
+def hash(state: &u32, data: untyped_ptr, size: u32): u32 {
+    let p = data as &u8
+    while size-- > 0 {
+        *state = (*state ^ (*p++) as u32) * 16777619
+    }
+    return *state
+}
+
+def Context::get_id(&this, data: untyped_ptr, size: u32): u32 {
+    let idx = .id_stack.size
+    let res = if {
+        idx > 0 => .id_stack.back()
+        else => HASH_INITIAL
+    }
+    .last_id = hash(&res, data, size)
+    return res
+}
+
+def Context::push_id(&this, data: untyped_ptr, size: u32) => .id_stack.push(.get_id(data, size))
+def Context::pop_id(&this): u32 => .id_stack.pop()
+
+def Context::push_clip_rect(&this, rect: Rect) {
+    .clip_stack.push(rect.intersect(.get_clip_rect()))
+    .set_clip(.get_clip_rect())
+}
+def Context::pop_clip_rect(&this): Rect {
+    let result = .clip_stack.pop()
+    // Only set clip if there are still items on the stack
+    if .clip_stack.size > 0 {
+        .set_clip(.get_clip_rect())
+    }
+    return result
+}
+def Context::get_clip_rect(&this): Rect => .clip_stack.back()
+
+def Context::check_clip(&this, r: Rect): Clip {
+    let cr = .get_clip_rect()
+    if (r.x > cr.x + cr.width or r.x + r.width < cr.x or
+        r.y > cr.y + cr.height or r.y + r.height < cr.y) return All
+    if (cr.x <= r.x + r.width <= cr.x + cr.width and
+        cr.y <= r.y + r.height <= cr.y + cr.height) return None
+    return Part
+}
+
+def Context::push_layout(&this, body: Rect, scroll: Vec2i) {
+    let layout: Layout
+    let width = 0i
+    layout.body = Rect(body.x - scroll.x, body.y - scroll.y, body.width, body.height)
+    layout.max = Vec2i(-0x1000000, -0x1000000)
+    .layout_stack.push(layout)
+    .layout_row(1, &width, 0)
+}
+
+def Context::get_layout(&this): &Layout => .layout_stack.back_ptr()
+
+def Context::pop_container(&this) {
+    let cnt: &Container = .get_current_container()
+    let layout = .get_layout()
+    cnt.content_size = layout.max - layout.body.pos()
+    .container_stack.pop()
+    .layout_stack.pop()
+    .pop_id()
+}
+
+def Context::bring_to_front(&this, cnt: &Container) => cnt.zindex = ++.last_zindex
+
+def Context::get_current_container(&this): &Container {
+    assert .container_stack.size > 0
+    return .container_stack.back()
+}
+
+def Context::get_container(&this, id: u32, opt: Opt): &Container {
+    let idx = .pool_get(.container_pool, CONTAINERPOOL_SIZE as i32, id)
+    if idx >= 0 {
+        if .containers[idx].open or opt is Closed {
+            .pool_update(.container_pool, idx)
+        }
+        return &(.containers[idx])
+    }
+    if opt is Closed return null
+    idx = .pool_init(.container_pool, CONTAINERPOOL_SIZE as i32, id)
+    let cnt = &.containers[idx]
+    memset(cnt, 0, sizeof(Container))
+    cnt.open = true
+    .bring_to_front(cnt)
+    return cnt
+}
+
+def Context::get_container_name(&this, name: str): &Container {
+    let id = .get_id(name, name.len())
+    return .get_container(id, 0)
+}
+
+//============================================================================
+// pool
+//============================================================================
+
+def Context::pool_init(&this, items: &PoolItem, len: i32, id: u32): i32 {
+    let n = -1i32
+    let f = .frame
+    for let i = 0i; i < len; i++ {
+        if items[i].last_update < f {
+            f = items[i].last_update
+            n = i
+        }
+    }
+    assert n >= 0
+    items[n].id = id
+    .pool_update(items, n)
+    return n
+}
+
+def Context::pool_get(&this, items: &PoolItem, len: i32, id: u32): i32 {
+    for let i = 0i; i < len; i++ {
+        if items[i].id == id return i
+    }
+    return -1
+}
+
+def Context::pool_update(&this, items: &PoolItem, idx: i32) => items[idx].last_update = .frame
+
+//============================================================================
+// input handlers
+//============================================================================
+
+def Context::input_mousemove(&this, x: i32, y: i32) => .mouse_pos = Vec2i(x, y)
+
+def Context::input_mousedown(&this, x: i32, y: i32, btn: Mouse) {
+    .input_mousemove(x, y)
+    .mouse_down = .mouse_down | btn
+    .mouse_pressed = .mouse_pressed | btn
+}
+
+def Context::input_mouseup(&this, x: i32, y: i32, btn: Mouse) {
+    .input_mousemove(x, y)
+    .mouse_down = .mouse_down & ~btn
+}
+
+def Context::input_scroll(&this, x: i32, y: i32) {
+    .scroll_delta.x += x
+    .scroll_delta.y += y
+}
+
+def Context::input_keydown(&this, key: Key) {
+    .key_pressed = .key_pressed | key
+    .key_down = .key_down | key
+}
+
+def Context::input_keyup(&this, key: Key) {
+    .key_down = .key_down & ~key
+}
+
+def Context::input_text(&this, text: str) {
+    let len = strlen(.input_text_buf)
+    let size = strlen(text) + 1
+    assert len + size <= INPUT_TEXT_SIZE
+    memcpy(.input_text_buf + len, text, size)
+}
+
+//============================================================================
+// commandlist
+//============================================================================
+
+// TODO: Old command handling???
+
+// def Context::push_jump(&this, dst: untyped_ptr): Command {
+//     let cmd = Command::Jump(dst: dst)
+//     .command_list.push(cmd)
+//     return cmd
+// }
+
+def Context::set_clip(&this, rect: Rect) {
+    let cmd = Command::Clip(rect: rect)
+    .command_list.push(cmd)
+}
+
+def Context::draw_rect(&this, rect: Rect, color: Color) {
+    let clipped = rect.intersect(.get_clip_rect())
+    if clipped.width > 0 and clipped.height > 0 {
+        let cmd = Command::Rect(rect: clipped, color: color)
+        .command_list.push(cmd)
+    }
+}
+
+def Context::draw_box(&this, rect: Rect, color: Color) {
+    .draw_rect(Rect(rect.x + 1, rect.y, rect.width - 2, 1), color)
+    .draw_rect(Rect(rect.x + 1, rect.y + rect.height - 1, rect.width - 2, 1), color)
+    .draw_rect(Rect(rect.x, rect.y, 1, rect.height), color)
+    .draw_rect(Rect(rect.x + rect.width - 1, rect.y, 1, rect.height), color)
+}
+
+def Context::draw_text(&this, font: Font, text: str, len: i32, pos: Vec2i, color: Color) {
+    let rect = Rect(pos.x, pos.y, .text_width(font, text, len), .text_height(font))
+    let clipped = .check_clip(rect)
+    if clipped == Clip::All return
+    if clipped == Clip::Part {
+        .set_clip(.get_clip_rect())
+    }
+    let text_len = if len < 0 then strlen(text) as i32 else len
+    let cmd = Command::Text(font: font, pos: pos, color: color, text: text, len: text_len as u32)
+    .command_list.push(cmd)
+    if clipped == Clip::Part then .set_clip(unclipped_rect)
+}
+
+def Context::draw_icon(&this, id: u32, rect: Rect, color: Color) {
+    let clipped = .check_clip(rect)
+    if clipped == Clip::All then return
+    if clipped == Clip::Part then .set_clip(.get_clip_rect())
+
+    let cmd = Command::Icon(id: id, rect: rect, color: color)
+    .command_list.push(cmd)
+
+    if clipped == Clip::Part then .set_clip(unclipped_rect)
+}
+
+def Context::draw_image(&this, image: &Image, rect: Rect) {
+    let clipped = .check_clip(rect)
+    if clipped == Clip::All then return
+    if clipped == Clip::Part then .set_clip(.get_clip_rect())
+
+    let cmd = Command::Image(image: image, rect: rect)
+    .command_list.push(cmd)
+
+    if clipped == Clip::Part then .set_clip(unclipped_rect)
+}
+
+//============================================================================
+// layout
+//============================================================================
+
+def Context::layout_begin_column(&this) => .push_layout(.layout_next(), Vec2i(0, 0))
+
+def Context::layout_end_column(&this) {
+    let b = .get_layout()
+    .layout_stack.pop()
+    let a = .get_layout()
+    a.position.x = a.position.x.max(b.position.x + b.body.x - a.body.x)
+    a.next_row = a.next_row.max(b.next_row + b.body.y - a.body.y)
+    a.max.x = a.max.x.max(b.max.x)
+    a.max.y = a.max.y.max(b.max.y)
+}
+
+def Context::layout_row(&this, items: i32, widths: &i32, height: i32) {
+    let layout = .get_layout()
+    if widths? {
+        assert items <= MAX_WIDTHS as i32
+        memcpy(&layout.widths as untyped_ptr, widths, items as u32 * sizeof(i32))
+    }
+    layout.items = items
+    layout.position = Vec2i(layout.indent, layout.next_row)
+    layout.size.y = height
+    layout.item_index = 0
+}
+
+def Context::layout_width(&this, width: i32) => .get_layout().size.x = width
+def Context::layout_height(&this, height: i32) => .get_layout().size.y = height
+
+def Context::layout_set_next(&this, r: Rect, relative: bool) {
+    let layout = .get_layout()
+    layout.next = r
+    layout.next_type = if relative then Relative else Absolute
+}
+
+def Context::layout_next(&this): Rect {
+    let layout = .get_layout()
+    let style = .style
+    let res: Rect
+
+    if layout.next_type != None {
+        let type = layout.next_type
+        layout.next_type = None
+        res = layout.next
+        if type == Absolute then return (.last_rect = res)
+
+    } else {
+        if layout.item_index == layout.items {
+            .layout_row(layout.items, null, layout.size.y)
+        }
+
+        res.x = layout.position.x
+        res.y = layout.position.y
+
+        res.width = if layout.items > 0 then layout.widths[layout.item_index] else layout.size.x
+        res.height = layout.size.y
+        if res.width  == 0 then res.width   = style.size.x + style.padding * 2
+        if res.height == 0 then res.height  = style.size.y + style.padding * 2
+        if res.width   < 0 then res.width  += layout.body.width - res.x + 1
+        if res.height  < 0 then res.height += layout.body.height - res.y + 1
+
+        layout.item_index++
+    }
+
+    layout.position.x += res.width + style.spacing
+    layout.next_row = layout.next_row.max(res.y + res.height + style.spacing)
+
+    res.x += layout.body.x
+    res.y += layout.body.y
+
+    layout.max.x = layout.max.x.max(res.x + res.width)
+    layout.max.y = layout.max.y.max(res.y + res.height)
+
+    return (.last_rect = res)
+}
+
+//============================================================================
+// controls
+//============================================================================
+
+def Context::in_hover_root(&this): bool {
+    let i = .container_stack.size
+    while i-- > 0 {
+        if .container_stack[i] == .hover_root then return true
+        if .container_stack[i].head? then break
+    }
+    return false
+}
+
+def Context::draw_control_frame(&this, id: u32, rect: Rect, colorid: ColorStyle, opt: Opt) {
+    if opt is NoFrame then return
+    let offset: i32 = if .focus == id then 2 else if .hover == id then 1 else 0
+    // ??? not sure what this is lol... why are we adding an offset to an enum?
+    let new_colorid = (colorid as i32 + offset) as ColorStyle
+    .draw_frame(this, rect, new_colorid)
+}
+
+def Context::draw_control_text(&this, str: str, rect: Rect, colorid: ColorStyle, opt: Opt) {
+    let pos: Vec2i
+    let font = .style.font
+    let tw = .text_width(font, str, -1)
+    .push_clip_rect(rect)
+    pos.y = rect.y + (rect.height - .text_height(font)) / 2
+    if opt is AlignCenter {
+        pos.x = rect.x + (rect.width - tw) / 2
+    } else if opt is AlignRight {
+        pos.x = rect.x + rect.width - tw - .style.padding
+    } else {
+        pos.x = rect.x + .style.padding
+    }
+    .draw_text(font, str, -1, pos, .style.get(colorid))
+    .pop_clip_rect()
+}
+
+def Context::mouse_over(&this, rect: Rect): bool {
+    return rect.overlaps_vec(.mouse_pos) and
+           .get_clip_rect().overlaps_vec(.mouse_pos) and
+           .in_hover_root()
+}
+
+def Context::update_control(&this, id: u32, rect: Rect, opt: Opt) {
+    let mouseover = .mouse_over(rect)
+
+    if .focus == id then .updated_focus = true
+    if opt is NoInteract then return
+    if mouseover and .mouse_down as u32 == 0 then .hover = id
+
+    if .focus == id {
+        if .mouse_pressed as bool and not mouseover then .set_focus(0)
+        // TODO: Is the next line right? weird bit shift stuff
+        if .mouse_down as u32 == 0 and not ((~opt & HoldFocus) == 0) then .set_focus(0)
+    }
+
+    if .hover == id {
+        if .mouse_pressed as bool {
+            .set_focus(id)
+        } else if not mouseover {
+            .hover = 0
+        }
+    }
+}
+
+//============================================================================
+// widgets
+//============================================================================
+
+def Context::text(&this, text: str) {
+    let start: str
+    let end: str
+    let p = text
+    let width = -1i32
+    let font = .style.font
+    let color = .style.colors[ColorStyle::Text as u32]
+    .layout_begin_column()
+    .layout_row(1, &width, .text_height(font))
+    while true {
+        let r = .layout_next()
+        let w = 0i32
+        start = p
+        end = p
+        while true {
+            let word = p
+            while p[0] != '\0' and p[0] != ' ' and p[0] != '\n' {
+                p = p + 1
+            }
+            w += .text_width(font, word, (p - word) as i32)
+            if w > r.width and end != start then break
+            w += .text_width(font, p, 1)
+            end = p
+            p = p + 1
+            if end[0] == '\0' or end[0] == '\n' then break
+        }
+        .draw_text(font, start, (end - start) as i32, Vec2i(r.x, r.y), color)
+        p = end + 1
+        if end[0] == '\0' then break
+    }
+    .layout_end_column()
+}
+
+def Context::label(&this, text: str) {
+    .draw_control_text(text, .layout_next(), Text, 0)
+}
+
+def Context::image(&this, img: &Image) {
+    let r = .layout_next()
+    .draw_image(img, r)
+}
+
+def Context::button(&this, label: str, icon: i32 = 0, opt: Opt = AlignCenter): Res {
+    let res = 0 as Res
+    let id = if {
+        label? => .get_id(label, label.len())
+        else => .get_id(&icon, sizeof(i32))
+    }
+    let r = .layout_next()
+    .update_control(id, r, opt)
+    if .mouse_pressed is Left and .focus == id {
+        res = res | Submit
+    }
+    .draw_control_frame(id, r, Button, opt)
+    if label? then .draw_control_text(label, r, Text, opt)
+    if icon != 0 then .draw_icon(icon as u32, r, .style.colors[ColorStyle::Text as u32])
+    return res
+}
+
+def Context::checkbox(&this, label: str, state: &bool): Res {
+    let res = 0 as Res
+    let id = .get_id(&state, sizeof(&bool) as u32)
+    let r = .layout_next()
+    let box = Rect(r.x, r.y, r.height, r.height)
+    .update_control(id, r, 0)
+    if .mouse_pressed is Left and .focus == id {
+        res = res | Change
+        *state = not *state
+    }
+    .draw_control_frame(id, box, Base, 0)
+    if *state {
+        .draw_icon(Icon::Check as u32, box, .style.colors[ColorStyle::Text as u32])
+    }
+    r = Rect(r.x + box.width, r.y, r.width - box.width, r.height)
+    .draw_control_text(label, r, Text, 0)
+    return res
+}
+
+def Context::textbox_raw(&this, buf: str, bufsz: i32, id: u32, r: Rect, opt: Opt): Res {
+    let res = 0 as Res
+    .update_control(id, r, opt | HoldFocus)
+
+    if .focus == id {
+        let len = strlen(buf) as i32
+        let n = (bufsz - len - 1).min(strlen(.input_text_buf) as i32)
+        if n > 0 {
+            memcpy(buf + len, .input_text_buf, n as u32)
+            len += n
+            buf[len] = '\0'
+            res = res | Change
+        }
+        if .key_pressed is Backspace and len > 0 {
+            while len > 0 {
+                len = len - 1
+                if not ((buf[len] as u8 & 0xc0) == 0x80) then break
+            }
+            buf[len] = '\0'
+            res = res | Change
+        }
+        if .key_pressed is Return {
+            .set_focus(0)
+            res = res | Submit
+        }
+    }
+
+    .draw_control_frame(id, r, Base, opt)
+    if .focus == id {
+        let color = .style.colors[ColorStyle::Text as u32]
+        let font = .style.font
+        let textw = .text_width(font, buf, -1)
+        let texth = .text_height(font)
+        let ofx = r.width - .style.padding - textw - 1
+        let textx = r.x + ofx.min(.style.padding)
+        let texty = r.y + (r.height - texth) / 2
+        .push_clip_rect(r)
+        .draw_text(font, buf, -1, Vec2i(textx, texty), color)
+        .draw_rect(Rect(textx + textw, texty, 1, texth), color)
+        .pop_clip_rect()
+    } else {
+        .draw_control_text(buf, r, Text, opt)
+    }
+
+    return res
+}
+
+def Context::textbox(&this, buf: str, bufsz: i32, opt: Opt = 0): Res {
+    let id = .get_id(&buf, sizeof(str))
+    let r = .layout_next()
+    return .textbox_raw(buf, bufsz, id, r, opt)
+}
+
+def Context::number_textbox(&this, value: &f32, r: Rect, id: u32): bool {
+    if .mouse_pressed is Left and .key_down is Shift and .hover == id {
+        .number_edit = id
+        sprintf_unsafe(.number_edit_buf, REAL_FMT, *value)
+    }
+    if .number_edit == id {
+        let res = .textbox_raw(.tmp_copy_str(.number_edit_buf), MAX_FMT as i32, id, r, 0)
+        if res is Submit or .focus != id {
+            *value = strtod(.number_edit_buf, null) as f32
+            .number_edit = 0
+        } else {
+            return true
+        }
+    }
+    return false
+}
+
+def Context::slider(&this, value: &f32, low: f32, high: f32, step: f32 = 0.0, fmt: str = SLIDER_FMT, opt: Opt = AlignCenter): Res {
+    let thumb: Rect
+    let x: i32
+    let w: i32
+    let res = 0 as Res
+    let last = *value
+    let v = last
+    let id = .get_id(&value, sizeof(&f32))
+    let base = .layout_next()
+
+    if .number_textbox(&v, base, id) then return res
+
+    .update_control(id, base, opt)
+
+    if .focus == id and (.mouse_down | .mouse_pressed) is Mouse::Left {
+        v = low + ( .mouse_pos.x - base.x) as f32 * (high - low) / base.width as f32
+        if step != 0.0 then v = ((v + step / 2.0) / step) as i64 as f32 * step
+    }
+    *value = v = v.clamp(low, high)
+    if last != v then res = res | Change
+
+    .draw_control_frame(id, base, Base, opt)
+    w = .style.thumb_size
+    x = ((v - low) * (base.width - w) as f32 / (high - low)) as i32
+    thumb = Rect(base.x + x, base.y, w, base.height)
+    .draw_control_frame(id, thumb, Button, opt)
+    let buf: [char; MAX_FMT]
+    sprintf_unsafe(buf, fmt, v)
+    .draw_control_text(.tmp_copy_str(buf), base, Text, opt)
+
+    return res
+}
+
+def Context::number(&this, value: &f32, step: f32, fmt: str = SLIDER_FMT, opt: Opt = AlignCenter): Res {
+    let buf: [char; MAX_FMT]
+    let res = 0 as Res
+    let id = .get_id(value as untyped_ptr, sizeof(&f32) as u32)
+    let base = .layout_next()
+    let last = *value
+
+    if .number_textbox(value, base, id) then return res
+
+    .update_control(id, base, opt)
+
+    if .focus == id and .mouse_down is Left {
+        *value += .mouse_delta.x as f32 * step
+    }
+    if *value != last then res = res | Change
+
+    .draw_control_frame(id, base, Base, opt)
+    sprintf_unsafe(buf, fmt, *value)
+    .draw_control_text(.tmp_copy_str(buf), base, Text, opt)
+
+    return res
+}
+
+def Context::_header_help(&this, label: str, istreenode: bool, opt: Opt): Res {
+    let r: Rect
+    let active: bool
+    let expanded: bool
+    let id = .get_id(label, strlen(label) as u32)
+    let idx = .pool_get(.treenode_pool, TREENODEPOOL_SIZE as i32, id)
+    let width = -1i32
+    .layout_row(1, &width, 0)
+
+    active = idx >= 0
+    expanded = if opt is Expanded then not active else active
+    r = .layout_next()
+    .update_control(id, r, 0)
+
+    active = active ^ (.mouse_pressed is Left and .focus == id)
+
+    if idx >= 0 {
+        if active then .pool_update(.treenode_pool, idx)
+        else memset(&.treenode_pool[idx], 0, sizeof(PoolItem))
+    } else if active {
+        .pool_init(.treenode_pool, TREENODEPOOL_SIZE as i32, id)
+    }
+
+    if istreenode {
+        if .hover == id then .draw_frame(this, r, Buttonhover)
+    } else {
+        .draw_control_frame(id, r, Button, 0)
+    }
+    .draw_icon(
+        if expanded then Icon::Expanded as u32 else Icon::Collapsed as u32,
+        Rect(r.x, r.y, r.height, r.height),
+        .style.colors[ColorStyle::Text as u32])
+    r.x += r.height - .style.padding
+    r.width -= r.height - .style.padding
+    .draw_control_text(label, r, Text, 0)
+
+    return if expanded then Res::Active else 0 as Res
+}
+
+def Context::header(&this, label: str, opt: Opt = 0): Res {
+    return ._header_help(label, false, opt)
+}
+
+def Context::begin_treenode(&this, label: str, opt: Opt = 0): Res {
+    let res = ._header_help(label, true, opt)
+    if res is Active {
+        .get_layout().indent += .style.indent
+        .push_id(&.last_id, sizeof(u32) as u32)
+    }
+    return res
+}
+
+def Context::end_treenode(&this) {
+    .get_layout().indent -= .style.indent
+    .pop_id()
+}
+
+//============================================================================
+// scrollbars and containers
+//============================================================================
+
+def Context::scrollbar_y(&this, cnt: &Container, body: &Rect, cs: Vec2i) {
+    let maxscroll = cs.y - body.height
+    if maxscroll > 0 and body.height > 0 {
+        let base: Rect
+        let thumb: Rect
+        let id = .get_id("!scrollbary", 11)
+
+        base = *body
+        base.x = body.x + body.width
+        base.width = .style.scrollbar_size
+
+        .update_control(id, base, 0)
+        if .focus == id and .mouse_down is Left {
+            cnt.scroll.y += .mouse_delta.y * cs.y / base.height
+        }
+        cnt.scroll.y = cnt.scroll.y.clamp(0, maxscroll)
+
+        .draw_frame(this, base, Scrollbase)
+        thumb = base
+        thumb.height = .style.thumb_size.max(base.height * body.height / cs.y)
+        thumb.y += cnt.scroll.y * (base.height - thumb.height) / maxscroll
+        .draw_frame(this, thumb, Scrollthumb)
+
+        if .mouse_over(*body) then .scroll_target = cnt
+    } else {
+        cnt.scroll.y = 0
+    }
+}
+
+def Context::scrollbar_x(&this, cnt: &Container, body: &Rect, cs: Vec2i) {
+    let maxscroll = cs.x - body.width
+    if maxscroll > 0 and body.width > 0 {
+        let base: Rect
+        let thumb: Rect
+        let id = .get_id("!scrollbarx", 11)
+
+        base = *body
+        base.y = body.y + body.height
+        base.height = .style.scrollbar_size
+
+        .update_control(id, base, 0)
+        if .focus == id and .mouse_down is Left {
+            cnt.scroll.x += .mouse_delta.x * cs.x / base.width
+        }
+        cnt.scroll.x = cnt.scroll.x.clamp(0, maxscroll)
+
+        .draw_frame(this, base, Scrollbase)
+        thumb = base
+        thumb.width = .style.thumb_size.max(base.width * body.width / cs.x)
+        thumb.x += cnt.scroll.x * (base.width - thumb.width) / maxscroll
+        .draw_frame(this, thumb, Scrollthumb)
+
+        if .mouse_over(*body) then .scroll_target = cnt
+    } else {
+        cnt.scroll.x = 0
+    }
+}
+
+def Context::scrollbars(&this, cnt: &Container, body: &Rect) {
+    let sz = .style.scrollbar_size
+    let cs = cnt.content_size
+    cs.x += .style.padding * 2
+    cs.y += .style.padding * 2
+    .push_clip_rect(*body)
+    if cs.y > cnt.body.height then body.width -= sz
+    if cs.x > cnt.body.width then body.height -= sz
+    .scrollbar_y(cnt, body, cs)
+    .scrollbar_x(cnt, body, cs)
+    .pop_clip_rect()
+}
+
+def Context::push_container_body(&this, cnt: &Container, body: Rect, opt: Opt) {
+    if not (opt is NoScroll) then .scrollbars(cnt, &body)
+    .push_layout(body.expand(-.style.padding), cnt.scroll)
+    cnt.body = body
+}
+
+def Context::begin_root_container(&this, cnt: &Container) {
+    .container_stack.push(cnt)
+    .root_list.push(cnt)
+    // .push_jump(null)
+    if cnt.rect.overlaps_vec(.mouse_pos) and
+       (not .next_hover_root? or cnt.zindex > .next_hover_root.zindex) {
+        .next_hover_root = cnt
+    }
+    .clip_stack.push(unclipped_rect)
+}
+
+def Context::end_root_container(&this) {
+    let cnt = .get_current_container()
+    // TODO: This is probably just completely wrong...
+    // .push_jump(.command_list.data + .command_list.size)
+    .pop_clip_rect()
+    .pop_container()
+}
+
+def Context::begin_window(&this, title: str, rect: Rect, opt: Opt = 0): Res {
+    let body: Rect
+    let id = .get_id(title, strlen(title) as u32)
+    let cnt = .get_container(id, opt)
+    if not cnt? or not cnt.open then return 0 as Res
+    .push_id(title, strlen(title) as u32)
+
+    if cnt.rect.width == 0 then cnt.rect = rect
+    .begin_root_container(cnt)
+    rect = body = cnt.rect
+
+    if not (opt is NoFrame) {
+        .draw_frame(this, rect, Windowbg)
+    }
+
+    if not (opt is NoTitle) {
+        let tr = rect
+        tr.height = .style.title_height
+        .draw_frame(this, tr, Titlebg)
+
+        let title_id = .get_id("!title", 6)
+        .update_control(title_id, tr, opt)
+        .draw_control_text(title, tr, Titletext, opt)
+        if title_id == .focus and .mouse_down is Left {
+            cnt.rect.x += .mouse_delta.x
+            cnt.rect.y += .mouse_delta.y
+        }
+        body.y += tr.height
+        body.height -= tr.height
+
+        if not (opt is NoClose) {
+            let close_id = .get_id("!close", 6)
+            let r = Rect(tr.x + tr.width - tr.height, tr.y, tr.height, tr.height)
+            tr.width -= r.width
+            .draw_icon(Icon::Close as u32, r, .style.get(Titletext))
+            .update_control(close_id, r, opt)
+            if .mouse_pressed is Left and close_id == .focus {
+                cnt.open = false
+            }
+        }
+    }
+
+    .push_container_body(cnt, body, opt)
+
+    if not (opt is NoResize) {
+        let sz = .style.title_height
+        let resize_id = .get_id("!resize", 7)
+        let r = Rect(rect.x + rect.width - sz, rect.y + rect.height - sz, sz, sz)
+        .update_control(resize_id, r, opt)
+        if resize_id == .focus and .mouse_down is Left {
+            cnt.rect.width = 96i.max(cnt.rect.width + .mouse_delta.x)
+            cnt.rect.height = 64i.max(cnt.rect.height + .mouse_delta.y)
+        }
+    }
+
+    if (opt is AutoSize) {
+        let r = .get_layout().body
+        cnt.rect.width = cnt.content_size.x + (cnt.rect.width - r.width)
+        cnt.rect.height = cnt.content_size.y + (cnt.rect.height - r.height)
+    }
+
+    if (opt is Popup) and .mouse_pressed as u32 != 0 and .hover_root != cnt {
+        cnt.open = false
+    }
+
+    .push_clip_rect(cnt.body)
+    return Res::Active
+}
+
+def Context::end_window(&this) {
+    .pop_clip_rect()
+    .end_root_container()
+}
+
+def Context::open_popup(&this, name: str) {
+    let cnt = .get_container_name(name)
+    .hover_root = .next_hover_root = cnt
+    cnt.rect = Rect(.mouse_pos.x, .mouse_pos.y, 1, 1)
+    cnt.open = true
+    .bring_to_front(cnt)
+}
+
+def Context::begin_popup(&this, name: str): Res {
+    let opt = Opt::Popup | AutoSize | NoResize | NoScroll | NoTitle | Closed
+    return .begin_window(name, Rect(0, 0, 0, 0), opt)
+}
+
+def Context::end_popup(&this) {
+    .end_window()
+}
+
+def Context::begin_panel(&this, name: str, opt: Opt = 0) {
+    let cnt: &Container
+    .push_id(name, strlen(name) as u32)
+    cnt = .get_container(.last_id, opt)
+    cnt.rect = .layout_next()
+    if not (opt is NoFrame) {
+        .draw_frame(this, cnt.rect, Panelbg)
+    }
+    .container_stack.push(cnt)
+    .push_container_body(cnt, cnt.rect, opt)
+    .push_clip_rect(cnt.body)
+}
+
+def Context::end_panel(&this) {
+    .pop_clip_rect()
+    .pop_container()
+}

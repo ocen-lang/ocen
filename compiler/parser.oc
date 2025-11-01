@@ -1072,6 +1072,16 @@ def Parser::parse_prefix(&this, end_type: TokenType): &AST {
                     node.u.child = expr
                     return node
                 }
+                "current_file" => {
+                    let node = AST::new(StringLiteral, atsign.span.join(ident.span))
+                    node.u.string_literal = ident.span.start.filename
+                    return node
+                }
+                "current_dir" => {
+                    let node = AST::new(StringLiteral, atsign.span.join(ident.span))
+                    node.u.string_literal = dirname(ident.span.start.filename).copy()
+                    return node
+                }
                 else => {
                     .error(Error::new(ident.span, "Unknown compiler operation"))
                     return AST::new(Error, atsign.span)

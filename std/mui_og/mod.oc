@@ -1,0 +1,300 @@
+
+import std::mui::{ this, Rect }
+import std::og
+import std::sdl
+import std::image::{Image, Color}
+import std::vec::{ Vec2i }
+import .atlas
+
+let image: &Image
+let clip_rect: Rect
+let current_width: i32
+let current_height: i32
+let atlas_image: &Image
+
+def text_width_callback(font: mui::Font, text: str, len: i32): i32 {
+    return atlas::calculate_text_width(text, len)
+}
+
+def text_height_callback(font: mui::Font): i32 {
+    return atlas::get_text_height()
+}
+
+def init(width: u32, height: u32, title: str = "mui"): &mui::Context {
+    let ctx = mui::init()
+    og::init(width, height, title)
+    ctx.text_height = text_height_callback
+    ctx.text_width = text_width_callback
+    image = Image::new(width, height)
+    clip_rect = Rect(0, 0, width as i32, height as i32)
+    current_width = width as i32
+    current_height = height as i32
+    atlas_image = atlas::load_atlas_texture()
+    return ctx
+}
+
+def og_2_mui_key(key: og::Key): mui::Key => match key {
+    LShift | RShift => Shift,
+    LCtrl | RCtrl => Ctrl,
+    LAlt | RAlt => Alt,
+    Backspace => Backspace,
+    Return => Return,
+    else => 0
+}
+
+def handle_mui_inputs(ctx: &mui::Context) {
+
+    // Check if window was resized
+    let window_size = og::get_window_size()
+    if window_size.x != current_width or window_size.y != current_height {
+        println("Window resized to %dx%d", window_size.x, window_size.y)
+        current_width = window_size.x
+        current_height = window_size.y
+        image.free()
+        image = Image::new(current_width as u32, current_height as u32)
+        clip_rect = Rect(0, 0, window_size.x, window_size.y)
+    }
+
+    let mouse = og::get_mouse_pos()
+    ctx.input_mousemove(mouse.x, mouse.y)
+
+    let down = 0 as mui::Mouse
+    if og::is_mouse_pressed(Left) down = down | Left
+    if og::is_mouse_pressed(Right) down = down | Right
+    if og::is_mouse_pressed(Middle) down = down | Middle
+    ctx.input_mousedown(mouse.x, mouse.y, down)
+
+    let up = 0 as mui::Mouse
+    if og::is_mouse_released(Left) up = up | Left
+    if og::is_mouse_released(Right) up = up | Right
+    if og::is_mouse_released(Middle) up = up | Middle
+    ctx.input_mouseup(mouse.x, mouse.y, up)
+
+    let scroll = og::get_mouse_scroll()
+    ctx.input_scroll(scroll.x, scroll.y)
+
+    if og::state::text_input_sz > 0 {
+        ctx.input_text(og::state::text_input)
+    }
+
+    // This should not be poking deep into the internals...
+    // how do we expose this nicely?
+    let keys_down = 0 as mui::Key
+    let keys_up = 0 as mui::Key
+    for let i = 0i; i < sdl::NUM_SCANCODES; i++ {
+        let ok = i as sdl::Key
+        if og::is_key_pressed(ok) then keys_down = keys_down | og_2_mui_key(ok)
+        if og::is_key_released(ok) then keys_up = keys_up | og_2_mui_key(ok)
+    }
+    ctx.input_keydown(keys_down)
+    ctx.input_keyup(keys_up)
+}
+
+// Draw a filled rectangle
+def draw_rect_to_image(image: &Image, rect: mui::Rect, color: Color) {
+    // Bounds checking
+    let x1 = i32::max(0, rect.x)
+    let y1 = i32::max(0, rect.y)
+    let x2 = i32::min(image.width as i32, rect.x + rect.width)
+    let y2 = i32::min(image.height as i32, rect.y + rect.height)
+
+    if x2 <= x1 or y2 <= y1 then return
+
+    for let y = y1; y < y2; y += 1 {
+        for let x = x1; x < x2; x += 1 {
+            image.set(x as u32, y as u32, color)
+        }
+    }
+}
+
+// Draw text using the atlas texture
+def draw_text_to_image(image: &Image, pos: Vec2i, color: Color, clip: Rect, text: str, len: u32) {
+    let dst_x = pos.x
+    let dst_y = pos.y
+
+    // Early exit if text position is completely outside clip region
+    if pos.y + 18 < clip.y or pos.y > clip.y + clip.height {
+        return
+    }
+
+    for let i = 0u32; i < len; i += 1 {
+        let ch = text[i]
+        // Skip UTF-8 continuation bytes
+        if ((ch as u8) & 0xc0u8) == 0x80u8 then continue
+
+        let chr = i32::min(ch as i32, 127)
+        let src_rect = atlas::get_char_rect(chr as char)
+
+        // Early exit if we're past the right edge of the clip region
+        if dst_x >= clip.x + clip.width {
+            break
+        }
+
+        // Skip if completely to the left of clip region
+        if dst_x + src_rect.width < clip.x {
+            dst_x += src_rect.width
+            continue
+        }
+
+        // Create the destination rectangle for this character
+        let char_rect = Rect(dst_x, dst_y, src_rect.width, src_rect.height)
+
+        // Clip the character rectangle
+        let clipped = clip_rect_to_bounds(char_rect, clip)
+
+        // Only draw if the character is visible after clipping
+        if clipped.width > 0 and clipped.height > 0 {
+            // Calculate the adjusted source rectangle based on clipping
+            let src_offset_x = clipped.x - char_rect.x
+            let src_offset_y = clipped.y - char_rect.y
+            let clipped_src = Rect(
+                src_rect.x + src_offset_x,
+                src_rect.y + src_offset_y,
+                clipped.width,
+                clipped.height
+            )
+
+            // Copy character from atlas to destination with color
+            draw_atlas_quad(image, clipped, clipped_src, color)
+        }
+
+        dst_x += src_rect.width
+    }
+}
+
+// Draw an icon using the atlas texture
+def draw_icon_to_image(image: &Image, icon_id: u32, rect: mui::Rect, color: Color) {
+    let src_rect = atlas::get_atlas_rect(icon_id as i32)
+
+    // Center the icon in the rect
+    let x = rect.x + (rect.width - src_rect.width) / 2
+    let y = rect.y + (rect.height - src_rect.height) / 2
+
+    draw_atlas_quad(image,
+        Rect(x, y, src_rect.width, src_rect.height),
+        src_rect, color)
+}
+
+// Draw an arbitrary image to the destination image
+def draw_image_to_image(dst: &Image, src: &Image, rect: mui::Rect) {
+    // Bounds check
+    let x1 = i32::max(0, rect.x)
+    let y1 = i32::max(0, rect.y)
+    let x2 = i32::min(dst.width as i32, rect.x + rect.width)
+    let y2 = i32::min(dst.height as i32, rect.y + rect.height)
+
+    if x2 <= x1 or y2 <= y1 then return
+
+    // For each pixel in destination
+    for let dy = y1; dy < y2; dy += 1 {
+        for let dx = x1; dx < x2; dx += 1 {
+            // Calculate source position (scale from rect to source image)
+            let sx = ((dx - rect.x) * src.width as i32) / rect.width
+            let sy = ((dy - rect.y) * src.height as i32) / rect.height
+
+            // Bounds check source
+            if sx < 0 or sx >= src.width as i32 then continue
+            if sy < 0 or sy >= src.height as i32 then continue
+
+            // Copy pixel from source to destination
+            let pixel = src.get(sx as u32, sy as u32)
+            dst.set(dx as u32, dy as u32, pixel)
+        }
+    }
+}
+
+// Clip a rectangle to the clipping bounds
+def clip_rect_to_bounds(rect: Rect, clip: Rect): Rect {
+    let x1 = i32::max(rect.x, clip.x)
+    let y1 = i32::max(rect.y, clip.y)
+    let x2 = i32::min(rect.x + rect.width, clip.x + clip.width)
+    let y2 = i32::min(rect.y + rect.height, clip.y + clip.height)
+
+    if x2 <= x1 or y2 <= y1 {
+        return Rect(0, 0, 0, 0)
+    }
+
+    return Rect(x1, y1, x2 - x1, y2 - y1)
+}
+
+// Draw a quad from the atlas texture with the given color
+def draw_atlas_quad(image: &Image, dst: mui::Rect, src: mui::Rect, color: Color) {
+    // Bounds check
+    let x1 = i32::max(0, dst.x)
+    let y1 = i32::max(0, dst.y)
+    let x2 = i32::min(image.width as i32, dst.x + dst.width)
+    let y2 = i32::min(image.height as i32, dst.y + dst.height)
+
+    if x2 <= x1 or y2 <= y1 then return
+
+    // For each pixel in destination
+    for let dy = y1; dy < y2; dy += 1 {
+        for let dx = x1; dx < x2; dx += 1 {
+            // Calculate source position
+            let sx = src.x + (dx - dst.x)
+            let sy = src.y + (dy - dst.y)
+
+            // Bounds check atlas
+            if sx < 0 or sx >= atlas::ATLAS_WIDTH then continue
+            if sy < 0 or sy >= atlas::ATLAS_HEIGHT then continue
+
+            // Get alpha from atlas (RGB image where R=G=B is the alpha value)
+            let atlas_pixel = atlas_image.get(sx as u32, sy as u32)
+            let alpha = atlas_pixel.r
+
+            if alpha > 0 {
+                // Blend the color with alpha
+                if alpha == 255 {
+                    image.set(dx as u32, dy as u32, color)
+                } else {
+                    // Alpha blending
+                    let bg = image.get(dx as u32, dy as u32)
+                    let a = alpha as u32
+                    let inv_a = 255u32 - a
+                    let blended = Color(
+                        r: ((color.r as u32 * a + bg.r as u32 * inv_a) / 255u32) as u8,
+                        g: ((color.g as u32 * a + bg.g as u32 * inv_a) / 255u32) as u8,
+                        b: ((color.b as u32 * a + bg.b as u32 * inv_a) / 255u32) as u8
+                    )
+                    image.set(dx as u32, dy as u32, blended)
+                }
+            }
+        }
+    }
+}
+
+def draw(ctx: &mui::Context) {
+    // Render all commands
+    for cmd in ctx.command_list.iter() {
+        match cmd {
+            Clip(rect) => {
+                // Update the current clipping rectangle
+                clip_rect = rect
+            }
+            Rect(rect, color) => {
+                // Draw a filled rectangle (respecting clip rect)
+                let clipped = clip_rect_to_bounds(rect, clip_rect)
+                draw_rect_to_image(image, clipped, color)
+            }
+            Text(font, pos, color, text, len) => {
+                // Draw text with clipping
+                draw_text_to_image(image, pos, color, clip_rect, text, len)
+            }
+            Icon(id, color, rect) => {
+                // Draw icon (with clipping)
+                let clipped = clip_rect_to_bounds(rect, clip_rect)
+                if clipped.width > 0 and clipped.height > 0 {
+                    draw_icon_to_image(image, id, clipped, color)
+                }
+            }
+            Image(image: src_img, rect) => {
+                // Draw image (with clipping)
+                let clipped = clip_rect_to_bounds(rect, clip_rect)
+                if clipped.width > 0 and clipped.height > 0 {
+                    draw_image_to_image(image, src_img, clipped)
+                }
+            }
+        }
+    }
+    og::display_image(image)
+}

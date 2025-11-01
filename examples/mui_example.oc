@@ -1,0 +1,318 @@
+//! Comprehensive microui demo matching the original C demo functionality
+
+import std::image::{ Image, Color }
+import std::buffer::Buffer
+import std::libc::{ sprintf }
+import std::vec::Vec2i
+
+import std::mui::{this, Rect, Font}
+import std::mui_og
+import std::og
+
+// Global state matching the original demo
+let bg: [f32; 3] = [90.0, 95.0, 100.0]
+let input_text: [char; 256]
+
+let log_buf: Buffer
+let log_buf_updated: bool = false
+let test_image: &Image
+let image_hue: f32 = 0.0  // Slider value to control image appearance
+
+let check1: bool = true
+let check2: bool = false
+let check3: bool = true
+
+// Logging function matching the original
+def write_log(text: str) {
+    if log_buf.size > 0 then log_buf += '\n'
+    log_buf += text
+    log_buf_updated = true
+}
+
+// Create a test image with a simple gradient pattern
+def create_test_image(): &Image {
+    let img = Image::new(128, 128)
+    return img
+}
+
+// Update the test image based on the hue slider value
+def update_test_image(img: &Image, hue: f32) {
+    for let y = 0u32; y < 128; y += 1 {
+        for let x = 0u32; x < 128; x += 1 {
+            // Create a colorful gradient pattern with hue shift
+            let base_r = ((x * 2) % 256) as f32
+            let base_g = ((y * 2) % 256) as f32
+            let base_b = (((x + y) * 2) % 256) as f32
+            
+            // Apply hue rotation based on slider
+            let angle = hue * 3.14159 * 2.0 / 360.0  // Convert to radians
+            let r = (base_r + hue) as u32 % 256u32
+            let g = (base_g + hue * 0.7) as u32 % 256u32
+            let b = (base_b + hue * 1.3) as u32 % 256u32
+            
+            img.set(x, y, Color(r as u8, g as u8, b as u8))
+        }
+    }
+}
+
+// Main demo window (based on original test_window)
+def test_window(ctx: &mui::Context) {
+    // Do window - matching original size and position
+    if ctx.begin_window("Demo Window", mui::Rect(40, 40, 300, 450)) as bool {
+        // Window info section (collapsed by default in original)
+        if ctx.header("Window Info") as bool {
+            let widths1 = [54i32, -1i32]
+            ctx.layout_row(2, &widths1[0], 0)
+            ctx.label("Position:")
+            ctx.label("40, 40")
+            ctx.label("Size:")
+            ctx.label("300, 450")
+        }
+
+        // Test buttons section (expanded by default)
+        if ctx.header("Test Buttons", Expanded) as bool {
+            let widths2 = [86i32, -110i32, -1i32]
+            ctx.layout_row(3, &widths2[0], 0)
+            ctx.label("Test buttons 1:")
+            if ctx.button("Button 1") as bool {
+                write_log("Pressed button 1")
+            }
+            if ctx.button("Button 2") as bool {
+                write_log("Pressed button 2")
+            }
+            ctx.label("Test buttons 2:")
+            if ctx.button("Button 3") as bool {
+                write_log("Pressed button 3")
+            }
+            if ctx.button("Popup") as bool {
+                write_log("Pressed popup button")
+            }
+        }
+
+        // Tree and Text section (expanded by default)
+        if ctx.header("Tree and Text", Expanded) as bool {
+            let widths3 = [140i32, -1i32]
+            ctx.layout_row(2, &widths3[0], 0)
+
+            // Left column with tree
+            ctx.layout_begin_column()
+            if ctx.begin_treenode("Test 1") as bool {
+                if ctx.begin_treenode("Test 1a") as bool {
+                    ctx.label("Hello")
+                    ctx.label("world")
+                    ctx.end_treenode()
+                }
+                if ctx.begin_treenode("Test 1b") as bool {
+                    if ctx.button("Button 1") as bool { write_log("Pressed button 1") }
+                    if ctx.button("Button 2") as bool { write_log("Pressed button 2") }
+                    ctx.end_treenode()
+                }
+                ctx.end_treenode()
+            }
+            if ctx.begin_treenode("Test 2") as bool {
+                let widths4 = [54i32, 54i32]
+                ctx.layout_row(2, &widths4[0], 0)
+                if ctx.button("Button 3") as bool { write_log("Pressed button 3") }
+                if ctx.button("Button 4") as bool { write_log("Pressed button 4") }
+                if ctx.button("Button 5") as bool { write_log("Pressed button 5") }
+                if ctx.button("Button 6") as bool { write_log("Pressed button 6") }
+                ctx.end_treenode()
+            }
+            if ctx.begin_treenode("Test 3") as bool {
+                ctx.checkbox("Checkbox 1", &check1)
+                ctx.checkbox("Checkbox 2", &check2)
+                ctx.checkbox("Checkbox 3", &check3)
+                ctx.end_treenode()
+            }
+            ctx.layout_end_column()
+
+            // Right column with text
+            ctx.layout_begin_column()
+            let widths5 = [-1i32]
+            ctx.layout_row(1, &widths5[0], 0)
+            ctx.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus ipsum, eu varius magna felis a nulla.")
+            ctx.layout_end_column()
+        }
+
+        // Background color section (expanded by default)
+        if ctx.header("Background Color", Expanded) as bool {
+            let widths6 = [-78i32, -1i32]
+            ctx.layout_row(2, &widths6[0], 74)
+
+            // Left column with sliders
+            ctx.layout_begin_column()
+            let widths7 = [46i32, -1i32]
+            ctx.layout_row(2, &widths7[0], 0)
+            ctx.label("Red:")
+            ctx.slider(&bg[0], 0.0, 255.0)
+            ctx.label("Green:")
+            ctx.slider(&bg[1], 0.0, 255.0)
+            ctx.label("Blue:")
+            ctx.slider(&bg[2], 0.0, 255.0)
+            ctx.layout_end_column()
+
+            // Right side with color preview
+            let r = ctx.layout_next()
+            let preview_color = mui::Color(bg[0] as u8, bg[1] as u8, bg[2] as u8)
+            ctx.draw_rect(r, preview_color)
+            // Draw hex color text (simplified)
+            ctx.draw_text(ctx.style.font, "#5A5F64", -1, mui::Vec2i(r.x + 5, r.y + r.height / 2), ctx.style.colors[mui::ColorStyle::Text as i32])
+        }
+
+        ctx.end_window()
+    }
+}
+
+// Image display window
+def image_window(ctx: &mui::Context) {
+    if ctx.begin_window("Image Display", mui::Rect(650, 40, 220, 300)) as bool {
+        // Display some info
+        ctx.label("Test Image:")
+        
+        // Set layout for the image - give it a specific size
+        let widths = [-1i32]
+        ctx.layout_row(1, &widths[0], 150)
+        
+        // Display the test image
+        ctx.image(test_image)
+        
+        // Add slider to control image appearance
+        ctx.layout_row(1, &widths[0], 0)
+        ctx.label("Hue Shift:")
+        
+        let res = ctx.slider(&image_hue, 0.0, 255.0, 1.0, "%.0f", AlignCenter)
+        if res is Change {
+            // Update the image when slider changes
+            update_test_image(test_image, image_hue)
+        }
+        
+        // Add some spacing
+        ctx.label("128x128 gradient")
+        
+        ctx.end_window()
+    }
+}
+
+// Log window (based on original log_window)
+def log_window(ctx: &mui::Context) {
+    if ctx.begin_window("Log Window", mui::Rect(350, 40, 300, 200)) as bool {
+        // Output text panel
+        let w0 = [-1]
+        ctx.layout_row(1, w0, -25)
+        ctx.begin_panel("Log Output")
+        let panel = ctx.get_current_container()
+        ctx.layout_row(1, w0, -1)
+        ctx.text(log_buf.str())
+        ctx.end_panel()
+        if log_buf_updated {
+            panel.scroll.y = panel.content_size.y;
+            log_buf_updated = false
+        }
+
+        // Input section (simplified for now)
+        let w1 = [-70, -1]
+        let submitted = false
+        ctx.layout_row(2, w1, 0)
+        if ctx.textbox(input_text, 256) is Submit {
+            ctx.set_focus(ctx.last_id)
+            submitted = true
+        }
+        if ctx.button("Submit") as bool {
+            submitted = true
+        }
+        if submitted {
+            write_log("Submit button pressed")
+            input_text[0] = '\0'
+        }
+
+        ctx.end_window()
+    }
+}
+
+// Helper function for uint8 slider
+def uint8_slider(ctx: &mui::Context, value: &u8, low: f32, high: f32): mui::Res {
+    ctx.push_id(&value as untyped_ptr, sizeof(untyped_ptr) as u32)
+    let tmp = *value as f32
+    let res = ctx.slider(&tmp, low, high, 0.0, "%.0f", AlignCenter)
+    *value = tmp as u8
+    ctx.pop_id()
+    return res
+}
+
+// Color definition for style window
+struct ColorDef {
+    label: str
+    idx: i32
+}
+
+// Style editor window (based on original style_window)
+def style_window(ctx: &mui::Context) {
+    let colors = [
+        ColorDef(label: "text:",        idx: mui::ColorStyle::Text as i32),
+        ColorDef(label: "border:",      idx: mui::ColorStyle::Border as i32),
+        ColorDef(label: "windowbg:",    idx: mui::ColorStyle::Windowbg as i32),
+        ColorDef(label: "titlebg:",     idx: mui::ColorStyle::Titlebg as i32),
+        ColorDef(label: "titletext:",   idx: mui::ColorStyle::Titletext as i32),
+        ColorDef(label: "panelbg:",     idx: mui::ColorStyle::Panelbg as i32),
+        ColorDef(label: "button:",      idx: mui::ColorStyle::Button as i32),
+        ColorDef(label: "buttonhover:", idx: mui::ColorStyle::Buttonhover as i32),
+        ColorDef(label: "buttonfocus:", idx: mui::ColorStyle::Buttonfocus as i32),
+        ColorDef(label: "base:",        idx: mui::ColorStyle::Base as i32),
+        ColorDef(label: "basehover:",   idx: mui::ColorStyle::Basehover as i32),
+        ColorDef(label: "basefocus:",   idx: mui::ColorStyle::Basefocus as i32),
+        ColorDef(label: "scrollbase:",  idx: mui::ColorStyle::Scrollbase as i32),
+        ColorDef(label: "scrollthumb:", idx: mui::ColorStyle::Scrollthumb as i32)
+    ]
+
+    if ctx.begin_window("Style Editor", mui::Rect(350, 250, 300, 240)) as bool {
+        let container = ctx.get_current_container()
+        let sw = container.body.width * 14 / 100  // 0.14 in integer arithmetic
+        let widths = [80i32, sw, sw, sw, -1i32]
+        ctx.layout_row(5, &widths[0], 0)
+
+        for let i = 0u32; i < 14u32; i += 1 {
+            ctx.label(colors[i].label)
+            let color_idx = colors[i].idx as u32
+            uint8_slider(ctx, &ctx.style.colors[color_idx].r, 0.0, 255.0)
+            uint8_slider(ctx, &ctx.style.colors[color_idx].g, 0.0, 255.0)
+            uint8_slider(ctx, &ctx.style.colors[color_idx].b, 0.0, 255.0)
+            let rect = ctx.layout_next()
+            ctx.draw_rect(rect, ctx.style.colors[color_idx])
+        }
+
+        ctx.end_window()
+    }
+}
+
+// Process frame - main UI update function
+def process_frame(ctx: &mui::Context) {
+    ctx.begin()
+    style_window(ctx)
+    test_window(ctx)
+    log_window(ctx)
+    image_window(ctx)
+    ctx.end()
+}
+
+def main() {
+    println("Starting comprehensive microui demo...")
+    // Initialize microui context
+    let ctx = mui_og::init(800, 600)
+    log_buf = Buffer::make()
+    test_image = create_test_image()
+    update_test_image(test_image, image_hue)  // Initialize with starting hue
+
+    while og::is_running() {
+        mui_og::handle_mui_inputs(ctx)
+
+        // Process one frame of UI
+        process_frame(ctx)
+
+        // Clear background at the start of each frame
+        let bg_color = Color(r: bg[0] as u8, g: bg[1] as u8, b: bg[2] as u8)
+        mui_og::image.clear(bg_color)
+
+        mui_og::draw(ctx)
+    }
+}
+

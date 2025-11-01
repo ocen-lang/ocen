@@ -139,6 +139,19 @@ struct TextInputEvent {
     text: str
 }
 
+enum WindowEventID extern("u8") {
+    SizeChanged = extern("SDL_WINDOWEVENT_SIZE_CHANGED")
+    Resized = extern("SDL_WINDOWEVENT_RESIZED")
+}
+
+[extern "SDL_WindowEvent"]
+struct WindowEvent {
+    type: i32
+    event: WindowEventID
+    data1: i32
+    data2: i32
+}
+
 [extern "SDL_Event"]
 struct Event {
     type: EventType
@@ -146,6 +159,7 @@ struct Event {
     wheel: MouseWheelEvent
     button: MouseButtonEvent
     text: TextInputEvent
+    window: WindowEvent
 }
 
 [extern "SDL_Scancode"]

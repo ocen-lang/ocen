@@ -19,6 +19,13 @@ def handle_sdl_events() {
                 strcpy(text_input + text_input_sz, event.text.text)
                 text_input_sz += event.text.text.len()
             }
+            Window => {
+                match event.window.event {
+                    Resized | SizeChanged => {
+                        state::update_window_size()
+                    }
+                }
+            }
             KeyDown => {
                 // println("got keydown %d", event.key.keysym.sym)
                 let k = event.key.keysym.scancode
