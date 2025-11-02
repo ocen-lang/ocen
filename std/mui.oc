@@ -138,8 +138,8 @@ struct Layout {
 }
 
 struct Container {
-    head: &Command
-    tail: &Command
+    head_idx: u32
+    tail_idx: u32
     rect: Rect
     body: Rect
     content_size: Vec2i
@@ -341,6 +341,14 @@ def Context::end(&this) {
     // sort by z
     let n = .root_list.size
     sort_by<&Container>(.root_list.data, n, |a,b| => a.zindex.compare(b.zindex))
+}
+
+def Context::for_each_command(&this, callback: @fn(&Command)) {
+    for container in .root_list.iter() {
+        for let j = container.head_idx; j <= container.tail_idx; j++ {
+            callback(.command_list.at_ptr(j))
+        }
+    }
 }
 
 def Context::set_focus(&this, id: u32) {
@@ -662,7 +670,6 @@ def Context::in_hover_root(&this): bool {
     let i = .container_stack.size
     while i-- > 0 {
         if .container_stack[i] == .hover_root then return true
-        if .container_stack[i].head? then break
     }
     return false
 }
@@ -1069,7 +1076,7 @@ def Context::push_container_body(&this, cnt: &Container, body: Rect, opt: Opt) {
 def Context::begin_root_container(&this, cnt: &Container) {
     .container_stack.push(cnt)
     .root_list.push(cnt)
-    // .push_jump(null)
+    cnt.head_idx = .command_list.size
     if cnt.rect.overlaps_vec(.mouse_pos) and
        (not .next_hover_root? or cnt.zindex > .next_hover_root.zindex) {
         .next_hover_root = cnt
@@ -1079,8 +1086,7 @@ def Context::begin_root_container(&this, cnt: &Container) {
 
 def Context::end_root_container(&this) {
     let cnt = .get_current_container()
-    // TODO: This is probably just completely wrong...
-    // .push_jump(.command_list.data + .command_list.size)
+    cnt.tail_idx = .command_list.size - 1
     .pop_clip_rect()
     .pop_container()
 }

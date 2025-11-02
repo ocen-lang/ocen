@@ -265,36 +265,34 @@ def draw_atlas_quad(image: &Image, dst: mui::Rect, src: mui::Rect, color: Color)
 
 def draw(ctx: &mui::Context) {
     // Render all commands
-    for cmd in ctx.command_list.iter() {
-        match cmd {
-            Clip(rect) => {
-                // Update the current clipping rectangle
-                clip_rect = rect
-            }
-            Rect(rect, color) => {
-                // Draw a filled rectangle (respecting clip rect)
-                let clipped = clip_rect_to_bounds(rect, clip_rect)
-                draw_rect_to_image(image, clipped, color)
-            }
-            Text(font, pos, color, text, len) => {
-                // Draw text with clipping
-                draw_text_to_image(image, pos, color, clip_rect, text, len)
-            }
-            Icon(id, color, rect) => {
-                // Draw icon (with clipping)
-                let clipped = clip_rect_to_bounds(rect, clip_rect)
-                if clipped.width > 0 and clipped.height > 0 {
-                    draw_icon_to_image(image, id, clipped, color)
-                }
-            }
-            Image(image: src_img, rect) => {
-                // Draw image (with clipping)
-                let clipped = clip_rect_to_bounds(rect, clip_rect)
-                if clipped.width > 0 and clipped.height > 0 {
-                    draw_image_to_image(image, src_img, clipped)
-                }
+    ctx.for_each_command(|cmd| => match *cmd {
+        Clip(rect) => {
+            // Update the current clipping rectangle
+            clip_rect = rect
+        }
+        Rect(rect, color) => {
+            // Draw a filled rectangle (respecting clip rect)
+            let clipped = clip_rect_to_bounds(rect, clip_rect)
+            draw_rect_to_image(image, clipped, color)
+        }
+        Text(font, pos, color, text, len) => {
+            // Draw text with clipping
+            draw_text_to_image(image, pos, color, clip_rect, text, len)
+        }
+        Icon(id, color, rect) => {
+            // Draw icon (with clipping)
+            let clipped = clip_rect_to_bounds(rect, clip_rect)
+            if clipped.width > 0 and clipped.height > 0 {
+                draw_icon_to_image(image, id, clipped, color)
             }
         }
-    }
+        Image(image: src_img, rect) => {
+            // Draw image (with clipping)
+            let clipped = clip_rect_to_bounds(rect, clip_rect)
+            if clipped.width > 0 and clipped.height > 0 {
+                draw_image_to_image(image, src_img, clipped)
+            }
+        }
+    })
     og::display_image(image)
 }

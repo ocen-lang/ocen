@@ -297,7 +297,7 @@ def process_frame(ctx: &mui::Context) {
 def main() {
     println("Starting comprehensive microui demo...")
     // Initialize microui context
-    let ctx = mui_og::init(800, 600)
+    let ctx = mui_og::init(900, 600)
     log_buf = Buffer::make()
     test_image = create_test_image()
     update_test_image(test_image, image_hue)  // Initialize with starting hue
