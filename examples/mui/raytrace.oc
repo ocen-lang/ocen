@@ -1,0 +1,228 @@
+import std::vec::{ Vec3f as Vec }
+import std::vector::Vector
+import std::math::{ rand01 }
+import std::image::{ Image, Color }
+import std::mem
+
+// Make raytracer go brrr
+@compiler c_flag "-O3"
+
+let TOL: f32 = 0.00001;
+
+def random_vec(): Vec {
+    return Vec(rand01(), rand01(), rand01()) * 2.0 - 1.0;
+}
+
+def random_vec_unit(): Vec {
+    while (true) {
+        let vec = random_vec();
+        if vec.length_sq() < 1.0 {
+            return vec.normalized()
+        }
+    }
+    return Vec(0.0, 0.0, 0.0)
+}
+
+struct Ray {
+    ori: Vec
+    dir: Vec
+}
+
+def Ray::at(&this, t: f32): Vec {
+    return .dir * t + .ori
+}
+
+enum Material {
+    Diffuse
+    Mirror
+}
+
+struct Sphere {
+    mat: Material
+    center: Vec
+    color: Vec
+    radius: f32
+    fuzz: f32
+}
+
+def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &Sphere {
+    let s = mem::alloc<Sphere>()
+    *s = Sphere(mat, pos, color, radius, fuzz)
+    return s
+}
+
+def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
+    let oc = ray.ori - .center
+    let a = ray.dir.dot(ray.dir)
+    let b = 2.0 * oc.dot(ray.dir)
+    let c = oc.dot(oc) - .radius * .radius
+
+    let disc = b * b - 4.0 * a * c
+    if disc < 0.0
+        return false
+    let t0 = (-b - disc.sqrt()) / (2.0 * a)
+    let t1 = (-b + disc.sqrt()) / (2.0 * a)
+
+    let best = t0;
+    if best < TOL
+        best = t1
+    if best < TOL
+        return false
+
+    *t = best
+    *n = ray.at(best).sub(.center).normalized()
+
+    return true
+}
+
+def background_color(ray: &Ray): Vec {
+    let t = 0.5 * (ray.dir.y + 1.0)
+    let col2 = Vec(1.0, 1.0, 1.0) * (1.0-t)
+
+    let res = Vec(0.5, 0.7, 1.0)
+    return res * t + col2
+}
+
+def find_hit(ray: &Ray, objs: &Vector<&Sphere>, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
+    let hit = false
+
+    for obj in objs.iter() {
+        let tmp_t: f32
+        let tmp_n: Vec
+
+        if obj.hit(ray, &tmp_t, &tmp_n) {
+            if *t < 0.0 or tmp_t < *t {
+                hit = true
+                *t = tmp_t
+                *hit_obj = obj
+                *n = tmp_n
+            }
+        }
+    }
+    return hit
+}
+
+def raytrace(ray: &Ray, objs: &Vector<&Sphere>, depth: i32): Vec {
+    if depth < 0
+        return Vec(0.0, 0.0, 0.0)
+
+    let t = -1.0
+    let n: Vec
+    let obj: &Sphere
+
+    if not find_hit(ray, objs, &t, &n, &obj)
+        return background_color(ray)
+
+    ray.ori = ray.at(t)
+    match obj.mat {
+        Diffuse => ray.dir = random_vec_unit().add(n).normalized().normalized()
+        Mirror => ray.dir = ray.dir.reflect(n).add(random_vec_unit().mults(obj.fuzz)).normalized()
+    }
+    ray.ori = ray.ori + ray.dir * TOL
+
+    let rec_col = raytrace(ray, objs, depth - 1)
+    return rec_col.mult(obj.color)
+}
+
+struct Camera {
+    origin: Vec
+    direction: Vec
+
+    horizontal: Vec
+    vertical: Vec
+    ll_corner: Vec
+
+    u: Vec
+    v: Vec
+    w: Vec
+}
+
+let WIDTH: u32
+let HEIGHT: u32
+let img: &Vec  // WIDTH*HEIGHT
+let out: &Image
+let samples: u32 = 0
+let objs: $[&Sphere] = null
+let camera: Camera
+
+def Camera::make(origin: Vec, direction: Vec): Camera {
+    let cam: Camera
+    let aspect_ratio = WIDTH as f32 / HEIGHT as f32
+
+    let viewport_height = 2.0
+    let viewport_width = aspect_ratio * viewport_height
+    let focal_length = 1.0
+
+    let up = Vec(0.0, 1.0, 0.0)
+
+    cam.origin = origin
+    cam.direction = direction.normalized()
+
+    cam.w = cam.direction.mults(-1.0)
+    cam.u = up.cross(cam.w).normalized()
+    cam.v = cam.w.cross(cam.u)
+
+    cam.horizontal = cam.u * -viewport_width
+    cam.vertical = cam.v * viewport_height
+    cam.ll_corner = cam.origin - cam.horizontal / 2.0 - cam.vertical / 2.0 - cam.w
+
+    return cam
+}
+
+def Camera::ray(&this, x: u32, y: u32): Ray {
+    let u = (rand01() + x as f32) / (WIDTH-1) as f32
+    let v = 1.0 - (rand01() + y as f32) / (HEIGHT-1) as f32
+    let ray: Ray
+    ray.ori = .origin
+    ray.dir = Vec::normalized(.ll_corner + .horizontal * u + .vertical * v - .origin)
+    return ray
+}
+
+
+def update() {
+    if samples > 100 return
+    samples += 1
+    for let y = 0; y < HEIGHT; y += 1 {
+        for let x = 0; x < WIDTH; x += 1 {
+            let ray = camera.ray(x, y)
+            let color = raytrace(&ray, objs, 5)
+
+            let prev_color = img[y * WIDTH + x]
+            let new_color = prev_color.add(color)
+            img[y * WIDTH + x] = new_color
+
+            // Save to screen
+            let r = (new_color.x / samples as f32) * 255.0
+            let g = (new_color.y / samples as f32) * 255.0
+            let b = (new_color.z / samples as f32) * 255.0
+
+            out.set(x, y, Color(r as u8, g as u8, b as u8))
+        }
+    }
+}
+
+def update_dir(val: f32) {
+    let angle = std::math::PI * val
+    let direction = Vec(0.0, 0.0, 1.0).rotateY(angle)
+    camera = Camera::make(camera.origin, direction)
+    std::libc::memset(img, 0, WIDTH * HEIGHT * sizeof(Vec))
+    samples = 0
+}
+
+def init(width: u32, height: u32) {
+    WIDTH = width
+    HEIGHT = height
+    img = mem::alloc<Vec>(width * height)
+
+    objs = $[]
+    objs.push(Sphere::new(Diffuse, Vec(0.0,    0.0, 1.0),   0.5, Vec(1.0, 0.6, 0.3), 0.0))
+    objs.push(Sphere::new(Mirror,  Vec(1.0,    0.0, 1.0),   0.5, Vec(0.8, 0.8, 0.8), 0.7))
+    objs.push(Sphere::new(Mirror,  Vec(-1.0,   0.0, 1.0),   0.5, Vec(0.8, 0.6, 0.2), 0.0))
+    objs.push(Sphere::new(Diffuse, Vec(0.0, -100.5, 1.0), 100.0, Vec(0.5, 0.5, 0.5), 0.0))
+
+    let origin = Vec(0.0, 0.0, 0.0)
+    let direction = Vec(0.0, 0.0, 1.0)
+    camera = Camera::make(origin, direction)
+
+    out = Image::new(WIDTH, HEIGHT)
+}
