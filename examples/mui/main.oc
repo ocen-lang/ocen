@@ -6,7 +6,7 @@ import std::libc::{ sprintf }
 import std::vec::Vec2i
 
 import std::mui::{this, Rect, Font}
-import std::mui_og
+import std::ogui
 import std::og
 
 import @raytrace
@@ -23,6 +23,10 @@ let camera_angle: f32 = 0.0  // Slider value to control image appearance
 let check1: bool = true
 let check2: bool = false
 let check3: bool = true
+
+// Color picker demo
+let bg_col: Color = Color(90, 95, 100)
+let dummy_col: Color = Color(64, 128, 255)
 
 // Logging function matching the original
 def write_log(text: str) {
@@ -132,7 +136,7 @@ def test_window(ctx: &mui::Context) {
             ctx.layout_begin_column()
             let widths5 = [-1i32]
             ctx.layout_row(1, &widths5[0], 0)
-            ctx.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus ipsum, eu varius magna felis a nulla.")
+            ctx.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacinia, sem eu lacinia molestie")
             ctx.layout_end_column()
         }
 
@@ -159,24 +163,70 @@ def test_window(ctx: &mui::Context) {
             ctx.draw_rect(r, preview_color)
             // Draw hex color text (simplified)
             ctx.draw_text(ctx.style.font, "#5A5F64", -1, mui::Vec2i(r.x + 5, r.y + r.height / 2), ctx.style.colors[mui::ColorStyle::Text as i32])
+
+            let widths9 = [75i32, -1i32]
+            ctx.layout_row(2, &widths9[0], 0)
+
+            bg_col.r = bg[0] as u8
+            bg_col.g = bg[1] as u8
+            bg_col.b = bg[2] as u8
+
+            ctx.label("Background:")
+            if ctx.colorpicker("color1", &bg_col) is Change {
+                write_log("Color 1 changed")
+            }
+
+            bg[0] = bg_col.r as f32
+            bg[1] = bg_col.g as f32
+            bg[2] = bg_col.b as f32
+
+            ctx.label("Color 2:")
+            if ctx.colorpicker("color2", &dummy_col) is Change {
+                write_log("Color 2 changed")
+            }
         }
 
         ctx.end_window()
     }
 }
 
+let capture_input_canvas: bool = false
+let should_disable_focus: bool = false
+let previous_focus: u32 = 0
+
 // Image display window
 def image_window(ctx: &mui::Context) {
-    if ctx.begin_window("Image Display", mui::Rect(660, 40, 220, 300)) as bool {
+    if ctx.begin_window("Image Display", mui::Rect(660, 40, 220, 330)) as bool {
+        let window_id = ctx.last_id
+
         // Display some info
         ctx.label("Raytracer")
 
         // Set layout for the image - give it a specific size
         let widths = [-1i32]
-        ctx.layout_row(1, &widths[0], 150)
+        ctx.layout_row(1, &widths[0], 180)
 
         // Display the raytraced image
-        ctx.image(raytrace::out)
+        ctx.image("rtout", raytrace::out)
+        if not capture_input_canvas and ctx.focus == ctx.last_id {
+            capture_input_canvas = true
+            og::capture_mouse(true)
+            og::grab_input(true)
+            og::show_cursor(false)
+        }
+        if should_disable_focus {
+            ctx.set_focus(0)
+            og::capture_mouse(false)
+            og::show_cursor(true)
+            og::grab_input(false)
+            capture_input_canvas = false
+            should_disable_focus = false
+        }
+
+        if capture_input_canvas {
+            ctx.layout_row(1, &widths[0], 0)
+            ctx.label("Image focused - press 'C' to release")
+        }
 
         // Add slider to control image appearance
         ctx.layout_row(1, &widths[0], 0)
@@ -195,7 +245,7 @@ def image_window(ctx: &mui::Context) {
 
 // Log window (based on original log_window)
 def log_window(ctx: &mui::Context) {
-    if ctx.begin_window("Log Window", mui::Rect(350, 40, 300, 300)) as bool {
+    if ctx.begin_window("Log Window", mui::Rect(350, 40, 300, 200)) as bool {
         // Output text panel
         let w0 = [-1]
         ctx.layout_row(1, w0, -25)
@@ -294,28 +344,43 @@ def process_frame(ctx: &mui::Context) {
     ctx.end()
 }
 
+import std::thread
+import std::libc::unistd
+
+def thread_callback(data: untyped_ptr): untyped_ptr {
+    while true {
+        raytrace::update()
+        unistd::usleep(33333) // Sleep for ~33ms to limit update rate
+    }
+    return null
+}
+
 def main() {
-    println("Starting comprehensive microui demo...")
+    println("Starting microui demo...")
+
     // Initialize microui context
-    let ctx = mui_og::init(900, 600)
+    let ctx = ogui::init(900, 600)
     log_buf = Buffer::make()
     test_image = create_test_image()
     update_test_image(test_image, camera_angle)  // Initialize with starting hue
     raytrace::init(300, 300)  // Initialize raytrace module
 
+    let t = thread::Thread::make(thread_callback, null)
+    t.start()
+
+    let bg_color = Color(r: bg[0] as u8, g: bg[1] as u8, b: bg[2] as u8)
     while og::is_running() {
-        mui_og::handle_mui_inputs(ctx)
-
-        raytrace::update()
-
-        // Process one frame of UI
+        ogui::handle_resize(ctx)
+        if not capture_input_canvas {
+            ogui::handle_mui_inputs(ctx)
+        } else {
+            if og::is_key_pressed(C) {
+                should_disable_focus = true
+            }
+            raytrace::handle_input()
+        }
         process_frame(ctx)
-
-        // Clear background at the start of each frame
-        let bg_color = Color(r: bg[0] as u8, g: bg[1] as u8, b: bg[2] as u8)
-        mui_og::image.clear(bg_color)
-
-        mui_og::draw(ctx)
+        ogui::image.clear(bg_col)
+        ogui::draw(ctx)
     }
 }
-

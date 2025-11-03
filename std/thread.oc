@@ -63,9 +63,14 @@ namespace impl {
     [extern "pthread_mutexattr_settype"] def MutexAttr::settype(&this, tty: MutexMode): i32
     [extern "pthread_mutexattr_destroy"] def MutexAttr::destroy(&this): i32
 
-
     // Soon i'll be implementing the conditional variable in this sync package
+    [extern "pthread_cond_t"] struct Cond
 
+    [extern "pthread_cond_init"]    def Cond::init(&this, attr: untyped_ptr): i32
+    [extern "pthread_cond_destroy"] def Cond::destroy(&this): i32
+    [extern "pthread_cond_wait"]    def Cond::wait(&this, mtx: &Mutex): i32
+    [extern "pthread_cond_signal"] def Cond::signal(&this): i32
+    [extern "pthread_cond_broadcast"] def Cond::broadcast(&this): i32
 }
 
 def check(a: i32, msg: str = null) {
@@ -84,6 +89,44 @@ def check(a: i32, msg: str = null) {
 [extern "pthread_exit"]  def exit(retval: untyped_ptr)
 [extern "sleep"]         def sleep(seconds: u32)
 
+struct Barrier {
+    mtx: impl::Mutex
+    cond: impl::Cond
+    count: i32
+    threshold: i32
+    cycle: i32
+}
+
+def Barrier::init(&this, count: i32) {
+    .mtx.init(null)
+    .cond.init(null)
+    .count = 0
+    .threshold = count
+    .cycle = 0
+}
+
+def Barrier::wait(&this) {
+    .mtx.lock()
+
+    let cycle = .cycle
+    .count++
+
+    if .count >= .threshold {
+        .cycle += 1
+        .count = 0
+        .cond.broadcast()
+    } else {
+        while .cycle == cycle {
+            .cond.wait(&.mtx)
+        }
+    }
+    .mtx.unlock()
+}
+
+def Barrier::destroy(&this) {
+    .mtx.destroy()
+    .cond.destroy()
+}
 
 struct Thread {
     tid:    impl::Thread
@@ -156,7 +199,7 @@ def Thread::start_and_join(&this) {
     .join()
 }
 
-def Thread::start(&this) => check(.tid.create(&.tattr, .cb, .args))
+def Thread::start(&this) => check(.tid.create(null, .cb, .args))
 def Thread::join(&this, b: &untyped_ptr = null) => check(.tid.join( b))
 def Thread::destroy_attr(&this) => check(.tattr.destroy())
 

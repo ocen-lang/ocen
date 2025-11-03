@@ -88,6 +88,7 @@ enum Key {
     Alt
     Backspace
     Return
+    Escape
 }
 
 typedef Font = untyped_ptr
@@ -210,6 +211,9 @@ struct Context {
 
     tmp_text_buf: [char; TMP_TEXT_SIZE]
     tmp_text_size: u32
+
+    // Screen bounds for constraining popups
+    screen_rect: Rect
 }
 
 def Context::tmp_copy_str(&this, s: str): str {
@@ -282,6 +286,7 @@ def init(): &Context {
     ctx.draw_frame = draw_frame
     ctx._style = default_style
     ctx.style = &ctx._style
+    ctx.screen_rect = Rect(0, 0, 800, 600)  // Default screen size
 
     ctx.command_list = $[]
     ctx.root_list = $[]
@@ -768,8 +773,10 @@ def Context::label(&this, text: str) {
     .draw_control_text(text, .layout_next(), Text, 0)
 }
 
-def Context::image(&this, img: &Image) {
+def Context::image(&this, label: str, img: &Image) {
     let r = .layout_next()
+    let id = .get_id(label, label.len())
+    .update_control(id, r, 0)
     .draw_image(img, r)
 }
 
@@ -1178,6 +1185,33 @@ def Context::begin_popup(&this, name: str): Res {
     return .begin_window(name, Rect(0, 0, 0, 0), opt)
 }
 
+// Constrain the current popup window to stay within screen bounds
+def Context::constrain_popup_to_screen(&this) {
+    let popup = .get_current_container()
+
+    // Estimated popup size (will be adjusted by AutoSize, but we need a reasonable guess)
+    // The popup is approximately 220px wide and 320px tall based on our layout
+    let popup_width = 220i32
+    let popup_height = 320i32
+    let padding = 15i32  // Padding from screen edges
+
+    // Constrain X position
+    if popup.rect.x + popup_width > .screen_rect.width - padding {
+        popup.rect.x = (.screen_rect.width - popup_width - padding).max(padding)
+    }
+    if popup.rect.x < padding {
+        popup.rect.x = padding
+    }
+
+    // Constrain Y position
+    if popup.rect.y + popup_height > .screen_rect.height - padding {
+        popup.rect.y = (.screen_rect.height - popup_height - padding).max(padding)
+    }
+    if popup.rect.y < padding {
+        popup.rect.y = padding
+    }
+}
+
 def Context::end_popup(&this) {
     .end_window()
 }
@@ -1198,4 +1232,195 @@ def Context::begin_panel(&this, name: str, opt: Opt = 0) {
 def Context::end_panel(&this) {
     .pop_clip_rect()
     .pop_container()
+}
+
+//============================================================================
+// color picker
+//============================================================================
+
+struct HSV {
+    h: f32
+    s: f32
+    v: f32
+}
+
+// Helper function to convert HSV to RGB
+def hsv_to_rgb(h: f32, s: f32, v: f32): Color {
+    let c = v * s
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs())
+    let m = v - c
+
+    let r: f32
+    let g: f32
+    let b: f32
+
+    if h < 60.0 {
+        r = c; g = x; b = 0.0
+    } else if h < 120.0 {
+        r = x; g = c; b = 0.0
+    } else if h < 180.0 {
+        r = 0.0; g = c; b = x
+    } else if h < 240.0 {
+        r = 0.0; g = x; b = c
+    } else if h < 300.0 {
+        r = x; g = 0.0; b = c
+    } else {
+        r = c; g = 0.0; b = x
+    }
+
+    return Color(
+        ((r + m) * 255.0) as u8,
+        ((g + m) * 255.0) as u8,
+        ((b + m) * 255.0) as u8
+    )
+}
+
+// Helper function to convert RGB to HSV
+def rgb_to_hsv(color: Color): HSV {
+    let r = color.r as f32 / 255.0
+    let g = color.g as f32 / 255.0
+    let b = color.b as f32 / 255.0
+
+    let max_val = r.max(g).max(b)
+    let min_val = r.min(g).min(b)
+    let delta = max_val - min_val
+
+    let h: f32 = 0.0
+    let s: f32 = if max_val == 0.0 then 0.0 else delta / max_val
+    let v: f32 = max_val
+
+    if delta != 0.0 {
+        if max_val == r {
+            h = 60.0 * (((g - b) / delta) % 6.0)
+        } else if max_val == g {
+            h = 60.0 * (((b - r) / delta) + 2.0)
+        } else {
+            h = 60.0 * (((r - g) / delta) + 4.0)
+        }
+    }
+
+    if h < 0.0 then h += 360.0
+
+    return HSV(h, s, v)
+}
+
+// Color picker widget
+// Displays a colored square that opens an interactive HSV color picker popup when clicked.
+// The popup includes:
+//   - A 2D saturation-value picker (clickable gradient square)
+//   - Hue slider
+//   - RGB sliders for fine control
+//   - Live color preview
+// Returns Res::Change when the color is modified
+def Context::colorpicker(&this, label: str, color: &Color): Res {
+    let res = 0 as Res
+    let id = .get_id(label, label.len())
+    let r = .layout_next()
+
+    .update_control(id, r, 0)
+
+    // Draw the color preview square
+    .draw_control_frame(id, r, Base, 0)
+    let inner = Rect(r.x + 2, r.y + 2, r.width - 4, r.height - 4)
+    .draw_rect(inner, *color)
+
+    // Open popup on click
+    if .mouse_pressed is Left and .focus == id {
+        let popup_name = .tmp_copy_str(`{label}_picker`)
+        .open_popup(popup_name)
+    }
+
+    // Handle the popup
+    let popup_name = .tmp_copy_str(`{label}_picker`)
+    if .begin_popup(popup_name) as bool {
+        // Constrain popup to stay within screen bounds
+        .constrain_popup_to_screen()
+        
+        // Close popup on Escape key
+        if .key_pressed is Escape {
+            .get_current_container().open = false
+        }
+
+        // Convert current color to HSV for editing
+        let hsv = rgb_to_hsv(*color)
+        let h = hsv.h
+        let s = hsv.s
+        let v = hsv.v
+
+        // Create a 2D saturation-value picker
+        let widths = [200i32]
+        .layout_row(1, &widths[0], 200)
+
+        let sv_rect = .layout_next()
+        let sv_id = .get_id("!sv_picker", 10)
+        .update_control(sv_id, sv_rect, 0)
+
+        // Draw SV gradient square
+        .push_clip_rect(sv_rect)
+        let step = 8i32
+        for let y = 0i; y < sv_rect.height; y += step {
+            for let x = 0i; x < sv_rect.width; x += step {
+                let sat = x as f32 / sv_rect.width as f32
+                let val = 1.0 - (y as f32 / sv_rect.height as f32)
+                let pixel_color = hsv_to_rgb(h, sat, val)
+                let pixel_rect = Rect(sv_rect.x + x, sv_rect.y + y, step, step)
+                .draw_rect(pixel_rect, pixel_color)
+            }
+        }
+
+        // Handle SV picker interaction
+        if .focus == sv_id and .mouse_down is Left {
+            s = ((.mouse_pos.x - sv_rect.x) as f32 / sv_rect.width as f32).clamp(0.0, 1.0)
+            v = (1.0 - (.mouse_pos.y - sv_rect.y) as f32 / sv_rect.height as f32).clamp(0.0, 1.0)
+            *color = hsv_to_rgb(h, s, v)
+            res = res | Change
+        }
+
+        // Draw cursor at current SV position
+        let cursor_x = sv_rect.x + (s * sv_rect.width as f32) as i32
+        let cursor_y = sv_rect.y + ((1.0 - v) * sv_rect.height as f32) as i32
+        let cursor_color = if v > 0.5 then Color(0, 0, 0) else Color(255, 255, 255)
+        .draw_box(Rect(cursor_x - 3, cursor_y - 3, 7, 7), cursor_color)
+        .pop_clip_rect()
+
+        // Hue slider
+        let widths2 = [30i32, -1i32]
+        .layout_row(2, &widths2[0], 0)
+        .label("Hue:")
+        if .slider(&h, 0.0, 360.0, 1.0, "%.0f") is Change {
+            *color = hsv_to_rgb(h, s, v)
+            res = res | Change
+        }
+
+        // RGB sliders
+        .label("Red:")
+        let r_val = color.r as f32
+        if .slider(&r_val, 0.0, 255.0, 1.0, "%.0f") is Change {
+            color.r = r_val as u8
+            res = res | Change
+        }
+
+        .label("Green:")
+        let g_val = color.g as f32
+        if .slider(&g_val, 0.0, 255.0, 1.0, "%.0f") is Change {
+            color.g = g_val as u8
+            res = res | Change
+        }
+
+        .label("Blue:")
+        let b_val = color.b as f32
+        if .slider(&b_val, 0.0, 255.0, 1.0, "%.0f") is Change {
+            color.b = b_val as u8
+            res = res | Change
+        }
+
+
+        .layout_row(1, widths, 0)
+        let preview_rect = .layout_next()
+        .draw_rect(preview_rect, *color)
+
+        .end_popup()
+    }
+
+    return res
 }

@@ -3,6 +3,7 @@ import std::vector::Vector
 import std::math::{ rand01 }
 import std::image::{ Image, Color }
 import std::mem
+import std::og
 
 // Make raytracer go brrr
 @compiler c_flag "-O3"
@@ -140,8 +141,17 @@ struct Camera {
 let WIDTH: u32
 let HEIGHT: u32
 let img: &Vec  // WIDTH*HEIGHT
+
 let out: &Image
+let back: &Image  // Worker thread writes here
+
+[atomic]
 let samples: u32 = 0
+
+[atomic]
+let pending_camera_update: bool = false
+let pending_camera_angle: f32 = 0.0
+
 let objs: $[&Sphere] = null
 let camera: Camera
 
@@ -178,8 +188,17 @@ def Camera::ray(&this, x: u32, y: u32): Ray {
     return ray
 }
 
+import std::libc::unistd
 
 def update() {
+    // Check if camera update is pending and apply it at the start of the update
+    if pending_camera_update {
+        camera = Camera::make(camera.origin, camera.direction)
+        std::libc::memset(img, 0, WIDTH * HEIGHT * sizeof(Vec))
+        samples = 0
+        pending_camera_update = false
+    }
+
     if samples > 100 return
     samples += 1
     for let y = 0; y < HEIGHT; y += 1 {
@@ -191,28 +210,57 @@ def update() {
             let new_color = prev_color.add(color)
             img[y * WIDTH + x] = new_color
 
-            // Save to screen
+            // Write to back buffer
             let r = (new_color.x / samples as f32) * 255.0
             let g = (new_color.y / samples as f32) * 255.0
             let b = (new_color.z / samples as f32) * 255.0
 
-            out.set(x, y, Color(r as u8, g as u8, b as u8))
+            back.set(x, y, Color(r as u8, g as u8, b as u8))
         }
     }
+    let tmp = back
+    back = out
+    out = tmp
 }
 
 def update_dir(val: f32) {
     let angle = std::math::PI * val
-    let direction = Vec(0.0, 0.0, 1.0).rotateY(angle)
-    camera = Camera::make(camera.origin, direction)
-    std::libc::memset(img, 0, WIDTH * HEIGHT * sizeof(Vec))
-    samples = 0
+    camera.direction = Vec(0.0, 0.0, 1.0).rotateY(angle)
+    pending_camera_update = true
 }
+
+def handle_input() {
+    for it in key_ev_callbacks.iter() {
+        if og::is_key_down(it.key) {
+            it.value()
+            pending_camera_update = true
+        }
+    }
+}
+
+let key_ev_callbacks: ${og::Key: @fn()} = null
 
 def init(width: u32, height: u32) {
     WIDTH = width
     HEIGHT = height
     img = mem::alloc<Vec>(width * height)
+
+    key_ev_callbacks = ${
+        W: || => camera.origin = camera.origin + camera.w * -og::get_frame_time(),
+        S: || => camera.origin = camera.origin + camera.w *  og::get_frame_time(),
+        A: || => camera.origin = camera.origin + camera.u *  og::get_frame_time(),
+        D: || => camera.origin = camera.origin + camera.u * -og::get_frame_time(),
+        Z: || => camera.origin = camera.origin + camera.v * -og::get_frame_time(),
+        X: || => camera.origin = camera.origin + camera.v *  og::get_frame_time(),
+        Left: || => camera.direction = camera.direction.rotateY(-og::get_frame_time()),
+        Right: || => camera.direction = camera.direction.rotateY(og::get_frame_time()),
+        Up: || => camera.direction = camera.direction.rotateX(-og::get_frame_time()),
+        Down: || => camera.direction = camera.direction.rotateX(og::get_frame_time()),
+        R: || {
+            camera.origin = Vec(0.0, 0.0, 0.0)
+            camera.direction = Vec(0.0, 0.0, 1.0)
+        }
+    }
 
     objs = $[]
     objs.push(Sphere::new(Diffuse, Vec(0.0,    0.0, 1.0),   0.5, Vec(1.0, 0.6, 0.3), 0.0))
@@ -225,4 +273,5 @@ def init(width: u32, height: u32) {
     camera = Camera::make(origin, direction)
 
     out = Image::new(WIDTH, HEIGHT)
+    back = Image::new(WIDTH, HEIGHT)
 }
