@@ -20,6 +20,9 @@ _Bool (*callback)(void) = NULL;
 void ems_callback() {
     if (callback) callback();
 }
+static _Bool IS_IN_WASM = 1;
+#else
+static _Bool IS_IN_WASM = 0;
 #endif
 
 void c_set_main_loop(_Bool (*func)(void)) {

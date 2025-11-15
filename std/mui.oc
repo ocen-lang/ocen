@@ -214,6 +214,8 @@ struct Context {
 
     // Screen bounds for constraining popups
     screen_rect: Rect
+
+    last_mouseover: bool
 }
 
 def Context::tmp_copy_str(&this, s: str): str {
@@ -712,6 +714,7 @@ def Context::mouse_over(&this, rect: Rect): bool {
 
 def Context::update_control(&this, id: u32, rect: Rect, opt: Opt) {
     let mouseover = .mouse_over(rect)
+    .last_mouseover = mouseover
 
     if .focus == id then .updated_focus = true
     if opt is NoInteract then return
@@ -771,6 +774,11 @@ def Context::text(&this, text: str) {
 
 def Context::label(&this, text: str) {
     .draw_control_text(text, .layout_next(), Text, 0)
+}
+
+def Context::labelf(&this, text: str) {
+    .draw_control_text(.tmp_copy_str(text), .layout_next(), Text, 0)
+    text.free()
 }
 
 def Context::image(&this, label: str, img: &Image) {

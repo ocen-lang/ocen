@@ -17,6 +17,7 @@ struct CodeGenerator {
     out: Buffer
     yield_vars: &Vector<str>
     indent: u32 = 0
+    is_global_scope: bool = true
 }
 
 def CodeGenerator::gen_indent(&this) {
@@ -393,6 +394,7 @@ def CodeGenerator::gen_constants(&this, ns: &Namespace) {
 }
 
 def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
+    .is_global_scope = true
     for node in ns.variables.iter() {
         let var = node.u.var_decl
         if var.sym.is_dead continue
@@ -405,6 +407,7 @@ def CodeGenerator::gen_global_variables(&this, ns: &Namespace) {
     for child in ns.namespaces.iter_values() {
         .gen_global_variables(child)
     }
+    .is_global_scope = false
 }
 
 def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST) {
@@ -589,7 +592,7 @@ def CodeGenerator::gen_call(&this, node: &AST, is_expr: bool) {
 
 
     let ret_is_void = node.etype.base == Void
-    if .o.program.backtrace {
+    if .o.program.backtrace and not .is_global_scope {
         let s = `{callee.resolved_symbol.display} \\t({node.span.start})`
         .out += `(\{_WITH_BT(\"{s}\",`
         if is_expr and not ret_is_void {
@@ -598,7 +601,7 @@ def CodeGenerator::gen_call(&this, node: &AST, is_expr: bool) {
         }
     }
 
-    defer if .o.program.backtrace {
+    defer if .o.program.backtrace and not .is_global_scope {
         .out += ");"
         if is_expr and not ret_is_void {
             .out += " _ret;"

@@ -247,7 +247,6 @@ def min_i32(a: i32, b: i32): i32 => if a < b then a else b
 // Get text height
 def get_text_height(): i32 => 18
 
-// Load atlas texture (placeholder - you'll implement this based on your format)
 def load_atlas_texture(): &Image {
     let img = Image::new(ATLAS_WIDTH as u32, ATLAS_HEIGHT as u32)
     for let x = 0i; x < ATLAS_WIDTH; x++ {

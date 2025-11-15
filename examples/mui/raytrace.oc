@@ -201,6 +201,7 @@ def update() {
 
     if samples > 100 return
     samples += 1
+
     for let y = 0; y < HEIGHT; y += 1 {
         for let x = 0; x < WIDTH; x += 1 {
             let ray = camera.ray(x, y)
@@ -275,3 +276,7 @@ def init(width: u32, height: u32) {
     out = Image::new(WIDTH, HEIGHT)
     back = Image::new(WIDTH, HEIGHT)
 }
+
+// This is a super-ugly hack to allow us to use C-preprocessor macros
+[extern "#pragma omp parallel for schedule(dynamic, 1)"]
+let OMP_PARALLEL_FOR: i32

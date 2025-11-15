@@ -108,6 +108,11 @@ def draw_pixel_v(pos: Vec2i, col: Color) {
 
 def get_frame_time(): f32 => state::frame_time
 
+def get_current_time(): f32 => get_ticks() as f32 / 1000.0
+
+[extern]
+let IS_IN_WASM: bool
+
 def quit() {
     sdl::quit()
 }
