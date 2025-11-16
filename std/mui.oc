@@ -772,12 +772,12 @@ def Context::text(&this, text: str) {
     .layout_end_column()
 }
 
-def Context::label(&this, text: str) {
-    .draw_control_text(text, .layout_next(), Text, 0)
+def Context::label(&this, text: str, opt: Opt = 0) {
+    .draw_control_text(text, .layout_next(), Text, opt)
 }
 
-def Context::labelf(&this, text: str) {
-    .draw_control_text(.tmp_copy_str(text), .layout_next(), Text, 0)
+def Context::labelf(&this, text: str, opt: Opt = 0) {
+    .draw_control_text(.tmp_copy_str(text), .layout_next(), Text, opt)
     text.free()
 }
 
